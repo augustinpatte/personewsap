@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import ProgressIndicator from './ProgressIndicator';
 import SummarySidebar from './SummarySidebar';
 import { useLanguage } from '@/contexts/LanguageContext';
+import BrandHeader from './BrandHeader';
 
 interface WizardLayoutProps {
   children: ReactNode;
@@ -23,6 +24,7 @@ const WizardLayout = ({
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-5xl mx-auto px-4 py-8 md:py-12">
+        <BrandHeader />
         {showProgress && language && (
           <ProgressIndicator currentStep={currentStep} totalSteps={totalSteps} />
         )}

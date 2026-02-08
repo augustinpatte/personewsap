@@ -27,12 +27,10 @@ const LanguageStep = ({ onNext }: LanguageStepProps) => {
       <div className="max-w-md mx-auto animate-fade-in">
         <div className="text-center mb-12">
           <h1 className="font-serif text-3xl md:text-4xl font-semibold text-foreground mb-4">
-            {selected === 'fr' ? 'Choisissez votre langue' : 'Choose your language'}
+            {t('lang.title')}
           </h1>
           <p className="text-muted-foreground">
-            {selected === 'fr' 
-              ? "Cette langue sera utilisée pour toute l'interface" 
-              : 'This language will be used for the entire interface'}
+            {t('lang.subtitle')}
           </p>
         </div>
 
@@ -48,7 +46,7 @@ const LanguageStep = ({ onNext }: LanguageStepProps) => {
             <div className="flex items-center gap-4">
               <span className="text-2xl">🇫🇷</span>
               <div>
-                <div className="font-medium text-foreground">Français</div>
+                <div className="font-medium text-foreground">{t('language.fr')}</div>
                 <div className="text-sm text-muted-foreground">French</div>
               </div>
             </div>
@@ -66,7 +64,7 @@ const LanguageStep = ({ onNext }: LanguageStepProps) => {
               <span className="text-2xl">🇬🇧</span>
               <div>
                 <div className="font-medium text-foreground">English</div>
-                <div className="text-sm text-muted-foreground">Anglais</div>
+                <div className="text-sm text-muted-foreground">{t('language.en')}</div>
               </div>
             </div>
           </button>
@@ -78,7 +76,7 @@ const LanguageStep = ({ onNext }: LanguageStepProps) => {
           className="w-full py-6 text-base font-medium"
           size="lg"
         >
-          {selected === 'fr' ? 'Continuer' : 'Continue'}
+          {t('nav.continue')}
         </Button>
       </div>
     </WizardLayout>

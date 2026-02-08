@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      newsletter_feedback: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          issue_date: string | null
+          message: string | null
+          rating: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          issue_date?: string | null
+          message?: string | null
+          rating: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          issue_date?: string | null
+          message?: string | null
+          rating?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_registrations: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          payload: Json
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          payload: Json
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
       user_topics: {
         Row: {
           articles_count: number
@@ -48,6 +107,7 @@ export type Database = {
       }
       users: {
         Row: {
+          auth_user_id: string | null
           created_at: string
           email: string
           email_opt_in: boolean
@@ -56,9 +116,11 @@ export type Database = {
           language: string
           last_name: string
           phone: string | null
+          verified_at: string | null
           whatsapp_opt_in: boolean
         }
         Insert: {
+          auth_user_id?: string | null
           created_at?: string
           email: string
           email_opt_in?: boolean
@@ -67,9 +129,11 @@ export type Database = {
           language: string
           last_name: string
           phone?: string | null
+          verified_at?: string | null
           whatsapp_opt_in?: boolean
         }
         Update: {
+          auth_user_id?: string | null
           created_at?: string
           email?: string
           email_opt_in?: boolean
@@ -78,6 +142,7 @@ export type Database = {
           language?: string
           last_name?: string
           phone?: string | null
+          verified_at?: string | null
           whatsapp_opt_in?: boolean
         }
         Relationships: []

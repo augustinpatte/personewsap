@@ -9,7 +9,8 @@ export interface UserData {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
+  phoneCountry: string;
+  phoneNumber: string;
   whatsappOptIn: boolean;
   emailOptIn: boolean;
 }
@@ -31,7 +32,8 @@ const defaultUserData: UserData = {
   firstName: '',
   lastName: '',
   email: '',
-  phone: '',
+  phoneCountry: '',
+  phoneNumber: '',
   whatsappOptIn: false,
   emailOptIn: false,
 };

@@ -71,3 +71,45 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Self-hosted setup (without Lovable)
+
+### 1) Install dependencies
+
+```sh
+npm install
+```
+
+### 2) Supabase project
+
+1. Create a Supabase project.
+2. Apply the SQL migrations in `supabase/migrations`.
+3. In Supabase Authentication settings:
+   - Enable email provider.
+   - Set the Site URL to your production domain.
+   - Add `https://<your-domain>/verify` to Redirect URLs.
+
+### 3) Environment variables
+
+Create a `.env` file (or configure your hosting provider) with:
+
+```
+VITE_SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="YOUR_ANON_KEY"
+```
+
+### 4) Run locally
+
+```sh
+npm run dev
+```
+
+### 5) Newsletter feedback links
+
+At the end of each newsletter, include a link like:
+
+```
+https://<your-domain>/feedback?email={{email}}&issue=YYYY-MM-DD&lang=fr
+```
+
+Replace `lang=fr` with `lang=en` as needed.
