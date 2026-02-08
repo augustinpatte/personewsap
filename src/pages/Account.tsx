@@ -253,15 +253,16 @@ const Account = () => {
       .single();
 
     if (userRow?.id) {
+      // Mark as opted-out and clear topics. Keep profile to ensure dispatch skips.
+      await supabase
+        .from('users')
+        .update({ email_opt_in: false })
+        .eq('id', userRow.id);
+
       await supabase
         .from('user_topics')
         .delete()
         .eq('user_id', userRow.id);
-
-      await supabase
-        .from('users')
-        .delete()
-        .eq('id', userRow.id);
     }
 
     setUnsubscribeMessage(t('account.unsubscribe.confirm'));
