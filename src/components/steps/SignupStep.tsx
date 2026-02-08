@@ -113,6 +113,35 @@ const SignupStep = ({ onNext, onBack, totalSteps, currentStep }: SignupStepProps
       const { error: authError } = await signUpWithPassword(pending.user.email, password);
 
       if (authError) {
+        const message = authError.message.toLowerCase();
+        const alreadyRegistered =
+          message.includes('already registered') ||
+          message.includes('user already registered') ||
+          message.includes('already exists');
+        if (alreadyRegistered) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: pending.user.email,
+            password,
+          });
+
+          if (signInError) {
+            setError(`${t('signup.error.generic')} (${signInError.message})`);
+            setIsSubmitting(false);
+            return;
+          }
+
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData.session?.user) {
+            setError(t('signup.error.generic'));
+            setIsSubmitting(false);
+            return;
+          }
+
+          await completeRegistration(pending, sessionData.session.user);
+          onNext();
+          return;
+        }
+
         setError(`${t('signup.error.generic')} (${authError.message})`);
         setIsSubmitting(false);
         return;
