@@ -40,6 +40,25 @@ def decode_jwt_meta(token: str) -> dict:
 
 
 from typing import Optional, Dict, Any
+import re
+
+
+def parse_article_number(value) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        text = str(value)
+    except Exception:
+        return None
+    match = re.search(r"\d+", text)
+    if not match:
+        return None
+    try:
+        return int(match.group(0))
+    except Exception:
+        return None
 
 
 def normalize_article(article: dict, subjects_map: Dict[str, dict]) -> Optional[Dict[str, Any]]:
@@ -64,6 +83,9 @@ def normalize_article(article: dict, subjects_map: Dict[str, dict]) -> Optional[
         "title": title,
         "content": content,
         "sources": sources,
+        "article_number": parse_article_number(
+            article.get("article_number") or article.get("number") or article.get("index")
+        ),
     }
 
 
@@ -95,6 +117,19 @@ def normalize_topic_key(value: str) -> str:
     return value.strip().lower().replace(" ", "_")
 
 
+TOPIC_ALIASES = {
+    "international": "geopolitique",
+    "finance": "marches_finance",
+    "stocks": "marches_finance",
+    "pharma": "sante",
+    "ai": "technologie",
+}
+
+
+def map_topic(topic_key: str) -> str:
+    return TOPIC_ALIASES.get(topic_key, topic_key)
+
+
 def group_articles(articles: list[dict]) -> dict[tuple[str, str], list[dict]]:
     grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for article in articles:
@@ -103,6 +138,8 @@ def group_articles(articles: list[dict]) -> dict[tuple[str, str], list[dict]]:
         if not language or not topic:
             continue
         grouped[(language, topic)].append(article)
+    for key in grouped:
+        grouped[key].sort(key=lambda a: a.get("article_number") or 999)
     return grouped
 
 
@@ -158,6 +195,101 @@ def build_email_body(language: str, selected: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def build_email_html(language: str, selected: list[dict]) -> str:
+    brand = "PersoNewsAP"
+    brand_blue = "#064FAD"
+    menu_title = "Menu du jour" if language == "fr" else "Today's menu"
+    thanks = "Merci pour votre lecture! Bonne journée!" if language == "fr" else "Thanks for reading! Have a great day!"
+    unsubscribe_label = "Se désinscrire" if language == "fr" else "Unsubscribe"
+    unsubscribe_url = "https://personewsap.com/account"
+    logo_url = "https://personewsap.com/logo-white.png"
+
+    grouped = defaultdict(list)
+    for article in selected:
+        grouped[article.get("topic", "autre")].append(article)
+
+    def escape(text: str) -> str:
+        return (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+    menu_lines = []
+    for topic, items in grouped.items():
+        menu_lines.append(f"<div style='margin-bottom:6px;'><strong>{escape(topic)}</strong></div>")
+        for item in items:
+            menu_lines.append(f"<div style='margin-left:12px;'>• {escape(item['title'])}</div>")
+
+    article_blocks = []
+    for idx, article in enumerate(selected, start=1):
+        sources = article.get("sources", [])
+        source_lines = []
+        for source in sources:
+            url = escape(source)
+            source_lines.append(f"<div><a href='{url}' style='color:#1f3e7a;'>{url}</a></div>")
+        sources_html = "".join(source_lines) if source_lines else ""
+        content_html = "<br/>".join(escape(article["content"]).split("\n"))
+        article_blocks.append(
+            f"""
+            <div style="margin-bottom:24px;">
+              <div style="font-weight:700;margin-bottom:6px;">Article {idx}: {escape(article['title'])}</div>
+              <div style="line-height:1.6;">{content_html}</div>
+              <div style="margin-top:8px;font-size:12px;color:#1f3e7a;">Sources :</div>
+              <div style="font-size:12px;line-height:1.5;">{sources_html}</div>
+            </div>
+            """
+        )
+
+    menu_html = "".join(menu_lines)
+    articles_html = "".join(article_blocks)
+
+    return f"""
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0b1a3a;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:{brand_blue};padding:24px 0;font-family:Helvetica,Arial,sans-serif;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+          <tr>
+            <td align="center">
+              <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                <tr>
+                  <td style="padding-right:12px;">
+                    <img src="{logo_url}" alt="{brand}" width="48" height="48" style="display:block;" />
+                  </td>
+                  <td style="font-size:28px;font-weight:800;color:#ffffff;letter-spacing:0.2px;font-family:Georgia,'Times New Roman',serif;">
+                    {brand}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:4px;padding:32px;">
+          <tr>
+            <td>
+              <div style="text-align:center;font-weight:700;margin-bottom:12px;font-family:Georgia,'Times New Roman',serif;font-size:16px;">{menu_title}</div>
+              <div style="text-align:left;font-size:14px;line-height:1.5;">{menu_html}</div>
+              <div style="border-bottom:2px solid {brand_blue};margin:24px 0;"></div>
+              {articles_html}
+              <div style="border-bottom:2px solid {brand_blue};margin:24px 0;"></div>
+              <div style="text-align:center;font-weight:700;font-family:Georgia,'Times New Roman',serif;">{thanks}</div>
+              <div style="text-align:center;margin-top:12px;font-size:12px;">
+                <a href="{unsubscribe_url}" style="color:#1f3e7a;text-decoration:underline;">{unsubscribe_label}</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+
 def load_env_file(path: Path) -> None:
     if not path.exists():
         return
@@ -197,15 +329,29 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
 
     ses = boto3.client("ses", region_name=ses_region)
     sent = 0
+    preview_dir = Path(__file__).with_name("previews")
+    if dry_run:
+        preview_dir.mkdir(exist_ok=True)
 
     for user in subscribers:
         language = user.get("language", "en")
         selections: list[dict] = []
         for topic in user.get("topics", []):
-            key = (language, normalize_topic_key(topic["topic_name"]))
+            raw_key = normalize_topic_key(topic["topic_name"])
+            mapped_key = map_topic(raw_key)
+            key = (language, mapped_key)
             available = grouped.get(key, [])
             count = int(topic.get("articles_count", 1))
-            selections.extend(available[:count])
+            # Prefer articles numbered 1..count when provided
+            numbered = [a for a in available if a.get("article_number") is not None]
+            if numbered:
+                picked = [a for a in numbered if a.get("article_number") <= count]
+                if len(picked) < count:
+                    remaining = [a for a in available if a not in picked]
+                    picked.extend(remaining[: max(0, count - len(picked))])
+                selections.extend(picked[:count])
+            else:
+                selections.extend(available[:count])
 
         if not selections:
             continue
@@ -214,9 +360,13 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
             f"PersoNewsAP · {datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
         )
         body = build_email_body(language, selections)
+        html = build_email_html(language, selections)
 
         if dry_run:
-            print(f"[DRY RUN] Would send to {user['email']} with {len(selections)} articles.")
+            safe_email = user["email"].replace("@", "_at_").replace(".", "_")
+            preview_path = preview_dir / f"{safe_email}.html"
+            preview_path.write_text(html, encoding="utf-8")
+            print(f"[DRY RUN] Would send to {user['email']} with {len(selections)} articles. Preview: {preview_path}")
             continue
 
         ses.send_email(
@@ -224,7 +374,10 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
             Destination={"ToAddresses": [user["email"]]},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
+                "Body": {
+                    "Text": {"Data": body, "Charset": "UTF-8"},
+                    "Html": {"Data": html, "Charset": "UTF-8"},
+                },
             },
         )
         sent += 1
