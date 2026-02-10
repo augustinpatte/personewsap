@@ -1,13 +1,15 @@
+﻿# -*- coding: utf-8 -*-
 import json
 import os
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
-import boto3
 from supabase import create_client
 from pathlib import Path
 import base64
+import urllib.request
+import urllib.error
 
 try:
     from dotenv import load_dotenv
@@ -41,6 +43,7 @@ def decode_jwt_meta(token: str) -> dict:
 
 from typing import Optional, Dict, Any
 import re
+import unicodedata
 
 
 def parse_article_number(value) -> Optional[int]:
@@ -66,7 +69,9 @@ def normalize_article(article: dict, subjects_map: Dict[str, dict]) -> Optional[
     subject_id = article.get("subject_id") or article.get("subject") or article.get("topic")
     topic = normalize_topic_key(str(subject_id)) if subject_id else ""
     if subject_id in subjects_map:
-        topic = normalize_topic_key(subjects_map[subject_id].get(language) or subjects_map[subject_id].get("en") or subject_id)
+        label = subjects_map[subject_id].get(language) or subjects_map[subject_id].get("en") or subject_id
+        mapped = label_to_topic(str(label))
+        topic = mapped or normalize_topic_key(str(label))
 
     title = article.get("title") or article.get("headline") or ""
     content = article.get("content") or article.get("body") or article.get("text") or ""
@@ -117,6 +122,36 @@ def normalize_topic_key(value: str) -> str:
     return value.strip().lower().replace(" ", "_")
 
 
+def slugify_label(value: str) -> str:
+    text = unicodedata.normalize("NFKD", value)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = re.sub(r"[^a-zA-Z0-9]+", "", text).lower()
+    return text
+
+
+LABEL_TO_TOPIC = {
+    "sport": "sport",
+    "sports": "sport",
+    "international": "international",
+    "financeeconomie": "finance",
+    "financeeconomy": "finance",
+    "marcheactions": "stocks",
+    "stockmarket": "stocks",
+    "industrieautomobile": "automotive",
+    "automotiveindustry": "automotive",
+    "industriepharmaceutique": "pharma",
+    "pharmaceuticalindustry": "pharma",
+    "intelligenceartificielle": "ai",
+    "artificialintelligence": "ai",
+    "culture": "culture",
+}
+
+
+def label_to_topic(label: str):
+    key = slugify_label(label)
+    return LABEL_TO_TOPIC.get(key)
+
+
 TOPIC_ALIASES = {
     "international": "geopolitique",
     "finance": "marches_finance",
@@ -141,6 +176,44 @@ def group_articles(articles: list[dict]) -> dict[tuple[str, str], list[dict]]:
     for key in grouped:
         grouped[key].sort(key=lambda a: a.get("article_number") or 999)
     return grouped
+
+
+TOPIC_LABELS = {
+    "fr": {
+        "sport": "Sport",
+        "international": "International",
+        "geopolitique": "International",
+        "finance": "Finance / Économie",
+        "stocks": "Marché actions",
+        "marches_finance": "Finance / Économie",
+        "automotive": "Industrie automobile",
+        "pharma": "Industrie pharmaceutique",
+        "sante": "Industrie pharmaceutique",
+        "ai": "Intelligence artificielle",
+        "technologie": "Intelligence artificielle",
+        "culture": "Culture",
+    },
+    "en": {
+        "sport": "Sports",
+        "international": "International",
+        "geopolitique": "International",
+        "finance": "Finance / Economy",
+        "stocks": "Stock Market",
+        "marches_finance": "Finance / Economy",
+        "automotive": "Automotive industry",
+        "pharma": "Pharmaceutical industry",
+        "sante": "Pharmaceutical industry",
+        "ai": "Artificial Intelligence",
+        "technologie": "Artificial Intelligence",
+        "culture": "Culture",
+    },
+}
+
+
+def display_topic_label(topic_key: str, language: str) -> str:
+    lang = "fr" if language == "fr" else "en"
+    key = normalize_topic_key(topic_key)
+    return TOPIC_LABELS.get(lang, {}).get(key, topic_key)
 
 
 def fetch_subscribers(supabase_url: str, supabase_key: str) -> list[dict]:
@@ -197,7 +270,7 @@ def build_email_body(language: str, selected: list[dict]) -> str:
 
 def build_email_html(language: str, selected: list[dict]) -> str:
     brand = "PersoNewsAP"
-    brand_blue = "#064FAD"
+    brand_blue = "#054EAB"
     menu_title = "Menu du jour" if language == "fr" else "Today's menu"
     thanks = "Merci pour votre lecture! Bonne journée!" if language == "fr" else "Thanks for reading! Have a great day!"
     unsubscribe_label = "Se désinscrire" if language == "fr" else "Unsubscribe"
@@ -215,11 +288,16 @@ def build_email_html(language: str, selected: list[dict]) -> str:
             .replace(">", "&gt;")
         )
 
+    def render_bold(text: str) -> str:
+        escaped = escape(text)
+        return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+
     menu_lines = []
     for topic, items in grouped.items():
-        menu_lines.append(f"<div style='margin-bottom:6px;'><strong>{escape(topic)}</strong></div>")
+        label = display_topic_label(topic, language)
+        menu_lines.append(f"<div style='margin-bottom:6px;'><strong>{escape(label)}</strong></div>")
         for item in items:
-            menu_lines.append(f"<div style='margin-left:12px;'>• {escape(item['title'])}</div>")
+            menu_lines.append(f"<div style='margin-left:12px;'>&bull; {escape(item['title'])}</div>")
 
     article_blocks = []
     for idx, article in enumerate(selected, start=1):
@@ -229,7 +307,7 @@ def build_email_html(language: str, selected: list[dict]) -> str:
             url = escape(source)
             source_lines.append(f"<div><a href='{url}' style='color:#1f3e7a;'>{url}</a></div>")
         sources_html = "".join(source_lines) if source_lines else ""
-        content_html = "<br/>".join(escape(article["content"]).split("\n"))
+        content_html = "<br/>".join(render_bold(article["content"]).split("\n"))
         article_blocks.append(
             f"""
             <div style="margin-bottom:24px;">
@@ -309,8 +387,8 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
     load_env_file(env_path)
     supabase_url = require_env("SUPABASE_URL")
     supabase_key = require_env("SUPABASE_SERVICE_ROLE_KEY")
-    ses_region = require_env("SES_REGION")
-    ses_sender = require_env("SES_SENDER_EMAIL")
+    resend_api_key = require_env("RESEND_API_KEY")
+    resend_sender = require_env("RESEND_FROM")
 
     if dry_run:
         meta = decode_jwt_meta(supabase_key)
@@ -327,7 +405,6 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
         print("No subscribers found.")
         return
 
-    ses = boto3.client("ses", region_name=ses_region)
     sent = 0
     preview_dir = Path(__file__).with_name("previews")
     if dry_run:
@@ -369,17 +446,33 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
             print(f"[DRY RUN] Would send to {user['email']} with {len(selections)} articles. Preview: {preview_path}")
             continue
 
-        ses.send_email(
-            Source=ses_sender,
-            Destination={"ToAddresses": [user["email"]]},
-            Message={
-                "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {
-                    "Text": {"Data": body, "Charset": "UTF-8"},
-                    "Html": {"Data": html, "Charset": "UTF-8"},
-                },
+        payload = {
+            "from": resend_sender,
+            "to": [user["email"]],
+            "subject": subject,
+            "html": html,
+            "text": body,
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=data,
+            headers={
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json",
             },
+            method="POST",
         )
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                resp.read()
+        except urllib.error.HTTPError as exc:
+            details = exc.read().decode("utf-8", errors="replace")
+            print(f"Resend error for {user['email']}: {exc.code} {details}")
+            continue
+        except Exception as exc:
+            print(f"Resend error for {user['email']}: {exc}")
+            continue
         sent += 1
 
     print(f"Sent {sent} emails.")
@@ -397,3 +490,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

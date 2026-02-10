@@ -70,6 +70,24 @@ export const completeRegistration = async (pending: PendingRegistration, authUse
     }
 
     userId = created.id;
+  } else {
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        language: pending.language ?? 'en',
+        first_name: pending.user.firstName.trim(),
+        last_name: pending.user.lastName.trim(),
+        email: pendingEmail,
+        phone: pending.user.phone,
+        whatsapp_opt_in: pending.user.whatsappOptIn,
+        email_opt_in: pending.user.emailOptIn,
+        verified_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      throw updateError;
+    }
   }
 
   const topicRows = pending.topics.map((pref) => ({
