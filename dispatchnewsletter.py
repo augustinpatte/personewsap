@@ -153,16 +153,29 @@ def label_to_topic(label: str):
 
 
 TOPIC_ALIASES = {
-    "international": "geopolitique",
-    "finance": "marches_finance",
-    "stocks": "marches_finance",
-    "pharma": "sante",
-    "ai": "technologie",
+    "international": "international",
+    "geopolitique": "international",
+    "sport": "sport",
+    "sports": "sport",
+    "finance": "finance",
+    "marches_finance": "finance",
+    "marche_actions": "stocks",
+    "stock_market": "stocks",
+    "stocks": "stocks",
+    "automotive": "automotive",
+    "industrie_automobile": "automotive",
+    "pharma": "pharma",
+    "sante": "pharma",
+    "industrie_pharmaceutique": "pharma",
+    "ai": "ai",
+    "technologie": "ai",
+    "culture": "culture",
 }
 
 
 def map_topic(topic_key: str) -> str:
-    return TOPIC_ALIASES.get(topic_key, topic_key)
+    key = normalize_topic_key(topic_key)
+    return TOPIC_ALIASES.get(key, key)
 
 
 def group_articles(articles: list[dict]) -> dict[tuple[str, str], list[dict]]:
@@ -172,7 +185,7 @@ def group_articles(articles: list[dict]) -> dict[tuple[str, str], list[dict]]:
         topic = normalize_topic_key(article.get("topic", ""))
         if not language or not topic:
             continue
-        grouped[(language, topic)].append(article)
+        grouped[(language, map_topic(topic))].append(article)
     for key in grouped:
         grouped[key].sort(key=lambda a: a.get("article_number") or 999)
     return grouped
@@ -409,6 +422,8 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
     preview_dir = Path(__file__).with_name("previews")
     if dry_run:
         preview_dir.mkdir(exist_ok=True)
+        for old_file in preview_dir.glob("*.html"):
+            old_file.unlink()
 
     for user in subscribers:
         language = user.get("language", "en")
