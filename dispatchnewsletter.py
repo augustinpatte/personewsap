@@ -342,8 +342,7 @@ def build_email_html(language: str, selected: list[dict]) -> str:
   <table width="100%" cellpadding="0" cellspacing="0" style="background:{brand_blue};padding:24px 0;font-family:Helvetica,Arial,sans-serif;">
     <tr>
       <td align="center">
-        <div style="max-width:520px;margin:0 auto;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="width:520px;max-width:520px;margin-bottom:20px;">
+        <table align="center" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:520px;margin:0 auto 20px;">
           <tr>
             <td align="center">
               <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
@@ -359,7 +358,7 @@ def build_email_html(language: str, selected: list[dict]) -> str:
             </td>
           </tr>
         </table>
-        <table width="100%" cellpadding="0" cellspacing="0" style="width:520px;max-width:520px;background:#ffffff;border-radius:4px;padding:24px;">
+        <table align="center" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:520px;background:#ffffff;border-radius:4px;padding:24px;margin:0 auto;">
           <tr>
             <td>
               <div style="text-align:center;font-weight:700;margin-bottom:12px;font-family:Georgia,'Times New Roman',serif;font-size:16px;">{menu_title}</div>
@@ -374,7 +373,6 @@ def build_email_html(language: str, selected: list[dict]) -> str:
             </td>
           </tr>
         </table>
-        </div>
       </td>
     </tr>
   </table>
