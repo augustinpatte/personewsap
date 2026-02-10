@@ -395,13 +395,14 @@ def load_env_file(path: Path) -> None:
             os.environ[key] = value
 
 
-def dispatch(articles_path: str, dry_run: bool = False) -> None:
+def dispatch(articles_path: str, dry_run: bool = False, only_email: Optional[str] = None) -> None:
     env_path = Path(__file__).with_name(".env.python")
     load_env_file(env_path)
     supabase_url = require_env("SUPABASE_URL")
     supabase_key = require_env("SUPABASE_SERVICE_ROLE_KEY")
     resend_api_key = require_env("RESEND_API_KEY")
     resend_sender = require_env("RESEND_FROM")
+    resend_debug = os.getenv("RESEND_DEBUG", "").lower() in ("1", "true", "yes")
 
     if dry_run:
         meta = decode_jwt_meta(supabase_key)
@@ -409,6 +410,31 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
         print(f"[DEBUG] KEY_REF={meta.get('ref')} ROLE={meta.get('role')}")
         print(f"[DEBUG] KEY_LEN={len(supabase_key)} DOTS={supabase_key.count('.')}")
         print(f"[DEBUG] KEY_HEAD={supabase_key[:12]} KEY_TAIL={supabase_key[-12:]}")
+    if resend_debug:
+        key_len = len(resend_api_key)
+        key_head = resend_api_key[:6]
+        key_tail = resend_api_key[-4:] if key_len >= 4 else resend_api_key
+        print(f"[DEBUG] RESEND_FROM={resend_sender}")
+        print(f"[DEBUG] RESEND_KEY_LEN={key_len} RESEND_KEY_HEAD={key_head} RESEND_KEY_TAIL={key_tail}")
+        try:
+            preflight = urllib.request.Request(
+                "https://api.resend.com/domains",
+                headers={"Authorization": f"Bearer {resend_api_key}"},
+                method="GET",
+            )
+            with urllib.request.urlopen(preflight, timeout=15) as resp:
+                print(f"[DEBUG] RESEND_PREFLIGHT_STATUS={resp.status}")
+        except urllib.error.HTTPError as exc:
+            details = exc.read().decode("utf-8", errors="replace")
+            # Sending-only keys are expected to fail here; continue to send.
+            if "restricted_api_key" in details:
+                print(f"[DEBUG] RESEND_PREFLIGHT_RESTRICTED={exc.code}")
+            else:
+                print(f"[DEBUG] RESEND_PREFLIGHT_ERROR={exc.code} {details}")
+                return
+        except Exception as exc:
+            print(f"[DEBUG] RESEND_PREFLIGHT_ERROR={exc}")
+            return
 
     articles = load_articles(articles_path)
     grouped = group_articles(articles)
@@ -426,6 +452,8 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
             old_file.unlink()
 
     for user in subscribers:
+        if only_email and user.get("email", "").lower() != only_email.lower():
+            continue
         language = user.get("language", "en")
         selections: list[dict] = []
         for topic in user.get("topics", []):
@@ -495,12 +523,17 @@ def dispatch(articles_path: str, dry_run: bool = False) -> None:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python dispatchnewsletter.py <articles.json> [--dry-run]")
+        print("Usage: python dispatchnewsletter.py <articles.json> [--dry-run] [--only email@example.com]")
         sys.exit(1)
 
     articles_path = sys.argv[1]
     dry_run = "--dry-run" in sys.argv
-    dispatch(articles_path, dry_run=dry_run)
+    only_email = None
+    if "--only" in sys.argv:
+        idx = sys.argv.index("--only")
+        if idx + 1 < len(sys.argv):
+            only_email = sys.argv[idx + 1]
+    dispatch(articles_path, dry_run=dry_run, only_email=only_email)
 
 
 if __name__ == "__main__":
