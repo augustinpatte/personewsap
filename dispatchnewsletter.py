@@ -392,16 +392,22 @@ def load_env_file(path: Path) -> None:
             key, value = line.split("=", 1)
             key = key.strip()
             value = value.strip().strip('"').strip("'")
-            os.environ[key] = value
+            if key not in os.environ or not os.environ.get(key):
+                os.environ[key] = value
 
 
-def dispatch(articles_path: str, dry_run: bool = False, only_email: Optional[str] = None) -> None:
+def dispatch(
+    articles_path: str,
+    dry_run: bool = False,
+    only_email: Optional[str] = None,
+    from_override: Optional[str] = None,
+) -> None:
     env_path = Path(__file__).with_name(".env.python")
     load_env_file(env_path)
     supabase_url = require_env("SUPABASE_URL")
     supabase_key = require_env("SUPABASE_SERVICE_ROLE_KEY")
     resend_api_key = require_env("RESEND_API_KEY")
-    resend_sender = require_env("RESEND_FROM")
+    resend_sender = from_override or require_env("RESEND_FROM")
     resend_debug = os.getenv("RESEND_DEBUG", "").lower() in ("1", "true", "yes")
 
     if dry_run:
@@ -523,17 +529,22 @@ def dispatch(articles_path: str, dry_run: bool = False, only_email: Optional[str
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python dispatchnewsletter.py <articles.json> [--dry-run] [--only email@example.com]")
+        print("Usage: python dispatchnewsletter.py <articles.json> [--dry-run] [--only email@example.com] [--from sender@example.com]")
         sys.exit(1)
 
     articles_path = sys.argv[1]
     dry_run = "--dry-run" in sys.argv
     only_email = None
+    from_override = None
     if "--only" in sys.argv:
         idx = sys.argv.index("--only")
         if idx + 1 < len(sys.argv):
             only_email = sys.argv[idx + 1]
-    dispatch(articles_path, dry_run=dry_run, only_email=only_email)
+    if "--from" in sys.argv:
+        idx = sys.argv.index("--from")
+        if idx + 1 < len(sys.argv):
+            from_override = sys.argv[idx + 1]
+    dispatch(articles_path, dry_run=dry_run, only_email=only_email, from_override=from_override)
 
 
 if __name__ == "__main__":
