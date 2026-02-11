@@ -10,6 +10,7 @@ from pathlib import Path
 import base64
 import urllib.request
 import urllib.error
+import subprocess
 
 try:
     from dotenv import load_dotenv
@@ -396,17 +397,83 @@ def load_env_file(path: Path) -> None:
                 os.environ[key] = value
 
 
+def resend_send(resend_api_key: str, resend_sender: str, to_email: str, subject: str, html: str, text: str) -> bool:
+    payload = {
+        "from": resend_sender,
+        "to": [to_email],
+        "subject": subject,
+        "html": html,
+        "text": text,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=data,
+        headers={
+            "Authorization": f"Bearer {resend_api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "PersoNewsAP-Dispatcher/1.0",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            resp.read()
+        return True
+    except urllib.error.HTTPError as exc:
+        details = exc.read().decode("utf-8", errors="replace")
+        # Some environments hit Cloudflare 1010 with urllib; fallback to PowerShell call.
+        if exc.code == 403 and "1010" in details:
+            if resend_send_powershell(resend_api_key, payload):
+                return True
+        print(f"Resend error for {to_email}: {exc.code} {details}")
+        return False
+    except Exception as exc:
+        print(f"Resend error for {to_email}: {exc}")
+        return False
+
+
+def resend_send_powershell(resend_api_key: str, payload: dict) -> bool:
+    command = (
+        "$headers = @{ Authorization = \"Bearer $env:RESEND_API_KEY\"; \"Content-Type\" = \"application/json\" }; "
+        "$body = $env:RESEND_PAYLOAD_JSON; "
+        "Invoke-RestMethod -Method Post -Uri \"https://api.resend.com/emails\" -Headers $headers -Body $body | Out-Null"
+    )
+    env = os.environ.copy()
+    env["RESEND_API_KEY"] = resend_api_key
+    env["RESEND_PAYLOAD_JSON"] = json.dumps(payload, ensure_ascii=False)
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", command],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return True
+        stderr = (result.stderr or "").strip()
+        if stderr:
+            print(f"Resend PowerShell fallback error: {stderr}")
+        return False
+    except Exception:
+        return False
+
+
 def dispatch(
     articles_path: str,
     dry_run: bool = False,
     only_email: Optional[str] = None,
     from_override: Optional[str] = None,
+    api_key_override: Optional[str] = None,
+    resend_ping: bool = False,
 ) -> None:
     env_path = Path(__file__).with_name(".env.python")
     load_env_file(env_path)
     supabase_url = require_env("SUPABASE_URL")
     supabase_key = require_env("SUPABASE_SERVICE_ROLE_KEY")
-    resend_api_key = require_env("RESEND_API_KEY")
+    resend_api_key = api_key_override or require_env("RESEND_API_KEY")
     resend_sender = from_override or require_env("RESEND_FROM")
     resend_debug = os.getenv("RESEND_DEBUG", "").lower() in ("1", "true", "yes")
 
@@ -422,25 +489,6 @@ def dispatch(
         key_tail = resend_api_key[-4:] if key_len >= 4 else resend_api_key
         print(f"[DEBUG] RESEND_FROM={resend_sender}")
         print(f"[DEBUG] RESEND_KEY_LEN={key_len} RESEND_KEY_HEAD={key_head} RESEND_KEY_TAIL={key_tail}")
-        try:
-            preflight = urllib.request.Request(
-                "https://api.resend.com/domains",
-                headers={"Authorization": f"Bearer {resend_api_key}"},
-                method="GET",
-            )
-            with urllib.request.urlopen(preflight, timeout=15) as resp:
-                print(f"[DEBUG] RESEND_PREFLIGHT_STATUS={resp.status}")
-        except urllib.error.HTTPError as exc:
-            details = exc.read().decode("utf-8", errors="replace")
-            # Sending-only keys are expected to fail here; continue to send.
-            if "restricted_api_key" in details:
-                print(f"[DEBUG] RESEND_PREFLIGHT_RESTRICTED={exc.code}")
-            else:
-                print(f"[DEBUG] RESEND_PREFLIGHT_ERROR={exc.code} {details}")
-                return
-        except Exception as exc:
-            print(f"[DEBUG] RESEND_PREFLIGHT_ERROR={exc}")
-            return
 
     articles = load_articles(articles_path)
     grouped = group_articles(articles)
@@ -456,6 +504,18 @@ def dispatch(
         preview_dir.mkdir(exist_ok=True)
         for old_file in preview_dir.glob("*.html"):
             old_file.unlink()
+
+    if resend_ping:
+        ok = resend_send(
+            resend_api_key,
+            resend_sender,
+            only_email or "augustin.patte@gmail.com",
+            "Resend ping",
+            "<p>Ping</p>",
+            "Ping",
+        )
+        print("Resend ping ok." if ok else "Resend ping failed.")
+        return
 
     for user in subscribers:
         if only_email and user.get("email", "").lower() != only_email.lower():
@@ -495,32 +555,7 @@ def dispatch(
             print(f"[DRY RUN] Would send to {user['email']} with {len(selections)} articles. Preview: {preview_path}")
             continue
 
-        payload = {
-            "from": resend_sender,
-            "to": [user["email"]],
-            "subject": subject,
-            "html": html,
-            "text": body,
-        }
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.resend.com/emails",
-            data=data,
-            headers={
-                "Authorization": f"Bearer {resend_api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                resp.read()
-        except urllib.error.HTTPError as exc:
-            details = exc.read().decode("utf-8", errors="replace")
-            print(f"Resend error for {user['email']}: {exc.code} {details}")
-            continue
-        except Exception as exc:
-            print(f"Resend error for {user['email']}: {exc}")
+        if not resend_send(resend_api_key, resend_sender, user["email"], subject, html, body):
             continue
         sent += 1
 
@@ -529,13 +564,14 @@ def dispatch(
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python dispatchnewsletter.py <articles.json> [--dry-run] [--only email@example.com] [--from sender@example.com]")
+        print("Usage: python dispatchnewsletter.py <articles.json> [--dry-run] [--only email@example.com] [--from sender@example.com] [--api-key re_...] [--resend-ping]")
         sys.exit(1)
 
     articles_path = sys.argv[1]
     dry_run = "--dry-run" in sys.argv
     only_email = None
     from_override = None
+    api_key_override = None
     if "--only" in sys.argv:
         idx = sys.argv.index("--only")
         if idx + 1 < len(sys.argv):
@@ -544,7 +580,19 @@ def main() -> None:
         idx = sys.argv.index("--from")
         if idx + 1 < len(sys.argv):
             from_override = sys.argv[idx + 1]
-    dispatch(articles_path, dry_run=dry_run, only_email=only_email, from_override=from_override)
+    if "--api-key" in sys.argv:
+        idx = sys.argv.index("--api-key")
+        if idx + 1 < len(sys.argv):
+            api_key_override = sys.argv[idx + 1]
+    resend_ping = "--resend-ping" in sys.argv
+    dispatch(
+        articles_path,
+        dry_run=dry_run,
+        only_email=only_email,
+        from_override=from_override,
+        api_key_override=api_key_override,
+        resend_ping=resend_ping,
+    )
 
 
 if __name__ == "__main__":
