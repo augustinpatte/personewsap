@@ -109,12 +109,27 @@ const SignupStep = ({ onNext, onVerify, onBack, totalSteps, currentStep }: Signu
       createdAt: new Date().toISOString(),
     };
 
+    const isEmailNotConfirmed = (message: string) => {
+      const normalized = message.toLowerCase();
+      return (
+        normalized.includes('email not confirmed') ||
+        (normalized.includes('not confirmed') && normalized.includes('email')) ||
+        normalized.includes('email_not_confirmed') ||
+        normalized.includes('confirm your email')
+      );
+    };
+
     try {
       clearPendingRegistration();
       const { data: signUpData, error: authError } = await signUpWithPassword(pending.user.email, password);
 
       if (authError) {
         const message = authError.message.toLowerCase();
+        if (isEmailNotConfirmed(message)) {
+          savePendingRegistration(pending);
+          onVerify();
+          return;
+        }
         const alreadyRegistered =
           message.includes('already registered') ||
           message.includes('user already registered') ||
@@ -127,7 +142,7 @@ const SignupStep = ({ onNext, onVerify, onBack, totalSteps, currentStep }: Signu
 
           if (signInError) {
             const signInMessage = signInError.message.toLowerCase();
-            const notConfirmed = signInMessage.includes('email not confirmed');
+            const notConfirmed = isEmailNotConfirmed(signInMessage);
             if (notConfirmed) {
               savePendingRegistration(pending);
               onVerify();
