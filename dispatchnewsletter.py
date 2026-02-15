@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import json
 import os
 import sys
@@ -11,6 +11,8 @@ import base64
 import urllib.request
 import urllib.error
 import subprocess
+import time
+import csv
 
 try:
     from dotenv import load_dotenv
@@ -288,7 +290,9 @@ def build_email_html(language: str, selected: list[dict]) -> str:
     menu_title = "Menu du jour" if language == "fr" else "Today's menu"
     thanks = "Merci pour votre lecture! Bonne journée!" if language == "fr" else "Thanks for reading! Have a great day!"
     unsubscribe_label = "Se désinscrire" if language == "fr" else "Unsubscribe"
+    preferences_label = "Changer ma sélection" if language == "fr" else "Change my selection"
     unsubscribe_url = "https://personewsap.com/account"
+    preferences_url = "https://personewsap.com/account"
     logo_url = "https://personewsap.com/logo-white.png"
 
     grouped = defaultdict(list)
@@ -313,25 +317,37 @@ def build_email_html(language: str, selected: list[dict]) -> str:
         for item in items:
             menu_lines.append(f"<div style='margin-left:12px;'>&bull; {escape(item['title'])}</div>")
 
+    topic_sections = defaultdict(list)
+    for article in selected:
+        topic_sections[article.get("topic", "autre")].append(article)
+
     article_blocks = []
-    for idx, article in enumerate(selected, start=1):
-        sources = article.get("sources", [])
-        source_lines = []
-        for source in sources:
-            url = escape(source)
-            source_lines.append(f"<div><a href='{url}' style='color:#1f3e7a;'>{url}</a></div>")
-        sources_html = "".join(source_lines) if source_lines else ""
-        content_html = "<br/>".join(render_bold(article["content"]).split("\n"))
+    for topic, items in topic_sections.items():
+        topic_label = display_topic_label(topic, language)
         article_blocks.append(
             f"""
-            <div style="margin-bottom:24px;">
-              <div style="font-weight:700;margin-bottom:6px;">Article {idx}: {escape(article['title'])}</div>
-              <div style="line-height:1.6;">{content_html}</div>
-              <div style="margin-top:8px;font-size:12px;color:#1f3e7a;">Sources :</div>
-              <div style="font-size:12px;line-height:1.5;">{sources_html}</div>
-            </div>
+            <div style="border-bottom:2px solid {brand_blue};margin:24px 0;"></div>
+            <div style="font-weight:700;font-size:20px;margin:0 0 14px 0;font-family:Georgia,'Times New Roman',serif;">{escape(topic_label)}</div>
             """
         )
+        for article in items:
+            sources = article.get("sources", [])
+            source_lines = []
+            for source in sources:
+                url = escape(source)
+                source_lines.append(f"<div><a href='{url}' style='color:#1f3e7a;'>{url}</a></div>")
+            sources_html = "".join(source_lines) if source_lines else ""
+            content_html = "<br/>".join(render_bold(article["content"]).split("\n"))
+            article_blocks.append(
+                f"""
+                <div style="margin-bottom:24px;">
+                  <div style="font-weight:700;margin-bottom:6px;">{escape(article['title'])}</div>
+                  <div style="line-height:1.6;">{content_html}</div>
+                  <div style="margin-top:8px;font-size:12px;color:#1f3e7a;">Sources :</div>
+                  <div style="font-size:12px;line-height:1.5;">{sources_html}</div>
+                </div>
+                """
+            )
 
     menu_html = "".join(menu_lines)
     articles_html = "".join(article_blocks)
@@ -339,8 +355,30 @@ def build_email_html(language: str, selected: list[dict]) -> str:
     return f"""
 <!DOCTYPE html>
 <html>
-<body style="margin:0;padding:0;background:#0b1a3a;font-family:Arial,Helvetica,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:{brand_blue};padding:24px 0;font-family:Helvetica,Arial,sans-serif;">
+<head>
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {{
+      color-scheme: light only !important;
+      supported-color-schemes: light !important;
+    }}
+    body, table, td, div, p, a {{
+      -webkit-text-size-adjust: 100%;
+    }}
+    .brand-bg {{
+      background: {brand_blue} !important;
+      background-image: linear-gradient({brand_blue}, {brand_blue}) !important;
+    }}
+    [data-ogsc] .brand-bg {{
+      background: {brand_blue} !important;
+      background-image: linear-gradient({brand_blue}, {brand_blue}) !important;
+    }}
+  </style>
+</head>
+<body class="brand-bg" style="margin:0;padding:0;background:{brand_blue};background-image:linear-gradient({brand_blue},{brand_blue});font-family:Arial,Helvetica,sans-serif;">
+  <table class="brand-bg" width="100%" cellpadding="0" cellspacing="0" style="background:{brand_blue};background-image:linear-gradient({brand_blue},{brand_blue});padding:24px 0;font-family:Helvetica,Arial,sans-serif;" bgcolor="{brand_blue}">
     <tr>
       <td align="center">
         <table align="center" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:520px;margin:0 auto 20px;">
@@ -364,11 +402,12 @@ def build_email_html(language: str, selected: list[dict]) -> str:
             <td>
               <div style="text-align:center;font-weight:700;margin-bottom:12px;font-family:Georgia,'Times New Roman',serif;font-size:16px;">{menu_title}</div>
               <div style="text-align:left;font-size:14px;line-height:1.5;">{menu_html}</div>
-              <div style="border-bottom:2px solid {brand_blue};margin:24px 0;"></div>
               {articles_html}
               <div style="border-bottom:2px solid {brand_blue};margin:24px 0;"></div>
               <div style="text-align:center;font-weight:700;font-family:Georgia,'Times New Roman',serif;">{thanks}</div>
               <div style="text-align:center;margin-top:12px;font-size:12px;">
+                <a href="{preferences_url}" style="color:#1f3e7a;text-decoration:underline;">{preferences_label}</a>
+                <span style="color:#9aa3b2;padding:0 8px;">|</span>
                 <a href="{unsubscribe_url}" style="color:#1f3e7a;text-decoration:underline;">{unsubscribe_label}</a>
               </div>
             </td>
@@ -397,7 +436,14 @@ def load_env_file(path: Path) -> None:
                 os.environ[key] = value
 
 
-def resend_send(resend_api_key: str, resend_sender: str, to_email: str, subject: str, html: str, text: str) -> bool:
+def resend_send(
+    resend_api_key: str,
+    resend_sender: str,
+    to_email: str,
+    subject: str,
+    html: str,
+    text: str,
+) -> tuple[bool, str]:
     payload = {
         "from": resend_sender,
         "to": [to_email],
@@ -420,21 +466,27 @@ def resend_send(resend_api_key: str, resend_sender: str, to_email: str, subject:
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             resp.read()
-        return True
+        return True, ""
     except urllib.error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
         # Some environments hit Cloudflare 1010 with urllib; fallback to PowerShell call.
         if exc.code == 403 and "1010" in details:
-            if resend_send_powershell(resend_api_key, payload):
-                return True
-        print(f"Resend error for {to_email}: {exc.code} {details}")
-        return False
+            ok, fallback_error = resend_send_powershell(resend_api_key, payload)
+            if ok:
+                return True, ""
+            message = f"{exc.code} {details} | fallback={fallback_error}"
+            print(f"Resend error for {to_email}: {message}")
+            return False, message
+        message = f"{exc.code} {details}"
+        print(f"Resend error for {to_email}: {message}")
+        return False, message
     except Exception as exc:
-        print(f"Resend error for {to_email}: {exc}")
-        return False
+        message = str(exc)
+        print(f"Resend error for {to_email}: {message}")
+        return False, message
 
 
-def resend_send_powershell(resend_api_key: str, payload: dict) -> bool:
+def resend_send_powershell(resend_api_key: str, payload: dict) -> tuple[bool, str]:
     command = (
         "$headers = @{ Authorization = \"Bearer $env:RESEND_API_KEY\"; \"Content-Type\" = \"application/json\" }; "
         "$body = $env:RESEND_PAYLOAD_JSON; "
@@ -452,13 +504,53 @@ def resend_send_powershell(resend_api_key: str, payload: dict) -> bool:
             timeout=30,
         )
         if result.returncode == 0:
-            return True
+            return True, ""
         stderr = (result.stderr or "").strip()
         if stderr:
             print(f"Resend PowerShell fallback error: {stderr}")
-        return False
-    except Exception:
-        return False
+            return False, stderr
+        stdout = (result.stdout or "").strip()
+        return False, stdout or "unknown_powershell_error"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def get_default_log_path() -> Path:
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return Path(__file__).with_name("send_logs") / f"newsletter_send_{ts}.csv"
+
+
+def append_send_log(log_path: Path, row: dict) -> None:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    file_exists = log_path.exists()
+    with log_path.open("a", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "timestamp_utc",
+                "email",
+                "status",
+                "attempts",
+                "language",
+                "articles_count",
+                "error",
+            ],
+        )
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+def load_failed_emails(log_path: Path) -> set[str]:
+    failed: set[str] = set()
+    if not log_path.exists():
+        return failed
+    with log_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            if (row.get("status") or "").strip() == "failed":
+                failed.add((row.get("email") or "").strip().lower())
+    return failed
 
 
 def dispatch(
@@ -468,6 +560,11 @@ def dispatch(
     from_override: Optional[str] = None,
     api_key_override: Optional[str] = None,
     resend_ping: bool = False,
+    max_retries: int = 2,
+    retry_delay_ms: int = 1000,
+    send_delay_ms: int = 200,
+    log_file: Optional[str] = None,
+    resume_failed: bool = False,
 ) -> None:
     env_path = Path(__file__).with_name(".env.python")
     load_env_file(env_path)
@@ -490,6 +587,11 @@ def dispatch(
         print(f"[DEBUG] RESEND_FROM={resend_sender}")
         print(f"[DEBUG] RESEND_KEY_LEN={key_len} RESEND_KEY_HEAD={key_head} RESEND_KEY_TAIL={key_tail}")
 
+    log_path = Path(log_file) if log_file else get_default_log_path()
+    resume_targets = load_failed_emails(log_path) if resume_failed else set()
+    if resume_failed:
+        print(f"[INFO] Resume mode: {len(resume_targets)} failed emails loaded from {log_path}")
+
     articles = load_articles(articles_path)
     grouped = group_articles(articles)
     subscribers = fetch_subscribers(supabase_url, supabase_key)
@@ -506,7 +608,7 @@ def dispatch(
             old_file.unlink()
 
     if resend_ping:
-        ok = resend_send(
+        ok, error = resend_send(
             resend_api_key,
             resend_sender,
             only_email or "augustin.patte@gmail.com",
@@ -514,11 +616,15 @@ def dispatch(
             "<p>Ping</p>",
             "Ping",
         )
-        print("Resend ping ok." if ok else "Resend ping failed.")
+        print("Resend ping ok." if ok else f"Resend ping failed: {error}")
         return
 
+    failed = 0
     for user in subscribers:
-        if only_email and user.get("email", "").lower() != only_email.lower():
+        email = (user.get("email") or "").lower()
+        if only_email and email != only_email.lower():
+            continue
+        if resume_failed and email not in resume_targets:
             continue
         language = user.get("language", "en")
         selections: list[dict] = []
@@ -540,6 +646,18 @@ def dispatch(
                 selections.extend(available[:count])
 
         if not selections:
+            append_send_log(
+                log_path,
+                {
+                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "email": email,
+                    "status": "skipped_no_articles",
+                    "attempts": 0,
+                    "language": language,
+                    "articles_count": 0,
+                    "error": "",
+                },
+            )
             continue
 
         subject = (
@@ -549,22 +667,80 @@ def dispatch(
         html = build_email_html(language, selections)
 
         if dry_run:
-            safe_email = user["email"].replace("@", "_at_").replace(".", "_")
+            safe_email = email.replace("@", "_at_").replace(".", "_")
             preview_path = preview_dir / f"{safe_email}.html"
             preview_path.write_text(html, encoding="utf-8")
-            print(f"[DRY RUN] Would send to {user['email']} with {len(selections)} articles. Preview: {preview_path}")
+            print(f"[DRY RUN] Would send to {email} with {len(selections)} articles. Preview: {preview_path}")
+            append_send_log(
+                log_path,
+                {
+                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "email": email,
+                    "status": "dry_run",
+                    "attempts": 0,
+                    "language": language,
+                    "articles_count": len(selections),
+                    "error": "",
+                },
+            )
             continue
 
-        if not resend_send(resend_api_key, resend_sender, user["email"], subject, html, body):
-            continue
-        sent += 1
+        sent_ok = False
+        error_message = ""
+        attempts_used = 0
+        for attempt in range(max_retries + 1):
+            attempts_used = attempt + 1
+            ok, error = resend_send(resend_api_key, resend_sender, email, subject, html, body)
+            if ok:
+                sent_ok = True
+                break
+            error_message = error
+            if attempt < max_retries:
+                sleep_ms = retry_delay_ms * (2 ** attempt)
+                time.sleep(sleep_ms / 1000.0)
 
-    print(f"Sent {sent} emails.")
+        if sent_ok:
+            sent += 1
+            append_send_log(
+                log_path,
+                {
+                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "email": email,
+                    "status": "sent",
+                    "attempts": attempts_used,
+                    "language": language,
+                    "articles_count": len(selections),
+                    "error": "",
+                },
+            )
+        else:
+            failed += 1
+            append_send_log(
+                log_path,
+                {
+                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "email": email,
+                    "status": "failed",
+                    "attempts": attempts_used,
+                    "language": language,
+                    "articles_count": len(selections),
+                    "error": error_message,
+                },
+            )
+
+        if send_delay_ms > 0:
+            time.sleep(send_delay_ms / 1000.0)
+
+    print(f"Sent {sent} emails. Failed {failed}. Log: {log_path}")
 
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python dispatchnewsletter.py <articles.json> [--dry-run] [--only email@example.com] [--from sender@example.com] [--api-key re_...] [--resend-ping]")
+        print(
+            "Usage: python dispatchnewsletter.py <articles.json> [--dry-run] [--only email@example.com] "
+            "[--from sender@example.com] [--api-key re_...] [--resend-ping] "
+            "[--retry N] [--retry-delay-ms N] [--send-delay-ms N] [--log-file path] [--resume-failed]"
+        )
         sys.exit(1)
 
     articles_path = sys.argv[1]
@@ -572,6 +748,10 @@ def main() -> None:
     only_email = None
     from_override = None
     api_key_override = None
+    max_retries = 2
+    retry_delay_ms = 1000
+    send_delay_ms = 200
+    log_file = None
     if "--only" in sys.argv:
         idx = sys.argv.index("--only")
         if idx + 1 < len(sys.argv):
@@ -585,6 +765,23 @@ def main() -> None:
         if idx + 1 < len(sys.argv):
             api_key_override = sys.argv[idx + 1]
     resend_ping = "--resend-ping" in sys.argv
+    if "--retry" in sys.argv:
+        idx = sys.argv.index("--retry")
+        if idx + 1 < len(sys.argv):
+            max_retries = int(sys.argv[idx + 1])
+    if "--retry-delay-ms" in sys.argv:
+        idx = sys.argv.index("--retry-delay-ms")
+        if idx + 1 < len(sys.argv):
+            retry_delay_ms = int(sys.argv[idx + 1])
+    if "--send-delay-ms" in sys.argv:
+        idx = sys.argv.index("--send-delay-ms")
+        if idx + 1 < len(sys.argv):
+            send_delay_ms = int(sys.argv[idx + 1])
+    if "--log-file" in sys.argv:
+        idx = sys.argv.index("--log-file")
+        if idx + 1 < len(sys.argv):
+            log_file = sys.argv[idx + 1]
+    resume_failed = "--resume-failed" in sys.argv
     dispatch(
         articles_path,
         dry_run=dry_run,
@@ -592,6 +789,11 @@ def main() -> None:
         from_override=from_override,
         api_key_override=api_key_override,
         resend_ping=resend_ping,
+        max_retries=max_retries,
+        retry_delay_ms=retry_delay_ms,
+        send_delay_ms=send_delay_ms,
+        log_file=log_file,
+        resume_failed=resume_failed,
     )
 
 
