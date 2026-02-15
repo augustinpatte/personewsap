@@ -15,12 +15,13 @@ import { z } from 'zod';
 
 interface SignupStepProps {
   onNext: () => void;
+  onVerify: () => void;
   onBack: () => void;
   totalSteps: number;
   currentStep: number;
 }
 
-const SignupStep = ({ onNext, onBack, totalSteps, currentStep }: SignupStepProps) => {
+const SignupStep = ({ onNext, onVerify, onBack, totalSteps, currentStep }: SignupStepProps) => {
   const { language, t } = useLanguage();
   const { userData, setUserData, topicPreferences } = useWizard();
 
@@ -110,7 +111,7 @@ const SignupStep = ({ onNext, onBack, totalSteps, currentStep }: SignupStepProps
 
     try {
       clearPendingRegistration();
-      const { error: authError } = await signUpWithPassword(pending.user.email, password);
+      const { data: signUpData, error: authError } = await signUpWithPassword(pending.user.email, password);
 
       if (authError) {
         const message = authError.message.toLowerCase();
@@ -125,6 +126,13 @@ const SignupStep = ({ onNext, onBack, totalSteps, currentStep }: SignupStepProps
           });
 
           if (signInError) {
+            const signInMessage = signInError.message.toLowerCase();
+            const notConfirmed = signInMessage.includes('email not confirmed');
+            if (notConfirmed) {
+              savePendingRegistration(pending);
+              onVerify();
+              return;
+            }
             setError(`${t('signup.error.generic')} (${signInError.message})`);
             setIsSubmitting(false);
             return;
@@ -147,25 +155,13 @@ const SignupStep = ({ onNext, onBack, totalSteps, currentStep }: SignupStepProps
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: pending.user.email,
-        password,
-      });
-
-      if (signInError) {
-        setError(`${t('signup.error.generic')} (${signInError.message})`);
-        setIsSubmitting(false);
+      if (!signUpData?.session?.user) {
+        savePendingRegistration(pending);
+        onVerify();
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session?.user) {
-        setError(t('signup.error.generic'));
-        setIsSubmitting(false);
-        return;
-      }
-
-      await completeRegistration(pending, sessionData.session.user);
+      await completeRegistration(pending, signUpData.session.user);
       onNext();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('signup.error.generic'));

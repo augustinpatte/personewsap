@@ -6,23 +6,25 @@ import LanguageStep from '@/components/steps/LanguageStep';
 import TopicsStep from '@/components/steps/TopicsStep';
 import ArticlesStep from '@/components/steps/ArticlesStep';
 import SignupStep from '@/components/steps/SignupStep';
+import VerificationStep from '@/components/steps/VerificationStep';
 import ConfirmationStep from '@/components/steps/ConfirmationStep';
 
-type WizardStep = 'entry' | 'language' | 'topics' | 'articles' | 'signup' | 'confirmation';
+type WizardStep = 'entry' | 'language' | 'topics' | 'articles' | 'signup' | 'verify' | 'confirmation';
 
 const Index = () => {
   const { setLanguage } = useLanguage();
   const { selectedTopics, resetWizard } = useWizard();
   const [currentStep, setCurrentStep] = useState<WizardStep>('entry');
   const [articlesPageIndex, setArticlesPageIndex] = useState(0);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
 
   const totalArticlePages = useMemo(() => {
     return Math.ceil(selectedTopics.length / 2);
   }, [selectedTopics]);
 
   const totalSteps = useMemo(() => {
-    return 3 + totalArticlePages + 1; // entry(1) + language(1) + topics(1) + articles(N) + signup(1) + confirmation(1)
-  }, [totalArticlePages]);
+    return 3 + totalArticlePages + 1 + (needsEmailVerification ? 1 : 0);
+  }, [totalArticlePages, needsEmailVerification]);
 
   const getCurrentStepNumber = (): number => {
     switch (currentStep) {
@@ -31,6 +33,7 @@ const Index = () => {
       case 'topics': return 3;
       case 'articles': return 4 + articlesPageIndex;
       case 'signup': return 3 + totalArticlePages + 1;
+      case 'verify': return totalSteps - 1;
       case 'confirmation': return totalSteps;
       default: return 1;
     }
@@ -74,7 +77,13 @@ const Index = () => {
   };
 
   const handleSignupNext = () => {
+    setNeedsEmailVerification(false);
     setCurrentStep('confirmation');
+  };
+
+  const handleSignupVerify = () => {
+    setNeedsEmailVerification(true);
+    setCurrentStep('verify');
   };
 
   const handleSignupBack = () => {
@@ -87,6 +96,7 @@ const Index = () => {
     setLanguage(null);
     setCurrentStep('entry');
     setArticlesPageIndex(0);
+    setNeedsEmailVerification(false);
   };
 
   const renderStep = () => {
@@ -117,6 +127,16 @@ const Index = () => {
       case 'signup':
         return (
           <SignupStep
+            onNext={handleSignupNext}
+            onVerify={handleSignupVerify}
+            onBack={handleSignupBack}
+            totalSteps={totalSteps}
+            currentStep={getCurrentStepNumber()}
+          />
+        );
+      case 'verify':
+        return (
+          <VerificationStep
             onNext={handleSignupNext}
             onBack={handleSignupBack}
             totalSteps={totalSteps}

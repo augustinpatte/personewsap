@@ -94,6 +94,10 @@ const translations: Record<string, Record<string, string>> = {
     fr: "Cliquez sur le lien reçu par email, puis revenez ici pour terminer.",
     en: 'Open the email link, then come back here to finish.'
   },
+  'verify.spam_notice': {
+    fr: "Votre première newsletter peut arriver dans vos spams. Pensez à les vérifier.",
+    en: 'Your first newsletter may land in spam. Please check it.'
+  },
 
   // Login
   'login.title': { fr: 'Connexion', en: 'Login' },
@@ -147,6 +151,10 @@ const translations: Record<string, Record<string, string>> = {
   'confirm.whatsapp.yes': { fr: 'Oui', en: 'Yes' },
   'confirm.whatsapp.no': { fr: 'Non', en: 'No' },
   'confirm.edit': { fr: 'Modifier mes préférences', en: 'Edit my preferences' },
+  'confirm.spam_notice': {
+    fr: "Votre première newsletter peut arriver dans vos spams. Pensez à les vérifier.",
+    en: 'Your first newsletter may land in spam. Please check it.'
+  },
 
   // Progress
   'progress.step': { fr: 'Étape', en: 'Step' },

@@ -11,7 +11,7 @@ const Verify = () => {
   const { setLanguage, t } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'pending' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [debug, setDebug] = useState<string | null>(null);
   const [summary, setSummary] = useState<{
@@ -30,20 +30,23 @@ const Verify = () => {
   useEffect(() => {
     const run = async () => {
       setStatus('loading');
-      const { data } = await supabase.auth.getSession();
-      if (!data.session?.user) {
-        setStatus('error');
-        setError(t('verify.no_session'));
-        setDebug('No session found after email link. The link may have been opened in a different browser/profile.');
-        return;
-      }
-
       try {
         const pending = loadPendingRegistration();
         if (!pending) {
           setStatus('error');
           setError(t('verify.missing'));
           setDebug('No pending registration found for this email.');
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (!data.session?.user) {
+          setSummary({
+            email: pending.user.email,
+            topics: pending.topics,
+            language: pending.language,
+          });
+          setStatus('pending');
           return;
         }
 
@@ -83,6 +86,27 @@ const Verify = () => {
           </div>
         )}
 
+        {status === 'pending' && (
+          <div className="space-y-4">
+            <div className="p-6 bg-card border border-border rounded-lg">
+              <p className="text-sm text-muted-foreground">{t('verify.no_session')}</p>
+              <p className="text-sm text-muted-foreground mt-3">{t('verify.spam_notice')}</p>
+            </div>
+            {summary?.email && (
+              <div className="p-6 bg-card border border-border rounded-lg">
+                <div className="text-sm text-muted-foreground mb-2">{t('confirm.summary')}</div>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">{t('confirm.email')}: </span>
+                  <span className="font-medium text-foreground">{summary.email}</span>
+                </div>
+              </div>
+            )}
+            <Button onClick={() => navigate('/')} className="w-full py-6">
+              {t('confirm.edit')}
+            </Button>
+          </div>
+        )}
+
         {status === 'error' && (
           <div className="p-6 bg-destructive/10 border border-destructive/20 rounded-lg space-y-3">
             <p className="text-destructive text-sm">{error}</p>
@@ -96,6 +120,7 @@ const Verify = () => {
           <div className="space-y-6">
             <div className="p-6 bg-card border border-border rounded-lg">
               <p className="text-lg font-medium">{t('verify.completed')}</p>
+              <p className="text-sm text-muted-foreground mt-2">{t('verify.spam_notice')}</p>
             </div>
 
             {summary && (

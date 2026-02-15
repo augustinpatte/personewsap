@@ -39,6 +39,9 @@ const ConfirmationStep = ({ onEdit, totalSteps }: ConfirmationStepProps) => {
           <p className="text-muted-foreground">
             {t('confirm.thanks')}
           </p>
+          <p className="text-sm text-muted-foreground mt-3">
+            {t('confirm.spam_notice')}
+          </p>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-6 mb-8">

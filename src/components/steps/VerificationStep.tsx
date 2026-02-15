@@ -79,6 +79,9 @@ const VerificationStep = ({ onNext, onBack, totalSteps, currentStep }: Verificat
         <p className="text-muted-foreground mb-6">
           {t('verify.subtitle')}
         </p>
+        <p className="text-sm text-muted-foreground mb-6">
+          {t('verify.spam_notice')}
+        </p>
 
         {pending?.user?.email && (
           <div className="mb-6 text-sm text-foreground">
