@@ -1,11 +1,5 @@
-import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+import { AuthFormScreen } from "../../src/features/auth";
 
 export default function LoginScreen() {
-  return (
-    <PlaceholderScreen
-      eyebrow="Auth"
-      title="Login"
-      description="Placeholder for Supabase email login. Full auth logic comes after the mobile foundation is stable."
-    />
-  );
+  return <AuthFormScreen mode="login" />;
 }

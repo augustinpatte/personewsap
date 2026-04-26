@@ -1,11 +1,5 @@
-import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+import { AuthFormScreen } from "../../src/features/auth";
 
 export default function SignupScreen() {
-  return (
-    <PlaceholderScreen
-      eyebrow="Auth"
-      title="Create account"
-      description="Placeholder for mobile signup. This will later create the auth user and mobile profile."
-    />
-  );
+  return <AuthFormScreen mode="signup" />;
 }

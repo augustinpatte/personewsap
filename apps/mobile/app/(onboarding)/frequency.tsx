@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Alert } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -5,28 +6,38 @@ import {
   FREQUENCY_OPTIONS,
   OnboardingScaffold,
   SelectableCard,
+  saveOnboardingPreferences,
   useOnboarding
 } from "../../src/features/onboarding";
 
 export default function FrequencyScreen() {
   const router = useRouter();
-  const { savePlaceholder, setFrequency, state } = useOnboarding();
+  const { setFrequency, state } = useOnboarding();
+  const [saving, setSaving] = useState(false);
 
-  const saveLocalPlaceholder = () => {
-    savePlaceholder();
-    Alert.alert(
-      "Preferences saved locally",
-      "This is a placeholder save. Supabase persistence will be wired in a later step."
-    );
+  const savePreferences = async () => {
+    setSaving(true);
+
+    const result = await saveOnboardingPreferences(state);
+
+    setSaving(false);
+
+    if (!result.ok) {
+      Alert.alert("Could not save preferences", result.error.message);
+      return;
+    }
+
     router.replace("/(tabs)/today");
   };
 
   return (
     <OnboardingScaffold
       description="PersoNewsAP is built around one focused update. Daily is the launch cadence."
-      footerNote="No Supabase write yet. This save is local-only."
-      primaryLabel="Save preferences"
-      onPrimaryPress={saveLocalPlaceholder}
+      footerNote="Preferences are saved to your PersoNewsAP account."
+      primaryDisabled={saving}
+      primaryLabel={saving ? "Saving..." : "Save preferences"}
+      primaryLoading={saving}
+      onPrimaryPress={savePreferences}
       secondaryLabel="Back"
       onSecondaryPress={() => router.back()}
       step={5}

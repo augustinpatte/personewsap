@@ -18,6 +18,7 @@ type OnboardingScaffoldProps = PropsWithChildren<{
   primaryLabel: string;
   onPrimaryPress: () => void;
   primaryDisabled?: boolean;
+  primaryLoading?: boolean;
   secondaryLabel?: string;
   onSecondaryPress?: () => void;
   footerNote?: string;
@@ -32,6 +33,7 @@ export function OnboardingScaffold({
   primaryLabel,
   onPrimaryPress,
   primaryDisabled = false,
+  primaryLoading = false,
   secondaryLabel,
   onSecondaryPress,
   footerNote,
@@ -61,6 +63,7 @@ export function OnboardingScaffold({
         <PrimaryButton
           disabled={primaryDisabled}
           label={primaryLabel}
+          loading={primaryLoading}
           onPress={onPrimaryPress}
         />
         {secondaryLabel && onSecondaryPress ? (

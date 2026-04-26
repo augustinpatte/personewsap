@@ -1,5 +1,5 @@
-import { Redirect } from "expo-router";
+import { AuthRedirect } from "../src/features/auth";
 
 export default function IndexRoute() {
-  return <Redirect href="/(tabs)/today" />;
+  return <AuthRedirect />;
 }
