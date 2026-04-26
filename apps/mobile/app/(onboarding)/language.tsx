@@ -1,11 +1,35 @@
-import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+import { useRouter } from "expo-router";
+
+import {
+  LANGUAGE_OPTIONS,
+  OnboardingScaffold,
+  SelectableCard,
+  useOnboarding
+} from "../../src/features/onboarding";
 
 export default function LanguageScreen() {
+  const router = useRouter();
+  const { setLanguage, state } = useOnboarding();
+
   return (
-    <PlaceholderScreen
-      eyebrow="Onboarding"
-      title="Choose language"
-      description="Placeholder for FR/EN selection. Content parity will be editorial, not literal translation."
-    />
+    <OnboardingScaffold
+      description="Choose the language for your daily drop. FR and EN are written as native editorial versions."
+      primaryDisabled={!state.language}
+      primaryLabel="Continue"
+      onPrimaryPress={() => router.push("/(onboarding)/goals")}
+      step={1}
+      title="Pick your briefing language"
+      totalSteps={5}
+    >
+      {LANGUAGE_OPTIONS.map((option) => (
+        <SelectableCard
+          description={option.description}
+          key={option.id}
+          label={option.label}
+          onPress={() => setLanguage(option.id)}
+          selected={state.language === option.id}
+        />
+      ))}
+    </OnboardingScaffold>
   );
 }
