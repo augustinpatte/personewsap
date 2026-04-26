@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "PersoNewsAP",
+    "slug": "personewsap-mobile",
+    "scheme": "personewsap",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.personewsap.mobile"
+    },
+    "android": {
+      "package": "com.personewsap.mobile"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
