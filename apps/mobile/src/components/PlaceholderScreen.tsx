@@ -1,8 +1,10 @@
 import type { PropsWithChildren } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { tokens } from "../design/tokens";
 import { AppScreen } from "./AppScreen";
+import { AppText } from "./AppText";
+import { Card } from "./Card";
 
 type PlaceholderScreenProps = PropsWithChildren<{
   eyebrow: string;
@@ -17,48 +19,22 @@ export function PlaceholderScreen({
   children
 }: PlaceholderScreenProps) {
   return (
-    <AppScreen>
-      <View style={styles.panel}>
-        <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.description}>{description}</Text>
+    <AppScreen centered>
+      <Card elevated padding="lg" style={styles.panel}>
+        <AppText variant="eyebrow">{eyebrow}</AppText>
+        <AppText variant="title">{title}</AppText>
+        <AppText color="muted" variant="body">
+          {description}
+        </AppText>
         {children ? <View style={styles.children}>{children}</View> : null}
-      </View>
+      </Card>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   panel: {
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    backgroundColor: tokens.color.surface,
-    padding: tokens.space.xl,
-    shadowColor: tokens.color.ink,
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 3
-  },
-  eyebrow: {
-    color: tokens.color.accent,
-    fontSize: 12,
-    fontWeight: "800",
-    marginBottom: tokens.space.sm,
-    textTransform: "uppercase"
-  },
-  title: {
-    color: tokens.color.ink,
-    fontSize: 34,
-    fontWeight: "800",
-    lineHeight: 39,
-    marginBottom: tokens.space.md
-  },
-  description: {
-    color: tokens.color.muted,
-    fontSize: 16,
-    lineHeight: 24
+    gap: tokens.space.md
   },
   children: {
     borderTopColor: tokens.color.border,
