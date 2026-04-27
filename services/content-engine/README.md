@@ -35,6 +35,7 @@ npm run build
 npm run dry-run
 npm run llm-run
 npm run persist-test
+npm run cleanup-test
 ```
 
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
@@ -124,6 +125,10 @@ Required:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `CONFIRM_PERSIST_TEST=true`
 
+Optional:
+
+- `TEST_USER_ID` assigns the generated test drop to exactly one authenticated user.
+
 ```sh
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
@@ -136,13 +141,27 @@ Safe defaults:
 - uses bundled sample articles only
 - generates one language only
 - generates one newsletter article, one business story, one mini-case, and one concept
-- stores content with `draft` status
-- does not create user daily drops
+- stores content with `draft` status when `TEST_USER_ID` is not set
+- does not create user daily drops when `TEST_USER_ID` is not set, and prints a clear stderr message explaining that no user drop was created
 - adds test metadata to each persisted `content_items.metadata` object:
   - `is_test_data: true`
   - `test_mode: "persist-test"`
   - `test_run_id`
+  - `test_label: "TEST CONTENT - safe to delete with npm run cleanup-test"`
   - `persisted_by`
+- prefixes every persisted title with `[TEST persist-test]`
+
+To assign the generated test content to one user, set `TEST_USER_ID` to that user's `auth.users.id` / `profiles.id`:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_PERSIST_TEST=true \
+TEST_USER_ID=00000000-0000-0000-0000-000000000000 \
+npm run persist-test
+```
+
+When `TEST_USER_ID` is provided, `persist-test` stores the test content as `published`, upserts one `daily_drops` row for that user and drop date with `status = published`, and upserts `daily_drop_items` links for the generated content items. It does not assign the test drop to any other users. The JSON output reports `user_daily_drops_created: 1` when this assignment succeeds.
 
 Useful options:
 
@@ -152,7 +171,36 @@ npm run persist-test -- --language fr
 npm run persist-test -- --topics business,tech_ai
 ```
 
-`persist-test` ignores `--newsletter-count` and `--live-rss` to keep the write small and local-test friendly. Use a local or disposable Supabase project by default. Do not point it at production unless you are deliberately testing production persistence and accept that draft test rows will be written.
+`persist-test` ignores `--newsletter-count` and `--live-rss` to keep the write small and local-test friendly. Use a local or disposable Supabase project by default. Do not point it at production unless you are deliberately testing production persistence and accept that test rows will be written.
+
+### Cleaning Up Test Content
+
+`cleanup-test` deletes draft test content for one explicit `test_run_id`.
+
+Required:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CONFIRM_CLEANUP_TEST=true`
+- `--test-run-id persist-test-...`
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_CLEANUP_TEST=true \
+npm run cleanup-test -- --test-run-id persist-test-abc123
+```
+
+Safety limits:
+
+- only matches `content_items.metadata.test_mode = "persist-test"`
+- only deletes rows where `metadata.is_test_data = true`
+- only deletes rows whose title starts with `[TEST persist-test]`
+- only deletes `draft` content items
+- deletes linked `content_item_sources` and matching `generation_runs`
+- does not delete `sources`, `daily_drops`, `daily_drop_items`, profiles, preferences, or user data
+
+If cleanup skips a row, inspect the JSON output and delete it manually only after confirming it is test content.
 
 ## Daily Job
 

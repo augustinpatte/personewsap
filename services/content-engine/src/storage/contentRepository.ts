@@ -6,6 +6,7 @@ import type {
   GeneratedContentItem,
   Language,
   RankedArticle,
+  TopicId,
   UserDailyDropPreference
 } from "../domain.js";
 import { sha256 } from "../utils/hash.js";
@@ -17,6 +18,7 @@ import {
   type ContentItemInsert,
   type ContentItemSourceInsert
 } from "./mappers.js";
+import { throwPersistenceError } from "./persistenceError.js";
 
 type StoredGeneratedItem = {
   item: GeneratedContentItem;
@@ -36,8 +38,30 @@ type ContentItemRow = {
   id: string;
 };
 
+type PersistTestContentItemRow = {
+  id: string;
+  generation_run_id: string | null;
+  title: string;
+  status: string;
+  metadata: unknown;
+};
+
 type DailyDropRow = {
   id: string;
+};
+
+export type PersistTestCleanupResult = {
+  testRunId: string;
+  matchedContentItems: number;
+  deletedContentItemSources: number;
+  deletedContentItems: number;
+  deletedGenerationRuns: number;
+  skippedContentItems: Array<{
+    id: string;
+    title: string;
+    status: string;
+    reason: string;
+  }>;
 };
 
 export class ContentRepository {
@@ -45,6 +69,179 @@ export class ContentRepository {
 
   assertPersistenceAvailable(): void {
     void this.supabase.from;
+  }
+
+  async assertPersistTestSchemaReady(topics: TopicId[]): Promise<void> {
+    await this.assertTableReadable({
+      table: "generation_runs",
+      action: "preflight select generation runs",
+      columns: "id"
+    });
+    await this.assertTableReadable({
+      table: "sources",
+      action: "preflight select sources",
+      columns: "id"
+    });
+    await this.assertTableReadable({
+      table: "content_items",
+      action: "preflight select content items",
+      columns: "id"
+    });
+    await this.assertTableReadable({
+      table: "content_item_sources",
+      action: "preflight select content item sources",
+      columns: "content_item_id"
+    });
+
+    const { data, error } = await this.supabase.from("topics").select("id").in("id", topics);
+
+    if (error) {
+      throwPersistenceError({
+        table: "topics",
+        action: "preflight select topic seed rows",
+        error
+      });
+    }
+
+    const foundTopics = new Set((data ?? []).map((topic: { id: string }) => topic.id));
+    const missingTopics = topics.filter((topic) => !foundTopics.has(topic));
+
+    if (missingTopics.length > 0) {
+      throwPersistenceError({
+        table: "topics",
+        action: "verify topic seed rows",
+        error: new Error(
+          `Missing required topic seed row(s): ${missingTopics.join(", ")}. Apply the additive mobile app foundation migration to the target Supabase project before running persist-test.`
+        )
+      });
+    }
+  }
+
+  private async assertTableReadable(input: {
+    table: string;
+    action: string;
+    columns: string;
+  }): Promise<void> {
+    const { error } = await this.supabase.from(input.table).select(input.columns).limit(1);
+
+    if (error) {
+      throwPersistenceError({
+        table: input.table,
+        action: input.action,
+        error
+      });
+    }
+  }
+
+  async cleanupPersistTestContent(testRunId: string): Promise<PersistTestCleanupResult> {
+    const { data, error } = await this.supabase
+      .from("content_items")
+      .select("id,generation_run_id,title,status,metadata")
+      .eq("metadata->>test_run_id", testRunId)
+      .eq("metadata->>test_mode", "persist-test")
+      .returns<PersistTestContentItemRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "content_items",
+        action: "select persist-test content items for cleanup",
+        error
+      });
+    }
+
+    const rows = data ?? [];
+    const verifiedRows = rows.filter((row) => isPersistTestContentItem(row, testRunId));
+    const skippedContentItems = rows
+      .filter((row) => !verifiedRows.includes(row))
+      .map((row) => ({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        reason: "metadata or title did not match persist-test safety markers"
+      }));
+    const draftRows = verifiedRows.filter((row) => row.status === "draft");
+    const nonDraftRows = verifiedRows.filter((row) => row.status !== "draft");
+    const deletableIds = draftRows.map((row) => row.id);
+    const generationRunIds = draftRows
+      .map((row) => row.generation_run_id)
+      .filter((id): id is string => Boolean(id));
+
+    skippedContentItems.push(
+      ...nonDraftRows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        reason: "content item is not draft"
+      }))
+    );
+
+    if (deletableIds.length === 0) {
+      return {
+        testRunId,
+        matchedContentItems: rows.length,
+        deletedContentItemSources: 0,
+        deletedContentItems: 0,
+        deletedGenerationRuns: 0,
+        skippedContentItems
+      };
+    }
+
+    const deletedContentItemSources = await this.deleteRowsByIds({
+      table: "content_item_sources",
+      idColumn: "content_item_id",
+      ids: deletableIds,
+      action: "delete persist-test content item sources"
+    });
+    const deletedContentItems = await this.deleteRowsByIds({
+      table: "content_items",
+      idColumn: "id",
+      ids: deletableIds,
+      action: "delete persist-test draft content items"
+    });
+    const deletedGenerationRuns = await this.deleteRowsByIds({
+      table: "generation_runs",
+      idColumn: "id",
+      ids: generationRunIds,
+      action: "delete persist-test generation runs"
+    });
+
+    return {
+      testRunId,
+      matchedContentItems: rows.length,
+      deletedContentItemSources,
+      deletedContentItems,
+      deletedGenerationRuns,
+      skippedContentItems
+    };
+  }
+
+  private async deleteRowsByIds(input: {
+    table: string;
+    idColumn: string;
+    ids: string[];
+    action: string;
+  }): Promise<number> {
+    const uniqueIds = [...new Set(input.ids)];
+
+    if (uniqueIds.length === 0) {
+      return 0;
+    }
+
+    const { data, error } = await this.supabase
+      .from(input.table)
+      .delete()
+      .in(input.idColumn, uniqueIds)
+      .select(input.idColumn);
+
+    if (error) {
+      throwPersistenceError({
+        table: input.table,
+        action: input.action,
+        error
+      });
+    }
+
+    return data?.length ?? 0;
   }
 
   async insertGenerationRun(input: {
@@ -71,7 +268,11 @@ export class ContentRepository {
       .single<GenerationRunRow>();
 
     if (error) {
-      throw error;
+      throwPersistenceError({
+        table: "generation_runs",
+        action: "insert generation run",
+        error
+      });
     }
 
     return data.id;
@@ -99,7 +300,11 @@ export class ContentRepository {
       .eq("id", id);
 
     if (error) {
-      throw error;
+      throwPersistenceError({
+        table: "generation_runs",
+        action: "complete generation run",
+        error
+      });
     }
   }
 
@@ -114,7 +319,11 @@ export class ContentRepository {
       .eq("id", id);
 
     if (error) {
-      throw error;
+      throwPersistenceError({
+        table: "generation_runs",
+        action: "mark generation run failed",
+        error
+      });
     }
   }
 
@@ -132,7 +341,11 @@ export class ContentRepository {
       .returns<SourceRow[]>();
 
     if (error) {
-      throw error;
+      throwPersistenceError({
+        table: "sources",
+        action: "upsert sources",
+        error
+      });
     }
 
     return new Map((data ?? []).map((source) => [source.url, source.id]));
@@ -142,7 +355,11 @@ export class ContentRepository {
     const { data, error } = await this.supabase.from("content_items").insert(insert).select("id").single<ContentItemRow>();
 
     if (error) {
-      throw error;
+      throwPersistenceError({
+        table: "content_items",
+        action: "insert content item",
+        error
+      });
     }
 
     return data.id;
@@ -156,7 +373,11 @@ export class ContentRepository {
     const { error } = await this.supabase.from("content_item_sources").insert(sourceLinks);
 
     if (error) {
-      throw error;
+      throwPersistenceError({
+        table: "content_item_sources",
+        action: "insert content item sources",
+        error
+      });
     }
   }
 
@@ -197,7 +418,7 @@ export class ContentRepository {
         await this.completeGenerationRun(runId, sha256(JSON.stringify(item)), input.contentStatus === "published" ? "published" : "generated");
         storedItems.push({ item, content_item_id: contentItemId });
       } catch (error) {
-        await this.failGenerationRun(runId, error instanceof Error ? error.message : String(error));
+        await this.failGenerationRun(runId, error instanceof Error ? error.message : JSON.stringify(error));
         throw error;
       }
     }
@@ -212,7 +433,11 @@ export class ContentRepository {
       .eq("language", language);
 
     if (profileError) {
-      throw profileError;
+      throwPersistenceError({
+        table: "profiles",
+        action: "select user daily drop preferences",
+        error: profileError
+      });
     }
 
     return (profiles ?? []).flatMap((profile: Record<string, unknown>) => {
@@ -300,7 +525,11 @@ export class ContentRepository {
       .single<DailyDropRow>();
 
     if (error) {
-      throw error;
+      throwPersistenceError({
+        table: "daily_drops",
+        action: "upsert daily drop",
+        error
+      });
     }
 
     return data.id;
@@ -329,7 +558,26 @@ export class ContentRepository {
     );
 
     if (error) {
-      throw error;
+      throwPersistenceError({
+        table: "daily_drop_items",
+        action: "upsert daily drop items",
+        error
+      });
     }
   }
+}
+
+function isPersistTestContentItem(row: PersistTestContentItemRow, testRunId: string): boolean {
+  const metadata = isRecord(row.metadata) ? row.metadata : {};
+
+  return (
+    row.title.startsWith("[TEST persist-test]") &&
+    metadata.is_test_data === true &&
+    metadata.test_mode === "persist-test" &&
+    metadata.test_run_id === testRunId
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

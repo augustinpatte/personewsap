@@ -9,7 +9,14 @@ import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
 import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
 
-const readableDropStatuses = ["published", "read", "archived"] as const;
+const archiveDropStatuses = ["published", "read", "archived"] as const;
+const publishedContentStatus = "published";
+const slotOrder = {
+  newsletter: 0,
+  business_story: 1,
+  mini_case: 2,
+  concept: 3
+} as const;
 
 const topicIds = [
   "business",
@@ -42,7 +49,7 @@ export async function fetchLibraryDrops(
       .from("daily_drops")
       .select("*")
       .eq("user_id", userId)
-      .in("status", [...readableDropStatuses])
+      .in("status", [...archiveDropStatuses])
       .order("drop_date", { ascending: false });
 
     if (dropsError) {
@@ -100,7 +107,7 @@ async function buildLibraryDropSummaries(
   const dropItemsByDropId = groupDropItemsByDropId(dropItems ?? []);
 
   return drops.map((drop) => {
-    const items = dropItemsByDropId[drop.id] ?? [];
+    const items = sortDropItemsForArchive(dropItemsByDropId[drop.id] ?? []);
     const contentItems = items
       .map((item) => contentItemsById.get(item.content_item_id))
       .filter(isContentItem);
@@ -160,7 +167,7 @@ async function fetchContentItemsById(
     .from("content_items")
     .select("*")
     .in("id", contentItemIds)
-    .eq("status", "published");
+    .eq("status", publishedContentStatus);
 
   if (error) {
     throw error;
@@ -202,6 +209,18 @@ function groupDropItemsByDropId(
       [item.daily_drop_id]: [...currentItems, item]
     };
   }, {});
+}
+
+function sortDropItemsForArchive(dropItems: DailyDropItem[]): DailyDropItem[] {
+  return [...dropItems].sort((left, right) => {
+    const slotDelta = slotOrder[left.slot] - slotOrder[right.slot];
+
+    if (slotDelta !== 0) {
+      return slotDelta;
+    }
+
+    return left.position - right.position;
+  });
 }
 
 function getInteractedContentItemIds(

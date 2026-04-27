@@ -82,9 +82,7 @@ export function TodayDailyDropScreen() {
         return;
       }
 
-      const result = await fetchTodayDrop(userId, new Date(), {
-        language: activeLanguage
-      });
+      const result = await fetchTodayDrop(userId, getLocalDropDate(new Date()));
 
       if (isMounted) {
         setLoadState({
@@ -123,9 +121,15 @@ export function TodayDailyDropScreen() {
       <AppScreen.Header style={styles.header}>
         <View style={styles.headerTopline}>
           <AppText variant="eyebrow">Today</AppText>
-          <AppText color="muted" variant="caption">
-            {formattedDate}
-          </AppText>
+          <View style={styles.headerMeta}>
+            <ProgressPill
+              label={loadState.source === "supabase" ? "Live daily drop" : "Mock preview"}
+              tone={loadState.source === "supabase" ? "success" : "neutral"}
+            />
+            <AppText color="muted" variant="caption">
+              {formattedDate}
+            </AppText>
+          </View>
         </View>
         <View style={styles.headerCopy}>
           <AppText variant="title">Your 5-minute daily drop</AppText>
@@ -207,7 +211,7 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
       <Card padding="md" tone="accent">
         <ProgressPill label="Live daily drop" tone="success" value={1} />
         <AppText color="accentInk" variant="caption">
-          Loaded from Supabase.
+          Loaded the assigned Supabase daily_drop for {formatShortDate(loadState.drop.drop_date)}.
         </AppText>
       </Card>
     );
@@ -217,7 +221,7 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
     return (
       <EmptyState
         description={loadState.error?.message ?? "Supabase is unavailable, so the app is showing the mock daily drop."}
-        eyebrow="Mock fallback"
+        eyebrow="Mock preview"
         title="Could not load live content"
       />
     );
@@ -227,7 +231,7 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
     return (
       <EmptyState
         description="No published Supabase drop exists for today yet, so the app is showing the built-in mock drop."
-        eyebrow="Mock fallback"
+        eyebrow="Mock preview"
         title="No live drop yet"
       />
     );
@@ -237,7 +241,7 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
     return (
       <EmptyState
         description="Sign in to load a personalized Supabase drop. The mock drop keeps the app usable for now."
-        eyebrow="Mock fallback"
+        eyebrow="Mock preview"
         title="No active session"
       />
     );
@@ -589,6 +593,14 @@ function formatShortDate(date: string) {
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
+function getLocalDropDate(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 const styles = StyleSheet.create({
   screenContent: {
     gap: tokens.space.xl,
@@ -600,7 +612,12 @@ const styles = StyleSheet.create({
   headerTopline: {
     alignItems: "center",
     flexDirection: "row",
+    gap: tokens.space.md,
     justifyContent: "space-between"
+  },
+  headerMeta: {
+    alignItems: "flex-end",
+    gap: tokens.space.xs
   },
   headerCopy: {
     gap: tokens.space.sm

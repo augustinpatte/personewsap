@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
 import { parseDryRunOptions, runDryRun } from "./cli/dryRun.js";
 import { parseLlmRunOptions, runLlmRun } from "./cli/llmRun.js";
 import { parsePersistTestOptions, runPersistTest } from "./cli/persistTest.js";
+import { formatPersistenceError } from "./storage/persistenceError.js";
 
 async function main(): Promise<void> {
   const [command = "dry-run", ...args] = process.argv.slice(2);
@@ -24,6 +26,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "cleanup-test") {
+    const output = await runCleanupTest(parseCleanupTestOptions(args));
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+
   if (command === "help" || command === "--help" || command === "-h") {
     printHelp();
     return;
@@ -38,7 +46,8 @@ function printHelp(): void {
 Commands:
   dry-run                 Run local sample source -> processing -> generation pipeline.
   llm-run                 Run the same pipeline with OpenAI structured LLM generation.
-  persist-test            Persist one limited draft test drop after explicit env confirmation.
+  persist-test            Persist one limited test drop after explicit env confirmation.
+  cleanup-test            Delete draft persist-test content for one test_run_id.
 
 Options:
   --date YYYY-MM-DD       Drop date. Defaults to today.
@@ -53,11 +62,12 @@ Examples:
   npm run dry-run -- --languages en,fr --newsletter-count 3
   OPENAI_API_KEY=... npm run llm-run -- --language en
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSIST_TEST=true npm run persist-test
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSIST_TEST=true TEST_USER_ID=... npm run persist-test
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_CLEANUP_TEST=true npm run cleanup-test -- --test-run-id persist-test-abc123
 `);
 }
 
 main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`content-engine failed: ${message}\n`);
+  process.stderr.write(`${formatPersistenceError(error)}\n`);
   process.exitCode = 1;
 });
