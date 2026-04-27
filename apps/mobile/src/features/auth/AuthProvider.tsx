@@ -11,10 +11,12 @@ import type { Session, User } from "@supabase/supabase-js";
 
 import {
   getAuthSession,
+  getSupabaseConfigError,
   hasSupabaseConfig,
   normalizeSupabaseError,
   signOut as signOutFromSupabase,
   supabase,
+  supabaseConfigDiagnostics,
   type NormalizedSupabaseError
 } from "../../lib/supabase";
 
@@ -61,24 +63,27 @@ function getLocalTimezone() {
 async function ensureProfile(user: User) {
   if (!supabase) {
     return {
-      error: {
-        code: "missing_supabase_config",
-        message: "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY."
-      }
+      error: getAuthConfigError()
     };
   }
 
-  const { error } = await supabase.from("profiles").upsert(
-    {
-      id: user.id,
-      email: user.email ?? "",
-      language: "en",
-      timezone: getLocalTimezone()
-    },
-    { onConflict: "id" }
-  );
+  try {
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: user.id,
+        email: user.email ?? "",
+        language: "en",
+        timezone: getLocalTimezone()
+      },
+      { onConflict: "id" }
+    );
 
-  return { error: error ? normalizeSupabaseError(error) : null };
+    return { error: error ? normalizeSupabaseError(error) : null };
+  } catch (error) {
+    return {
+      error: normalizeSupabaseError(error, "Could not create your mobile profile.")
+    };
+  }
 }
 
 async function getProfileCompleted(userId: string) {
@@ -171,37 +176,47 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signInWithEmail = useCallback(
     async ({ email, password }: SignInParams) => {
       if (!supabase) {
-        const missingConfigError = {
-          code: "missing_supabase_config",
-          message: "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY."
-        };
-        setError(missingConfigError);
-        return { error: missingConfigError };
+        const configError = getAuthConfigError();
+        setError(configError);
+        logAuthDebug("login_config_error", configError);
+        return { error: configError };
       }
 
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password
-      });
+      logAuthDebug("login_started");
 
-      if (signInError) {
-        const normalizedError = normalizeSupabaseError(signInError);
+      try {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password
+        });
+
+        if (signInError) {
+          const normalizedError = normalizeSupabaseError(signInError);
+          setError(normalizedError);
+          logAuthDebug("login_error", normalizedError);
+          return { error: normalizedError };
+        }
+
+        if (data.user) {
+          const { error: profileError } = await ensureProfile(data.user);
+          if (profileError) {
+            setError(profileError);
+            logAuthDebug("login_profile_error", profileError);
+            return { error: profileError };
+          }
+        }
+
+        setError(null);
+        await applySession(data.session);
+        logAuthDebug("login_success");
+
+        return { error: null };
+      } catch (error) {
+        const normalizedError = normalizeSupabaseError(error, "Could not log in.");
         setError(normalizedError);
+        logAuthDebug("login_exception", normalizedError);
         return { error: normalizedError };
       }
-
-      if (data.user) {
-        const { error: profileError } = await ensureProfile(data.user);
-        if (profileError) {
-          setError(profileError);
-          return { error: profileError };
-        }
-      }
-
-      setError(null);
-      await applySession(data.session);
-
-      return { error: null };
     },
     [applySession]
   );
@@ -209,40 +224,50 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signUpWithEmail = useCallback(
     async ({ email, password }: SignUpParams) => {
       if (!supabase) {
-        const missingConfigError = {
-          code: "missing_supabase_config",
-          message: "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY."
-        };
-        setError(missingConfigError);
-        return { error: missingConfigError };
+        const configError = getAuthConfigError();
+        setError(configError);
+        logAuthDebug("signup_config_error", configError);
+        return { error: configError };
       }
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password
-      });
+      logAuthDebug("signup_started");
 
-      if (signUpError) {
-        const normalizedError = normalizeSupabaseError(signUpError);
+      try {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password
+        });
+
+        if (signUpError) {
+          const normalizedError = normalizeSupabaseError(signUpError);
+          setError(normalizedError);
+          logAuthDebug("signup_error", normalizedError);
+          return { error: normalizedError };
+        }
+
+        if (data.user && data.session) {
+          const { error: profileError } = await ensureProfile(data.user);
+          if (profileError) {
+            setError(profileError);
+            logAuthDebug("signup_profile_error", profileError);
+            return { error: profileError };
+          }
+        }
+
+        setError(null);
+        await applySession(data.session);
+        logAuthDebug(data.session ? "signup_success" : "signup_email_confirmation_required");
+
+        return {
+          error: null,
+          needsEmailConfirmation: !data.session
+        };
+      } catch (error) {
+        const normalizedError = normalizeSupabaseError(error, "Could not create your account.");
         setError(normalizedError);
+        logAuthDebug("signup_exception", normalizedError);
         return { error: normalizedError };
       }
-
-      if (data.user && data.session) {
-        const { error: profileError } = await ensureProfile(data.user);
-        if (profileError) {
-          setError(profileError);
-          return { error: profileError };
-        }
-      }
-
-      setError(null);
-      await applySession(data.session);
-
-      return {
-        error: null,
-        needsEmailConfirmation: !data.session
-      };
     },
     [applySession]
   );
@@ -305,6 +330,30 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+function logAuthDebug(event: string, error?: NormalizedSupabaseError | null) {
+  if (!__DEV__) {
+    return;
+  }
+
+  console.info("[Auth]", {
+    code: error?.code,
+    event,
+    hasError: Boolean(error),
+    hint: error?.hint,
+    supabase: supabaseConfigDiagnostics
+  });
+}
+
+function getAuthConfigError(): NormalizedSupabaseError {
+  return (
+    getSupabaseConfigError() ?? {
+      code: "missing_supabase_config",
+      message:
+        "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/mobile/.env."
+    }
+  );
 }
 
 export function useAuth() {

@@ -1,8 +1,14 @@
 import type { PropsWithChildren } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  AppScreen,
   AppText,
   PrimaryButton,
   ProgressPill,
@@ -41,20 +47,26 @@ export function OnboardingScaffold({
   children
 }: OnboardingScaffoldProps) {
   return (
-    <AppScreen contentStyle={styles.screen}>
-      <AppScreen.Header>
-        <ProgressPill label={`Step ${step} of ${totalSteps}`} value={step / totalSteps} />
-        <View style={styles.copy}>
-          <AppText variant="title">{title}</AppText>
-          <AppText color="muted" variant="body">
-            {description}
-          </AppText>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        bounces={false}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <ProgressPill label={`Step ${step} of ${totalSteps}`} value={step / totalSteps} />
+          <View style={styles.copy}>
+            <AppText variant="title">{title}</AppText>
+            <AppText color="muted" variant="body">
+              {description}
+            </AppText>
+          </View>
         </View>
-      </AppScreen.Header>
 
-      <AppScreen.Body style={[styles.body, contentStyle]}>{children}</AppScreen.Body>
+        <View style={[styles.body, contentStyle]}>{children}</View>
+      </ScrollView>
 
-      <AppScreen.Footer>
+      <View style={styles.footer}>
         {footerNote ? (
           <AppText color="muted" variant="caption">
             {footerNote}
@@ -69,19 +81,39 @@ export function OnboardingScaffold({
         {secondaryLabel && onSecondaryPress ? (
           <SecondaryButton label={secondaryLabel} onPress={onSecondaryPress} />
         ) : null}
-      </AppScreen.Footer>
-    </AppScreen>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    justifyContent: "space-between"
+  safeArea: {
+    backgroundColor: tokens.color.background,
+    flex: 1
+  },
+  scrollContent: {
+    flexGrow: 1,
+    gap: tokens.space.xl,
+    paddingBottom: tokens.space.lg,
+    paddingHorizontal: tokens.space.lg,
+    paddingTop: tokens.space.xl
+  },
+  header: {
+    gap: tokens.space.sm
   },
   copy: {
     gap: tokens.space.sm
   },
   body: {
     gap: tokens.space.md
+  },
+  footer: {
+    backgroundColor: tokens.color.background,
+    borderTopColor: tokens.color.border,
+    borderTopWidth: 1,
+    gap: tokens.space.sm,
+    paddingBottom: tokens.space.md,
+    paddingHorizontal: tokens.space.lg,
+    paddingTop: tokens.space.md
   }
 });

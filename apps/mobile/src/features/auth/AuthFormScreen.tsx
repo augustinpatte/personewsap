@@ -12,9 +12,11 @@ import {
   AppScreen,
   AppText,
   Card,
+  EmptyState,
   PrimaryButton,
   SecondaryButton
 } from "../../components";
+import type { NormalizedSupabaseError } from "../../lib/supabase";
 import { tokens } from "../../design/tokens";
 import { useAuth } from "./AuthProvider";
 
@@ -26,13 +28,13 @@ type AuthFormScreenProps = {
 
 export function AuthFormScreen({ mode }: AuthFormScreenProps) {
   const router = useRouter();
-  const { isConfigured, signInWithEmail, signUpWithEmail } = useAuth();
+  const { error: authError, isConfigured, signInWithEmail, signUpWithEmail } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<NormalizedSupabaseError | null>(null);
 
   const isSignup = mode === "signup";
   const title = isSignup ? "Create your account" : "Welcome back";
@@ -53,12 +55,18 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
     setFormError(null);
 
     if (!isConfigured) {
-      setFormError("Supabase is not configured for this mobile app yet.");
+      setFormError(
+        authError ?? {
+          code: "missing_supabase_config",
+          message:
+            "Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
+        }
+      );
       return;
     }
 
     if (isSignup && password !== confirmPassword) {
-      setFormError("Passwords do not match.");
+      setFormError({ code: "password_mismatch", message: "Passwords do not match." });
       return;
     }
 
@@ -71,7 +79,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
     setIsSubmitting(false);
 
     if (result.error) {
-      setFormError(result.error.message);
+      setFormError(result.error);
       return;
     }
 
@@ -99,6 +107,14 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
           </View>
 
           <View style={styles.fields}>
+            {!isConfigured ? (
+              <EmptyState
+                description="Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env. If you just changed them, restart Expo so the public env vars are bundled."
+                eyebrow="Configuration"
+                title="Supabase auth is not ready"
+                style={styles.inlineState}
+              />
+            ) : null}
             <LabeledInput
               autoCapitalize="none"
               autoComplete="email"
@@ -134,9 +150,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
           </View>
 
           {formError ? (
-            <AppText color="danger" variant="caption">
-              {formError}
-            </AppText>
+            <AuthErrorMessage error={formError} />
           ) : null}
           {message ? (
             <AppText color="success" variant="caption">
@@ -161,6 +175,26 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
         </Card>
       </AppScreen>
     </KeyboardAvoidingView>
+  );
+}
+
+function AuthErrorMessage({ error }: { error: NormalizedSupabaseError }) {
+  return (
+    <View style={styles.errorBox}>
+      <AppText color="danger" variant="label">
+        {error.message}
+      </AppText>
+      {error.hint ? (
+        <AppText color="muted" variant="caption">
+          {error.hint}
+        </AppText>
+      ) : null}
+      {error.code ? (
+        <AppText color="muted" variant="caption">
+          Code: {error.code}
+        </AppText>
+      ) : null}
+    </View>
   );
 }
 
@@ -194,6 +228,9 @@ const styles = StyleSheet.create({
   fields: {
     gap: tokens.space.md
   },
+  inlineState: {
+    padding: tokens.space.lg
+  },
   field: {
     gap: tokens.space.sm
   },
@@ -210,5 +247,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: tokens.space.sm
+  },
+  errorBox: {
+    backgroundColor: tokens.color.dangerSoft,
+    borderColor: tokens.color.danger,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    gap: tokens.space.xs,
+    padding: tokens.space.md
   }
 });

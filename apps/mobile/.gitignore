@@ -4,3 +4,8 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Local Expo environment files. Keep .env.example committed.
+.env
+.env.*
+!.env.example

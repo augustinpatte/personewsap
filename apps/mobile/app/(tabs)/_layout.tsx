@@ -1,10 +1,13 @@
 import { Redirect, Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { tokens } from "../../src/design/tokens";
 import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
 
 export default function TabsLayout() {
   const { status } = useAuth();
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 16);
 
   if (status === "loading") {
     return <AuthLoadingScreen />;
@@ -27,8 +30,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: tokens.color.surface,
           borderTopColor: tokens.color.border,
-          height: 84,
-          paddingBottom: 20,
+          height: 64 + bottomInset,
+          paddingBottom: bottomInset,
           paddingTop: 10
         },
         tabBarLabelStyle: {

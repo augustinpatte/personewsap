@@ -31,7 +31,15 @@ export function AuthRedirect() {
           <AppText variant="eyebrow">Configuration</AppText>
           <AppText variant="title">Supabase is not configured</AppText>
           <AppText color="muted" variant="body">
-            Add the public mobile Supabase URL and anon key to enable authentication.
+            {error.message}
+          </AppText>
+          {error.hint ? (
+            <AppText color="muted" variant="caption">
+              {error.hint}
+            </AppText>
+          ) : null}
+          <AppText color="muted" variant="caption">
+            Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo.
           </AppText>
           <PrimaryButton label="Retry" onPress={refreshAuthState} />
         </Card>

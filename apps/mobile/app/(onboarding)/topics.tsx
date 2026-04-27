@@ -16,7 +16,7 @@ export default function TopicsScreen() {
       description="Choose a focused mix. The product stays one daily drop, not a feed."
       footerNote={`${state.selectedTopics.length} selected`}
       primaryDisabled={state.selectedTopics.length === 0}
-      primaryLabel="Set article counts"
+      primaryLabel="Continue"
       onPrimaryPress={() => router.push("/(onboarding)/article-count")}
       secondaryLabel="Back"
       onSecondaryPress={() => router.back()}

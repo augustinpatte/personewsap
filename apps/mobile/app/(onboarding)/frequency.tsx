@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert } from "react-native";
 import { useRouter } from "expo-router";
 
+import { useAuth } from "../../src/features/auth";
 import {
   FREQUENCY_OPTIONS,
   OnboardingScaffold,
@@ -12,6 +13,7 @@ import {
 
 export default function FrequencyScreen() {
   const router = useRouter();
+  const { refreshAuthState } = useAuth();
   const { setFrequency, state } = useOnboarding();
   const [saving, setSaving] = useState(false);
 
@@ -27,6 +29,7 @@ export default function FrequencyScreen() {
       return;
     }
 
+    await refreshAuthState();
     router.replace("/(tabs)/today");
   };
 

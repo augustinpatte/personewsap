@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 
+import { useAuth } from "../../src/features/auth";
 import {
   LANGUAGE_OPTIONS,
   OnboardingScaffold,
@@ -9,7 +10,13 @@ import {
 
 export default function LanguageScreen() {
   const router = useRouter();
+  const { signOut } = useAuth();
   const { setLanguage, state } = useOnboarding();
+
+  const returnToLogin = async () => {
+    await signOut();
+    router.replace("/(auth)/login");
+  };
 
   return (
     <OnboardingScaffold
@@ -17,6 +24,8 @@ export default function LanguageScreen() {
       primaryDisabled={!state.language}
       primaryLabel="Continue"
       onPrimaryPress={() => router.push("/(onboarding)/goals")}
+      secondaryLabel="Back to login"
+      onSecondaryPress={returnToLogin}
       step={1}
       title="Pick your briefing language"
       totalSteps={5}
