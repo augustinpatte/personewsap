@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { parseAssignTestUsersOptions, runAssignTestUsers } from "./cli/assignTestUsers.js";
 import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
 import { parseDryRunOptions, runDryRun } from "./cli/dryRun.js";
 import { parseLlmRunOptions, runLlmRun } from "./cli/llmRun.js";
@@ -32,6 +33,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "assign-test-users") {
+    const output = await runAssignTestUsers(parseAssignTestUsersOptions(args));
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+
   if (command === "help" || command === "--help" || command === "-h") {
     printHelp();
     return;
@@ -48,6 +55,7 @@ Commands:
   llm-run                 Run the same pipeline with OpenAI structured LLM generation.
   persist-test            Persist one limited test drop after explicit env confirmation.
   cleanup-test            Delete draft persist-test content for one test_run_id.
+  assign-test-users       Assign existing published test content to app users.
 
 Options:
   --date YYYY-MM-DD       Drop date. Defaults to today.
@@ -64,6 +72,7 @@ Examples:
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSIST_TEST=true npm run persist-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSIST_TEST=true TEST_USER_ID=... npm run persist-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_CLEANUP_TEST=true npm run cleanup-test -- --test-run-id persist-test-abc123
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_ASSIGN_TEST=true npm run assign-test-users -- --limit 5
 `);
 }
 

@@ -7,6 +7,7 @@ import { tokens } from "../../design/tokens";
 import type { DataFallbackReason, DataFetchSource } from "../../lib/dataState";
 import { getAuthSession, type NormalizedSupabaseError } from "../../lib/supabase";
 import { flattenDailyDropItems, getMockSourcesForItem, mockTodayDailyDropsByLanguage } from "../../mocks";
+import type { ContentRating, InteractionType } from "../../types/domain";
 import type {
   BusinessStory,
   ContentLanguage,
@@ -16,6 +17,7 @@ import type {
   NewsletterArticle,
   TodayDailyDrop
 } from "./contentTypes";
+import { writeContentInteraction } from "./contentInteractions";
 import { fetchTodayDrop } from "./dailyDropData";
 
 const moduleOrder = ["newsletter", "business_story", "mini_case", "concept"] as const;
@@ -30,6 +32,19 @@ type TodayLoadState = {
   status: "loading" | "ready";
 };
 
+type InteractionState = {
+  completedItemIds: Set<string>;
+  savedItemIds: Set<string>;
+  ratingsByItemId: Record<string, ContentRating>;
+};
+
+type InteractionAction = {
+  contentItemId: string;
+  interactionType: InteractionType;
+  rating?: ContentRating;
+  message?: string;
+};
+
 const activeLanguage: ContentLanguage = "en";
 
 const topicLabels = TOPICS.reduce(
@@ -39,6 +54,20 @@ const topicLabels = TOPICS.reduce(
   }),
   {} as Record<(typeof TOPICS)[number]["id"], string>
 );
+
+const moduleLabels: Record<ModuleId, string> = {
+  newsletter: "Newsletter",
+  business_story: "Business story",
+  mini_case: "Mini-case",
+  concept: "Concept"
+};
+
+const moduleDescriptions: Record<ModuleId, string> = {
+  newsletter: "Sourced news signal",
+  business_story: "Business mechanism",
+  mini_case: "Decision exercise",
+  concept: "Reusable idea"
+};
 
 export function TodayDailyDropScreen() {
   const fallbackDrop = mockTodayDailyDropsByLanguage[activeLanguage];
@@ -50,6 +79,14 @@ export function TodayDailyDropScreen() {
     status: "loading"
   });
   const [completedModules, setCompletedModules] = useState<Set<ModuleId>>(new Set());
+  const [interactionState, setInteractionState] = useState<InteractionState>({
+    completedItemIds: new Set(),
+    savedItemIds: new Set(),
+    ratingsByItemId: {}
+  });
+  const [interactionError, setInteractionError] = useState<NormalizedSupabaseError | null>(null);
+  const [interactionMessage, setInteractionMessage] = useState<string | null>(null);
+  const [pendingInteractionIds, setPendingInteractionIds] = useState<Set<string>>(new Set());
   const [showSampleAnswer, setShowSampleAnswer] = useState(false);
 
   const drop = loadState.drop;
@@ -106,8 +143,82 @@ export function TodayDailyDropScreen() {
     setCompletedModules((currentModules) => new Set(currentModules).add(moduleId));
   }
 
+  async function handleInteraction(action: InteractionAction) {
+    const pendingId = getPendingInteractionId(action);
+    setPendingInteractionIds((currentIds) => new Set(currentIds).add(pendingId));
+    setInteractionError(null);
+    setInteractionMessage(null);
+
+    if (loadState.source === "mock") {
+      applyLocalInteraction(action);
+      setInteractionMessage("Mock preview action saved locally.");
+      setPendingInteractionIds((currentIds) => removeSetValue(currentIds, pendingId));
+      return;
+    }
+
+    const result = await writeContentInteraction(action);
+
+    setPendingInteractionIds((currentIds) => removeSetValue(currentIds, pendingId));
+
+    if (!result.ok) {
+      setInteractionError(result.error);
+      return;
+    }
+
+    applyLocalInteraction(action);
+    setInteractionMessage("Saved to your account.");
+  }
+
+  async function completeModule(moduleId: ModuleId, items: DailyDropContentItem[]) {
+    markComplete(moduleId);
+
+    for (const item of items) {
+      await handleInteraction({
+        contentItemId: item.id,
+        interactionType: "complete"
+      });
+    }
+  }
+
+  function applyLocalInteraction(action: InteractionAction) {
+    setInteractionState((currentState) => {
+      if (action.interactionType === "complete") {
+        return {
+          ...currentState,
+          completedItemIds: new Set(currentState.completedItemIds).add(action.contentItemId)
+        };
+      }
+
+      if (action.interactionType === "save") {
+        return {
+          ...currentState,
+          savedItemIds: new Set(currentState.savedItemIds).add(action.contentItemId)
+        };
+      }
+
+      if (action.interactionType === "feedback" && action.rating) {
+        return {
+          ...currentState,
+          ratingsByItemId: {
+            ...currentState.ratingsByItemId,
+            [action.contentItemId]: action.rating
+          }
+        };
+      }
+
+      return currentState;
+    });
+  }
+
   function resetDrop() {
     setCompletedModules(new Set());
+    setInteractionState({
+      completedItemIds: new Set(),
+      savedItemIds: new Set(),
+      ratingsByItemId: {}
+    });
+    setInteractionError(null);
+    setInteractionMessage(null);
     setShowSampleAnswer(false);
   }
 
@@ -123,7 +234,7 @@ export function TodayDailyDropScreen() {
           <AppText variant="eyebrow">Today</AppText>
           <View style={styles.headerMeta}>
             <ProgressPill
-              label={loadState.source === "supabase" ? "Live daily drop" : "Mock preview"}
+              label={loadState.source === "supabase" ? "LIVE" : "MOCK"}
               tone={loadState.source === "supabase" ? "success" : "neutral"}
             />
             <AppText color="muted" variant="caption">
@@ -159,30 +270,48 @@ export function TodayDailyDropScreen() {
           </AppText>
         </Card>
         <TodayDataStateBanner loadState={loadState} />
+        <DropSlotOverview
+          completedModules={completedModules}
+          drop={drop}
+          source={loadState.source}
+        />
       </AppScreen.Header>
 
       <AppScreen.Body style={styles.body}>
+        <InteractionStatus error={interactionError} message={interactionMessage} />
         <NewsletterSection
           articles={drop.items.newsletter}
           completed={completedModules.has("newsletter")}
-          onComplete={() => markComplete("newsletter")}
+          interactionState={interactionState}
+          onComplete={() => completeModule("newsletter", drop.items.newsletter)}
+          onInteraction={handleInteraction}
+          pendingInteractionIds={pendingInteractionIds}
         />
         <BusinessStorySection
           story={drop.items.business_story}
           completed={completedModules.has("business_story")}
-          onComplete={() => markComplete("business_story")}
+          interactionState={interactionState}
+          onComplete={() => completeModule("business_story", [drop.items.business_story])}
+          onInteraction={handleInteraction}
+          pendingInteractionIds={pendingInteractionIds}
         />
         <MiniCaseSection
           challenge={drop.items.mini_case}
           completed={completedModules.has("mini_case")}
+          interactionState={interactionState}
           showSampleAnswer={showSampleAnswer}
-          onComplete={() => markComplete("mini_case")}
+          onComplete={() => completeModule("mini_case", [drop.items.mini_case])}
+          onInteraction={handleInteraction}
           onToggleSampleAnswer={() => setShowSampleAnswer((isVisible) => !isVisible)}
+          pendingInteractionIds={pendingInteractionIds}
         />
         <ConceptSection
           concept={drop.items.concept}
           completed={completedModules.has("concept")}
-          onComplete={() => markComplete("concept")}
+          interactionState={interactionState}
+          onComplete={() => completeModule("concept", [drop.items.concept])}
+          onInteraction={handleInteraction}
+          pendingInteractionIds={pendingInteractionIds}
         />
         <CompletionState
           allItems={allItems}
@@ -208,10 +337,18 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
 
   if (loadState.source === "supabase") {
     return (
-      <Card padding="md" tone="accent">
-        <ProgressPill label="Live daily drop" tone="success" value={1} />
+      <Card padding="md" style={styles.stateCardLive} tone="accent">
+        <View style={styles.stateHeader}>
+          <ProgressPill label="LIVE FROM SUPABASE" tone="success" value={1} />
+          <AppText color="accentInk" variant="caption">
+            {formatShortDate(loadState.drop.drop_date)}
+          </AppText>
+        </View>
+        <AppText color="accentInk" variant="bodyStrong">
+          Showing the assigned daily drop for this user.
+        </AppText>
         <AppText color="accentInk" variant="caption">
-          Loaded the assigned Supabase daily_drop for {formatShortDate(loadState.drop.drop_date)}.
+          Source: daily_drops + daily_drop_items + published content_items.
         </AppText>
       </Card>
     );
@@ -220,9 +357,9 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
   if (loadState.fallbackReason === "supabase_error") {
     return (
       <EmptyState
-        description={loadState.error?.message ?? "Supabase is unavailable, so the app is showing the mock daily drop."}
-        eyebrow="Mock preview"
-        title="Could not load live content"
+        description={`${loadState.error?.message ?? "Supabase is unavailable."} The app is still usable and is showing the built-in mock drop.`}
+        eyebrow="MOCK FALLBACK"
+        title="Supabase error while loading Today"
       />
     );
   }
@@ -230,9 +367,9 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
   if (loadState.fallbackReason === "no_supabase_data") {
     return (
       <EmptyState
-        description="No published Supabase drop exists for today yet, so the app is showing the built-in mock drop."
-        eyebrow="Mock preview"
-        title="No live drop yet"
+        description="No published daily_drops row is assigned to this user for today. The mock drop is shown so the experience stays usable."
+        eyebrow="MOCK FALLBACK"
+        title="No assigned live drop today"
       />
     );
   }
@@ -241,13 +378,111 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
     return (
       <EmptyState
         description="Sign in to load a personalized Supabase drop. The mock drop keeps the app usable for now."
-        eyebrow="Mock preview"
+        eyebrow="MOCK FALLBACK"
         title="No active session"
       />
     );
   }
 
   return null;
+}
+
+function InteractionStatus({
+  error,
+  message
+}: {
+  error: NormalizedSupabaseError | null;
+  message: string | null;
+}) {
+  if (error) {
+    return (
+      <Card padding="md" style={styles.interactionError}>
+        <AppText color="danger" variant="label">
+          Could not save interaction
+        </AppText>
+        <AppText color="muted" variant="caption">
+          {error.message}
+        </AppText>
+        {error.hint ? (
+          <AppText color="muted" variant="caption">
+            {error.hint}
+          </AppText>
+        ) : null}
+      </Card>
+    );
+  }
+
+  if (message) {
+    return (
+      <Card padding="md" style={styles.interactionMessage}>
+        <AppText color="success" variant="caption">
+          {message}
+        </AppText>
+      </Card>
+    );
+  }
+
+  return null;
+}
+
+function DropSlotOverview({
+  completedModules,
+  drop,
+  source
+}: {
+  completedModules: Set<ModuleId>;
+  drop: TodayDailyDrop;
+  source: DataFetchSource;
+}) {
+  return (
+    <Card padding="md" style={styles.slotOverview}>
+      <View style={styles.slotOverviewHeader}>
+        <AppText variant="bodyStrong">Four-slot daily drop</AppText>
+        <ProgressPill
+          label={source === "supabase" ? "Live content" : "Mock content"}
+          tone={source === "supabase" ? "success" : "neutral"}
+        />
+      </View>
+      {moduleOrder.map((moduleId) => (
+        <SlotOverviewRow
+          completed={completedModules.has(moduleId)}
+          count={getModuleItemCount(drop, moduleId)}
+          key={moduleId}
+          moduleId={moduleId}
+        />
+      ))}
+    </Card>
+  );
+}
+
+function SlotOverviewRow({
+  completed,
+  count,
+  moduleId
+}: {
+  completed: boolean;
+  count: number;
+  moduleId: ModuleId;
+}) {
+  return (
+    <View style={styles.slotOverviewRow}>
+      <View style={styles.slotOverviewCopy}>
+        <AppText variant="label">{moduleLabels[moduleId]}</AppText>
+        <AppText color="muted" variant="caption">
+          {moduleDescriptions[moduleId]}
+        </AppText>
+      </View>
+      <View style={styles.slotOverviewMeta}>
+        <AppText color="muted" variant="caption">
+          {count} item{count === 1 ? "" : "s"}
+        </AppText>
+        <ProgressPill
+          label={completed ? "Done" : "Ready"}
+          tone={completed ? "success" : "neutral"}
+        />
+      </View>
+    </View>
+  );
 }
 
 type SectionCompleteButtonProps = {
@@ -267,11 +502,17 @@ function SectionCompleteButton({ completed, label, onComplete }: SectionComplete
 function NewsletterSection({
   articles,
   completed,
-  onComplete
+  interactionState,
+  onComplete,
+  onInteraction,
+  pendingInteractionIds
 }: {
   articles: NewsletterArticle[];
   completed: boolean;
+  interactionState: InteractionState;
   onComplete: () => void;
+  onInteraction: (action: InteractionAction) => Promise<void>;
+  pendingInteractionIds: Set<string>;
 }) {
   return (
     <View style={styles.section}>
@@ -280,29 +521,55 @@ function NewsletterSection({
         eyebrow="Newsletter"
         title="Signals worth knowing"
       />
-      <View style={styles.topicGrid}>
-        {articles.map((article) => (
-          <View key={article.id} style={styles.topicCard}>
-            <AppText color="accentInk" variant="label">
-              {topicLabels[article.topic]}
-            </AppText>
-            <AppText color="muted" variant="caption">
-              {getSourceCount(article)} sources
-            </AppText>
+      {articles.length > 0 ? (
+        <>
+          <View style={styles.topicGrid}>
+            {articles.map((article) => (
+              <View key={article.id} style={styles.topicCard}>
+                <AppText color="accentInk" variant="label">
+                  {topicLabels[article.topic]}
+                </AppText>
+                <AppText color="muted" variant="caption">
+                  {getSourceCount(article)} sources
+                </AppText>
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
-      <View style={styles.articleList}>
-        {articles.map((article) => (
-          <NewsletterArticlePreview article={article} key={article.id} />
-        ))}
-      </View>
-      <SectionCompleteButton completed={completed} label="Mark newsletter read" onComplete={onComplete} />
+          <View style={styles.articleList}>
+            {articles.map((article) => (
+              <NewsletterArticlePreview
+                article={article}
+                interactionState={interactionState}
+                key={article.id}
+                onInteraction={onInteraction}
+                pendingInteractionIds={pendingInteractionIds}
+              />
+            ))}
+          </View>
+          <SectionCompleteButton completed={completed} label="Mark newsletter read" onComplete={onComplete} />
+        </>
+      ) : (
+        <EmptyState
+          description="This assigned drop has no linked newsletter_article items. The other daily modules are still available."
+          eyebrow="Newsletter"
+          title="Newsletter slot is empty"
+        />
+      )}
     </View>
   );
 }
 
-function NewsletterArticlePreview({ article }: { article: NewsletterArticle }) {
+function NewsletterArticlePreview({
+  article,
+  interactionState,
+  onInteraction,
+  pendingInteractionIds
+}: {
+  article: NewsletterArticle;
+  interactionState: InteractionState;
+  onInteraction: (action: InteractionAction) => Promise<void>;
+  pendingInteractionIds: Set<string>;
+}) {
   const sources = getDisplaySourceLabels(article);
 
   return (
@@ -324,6 +591,12 @@ function NewsletterArticlePreview({ article }: { article: NewsletterArticle }) {
         <AppText variant="body">{article.why_it_matters}</AppText>
       </View>
       <SourceLine item={article} sources={sources} />
+      <ContentInteractionControls
+        item={article}
+        interactionState={interactionState}
+        onInteraction={onInteraction}
+        pendingInteractionIds={pendingInteractionIds}
+      />
     </Card>
   );
 }
@@ -331,11 +604,17 @@ function NewsletterArticlePreview({ article }: { article: NewsletterArticle }) {
 function BusinessStorySection({
   story,
   completed,
-  onComplete
+  interactionState,
+  onComplete,
+  onInteraction,
+  pendingInteractionIds
 }: {
   story: BusinessStory;
   completed: boolean;
+  interactionState: InteractionState;
   onComplete: () => void;
+  onInteraction: (action: InteractionAction) => Promise<void>;
+  pendingInteractionIds: Set<string>;
 }) {
   return (
     <View style={styles.section}>
@@ -364,6 +643,12 @@ function BusinessStorySection({
           <AppText variant="bodyStrong">{story.lesson}</AppText>
         </View>
         <SourceLine item={story} sources={getDisplaySourceLabels(story)} />
+        <ContentInteractionControls
+          item={story}
+          interactionState={interactionState}
+          onInteraction={onInteraction}
+          pendingInteractionIds={pendingInteractionIds}
+        />
       </Card>
       <SectionCompleteButton completed={completed} label="Mark story complete" onComplete={onComplete} />
     </View>
@@ -387,15 +672,21 @@ function StoryBeat({ label, text }: { label: string; text: string }) {
 function MiniCaseSection({
   challenge,
   completed,
+  interactionState,
   showSampleAnswer,
   onComplete,
-  onToggleSampleAnswer
+  onInteraction,
+  onToggleSampleAnswer,
+  pendingInteractionIds
 }: {
   challenge: MiniCaseChallenge;
   completed: boolean;
+  interactionState: InteractionState;
   showSampleAnswer: boolean;
   onComplete: () => void;
+  onInteraction: (action: InteractionAction) => Promise<void>;
   onToggleSampleAnswer: () => void;
+  pendingInteractionIds: Set<string>;
 }) {
   return (
     <View style={styles.section}>
@@ -435,6 +726,12 @@ function MiniCaseSection({
             <AppText variant="body">{challenge.sample_answer}</AppText>
           </View>
         ) : null}
+        <ContentInteractionControls
+          item={challenge}
+          interactionState={interactionState}
+          onInteraction={onInteraction}
+          pendingInteractionIds={pendingInteractionIds}
+        />
         <View style={styles.buttonRow}>
           <SecondaryButton
             label={showSampleAnswer ? "Hide sample" : "Show sample"}
@@ -456,11 +753,17 @@ function MiniCaseSection({
 function ConceptSection({
   concept,
   completed,
-  onComplete
+  interactionState,
+  onComplete,
+  onInteraction,
+  pendingInteractionIds
 }: {
   concept: KeyConcept;
   completed: boolean;
+  interactionState: InteractionState;
   onComplete: () => void;
+  onInteraction: (action: InteractionAction) => Promise<void>;
+  pendingInteractionIds: Set<string>;
 }) {
   return (
     <View style={styles.section}>
@@ -483,6 +786,12 @@ function ConceptSection({
           <ConceptNote label="Common mistake" text={concept.common_mistake} />
         </View>
         <SourceLine item={concept} sources={getDisplaySourceLabels(concept)} />
+        <ContentInteractionControls
+          item={concept}
+          interactionState={interactionState}
+          onInteraction={onInteraction}
+          pendingInteractionIds={pendingInteractionIds}
+        />
       </Card>
       <SectionCompleteButton completed={completed} label="Save concept for today" onComplete={onComplete} />
     </View>
@@ -496,6 +805,105 @@ function ConceptNote({ label, text }: { label: string; text: string }) {
         {label}
       </AppText>
       <AppText variant="body">{text}</AppText>
+    </View>
+  );
+}
+
+function ContentInteractionControls({
+  item,
+  interactionState,
+  onInteraction,
+  pendingInteractionIds
+}: {
+  item: DailyDropContentItem;
+  interactionState: InteractionState;
+  onInteraction: (action: InteractionAction) => Promise<void>;
+  pendingInteractionIds: Set<string>;
+}) {
+  const isCompleted = interactionState.completedItemIds.has(item.id);
+  const isSaved = interactionState.savedItemIds.has(item.id);
+  const activeRating = interactionState.ratingsByItemId[item.id];
+  const completionPending = pendingInteractionIds.has(
+    getPendingInteractionId({
+      contentItemId: item.id,
+      interactionType: "complete"
+    })
+  );
+  const savePending = pendingInteractionIds.has(
+    getPendingInteractionId({
+      contentItemId: item.id,
+      interactionType: "save"
+    })
+  );
+
+  return (
+    <View style={styles.interactionControls}>
+      <View style={styles.interactionButtonRow}>
+        <SecondaryButton
+          disabled={isCompleted || completionPending}
+          label={isCompleted ? "Completed" : "Complete"}
+          onPress={() =>
+            onInteraction({
+              contentItemId: item.id,
+              interactionType: "complete"
+            })
+          }
+          style={styles.interactionButton}
+        />
+        <SecondaryButton
+          disabled={isSaved || savePending}
+          label={isSaved ? "Saved" : "Save"}
+          onPress={() =>
+            onInteraction({
+              contentItemId: item.id,
+              interactionType: "save"
+            })
+          }
+          style={styles.interactionButton}
+        />
+      </View>
+      <View style={styles.feedbackGroup}>
+        <AppText color="muted" variant="caption">
+          Rate this
+        </AppText>
+        <View style={styles.feedbackButtons}>
+          {(["good", "average", "bad"] as const).map((rating) => {
+            const active = activeRating === rating;
+            const pending = pendingInteractionIds.has(
+              getPendingInteractionId({
+                contentItemId: item.id,
+                interactionType: "feedback",
+                rating
+              })
+            );
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: active, busy: pending }}
+                disabled={pending}
+                key={rating}
+                onPress={() =>
+                  onInteraction({
+                    contentItemId: item.id,
+                    interactionType: "feedback",
+                    rating
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.feedbackButton,
+                  active ? styles.feedbackButtonActive : null,
+                  pressed && !pending ? styles.feedbackButtonPressed : null
+                ]}
+              >
+                <AppText color={active ? "accentInk" : "inkSoft"} variant="caption">
+                  {formatRatingLabel(rating)}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }
@@ -559,6 +967,14 @@ function SourceLine({ item, sources }: { item: { version: number }; sources: str
   );
 }
 
+function getModuleItemCount(drop: TodayDailyDrop, moduleId: ModuleId) {
+  if (moduleId === "newsletter") {
+    return drop.items.newsletter.length;
+  }
+
+  return 1;
+}
+
 function getSourceCount(item: DailyDropContentItem) {
   return Math.max(item.source_ids.length, getMockSourcesForItem(item).length);
 }
@@ -575,6 +991,32 @@ function getDisplaySourceLabels(item: DailyDropContentItem) {
   }
 
   return ["Source metadata pending"];
+}
+
+function getPendingInteractionId({
+  contentItemId,
+  interactionType,
+  rating
+}: InteractionAction) {
+  return `${contentItemId}:${interactionType}:${rating ?? "none"}`;
+}
+
+function removeSetValue<T>(set: Set<T>, value: T) {
+  const nextSet = new Set(set);
+  nextSet.delete(value);
+  return nextSet;
+}
+
+function formatRatingLabel(rating: ContentRating) {
+  if (rating === "good") {
+    return "Good";
+  }
+
+  if (rating === "average") {
+    return "Average";
+  }
+
+  return "Bad";
 }
 
 function formatDropDate(date: string) {
@@ -625,6 +1067,41 @@ const styles = StyleSheet.create({
   progressCard: {
     gap: tokens.space.md
   },
+  stateCardLive: {
+    gap: tokens.space.sm
+  },
+  stateHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.space.md,
+    justifyContent: "space-between"
+  },
+  slotOverview: {
+    gap: tokens.space.md
+  },
+  slotOverviewHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.space.md,
+    justifyContent: "space-between"
+  },
+  slotOverviewRow: {
+    alignItems: "center",
+    borderTopColor: tokens.color.border,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: tokens.space.md,
+    justifyContent: "space-between",
+    paddingTop: tokens.space.md
+  },
+  slotOverviewCopy: {
+    flex: 1,
+    gap: tokens.space.xs
+  },
+  slotOverviewMeta: {
+    alignItems: "flex-end",
+    gap: tokens.space.xs
+  },
   progressTopline: {
     alignItems: "center",
     flexDirection: "row",
@@ -644,6 +1121,14 @@ const styles = StyleSheet.create({
   },
   body: {
     gap: tokens.space.xl
+  },
+  interactionError: {
+    backgroundColor: tokens.color.dangerSoft,
+    borderColor: tokens.color.danger
+  },
+  interactionMessage: {
+    backgroundColor: tokens.color.successSoft,
+    borderColor: tokens.color.success
   },
   section: {
     gap: tokens.space.md
@@ -767,6 +1252,46 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     gap: tokens.space.xs,
     paddingTop: tokens.space.md
+  },
+  interactionControls: {
+    borderTopColor: tokens.color.border,
+    borderTopWidth: 1,
+    gap: tokens.space.md,
+    paddingTop: tokens.space.md
+  },
+  interactionButtonRow: {
+    flexDirection: "row",
+    gap: tokens.space.sm
+  },
+  interactionButton: {
+    flex: 1,
+    minHeight: 42,
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.sm
+  },
+  feedbackGroup: {
+    gap: tokens.space.sm
+  },
+  feedbackButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.space.sm
+  },
+  feedbackButton: {
+    backgroundColor: tokens.color.surface,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    minHeight: 34,
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.sm
+  },
+  feedbackButtonActive: {
+    backgroundColor: tokens.color.accentSoft,
+    borderColor: tokens.color.accent
+  },
+  feedbackButtonPressed: {
+    backgroundColor: tokens.color.surfaceMuted
   },
   completionCard: {
     gap: tokens.space.md

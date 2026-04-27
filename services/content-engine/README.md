@@ -36,6 +36,7 @@ npm run dry-run
 npm run llm-run
 npm run persist-test
 npm run cleanup-test
+npm run assign-test-users
 ```
 
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
@@ -201,6 +202,42 @@ Safety limits:
 - does not delete `sources`, `daily_drops`, `daily_drop_items`, profiles, preferences, or user data
 
 If cleanup skips a row, inspect the JSON output and delete it manually only after confirming it is test content.
+
+### Assigning Test Content To App Users
+
+`assign-test-users` assigns existing published `persist-test` content to a small set of app users. It does not generate content. It only reads app `profiles` with `user_preferences`, so legacy newsletter-only users are never selected.
+
+Required:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CONFIRM_ASSIGN_TEST=true`
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_ASSIGN_TEST=true \
+npm run assign-test-users
+```
+
+Safety limits:
+
+- default limit is 5 users
+- selects only `content_items.status = published`
+- selects only content with `metadata.test_mode = "persist-test"` and `metadata.is_test_data = true`
+- requires the test content group to contain newsletter, business story, mini-case, and concept slots
+- skips users who already have a `daily_drops` row for the selected test content date
+- skips users whose preferences cannot receive a complete test drop
+- writes only `daily_drops` and `daily_drop_items` assignments
+
+Useful options:
+
+```sh
+npm run assign-test-users -- --limit 5
+npm run assign-test-users -- --test-run-id persist-test-abc123
+```
+
+The command logs how many users were considered, skipped, and assigned. Use this after publishing or creating a published persist-test content set, for example via `persist-test` with `TEST_USER_ID`.
 
 ## Daily Job
 

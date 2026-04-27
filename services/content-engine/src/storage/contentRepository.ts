@@ -46,8 +46,26 @@ type PersistTestContentItemRow = {
   metadata: unknown;
 };
 
+export type PublishedPersistTestContentItem = {
+  id: string;
+  content_type: string;
+  topic_id: TopicId | null;
+  language: Language;
+  title: string;
+  status: string;
+  publication_date: string;
+  metadata: unknown;
+  created_at: string;
+};
+
 type DailyDropRow = {
   id: string;
+};
+
+type DailyDropAssignmentRow = {
+  id: string;
+  user_id: string;
+  status: DailyDropStatus;
 };
 
 export type PersistTestCleanupResult = {
@@ -213,6 +231,32 @@ export class ContentRepository {
       deletedGenerationRuns,
       skippedContentItems
     };
+  }
+
+  async listPublishedPersistTestContent(testRunId?: string): Promise<PublishedPersistTestContentItem[]> {
+    let query = this.supabase
+      .from("content_items")
+      .select("id,content_type,topic_id,language,title,status,publication_date,metadata,created_at")
+      .eq("status", "published")
+      .eq("metadata->>test_mode", "persist-test")
+      .eq("metadata->>is_test_data", "true")
+      .order("created_at", { ascending: false });
+
+    if (testRunId) {
+      query = query.eq("metadata->>test_run_id", testRunId);
+    }
+
+    const { data, error } = await query.returns<PublishedPersistTestContentItem[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "content_items",
+        action: "select published persist-test content items",
+        error
+      });
+    }
+
+    return (data ?? []).filter(isPublishedPersistTestContentItem);
   }
 
   private async deleteRowsByIds(input: {
@@ -472,6 +516,34 @@ export class ContentRepository {
     });
   }
 
+  async listDailyDropsForUsersOnDate(input: {
+    userIds: string[];
+    dropDate: string;
+  }): Promise<Map<string, DailyDropAssignmentRow>> {
+    const userIds = [...new Set(input.userIds)];
+
+    if (userIds.length === 0) {
+      return new Map();
+    }
+
+    const { data, error } = await this.supabase
+      .from("daily_drops")
+      .select("id,user_id,status")
+      .eq("drop_date", input.dropDate)
+      .in("user_id", userIds)
+      .returns<DailyDropAssignmentRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "daily_drops",
+        action: "select existing daily drops for users on date",
+        error
+      });
+    }
+
+    return new Map((data ?? []).map((drop) => [drop.user_id, drop]));
+  }
+
   async createDailyDropForUser(input: {
     userId: string;
     dropDate: string;
@@ -575,6 +647,18 @@ function isPersistTestContentItem(row: PersistTestContentItemRow, testRunId: str
     metadata.is_test_data === true &&
     metadata.test_mode === "persist-test" &&
     metadata.test_run_id === testRunId
+  );
+}
+
+function isPublishedPersistTestContentItem(row: PublishedPersistTestContentItem): boolean {
+  const metadata = isRecord(row.metadata) ? row.metadata : {};
+
+  return (
+    row.title.startsWith("[TEST persist-test]") &&
+    row.status === "published" &&
+    metadata.is_test_data === true &&
+    metadata.test_mode === "persist-test" &&
+    typeof metadata.test_run_id === "string"
   );
 }
 

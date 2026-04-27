@@ -69,6 +69,17 @@ const contentLabels: Record<ContentType, string> = {
   key_concept: "Concept"
 };
 
+const archiveSlots: Array<{
+  id: ContentFilterId;
+  label: string;
+  contentTypes: ContentType[];
+}> = [
+  { id: "newsletter", label: "Newsletter", contentTypes: ["newsletter_article"] },
+  { id: "business_story", label: "Business story", contentTypes: ["business_story"] },
+  { id: "mini_case", label: "Mini-case", contentTypes: ["mini_case"] },
+  { id: "concept", label: "Concept", contentTypes: ["key_concept"] }
+];
+
 const topicLabels = TOPICS.reduce<Record<TopicId, string>>((labels, topic) => {
   labels[topic.id] = topic.label;
   return labels;
@@ -179,11 +190,19 @@ export default function LibraryScreen() {
   return (
     <AppScreen contentStyle={styles.screen}>
       <AppScreen.Header>
-        <AppText variant="eyebrow">Library</AppText>
-        <AppText variant="display">Past drops</AppText>
-        <AppText color="muted" variant="body">
-          Return to previous daily briefings, saved ideas, and completed practice.
-        </AppText>
+        <View style={styles.headerTopline}>
+          <AppText variant="eyebrow">Library</AppText>
+          <ProgressPill
+            label={loadState.source === "supabase" ? "LIVE" : "MOCK"}
+            tone={loadState.source === "supabase" ? "success" : "neutral"}
+          />
+        </View>
+        <View style={styles.headerCopy}>
+          <AppText variant="display">Past drops</AppText>
+          <AppText color="muted" variant="body">
+            Return to previous daily briefings, saved ideas, and completed practice.
+          </AppText>
+        </View>
       </AppScreen.Header>
 
       <AppScreen.Body>
@@ -271,10 +290,18 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
 
   if (loadState.source === "supabase") {
     return (
-      <Card padding="md" tone="accent">
-        <ProgressPill label="Live archive" tone="success" value={1} />
+      <Card padding="md" style={styles.stateCardLive} tone="accent">
+        <View style={styles.stateHeader}>
+          <ProgressPill label="LIVE FROM SUPABASE" tone="success" value={1} />
+          <AppText color="accentInk" variant="caption">
+            {loadState.drops.length} drop{loadState.drops.length === 1 ? "" : "s"}
+          </AppText>
+        </View>
+        <AppText color="accentInk" variant="bodyStrong">
+          Showing assigned published daily drops.
+        </AppText>
         <AppText color="accentInk" variant="caption">
-          Loaded {loadState.drops.length} daily drop{loadState.drops.length === 1 ? "" : "s"} from Supabase.
+          Source: daily_drops, daily_drop_items, published content_items, and interactions.
         </AppText>
       </Card>
     );
@@ -283,9 +310,9 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
   if (loadState.fallbackReason === "supabase_error") {
     return (
       <EmptyState
-        description={loadState.error?.message ?? "Supabase is unavailable, so the app is showing the mock archive."}
-        eyebrow="Mock fallback"
-        title="Could not load live archive"
+        description={`${loadState.error?.message ?? "Supabase is unavailable."} The Library is showing the built-in mock archive so the app remains usable.`}
+        eyebrow="MOCK FALLBACK"
+        title="Supabase error while loading Library"
       />
     );
   }
@@ -293,9 +320,9 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
   if (loadState.fallbackReason === "no_supabase_data") {
     return (
       <EmptyState
-        description="No published Supabase drops exist yet, so the app is showing the built-in mock archive."
-        eyebrow="Mock fallback"
-        title="No live archive yet"
+        description="No published daily_drops rows are assigned to this user yet. The mock archive is shown as a preview."
+        eyebrow="MOCK FALLBACK"
+        title="No live drops in Library yet"
       />
     );
   }
@@ -304,7 +331,7 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
     return (
       <EmptyState
         description="Sign in to load your Supabase archive. The mock archive keeps the app usable for now."
-        eyebrow="Mock fallback"
+        eyebrow="MOCK FALLBACK"
         title="No active session"
       />
     );
@@ -417,6 +444,7 @@ type ArchiveDropCardProps = {
 function ArchiveDropCard({ drop, items }: ArchiveDropCardProps) {
   const completionValue =
     drop.item_count > 0 ? drop.completed_item_count / drop.item_count : 0;
+  const slotCounts = getArchiveSlotCounts(items);
 
   return (
     <Card elevated padding="md" style={styles.dropCard}>
@@ -444,6 +472,24 @@ function ArchiveDropCard({ drop, items }: ArchiveDropCardProps) {
         ))}
       </View>
 
+      <View style={styles.slotCoverage}>
+        {archiveSlots.map((slot) => {
+          const count = slotCounts[slot.id] ?? 0;
+
+          return (
+            <View key={slot.id} style={styles.slotCoverageItem}>
+              <AppText color={count > 0 ? "accentInk" : "muted"} variant="caption">
+                {slot.label}
+              </AppText>
+              <ProgressPill
+                label={count > 0 ? `${count}` : "Missing"}
+                tone={count > 0 ? "accent" : "neutral"}
+              />
+            </View>
+          );
+        })}
+      </View>
+
       <View style={styles.itemList}>
         {items.map((item) => (
           <View key={item.id} style={styles.itemRow}>
@@ -465,6 +511,23 @@ function ArchiveDropCard({ drop, items }: ArchiveDropCardProps) {
       </View>
     </Card>
   );
+}
+
+function getArchiveSlotCounts(items: LibraryItemSummary[]): Partial<Record<ContentFilterId, number>> {
+  return items.reduce<Partial<Record<ContentFilterId, number>>>((counts, item) => {
+    const slot = archiveSlots.find((candidate) =>
+      candidate.contentTypes.includes(item.content_type)
+    );
+
+    if (!slot) {
+      return counts;
+    }
+
+    return {
+      ...counts,
+      [slot.id]: (counts[slot.id] ?? 0) + 1
+    };
+  }, {});
 }
 
 function getTopicLabel(topic: LibraryItemSummary["topic"]): string {
@@ -489,6 +552,24 @@ function formatArchiveDate(date: string): string {
 const styles = StyleSheet.create({
   screen: {
     paddingBottom: tokens.space.xxl
+  },
+  headerTopline: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.space.md,
+    justifyContent: "space-between"
+  },
+  headerCopy: {
+    gap: tokens.space.sm
+  },
+  stateCardLive: {
+    gap: tokens.space.sm
+  },
+  stateHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.space.md,
+    justifyContent: "space-between"
   },
   controls: {
     gap: tokens.space.lg
@@ -572,6 +653,21 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.pill,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.xs
+  },
+  slotCoverage: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.space.sm
+  },
+  slotCoverageItem: {
+    backgroundColor: tokens.color.backgroundRaised,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    gap: tokens.space.xs,
+    minWidth: 132,
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.sm
   },
   itemList: {
     borderTopColor: tokens.color.border,

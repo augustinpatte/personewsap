@@ -113,3 +113,31 @@ https://<your-domain>/feedback?email={{email}}&issue=YYYY-MM-DD&lang=fr
 ```
 
 Replace `lang=fr` with `lang=en` as needed.
+
+## Local MVP Smoke Tests
+
+Run the current MVP smoke flow from the repo root:
+
+```sh
+npm run smoke
+```
+
+This runs:
+
+- `npm --prefix apps/mobile run typecheck`
+- `npm --prefix services/content-engine run build`
+- `npm --prefix services/content-engine run dry-run`
+
+Useful single checks:
+
+```sh
+npm run smoke:mobile
+npm run smoke:content:build
+npm run smoke:content:dry-run
+```
+
+Safety notes:
+
+- `.env` and `.env.*` files are ignored; keep real keys local.
+- `services/content-engine` dry-run does not write to Supabase and does not require API keys.
+- Persistence tests require explicit confirmation env vars; use local or disposable Supabase projects for them.

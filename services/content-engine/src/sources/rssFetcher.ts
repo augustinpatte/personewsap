@@ -1,5 +1,9 @@
 import type { Language, RawArticle } from "../domain.js";
 import type { CuratedSource, SourceArticleMetadata, SourceConnector, SourceFetchRequest } from "./types.js";
+import { sourceLog, sourceWarning } from "./sourceLogger.js";
+
+const DEFAULT_RSS_TIMEOUT_MS = 8_000;
+const DEFAULT_RSS_LIMIT_PER_SOURCE = 5;
 
 function readTag(xml: string, tag: string): string | null {
   const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
@@ -47,16 +51,53 @@ function isAfterSince(article: RawArticle, since?: string): boolean {
 export class RssFeedConnector implements SourceConnector {
   readonly name = "rss";
 
-  constructor(private readonly sources: CuratedSource[]) {}
+  constructor(
+    private readonly sources: CuratedSource[],
+    private readonly options: {
+      timeoutMs?: number;
+      limitPerSource?: number;
+    } = {}
+  ) {}
 
   async fetchArticles(request: SourceFetchRequest): Promise<RawArticle[]> {
     const selected = this.sources.filter(
       (source) => source.rssUrl && request.topics.includes(source.topic) && request.languages.includes(source.language)
     );
+    const limitPerSource = this.resolveLimitPerSource(request);
 
-    const batches = await Promise.allSettled(selected.map((source) => this.fetchSource(source, request.limitPerTopic ?? 8, request.since)));
+    sourceLog("rss_fetch_started", {
+      source_count: selected.length,
+      limit_per_source: limitPerSource,
+      languages: request.languages,
+      topics: request.topics
+    });
 
-    return batches.flatMap((batch) => (batch.status === "fulfilled" ? batch.value : []));
+    const batches = await Promise.allSettled(selected.map((source) => this.fetchSource(source, limitPerSource, request.since)));
+    const failures = batches
+      .map((batch, index) => ({
+        batch,
+        source: selected[index]
+      }))
+      .filter((entry): entry is { batch: PromiseRejectedResult; source: CuratedSource } => entry.batch.status === "rejected");
+
+    for (const failure of failures) {
+      sourceWarning("rss_source_failed", {
+        source_id: failure.source.id,
+        publisher: failure.source.publisher,
+        rss_url: failure.source.rssUrl,
+        error: failure.batch.reason instanceof Error ? failure.batch.reason.message : String(failure.batch.reason)
+      });
+    }
+
+    const articles = batches.flatMap((batch) => (batch.status === "fulfilled" ? batch.value : []));
+
+    sourceLog("rss_fetch_completed", {
+      source_count: selected.length,
+      failed_sources: failures.length,
+      article_count: articles.length
+    });
+
+    return articles;
   }
 
   private async fetchSource(source: CuratedSource, limit: number, since?: string): Promise<RawArticle[]> {
@@ -64,11 +105,27 @@ export class RssFeedConnector implements SourceConnector {
       return [];
     }
 
-    const response = await fetch(source.rssUrl, {
-      headers: {
-        "User-Agent": "PersoNewsAPContentEngine/0.1"
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.resolveTimeoutMs());
+
+    let response: Response;
+
+    try {
+      response = await fetch(source.rssUrl, {
+        headers: {
+          "User-Agent": "PersoNewsAPContentEngine/0.1"
+        },
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`RSS fetch timed out for ${source.id} after ${this.resolveTimeoutMs()}ms`);
       }
-    });
+
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       throw new Error(`RSS fetch failed for ${source.id}: ${response.status}`);
@@ -101,5 +158,26 @@ export class RssFeedConnector implements SourceConnector {
       .filter((article): article is RawArticle & SourceArticleMetadata => article !== null)
       .filter((article) => isAfterSince(article, since))
       .slice(0, limit);
+  }
+
+  private resolveLimitPerSource(request: SourceFetchRequest): number {
+    const envLimit = Number(process.env.RSS_ARTICLES_PER_SOURCE);
+    const limit =
+      request.limitPerSource ??
+      this.options.limitPerSource ??
+      (Number.isInteger(envLimit) && envLimit > 0 ? envLimit : undefined) ??
+      DEFAULT_RSS_LIMIT_PER_SOURCE;
+
+    return Math.max(1, Math.min(limit, 25));
+  }
+
+  private resolveTimeoutMs(): number {
+    const envTimeout = Number(process.env.RSS_TIMEOUT_MS);
+    const timeoutMs =
+      this.options.timeoutMs ??
+      (Number.isInteger(envTimeout) && envTimeout > 0 ? envTimeout : undefined) ??
+      DEFAULT_RSS_TIMEOUT_MS;
+
+    return Math.max(1_000, Math.min(timeoutMs, 30_000));
   }
 }

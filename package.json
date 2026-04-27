@@ -9,6 +9,10 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "smoke": "npm run smoke:mobile && npm run smoke:content:build && npm run smoke:content:dry-run",
+    "smoke:mobile": "npm --prefix apps/mobile run typecheck",
+    "smoke:content:build": "npm --prefix services/content-engine run build",
+    "smoke:content:dry-run": "npm --prefix services/content-engine run dry-run",
     "test": "vitest run",
     "test:watch": "vitest"
   },

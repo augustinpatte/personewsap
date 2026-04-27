@@ -5,6 +5,7 @@ export type SourceFetchRequest = {
   languages: Language[];
   since?: string;
   limitPerTopic?: number;
+  limitPerSource?: number;
 };
 
 export type SourceConnector = {
