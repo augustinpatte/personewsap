@@ -67,6 +67,12 @@ function topicLabel(topic: TopicId): string {
   return topic.replace("_", " ");
 }
 
+function sourceLine(article: RankedArticle): string {
+  const publishedDate = article.published_at?.slice(0, 10) ?? "unknown";
+  const retrievedDate = article.retrieved_at.slice(0, 10);
+  return `Source: [${article.publisher}](${article.url}), published ${publishedDate}, retrieved ${retrievedDate}.`;
+}
+
 function languageLine(language: Language, english: string, french: string): string {
   return language === "fr" ? french : english;
 }
@@ -128,10 +134,16 @@ export class StructuredContentGenerator implements ContentGenerator {
           summary,
           languageLine(
             request.language,
-            `The useful angle: watch what changes next for customers, regulators, competitors, or students preparing for this field.`,
-            `L'angle utile : observe ce qui change ensuite pour les clients, les régulateurs, les concurrents ou les étudiants qui visent ce secteur.`
+            `Context: the useful question is not whether the headline is loud. It is what changes for customers, regulators, competitors, or students preparing for ${topicLabel(article.topic)} roles.`,
+            `Contexte : la bonne question n'est pas de savoir si le titre fait du bruit. C'est ce qui change pour les clients, les régulateurs, les concurrents ou les étudiants qui visent des rôles en ${topicLabel(article.topic)}.`
           ),
-          `[Source](${article.url})`
+          why,
+          languageLine(
+            request.language,
+            "Watch the next measurable signal: behavior, budgets, deadlines, policy language, or adoption. If none of those move, the story is probably smaller than the headline.",
+            "Surveille le prochain signal mesurable : comportements, budgets, délais, formulation réglementaire ou adoption. Si rien de tout cela ne bouge, l'histoire est probablement moins grande que le titre."
+          ),
+          sourceLine(article)
         ].join("\n\n"),
         why_it_matters: why,
         source_urls: [article.url],
@@ -173,7 +185,25 @@ export class StructuredContentGenerator implements ContentGenerator {
         "Business stories are usually incentive stories. Follow who gains leverage and who loses room to maneuver.",
         "Les histoires business sont souvent des histoires d'incitations. Regarde qui gagne du levier et qui perd de la marge de manoeuvre."
       ),
-      body_md: [setup, `[Source](${article.url})`].join("\n\n"),
+      body_md: [
+        setup,
+        languageLine(
+          request.language,
+          "The business question is where the constraint sits: demand, trust, regulation, distribution, capital, or execution.",
+          "La question business est de savoir où se situe la contrainte : demande, confiance, régulation, distribution, capital ou exécution."
+        ),
+        languageLine(
+          request.language,
+          "The operator's job is to choose the move that protects future options while testing whether stakeholders actually change behavior.",
+          "Le rôle de l'opérateur est de choisir l'action qui protège les options futures tout en vérifiant si les parties prenantes changent vraiment de comportement."
+        ),
+        languageLine(
+          request.language,
+          "The lesson is practical: follow who gains leverage, who loses room to maneuver, and which metric would prove the strategy is working.",
+          "La leçon est pratique : regarde qui gagne du levier, qui perd de la marge de manoeuvre, et quelle métrique prouverait que la stratégie fonctionne."
+        ),
+        sourceLine(article)
+      ].join("\n\n"),
       source_urls: [article.url],
       version: 1
     };
@@ -213,7 +243,20 @@ export class StructuredContentGenerator implements ContentGenerator {
         "I would recommend a cautious first move: summarize the factual change, test the incentive impact, then wait for one confirming signal before committing resources.",
         "Je recommanderais une première action prudente : résumer le changement factuel, tester l'impact sur les incitations, puis attendre un signal de confirmation avant d'engager des ressources."
       ),
-      body_md: [sentence(article), `[Source](${article.url})`].join("\n\n"),
+      body_md: [
+        sentence(article),
+        languageLine(
+          request.language,
+          "Your task is to brief a decision-maker in five minutes. Separate sourced facts from judgment, name one risk, and state what evidence would change your recommendation.",
+          "Ta mission est de briefer un décideur en cinq minutes. Sépare les faits sourcés du jugement, nomme un risque, et indique quelle preuve changerait ta recommandation."
+        ),
+        languageLine(
+          request.language,
+          "A strong answer should identify the stakeholder with the strongest incentive, explain the second-order effect, and avoid pretending uncertainty has disappeared.",
+          "Une bonne réponse doit identifier l'acteur avec l'incitation la plus forte, expliquer l'effet de second ordre, et éviter de faire comme si l'incertitude avait disparu."
+        ),
+        sourceLine(article)
+      ].join("\n\n"),
       source_urls: [article.url],
       version: 1
     };
@@ -249,7 +292,25 @@ export class StructuredContentGenerator implements ContentGenerator {
         "Utilise-le en cours, en entretien ou en stage quand quelqu'un demande pourquoi une décision peut fonctionner."
       ),
       common_mistake: concept.mistake,
-      body_md: [concept.definition, `[Source](${article.url})`].join("\n\n"),
+      body_md: [
+        concept.definition,
+        languageLine(
+          request.language,
+          "Plain English: use the concept to ask what makes the decision hard, what changes the incentives, and who has fewer alternatives after the move.",
+          "En clair : utilise le concept pour demander ce qui rend la décision difficile, ce qui change les incitations, et qui a moins d'options après le mouvement."
+        ),
+        languageLine(
+          request.language,
+          `Example from today's source: ${sentence(article)}`,
+          `Exemple tiré de la source du jour : ${sentence(article)}`
+        ),
+        languageLine(
+          request.language,
+          "Use it in class, interviews, or internships when someone asks why a decision might work. The common mistake is treating the surface headline as the lesson instead of reading the mechanism underneath.",
+          "Utilise-le en cours, en entretien ou en stage quand quelqu'un demande pourquoi une décision peut fonctionner. L'erreur fréquente est de prendre le titre pour la leçon au lieu de lire le mécanisme en dessous."
+        ),
+        sourceLine(article)
+      ].join("\n\n"),
       source_urls: sourceUrls([article]),
       version: 1
     };

@@ -15,6 +15,7 @@ export * from "./sources/curatedSources.js";
 export * from "./sources/curatedSourceFetcher.js";
 export * from "./sources/newsApiFetcher.js";
 export * from "./sources/rssFetcher.js";
+export * from "./sources/sampleArticles.js";
 export * from "./sources/sourceFetcher.js";
 export * from "./processing/pipeline.js";
 export * from "./processing/deduplicate.js";
@@ -27,6 +28,7 @@ export * from "./generation/validation.js";
 export * from "./storage/contentRepository.js";
 export * from "./storage/supabaseClient.js";
 export * from "./scheduler/index.js";
+export * from "./cli/dryRun.js";
 
 export function createContentEngine(options?: {
   persist?: boolean;

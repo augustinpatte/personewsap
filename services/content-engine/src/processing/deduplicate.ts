@@ -18,7 +18,7 @@ export function deduplicateArticles(articles: ArticleCandidate[]): ArticleCandid
   const byKey = new Map<string, ArticleCandidate>();
 
   for (const article of articles) {
-    const key = article.content_hash || article.normalized_url;
+    const key = article.normalized_url || article.content_hash;
     const existing = byKey.get(key);
 
     if (!existing) {

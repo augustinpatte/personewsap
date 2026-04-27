@@ -29,7 +29,41 @@ Optional:
 ```sh
 npm run check
 npm run build
+npm run dry-run
 ```
+
+`dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
+
+The default dry run uses bundled sample articles, including a duplicate URL variant, then runs the normal pipeline:
+
+1. source collection
+2. deduplication
+3. topic categorization
+4. importance ranking
+5. placeholder structured generation
+6. validation
+7. JSON printing
+
+```sh
+npm run dry-run
+```
+
+Useful options:
+
+```sh
+npm run dry-run -- --date 2026-04-26
+npm run dry-run -- --languages en,fr
+npm run dry-run -- --topics business,finance,tech_ai
+npm run dry-run -- --newsletter-count 3
+```
+
+Optional live RSS fetching can be added without API keys:
+
+```sh
+npm run dry-run -- --live-rss
+```
+
+The command prints a JSON object with diagnostics and one or more daily drop payloads. `persisted` is always `false` in dry-run mode.
 
 ## Daily Job
 

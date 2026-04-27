@@ -5,9 +5,13 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "personewsap-content-engine": "dist/cli.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dry-run": "npm run build && node dist/cli.js dry-run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3"
