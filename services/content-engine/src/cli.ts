@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseAssignTestUsersOptions, runAssignTestUsers } from "./cli/assignTestUsers.js";
 import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
+import { parseDailyJobTestOptions, runDailyJobTest } from "./cli/dailyJobTest.js";
 import { parseDryRunOptions, runDryRun } from "./cli/dryRun.js";
 import { parseLlmRunOptions, runLlmRun } from "./cli/llmRun.js";
 import { parsePersonalizeTestOptions, runPersonalizeTest } from "./cli/personalizeTest.js";
@@ -46,6 +47,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "daily-job-test") {
+    const output = await runDailyJobTest(parseDailyJobTestOptions(args));
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+
   if (command === "help" || command === "--help" || command === "-h") {
     printHelp();
     return;
@@ -63,6 +70,7 @@ Commands:
   persist-test            Persist one limited test drop after explicit env confirmation.
   cleanup-test            Delete draft persist-test content for one test_run_id.
   assign-test-users       Assign existing published test content to app users.
+  daily-job-test          Generate, publish, and assign a limited marked test daily drop.
   personalize-test        Assign already-published content from app user preferences.
 
 Options:
@@ -81,6 +89,7 @@ Examples:
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSIST_TEST=true TEST_USER_ID=... npm run persist-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_CLEANUP_TEST=true npm run cleanup-test -- --test-run-id persist-test-abc123
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_ASSIGN_TEST=true npm run assign-test-users -- --limit 5
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true npm run daily-job-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSONALIZE_TEST=true npm run personalize-test
 `);
 }

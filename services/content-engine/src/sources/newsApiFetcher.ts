@@ -71,6 +71,7 @@ export class NewsApiConnector implements SourceConnector {
 
         return {
           source_id: `news-api-${topic}-${language}`,
+          source_region: "global",
           source_type: "aggregated_api",
           credibility_tier: "tier_3",
           url: article.url,

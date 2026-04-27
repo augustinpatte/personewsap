@@ -18,20 +18,44 @@ export function deduplicateArticles(articles: ArticleCandidate[]): ArticleCandid
   const byKey = new Map<string, ArticleCandidate>();
 
   for (const article of articles) {
-    const key = article.normalized_url || article.content_hash;
-    const existing = byKey.get(key);
+    const keys = dedupeKeys(article);
+    const existing = keys.map((key) => byKey.get(key)).find(Boolean);
 
     if (!existing) {
-      byKey.set(key, article);
+      for (const key of keys) {
+        byKey.set(key, article);
+      }
       continue;
     }
 
     const existingScore = existing.credibility_score ?? 0;
     const incomingScore = article.credibility_score ?? 0;
     if (incomingScore > existingScore) {
-      byKey.set(key, article);
+      for (const key of keys) {
+        byKey.set(key, article);
+      }
     }
   }
 
-  return Array.from(byKey.values());
+  return Array.from(new Set(byKey.values()));
+}
+
+function dedupeKeys(article: ArticleCandidate): string[] {
+  return [
+    `url:${article.normalized_url}`,
+    `hash:${article.content_hash}`,
+    `title:${titleFingerprint(article.title)}`
+  ].filter((key) => !key.endsWith(":"));
+}
+
+function titleFingerprint(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/&amp;/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 2)
+    .slice(0, 14)
+    .join(" ");
 }

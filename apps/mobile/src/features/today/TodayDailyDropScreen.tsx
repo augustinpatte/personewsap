@@ -17,12 +17,17 @@ import type {
   NewsletterArticle,
   TodayDailyDrop
 } from "./contentTypes";
-import { writeContentInteraction } from "./contentInteractions";
+import {
+  createEmptyContentInteractionSnapshot,
+  readContentInteractionSnapshot,
+  writeContentInteraction,
+  type ContentInteractionSnapshot
+} from "./contentInteractions";
 import { fetchTodayDrop } from "./dailyDropData";
 
 const moduleOrder = ["newsletter", "business_story", "mini_case", "concept"] as const;
 type ModuleId = (typeof moduleOrder)[number];
-type TodayFallbackReason = DataFallbackReason | "missing_auth_session";
+type TodayFallbackReason = DataFallbackReason;
 
 type TodayLoadState = {
   drop: TodayDailyDrop;
@@ -32,11 +37,7 @@ type TodayLoadState = {
   status: "loading" | "ready";
 };
 
-type InteractionState = {
-  completedItemIds: Set<string>;
-  savedItemIds: Set<string>;
-  ratingsByItemId: Record<string, ContentRating>;
-};
+type InteractionState = ContentInteractionSnapshot;
 
 type InteractionAction = {
   contentItemId: string;
@@ -78,29 +79,38 @@ export function TodayDailyDropScreen() {
     source: "mock",
     status: "loading"
   });
-  const [completedModules, setCompletedModules] = useState<Set<ModuleId>>(new Set());
-  const [interactionState, setInteractionState] = useState<InteractionState>({
-    completedItemIds: new Set(),
-    savedItemIds: new Set(),
-    ratingsByItemId: {}
-  });
+  const [interactionState, setInteractionState] = useState<InteractionState>(
+    createEmptyContentInteractionSnapshot
+  );
   const [interactionError, setInteractionError] = useState<NormalizedSupabaseError | null>(null);
   const [interactionMessage, setInteractionMessage] = useState<string | null>(null);
   const [pendingInteractionIds, setPendingInteractionIds] = useState<Set<string>>(new Set());
   const [showSampleAnswer, setShowSampleAnswer] = useState(false);
 
   const drop = loadState.drop;
-  const completedCount = completedModules.size;
-  const progress = completedCount / moduleOrder.length;
-  const isComplete = completedCount === moduleOrder.length;
   const formattedDate = useMemo(() => formatDropDate(drop.drop_date), [drop.drop_date]);
   const allItems = useMemo(() => flattenDailyDropItems(drop), [drop]);
+  const totalItemCount = allItems.length;
+  const completedItemCount = useMemo(
+    () =>
+      allItems.filter((item) => interactionState.completedItemIds.has(item.id)).length,
+    [allItems, interactionState.completedItemIds]
+  );
+  const completedModules = useMemo(
+    () => getCompletedModules(drop, interactionState.completedItemIds),
+    [drop, interactionState.completedItemIds]
+  );
+  const progress = totalItemCount > 0 ? completedItemCount / totalItemCount : 0;
+  const isComplete = totalItemCount > 0 && completedItemCount === totalItemCount;
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadTodayDrop() {
       setLoadState((currentState) => ({ ...currentState, status: "loading" }));
+      setInteractionState(createEmptyContentInteractionSnapshot());
+      setInteractionError(null);
+      setInteractionMessage(null);
 
       const sessionResult = await getAuthSession();
       const userId = sessionResult.data?.user.id;
@@ -130,6 +140,24 @@ export function TodayDailyDropScreen() {
           status: "ready"
         });
       }
+
+      if (result.source === "supabase") {
+        const interactionResult = await readContentInteractionSnapshot(
+          flattenDailyDropItems(result.data).map((item) => item.id)
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (interactionResult.ok) {
+          setInteractionState(interactionResult.snapshot);
+        } else {
+          setInteractionError(interactionResult.error);
+        }
+      } else {
+        setInteractionState(createEmptyContentInteractionSnapshot());
+      }
     }
 
     void loadTodayDrop();
@@ -138,10 +166,6 @@ export function TodayDailyDropScreen() {
       isMounted = false;
     };
   }, [fallbackDrop]);
-
-  function markComplete(moduleId: ModuleId) {
-    setCompletedModules((currentModules) => new Set(currentModules).add(moduleId));
-  }
 
   async function handleInteraction(action: InteractionAction) {
     const pendingId = getPendingInteractionId(action);
@@ -169,10 +193,12 @@ export function TodayDailyDropScreen() {
     setInteractionMessage("Saved to your account.");
   }
 
-  async function completeModule(moduleId: ModuleId, items: DailyDropContentItem[]) {
-    markComplete(moduleId);
-
+  async function completeModule(items: DailyDropContentItem[]) {
     for (const item of items) {
+      if (interactionState.completedItemIds.has(item.id)) {
+        continue;
+      }
+
       await handleInteraction({
         contentItemId: item.id,
         interactionType: "complete"
@@ -211,12 +237,7 @@ export function TodayDailyDropScreen() {
   }
 
   function resetDrop() {
-    setCompletedModules(new Set());
-    setInteractionState({
-      completedItemIds: new Set(),
-      savedItemIds: new Set(),
-      ratingsByItemId: {}
-    });
+    setInteractionState(createEmptyContentInteractionSnapshot());
     setInteractionError(null);
     setInteractionMessage(null);
     setShowSampleAnswer(false);
@@ -252,7 +273,7 @@ export function TodayDailyDropScreen() {
         <Card padding="md" style={styles.progressCard} tone={isComplete ? "accent" : "default"}>
           <View style={styles.progressTopline}>
             <ProgressPill
-              label={`${completedCount}/${moduleOrder.length} modules`}
+              label={`${completedItemCount}/${totalItemCount} items`}
               tone={isComplete ? "success" : "accent"}
               value={progress}
             />
@@ -283,7 +304,7 @@ export function TodayDailyDropScreen() {
           articles={drop.items.newsletter}
           completed={completedModules.has("newsletter")}
           interactionState={interactionState}
-          onComplete={() => completeModule("newsletter", drop.items.newsletter)}
+          onComplete={() => completeModule(drop.items.newsletter)}
           onInteraction={handleInteraction}
           pendingInteractionIds={pendingInteractionIds}
         />
@@ -291,7 +312,7 @@ export function TodayDailyDropScreen() {
           story={drop.items.business_story}
           completed={completedModules.has("business_story")}
           interactionState={interactionState}
-          onComplete={() => completeModule("business_story", [drop.items.business_story])}
+          onComplete={() => completeModule([drop.items.business_story])}
           onInteraction={handleInteraction}
           pendingInteractionIds={pendingInteractionIds}
         />
@@ -300,7 +321,7 @@ export function TodayDailyDropScreen() {
           completed={completedModules.has("mini_case")}
           interactionState={interactionState}
           showSampleAnswer={showSampleAnswer}
-          onComplete={() => completeModule("mini_case", [drop.items.mini_case])}
+          onComplete={() => completeModule([drop.items.mini_case])}
           onInteraction={handleInteraction}
           onToggleSampleAnswer={() => setShowSampleAnswer((isVisible) => !isVisible)}
           pendingInteractionIds={pendingInteractionIds}
@@ -309,7 +330,7 @@ export function TodayDailyDropScreen() {
           concept={drop.items.concept}
           completed={completedModules.has("concept")}
           interactionState={interactionState}
-          onComplete={() => completeModule("concept", [drop.items.concept])}
+          onComplete={() => completeModule([drop.items.concept])}
           onInteraction={handleInteraction}
           pendingInteractionIds={pendingInteractionIds}
         />
@@ -360,6 +381,16 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
         description={`${loadState.error?.message ?? "Supabase is unavailable."} The app is still usable and is showing the built-in mock drop.`}
         eyebrow="MOCK FALLBACK"
         title="Supabase error while loading Today"
+      />
+    );
+  }
+
+  if (loadState.fallbackReason === "missing_supabase_config") {
+    return (
+      <EmptyState
+        description={`${loadState.error?.message ?? "Supabase is not configured."} Add the Expo public Supabase env vars to load live assigned drops. The mock drop is shown for testing.`}
+        eyebrow="MOCK FALLBACK"
+        title="Live Today data is not configured"
       />
     );
   }
@@ -864,10 +895,19 @@ function ContentInteractionControls({
 
   return (
     <View style={styles.interactionControls}>
+      {isCompleted || isSaved || activeRating ? (
+        <View style={styles.interactionStateRow}>
+          {isCompleted ? <ProgressPill label="Completed" tone="success" value={1} /> : null}
+          {isSaved ? <ProgressPill label="Saved" tone="accent" /> : null}
+          {activeRating ? (
+            <ProgressPill label={`Rated ${formatRatingLabel(activeRating)}`} tone="neutral" />
+          ) : null}
+        </View>
+      ) : null}
       <View style={styles.interactionButtonRow}>
         <SecondaryButton
           disabled={isCompleted || completionPending}
-          label={isCompleted ? "Completed" : "Complete"}
+          label={isCompleted ? "Completed" : completionPending ? "Completing" : "Complete"}
           onPress={() =>
             onInteraction({
               contentItemId: item.id,
@@ -878,7 +918,7 @@ function ContentInteractionControls({
         />
         <SecondaryButton
           disabled={isSaved || savePending}
-          label={isSaved ? "Saved" : "Save"}
+          label={isSaved ? "Saved" : savePending ? "Saving" : "Save"}
           onPress={() =>
             onInteraction({
               contentItemId: item.id,
@@ -994,11 +1034,34 @@ function SourceLine({ item, sources }: { item: { version: number }; sources: str
 }
 
 function getModuleItemCount(drop: TodayDailyDrop, moduleId: ModuleId) {
+  return getModuleItems(drop, moduleId).length;
+}
+
+function getCompletedModules(
+  drop: TodayDailyDrop,
+  completedItemIds: Set<string>
+): Set<ModuleId> {
+  return new Set(
+    moduleOrder.filter((moduleId) => {
+      const moduleItems = getModuleItems(drop, moduleId);
+
+      return (
+        moduleItems.length > 0 &&
+        moduleItems.every((item) => completedItemIds.has(item.id))
+      );
+    })
+  );
+}
+
+function getModuleItems(
+  drop: TodayDailyDrop,
+  moduleId: ModuleId
+): DailyDropContentItem[] {
   if (moduleId === "newsletter") {
-    return drop.items.newsletter.length;
+    return drop.items.newsletter;
   }
 
-  return 1;
+  return [drop.items[moduleId]];
 }
 
 function getSourceCount(item: DailyDropContentItem) {
@@ -1339,6 +1402,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     gap: tokens.space.md,
     paddingTop: tokens.space.md
+  },
+  interactionStateRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.space.sm
   },
   interactionButtonRow: {
     flexDirection: "row",

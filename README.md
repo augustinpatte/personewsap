@@ -116,6 +116,8 @@ Replace `lang=fr` with `lang=en` as needed.
 
 ## Local MVP Developer Workflow
 
+Use [TESTING.md](TESTING.md) for the full tester handoff flow and [MVP_STATUS.md](MVP_STATUS.md) for the current MVP readiness notes.
+
 ### Smoke Checks
 
 Run the current MVP smoke flow from the repo root:

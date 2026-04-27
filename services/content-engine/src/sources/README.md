@@ -12,6 +12,7 @@ Curated sources live in `curatedSources.ts`. Each source includes:
 - `credibility_tier`
 - `credibility_score`
 - `source_type`
+- `region`
 - `url`
 - optional `rssUrl`
 - optional `usage_notes`
@@ -29,6 +30,8 @@ Tier is not a truth label. It is an input to ranking and editorial review.
 ## Source Limitations
 
 - RSS availability changes. Failed feeds are ignored by the connector so dry-run and scheduled jobs can continue.
+- Live RSS is opt-in. Keep `LIVE_RSS=false` or unset for sample-only dry-runs. Use `LIVE_RSS=true` only when intentionally testing external feeds.
+- RSS fetches are capped and timed out. Tune with `RSS_ARTICLES_PER_SOURCE`, `RSS_TIMEOUT_MS`, and `RSS_MAX_AGE_DAYS`.
 - RSS summaries can be incomplete or promotional. Generation should cite sources conservatively and avoid unsupported claims.
 - Some publishers permit RSS only for personal use. Keep those entries without `rssUrl` unless PersoNewsAP has permission.
 - Institutional sources are often primary but self-interested. Use them for what an institution said or filed, not as independent analysis.
@@ -41,9 +44,10 @@ To add a source:
 1. Add an entry to `CURATED_SOURCES` in `curatedSources.ts`.
 2. Choose one approved `topic` from the product topic IDs.
 3. Set `language`, `credibility_tier`, `credibility_score`, and `source_type`.
-4. Add `rssUrl` only when the feed is public and its terms allow the intended use.
-5. Add `usage_notes` when licensing, paywall, or editorial caveats matter.
-6. Run `npm run check` from `services/content-engine`.
+4. Set `region` when the source is jurisdiction-specific. The registry can infer common regions, but explicit is better for law, medicine, finance, and sport business.
+5. Add `rssUrl` only when the feed is public and its terms allow the intended use.
+6. Add `usage_notes` when licensing, paywall, or editorial caveats matter.
+7. Run `npm run check` from `services/content-engine`.
 
 To remove or pause a source:
 

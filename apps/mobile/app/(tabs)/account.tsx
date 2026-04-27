@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
 
 import { AppScreen } from "../../src/components/AppScreen";
 import { AppText } from "../../src/components/AppText";
@@ -16,6 +17,7 @@ type ProfileSummary = {
 };
 
 export default function AccountScreen() {
+  const router = useRouter();
   const {
     error,
     isConfigured,
@@ -79,10 +81,13 @@ export default function AccountScreen() {
 
     if (result.error) {
       setSignOutError(result.error.message);
+      setIsSigningOut(false);
+      return;
     }
 
     setIsSigningOut(false);
-  }, [signOut]);
+    router.replace("/(auth)/login");
+  }, [router, signOut]);
 
   return (
     <AppScreen>

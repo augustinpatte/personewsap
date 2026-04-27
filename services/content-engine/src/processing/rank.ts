@@ -120,6 +120,20 @@ function sourceDiversityScore(
   return 0.42;
 }
 
+function topicDiversityScore(draft: RankDraft, seenTopicCounts: Map<TopicId, number>): number {
+  const seenCount = seenTopicCounts.get(draft.topic) ?? 0;
+
+  if (seenCount === 0) {
+    return 1;
+  }
+
+  if (seenCount === 1) {
+    return 0.74;
+  }
+
+  return 0.48;
+}
+
 export function rankArticles(articles: ArticleCandidate[], now = new Date()): RankedArticle[] {
   const drafts = articles
     .map((article): RankDraft => {
@@ -161,18 +175,25 @@ export function rankArticles(articles: ArticleCandidate[], now = new Date()): Ra
 
   const seenPublishers = new Set<string>();
   const seenTopicPublishers = new Set<string>();
+  const seenTopicCounts = new Map<TopicId, number>();
 
   return drafts
     .map((draft) => {
       const diversityScore = sourceDiversityScore(draft, seenPublishers, seenTopicPublishers);
+      const topicBalanceScore = topicDiversityScore(draft, seenTopicCounts);
       seenPublishers.add(draft.publisherKey);
       seenTopicPublishers.add(`${draft.topic}:${draft.publisherKey}`);
+      seenTopicCounts.set(draft.topic, (seenTopicCounts.get(draft.topic) ?? 0) + 1);
 
       return {
         ...draft.article,
         topic: draft.topic,
-        importance_score: Number((draft.baseScore * 0.92 + diversityScore * 0.08).toFixed(4)),
-        rank_reasons: [...draft.reasons, `source_diversity:${diversityScore.toFixed(2)}`]
+        importance_score: Number((draft.baseScore * 0.84 + diversityScore * 0.08 + topicBalanceScore * 0.08).toFixed(4)),
+        rank_reasons: [
+          ...draft.reasons,
+          `source_diversity:${diversityScore.toFixed(2)}`,
+          `topic_diversity:${topicBalanceScore.toFixed(2)}`
+        ]
       };
     })
     .sort((left, right) => right.importance_score - left.importance_score);

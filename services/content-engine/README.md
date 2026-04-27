@@ -37,6 +37,7 @@ npm run llm-run
 npm run persist-test
 npm run cleanup-test
 npm run assign-test-users
+npm run daily-job-test
 ```
 
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
@@ -238,6 +239,88 @@ npm run assign-test-users -- --test-run-id persist-test-abc123
 ```
 
 The command logs how many users were considered, skipped, and assigned. Use this after publishing or creating a published persist-test content set, for example via `persist-test` with `TEST_USER_ID`.
+
+## Daily Job Test MVP
+
+`daily-job-test` is the scheduler-shaped local workflow. It fetches sources, processes/ranks/categorizes them, generates one marked test daily drop, persists the generated content as `published`, and assigns it to a small number of app users from `profiles` with `user_preferences`.
+
+It is fail-closed: it refuses to write unless all required safety variables are present.
+
+Required:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CONFIRM_DAILY_JOB_TEST=true`
+
+Optional:
+
+- `USE_LLM=true` uses OpenAI generation instead of the deterministic dry-run generator. Also set `OPENAI_API_KEY`.
+- `LIVE_RSS=true` adds live RSS feeds to the bundled sample articles.
+- `USER_LIMIT=5` controls the maximum number of app users assigned per language. Defaults to 5 and is capped at 25.
+- `TOPIC_LIMIT=5` limits how many approved topics are used from the selected topic list.
+
+Safe default run using sample articles and deterministic generation:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_DAILY_JOB_TEST=true \
+npm run daily-job-test
+```
+
+LLM-backed run:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_DAILY_JOB_TEST=true \
+USE_LLM=true \
+OPENAI_API_KEY=sk-... \
+USER_LIMIT=5 \
+npm run daily-job-test
+```
+
+Live RSS test with a smaller topic set:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_DAILY_JOB_TEST=true \
+LIVE_RSS=true \
+TOPIC_LIMIT=3 \
+USER_LIMIT=3 \
+npm run daily-job-test
+```
+
+Useful command options:
+
+```sh
+npm run daily-job-test -- --date 2026-04-26
+npm run daily-job-test -- --languages en,fr
+npm run daily-job-test -- --topics business,finance,tech_ai
+```
+
+Safety behavior:
+
+- no Supabase writes happen unless `CONFIRM_DAILY_JOB_TEST=true` and service-role credentials are present
+- generated titles are prefixed with `[TEST daily-job-test]`
+- `content_items.metadata` includes `is_test_data: true`, `test_mode: "daily-job-test"`, `test_run_id`, `use_llm`, and `live_rss`
+- assignments are limited by `USER_LIMIT`
+- app users are selected only through `profiles` with `user_preferences`, not legacy newsletter-only tables
+- users with an existing `daily_drops` row for the same date are skipped
+- write stages are logged but not retried as a whole, to avoid duplicating partial writes
+
+Progress logs are printed to stderr for each stage:
+
+- source fetch
+- processing
+- generation
+- validation
+- persistence preflight
+- persistence
+- assignment
+
+The JSON result reports fetched, processed, generated, stored, considered, assigned, and skipped counts per language.
 
 ## Daily Job
 

@@ -16,6 +16,8 @@ export default function FrequencyScreen() {
   const { refreshAuthState } = useAuth();
   const { setFrequency, state } = useOnboarding();
   const [saving, setSaving] = useState(false);
+  const hasRequiredPreferences =
+    Boolean(state.language && state.goal) && state.selectedTopics.length > 0;
 
   const savePreferences = async () => {
     setSaving(true);
@@ -37,7 +39,7 @@ export default function FrequencyScreen() {
     <OnboardingScaffold
       description="PersoNewsAP is built around one focused update. Daily is the launch cadence."
       footerNote="Preferences are saved to your PersoNewsAP account."
-      primaryDisabled={saving}
+      primaryDisabled={saving || !hasRequiredPreferences}
       primaryLabel={saving ? "Saving..." : "Save preferences"}
       primaryLoading={saving}
       onPrimaryPress={savePreferences}

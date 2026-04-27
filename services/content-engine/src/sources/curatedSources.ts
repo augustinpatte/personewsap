@@ -1,6 +1,10 @@
-import type { CuratedSource } from "./types.js";
+import type { CuratedSource, SourceRegion } from "./types.js";
 
-export const CURATED_SOURCES = [
+type CuratedSourceDefinition = Omit<CuratedSource, "region"> & {
+  region?: SourceRegion;
+};
+
+const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
   {
     id: "bbc-business",
     topic: "business",
@@ -476,7 +480,44 @@ export const CURATED_SOURCES = [
     source_type: "specialist_publisher",
     description: "French media analysis and cultural industry context."
   }
-] satisfies CuratedSource[];
+];
+
+export const CURATED_SOURCES = CURATED_SOURCE_DEFINITIONS.map((source) => ({
+  ...source,
+  region: source.region ?? inferSourceRegion(source)
+})) satisfies CuratedSource[];
+
+function inferSourceRegion(source: CuratedSourceDefinition): SourceRegion {
+  if (source.language === "fr" || source.url.includes(".fr/")) {
+    return "fr";
+  }
+
+  if (
+    source.publisher.includes("U.S.") ||
+    source.publisher.includes("Federal") ||
+    source.publisher.includes("SEC") ||
+    source.publisher.includes("NASA") ||
+    source.publisher.includes("NIH") ||
+    source.publisher.includes("FDA") ||
+    source.publisher.includes("Department of Justice")
+  ) {
+    return "us";
+  }
+
+  if (source.publisher.includes("BBC") || source.publisher.includes("Guardian") || source.publisher.includes("Nature")) {
+    return "uk";
+  }
+
+  if (source.publisher.includes("European Central Bank")) {
+    return "eu";
+  }
+
+  if (source.publisher.includes("NPR") || source.publisher.includes("Marketplace")) {
+    return "us";
+  }
+
+  return "global";
+}
 
 export const CURATED_SOURCES_BY_TOPIC = CURATED_SOURCES.reduce(
   (sourcesByTopic, source) => {

@@ -4,6 +4,7 @@ import { sourceLog, sourceWarning } from "./sourceLogger.js";
 
 const DEFAULT_RSS_TIMEOUT_MS = 8_000;
 const DEFAULT_RSS_LIMIT_PER_SOURCE = 5;
+const DEFAULT_RSS_MAX_AGE_DAYS = 21;
 
 function readTag(xml: string, tag: string): string | null {
   const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
@@ -46,6 +47,20 @@ function isAfterSince(article: RawArticle, since?: string): boolean {
   }
 
   return publishedAt >= sinceDate;
+}
+
+function isFreshEnough(article: RawArticle, maxAgeDays: number, now = new Date()): boolean {
+  if (!article.published_at) {
+    return true;
+  }
+
+  const publishedAt = new Date(article.published_at);
+  if (Number.isNaN(publishedAt.getTime())) {
+    return true;
+  }
+
+  const ageDays = Math.max(0, (now.getTime() - publishedAt.getTime()) / 86_400_000);
+  return ageDays <= maxAgeDays;
 }
 
 function summarizeSources(sources: CuratedSource[]): Array<{
@@ -130,6 +145,15 @@ export class RssFeedConnector implements SourceConnector {
       return [];
     }
 
+    sourceLog("rss_source_attempted", {
+      source_id: source.id,
+      publisher: source.publisher,
+      topic: source.topic,
+      language: source.language,
+      region: source.region,
+      rss_url: source.rssUrl
+    });
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.resolveTimeoutMs());
 
@@ -159,6 +183,8 @@ export class RssFeedConnector implements SourceConnector {
     const xml = await response.text();
     const items = splitItems(xml);
     let skippedMissingFields = 0;
+    let skippedStale = 0;
+    const maxAgeDays = this.resolveMaxAgeDays();
 
     if (items.length === 0) {
       sourceWarning("rss_source_skipped_no_items", {
@@ -179,6 +205,7 @@ export class RssFeedConnector implements SourceConnector {
 
         return {
           source_id: source.id,
+          source_region: source.region,
           source_type: source.source_type,
           credibility_tier: source.credibility_tier,
           url: link,
@@ -193,7 +220,14 @@ export class RssFeedConnector implements SourceConnector {
         };
       })
       .filter((article): article is RawArticle & SourceArticleMetadata => article !== null)
-      .filter((article) => isAfterSince(article, since))
+      .filter((article) => {
+        const keep = isAfterSince(article, since) && isFreshEnough(article, maxAgeDays);
+        if (!keep) {
+          skippedStale += 1;
+        }
+
+        return keep;
+      })
       .slice(0, limit);
 
     if (skippedMissingFields > 0) {
@@ -211,18 +245,22 @@ export class RssFeedConnector implements SourceConnector {
         publisher: source.publisher,
         rss_url: source.rssUrl,
         rss_items: items.length,
-        skipped_missing_fields: skippedMissingFields
+        skipped_missing_fields: skippedMissingFields,
+        skipped_stale: skippedStale
       });
     }
 
-    sourceLog("rss_source_completed", {
+    sourceLog("rss_source_succeeded", {
       source_id: source.id,
       publisher: source.publisher,
       topic: source.topic,
       language: source.language,
+      region: source.region,
       rss_url: source.rssUrl,
       rss_items: items.length,
       skipped_missing_fields: skippedMissingFields,
+      skipped_stale: skippedStale,
+      max_age_days: maxAgeDays,
       article_count: articles.length
     });
 
@@ -248,5 +286,12 @@ export class RssFeedConnector implements SourceConnector {
       DEFAULT_RSS_TIMEOUT_MS;
 
     return Math.max(1_000, Math.min(timeoutMs, 30_000));
+  }
+
+  private resolveMaxAgeDays(): number {
+    const envMaxAgeDays = Number(process.env.RSS_MAX_AGE_DAYS);
+    const maxAgeDays = Number.isInteger(envMaxAgeDays) && envMaxAgeDays > 0 ? envMaxAgeDays : DEFAULT_RSS_MAX_AGE_DAYS;
+
+    return Math.max(1, Math.min(maxAgeDays, 120));
   }
 }

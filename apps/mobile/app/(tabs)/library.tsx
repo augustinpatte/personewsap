@@ -317,6 +317,16 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
     );
   }
 
+  if (loadState.fallbackReason === "missing_supabase_config") {
+    return (
+      <EmptyState
+        description={`${loadState.error?.message ?? "Supabase is not configured."} Add the Expo public Supabase env vars to load the live archive. The mock archive is shown for testing.`}
+        eyebrow="MOCK FALLBACK"
+        title="Live Library data is not configured"
+      />
+    );
+  }
+
   if (loadState.fallbackReason === "no_supabase_data") {
     return (
       <EmptyState
