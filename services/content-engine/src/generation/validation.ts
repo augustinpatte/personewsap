@@ -39,8 +39,11 @@ const READING_TIME_LIMITS_SECONDS: Partial<Record<ContentType, { min: number; ma
 
 const GENERIC_AI_PHRASES = [
   "in today's fast-paced world",
+  "it is important",
   "it is important to note",
+  "highlights the importance",
   "this highlights the importance",
+  "in the current climate",
   "in conclusion",
   "this serves as a reminder",
   "as we navigate",
@@ -50,6 +53,12 @@ const GENERIC_AI_PHRASES = [
 ];
 
 export const BANNED_EDITORIAL_PHRASES = [
+  "this shift means",
+  "it is important",
+  "highlights the importance",
+  "in the current climate",
+  "critical in",
+  "key in",
   "this matters because",
   "stories like this change incentives",
   "the useful question is not whether",

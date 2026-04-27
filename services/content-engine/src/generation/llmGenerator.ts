@@ -12,7 +12,8 @@ import {
   CONTENT_TYPE_PROMPTS,
   EDITORIAL_PROMPT,
   GENERATOR_VERSION,
-  PROMPT_VERSION
+  PROMPT_VERSION,
+  STRONG_WRITING_EXAMPLES
 } from "./prompts.js";
 import type { ContentGenerator, GenerationRequest } from "./types.js";
 import { BANNED_EDITORIAL_PHRASES, validateDailyDropPayload, type ValidationIssue } from "./validation.js";
@@ -154,15 +155,22 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
       },
       editorial_requirements: [
         "Concise, factual, direct tone for ambitious 18-25 year-old students.",
+        "Lead with a sharp thesis, not a school-style summary.",
+        "Name the concrete mechanism: the incentive, constraint, bottleneck, default, or trade-off doing the work.",
+        "Give a specific implication: who gains leverage, who loses options, which budget/timeline/default changes, or what decision gets harder.",
+        "Include one observable signal: churn, renewals, filings, guidance, adoption, safety data, funding costs, deadlines, usage, or behavior.",
+        "Make the business judgment sharper than the source summary. Explain the operator's trade-off.",
         "No filler language, generic conclusions, hype, or unsupported predictions.",
         "Do not repeat the same body structure across every newsletter item.",
         "Do not mention headline loudness or use meta phrases about what the useful question is.",
+        "Do not use school-report phrases such as 'This shift means', 'it is important', 'highlights the importance', 'critical in', or 'key in'.",
         "Ground factual claims in the supplied sources only.",
         "Do not invent URLs, dates, authors, institutions, numbers, or quotes.",
         "Make each item relevant to its topic; do not force a source into the wrong topic.",
         "For law, medicine, and finance, explain context and uncertainty without personalized advice."
       ],
       banned_phrases: BANNED_EDITORIAL_PHRASES,
+      stronger_writing_examples: STRONG_WRITING_EXAMPLES,
       content_type_guidance: {
         newsletter_article: CONTENT_TYPE_PROMPTS.newsletter_article,
         business_story: CONTENT_TYPE_PROMPTS.business_story,

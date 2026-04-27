@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -18,12 +18,23 @@ import {
   SectionHeader
 } from "../../src/components";
 import { tokens } from "../../src/design/tokens";
-import type { LibraryDropSummary, LibraryItemSummary } from "../../src/features/library";
+import { fetchLibraryDrops, type LibraryDropSummary, type LibraryItemSummary } from "../../src/features/library";
 import type { ContentType } from "../../src/features/today";
+import type { DataFallbackReason, DataFetchSource } from "../../src/lib/dataState";
+import { getAuthSession, type NormalizedSupabaseError } from "../../src/lib/supabase";
 import { mockLibraryDrops, mockLibraryItems } from "../../src/mocks";
 
 type ContentFilterId = "all" | "newsletter" | "business_story" | "mini_case" | "concept";
 type TopicFilterId = "all" | TopicId;
+type LibraryFallbackReason = DataFallbackReason | "missing_auth_session";
+
+type LibraryLoadState = {
+  drops: LibraryDropSummary[];
+  error: NormalizedSupabaseError | null;
+  fallbackReason: LibraryFallbackReason | null;
+  source: DataFetchSource;
+  status: "loading" | "ready";
+};
 
 const contentFilters: Array<{
   id: ContentFilterId;
@@ -68,6 +79,59 @@ export default function LibraryScreen() {
     useState<ContentFilterId>("all");
   const [activeTopicFilter, setActiveTopicFilter] = useState<TopicFilterId>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadState, setLoadState] = useState<LibraryLoadState>({
+    drops: mockLibraryDrops,
+    error: null,
+    fallbackReason: null,
+    source: "mock",
+    status: "loading"
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadLibraryDrops() {
+      setLoadState((currentState) => ({ ...currentState, status: "loading" }));
+
+      const sessionResult = await getAuthSession();
+      const userId = sessionResult.data?.user.id;
+
+      if (!userId) {
+        if (isMounted) {
+          setLoadState({
+            drops: mockLibraryDrops,
+            error: sessionResult.error,
+            fallbackReason: "missing_auth_session",
+            source: "mock",
+            status: "ready"
+          });
+        }
+
+        return;
+      }
+
+      const result = await fetchLibraryDrops(userId);
+
+      if (isMounted) {
+        setLoadState({
+          drops: result.data,
+          error: result.error,
+          fallbackReason: result.fallbackReason,
+          source: result.source,
+          status: "ready"
+        });
+      }
+    }
+
+    void loadLibraryDrops();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const libraryDrops = loadState.drops;
+  const libraryItems = useMemo(() => getItemsForDrops(libraryDrops), [libraryDrops]);
 
   const selectedContentTypes = useMemo(
     () =>
@@ -78,7 +142,7 @@ export default function LibraryScreen() {
 
   const filteredItems = useMemo(
     () =>
-      mockLibraryItems.filter((item) => {
+      libraryItems.filter((item) => {
         const matchesContentType = selectedContentTypes.includes(item.content_type);
         const matchesTopic =
           activeTopicFilter === "all" || item.topic === activeTopicFilter;
@@ -91,14 +155,14 @@ export default function LibraryScreen() {
 
         return matchesContentType && matchesTopic && matchesSearch;
       }),
-    [activeTopicFilter, searchQuery, selectedContentTypes]
+    [activeTopicFilter, libraryItems, searchQuery, selectedContentTypes]
   );
 
   const filteredDrops = useMemo(() => {
     const matchingDropIds = new Set(filteredItems.map((item) => item.drop_id));
 
-    return mockLibraryDrops.filter((drop) => matchingDropIds.has(drop.drop_id));
-  }, [filteredItems]);
+    return libraryDrops.filter((drop) => matchingDropIds.has(drop.drop_id));
+  }, [filteredItems, libraryDrops]);
 
   const itemsByDropId = useMemo(() => {
     return filteredItems.reduce<Record<string, LibraryItemSummary[]>>((itemsByDrop, item) => {
@@ -108,8 +172,8 @@ export default function LibraryScreen() {
   }, [filteredItems]);
 
   const savedItems = useMemo(
-    () => mockLibraryItems.filter((item) => item.is_saved).slice(0, 3),
-    []
+    () => libraryItems.filter((item) => item.is_saved).slice(0, 3),
+    [libraryItems]
   );
 
   return (
@@ -123,6 +187,8 @@ export default function LibraryScreen() {
       </AppScreen.Header>
 
       <AppScreen.Body>
+        <LibraryDataStateBanner loadState={loadState} />
+
         <Card padding="md" style={styles.controls}>
           <TextInput
             accessibilityLabel="Search library"
@@ -189,6 +255,72 @@ export default function LibraryScreen() {
       </AppScreen.Body>
     </AppScreen>
   );
+}
+
+function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) {
+  if (loadState.status === "loading") {
+    return (
+      <Card padding="md" tone="muted">
+        <ProgressPill label="Loading archive" tone="neutral" />
+        <AppText color="muted" variant="caption">
+          Checking Supabase for published daily drops.
+        </AppText>
+      </Card>
+    );
+  }
+
+  if (loadState.source === "supabase") {
+    return (
+      <Card padding="md" tone="accent">
+        <ProgressPill label="Live archive" tone="success" value={1} />
+        <AppText color="accentInk" variant="caption">
+          Loaded {loadState.drops.length} daily drop{loadState.drops.length === 1 ? "" : "s"} from Supabase.
+        </AppText>
+      </Card>
+    );
+  }
+
+  if (loadState.fallbackReason === "supabase_error") {
+    return (
+      <EmptyState
+        description={loadState.error?.message ?? "Supabase is unavailable, so the app is showing the mock archive."}
+        eyebrow="Mock fallback"
+        title="Could not load live archive"
+      />
+    );
+  }
+
+  if (loadState.fallbackReason === "no_supabase_data") {
+    return (
+      <EmptyState
+        description="No published Supabase drops exist yet, so the app is showing the built-in mock archive."
+        eyebrow="Mock fallback"
+        title="No live archive yet"
+      />
+    );
+  }
+
+  if (loadState.fallbackReason === "missing_auth_session") {
+    return (
+      <EmptyState
+        description="Sign in to load your Supabase archive. The mock archive keeps the app usable for now."
+        eyebrow="Mock fallback"
+        title="No active session"
+      />
+    );
+  }
+
+  return null;
+}
+
+function getItemsForDrops(drops: LibraryDropSummary[]) {
+  return drops.flatMap((drop) => {
+    if (drop.items) {
+      return drop.items;
+    }
+
+    return mockLibraryItems.filter((item) => item.drop_id === drop.drop_id);
+  });
 }
 
 type FilterRailProps = {

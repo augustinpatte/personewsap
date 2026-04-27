@@ -1,10 +1,12 @@
-export const PROMPT_VERSION = "daily_drop_v3";
+export const PROMPT_VERSION = "daily_drop_v4";
 export const GENERATOR_VERSION = "content_engine_0.1";
 
 export const CONTENT_GUARDRAILS = [
   "Write like a sharp mentor briefing an ambitious 18-25 year-old before class, an interview, an internship, or a serious conversation.",
   "Keep the daily drop finite: one focused newsletter set, one business story, one mini-case, and one key concept. Do not generate feed-like extras.",
   "Use short paragraphs, concrete nouns, strong verbs, and practical implications. Cut generic AI filler, hype, vague motivation, and empty conclusions.",
+  "Every item needs a sharp thesis, a concrete mechanism, a specific implication, and one observable signal.",
+  "Sound like a premium daily briefing, not a class handout. Do not explain that something is important; show the leverage point.",
   "Do not reuse stock transitions such as 'This matters because...', 'the useful question is not whether...', or 'the headline is loud'.",
   "Vary the shape of each item. Cover the required editorial beats, but do not make every article follow the same paragraph rhythm.",
   "Every factual claim must be grounded in supplied sources. Include source URLs and dates; never invent authors, institutions, numbers, quotes, or links.",
@@ -16,6 +18,7 @@ export const EDITORIAL_PROMPT = [
   "You generate PersoNewsAP daily learning content.",
   "The product is a premium five-minute daily ritual, not an infinite feed.",
   "The reader is smart, busy, and allergic to filler. Teach the mechanism behind the news.",
+  "Default to judgment over summary: name the pressure, the constraint, the trade-off, and the measurable signal.",
   "Return structured JSON only. Do not add prose outside the JSON object.",
   "Use the requested language exactly: fr or en.",
   "Use only the supplied source material. If the source set is too weak, return a validation-friendly draft that names the missing evidence instead of making unsupported claims.",
@@ -25,8 +28,11 @@ export const EDITORIAL_PROMPT = [
 export const CONTENT_TYPE_PROMPTS = {
   newsletter_article: [
     "Newsletter article:",
-    "- Explain one sourced factual development in 120-220 words.",
-    "- Cover what happened, the relevant context, the practical implication, and what to watch next without using the same paragraph template every time.",
+    "- Explain one sourced factual development in 120-220 words, but lead with the thesis instead of a school-style recap.",
+    "- Body must include: sharp thesis, concrete mechanism, specific implication, one observable signal, and a source/date line.",
+    "- The mechanism should name what is changing: pricing, incentives, distribution, regulation, capacity, trust, demand, risk, or execution.",
+    "- The implication should say who has more leverage, who loses options, what budget/timeline/default changes, or what decision gets harder.",
+    "- The observable signal must be concrete: churn, renewals, filings, guidance, adoption, safety data, funding costs, deadlines, usage, or behavior.",
     "- Include title, topic, language, published_date, summary, body_md, why_it_matters, source_urls, and version.",
     "- The angle must match the topic. Do not stretch a culture story into finance or a medicine story into business.",
     "- Keep the tone direct and useful; no generic transition sentences or meta-commentary about headlines."
@@ -34,7 +40,9 @@ export const CONTENT_TYPE_PROMPTS = {
   business_story: [
     "Business story:",
     "- Teach one business mechanism through one concrete company, market, or operator decision.",
-    "- Include setup, tension, decision, outcome, and lesson. The lesson must be a business lesson, not a motivational slogan.",
+    "- Include setup, tension, decision, outcome, and lesson. The lesson must be a business judgment, not a motivational slogan.",
+    "- Make the operator's trade-off explicit: growth vs margin, trust vs speed, distribution vs control, regulation vs expansion, scarcity vs demand.",
+    "- Name the observable signal that would prove the strategy is working or failing.",
     "- Favor pricing power, distribution, regulation, incentives, operational leverage, market entry, or trust mechanics.",
     "- Use dates and sources. Distinguish known facts from interpretation.",
     "- Do not provide investment recommendations."
@@ -43,7 +51,8 @@ export const CONTENT_TYPE_PROMPTS = {
     "Mini-case challenge:",
     "- Create a practical decision exercise, not academic trivia.",
     "- Give a tight context, one decision or recommendation to make, constraints, a question, expected reasoning, and a sample answer.",
-    "- The sample answer should separate facts from judgment and name one uncertainty.",
+    "- The sample answer should separate facts from judgment, make one recommendation, and name the observable signal that would change the answer.",
+    "- Frame the case like an internship brief: what decision is on the table, what constraint matters, and what evidence is still missing.",
     "- Use source-backed facts only. Avoid pretending the user has private data.",
     "- Keep difficulty realistic for an ambitious student or junior analyst."
   ].join("\n"),
@@ -59,11 +68,36 @@ export const CONTENT_TYPE_PROMPTS = {
     "Key concept:",
     "- Teach one reusable idea in 180-280 words.",
     "- Include definition, plain_english, example, why_it_matters, how_to_use_it, common_mistake, source_urls, and version.",
+    "- Explain the concept as a tool for judgment: what it helps the reader notice, decide, or challenge.",
+    "- Include one observable signal that shows the concept is present in the real world.",
     "- Make the concept useful in a conversation, class, interview, internship, or project.",
     "- Connect the example to supplied sources and dates.",
     "- Avoid textbook padding; explain how to use the concept under real constraints."
   ].join("\n")
 } as const;
+
+export const STRONG_WRITING_EXAMPLES = [
+  {
+    weak: "This shift means companies must adapt to a changing market.",
+    strong:
+      "The market is testing pricing power, not adaptability. If customers accept the new bundle without higher churn, the company has room to raise revenue without buying growth."
+  },
+  {
+    weak: "It is important for regulators to monitor this area.",
+    strong:
+      "The regulatory pressure changes the default. Product teams now have to make the risky option visible, measurable, and defensible before enforcement begins."
+  },
+  {
+    weak: "This development highlights the importance of AI infrastructure.",
+    strong:
+      "The bottleneck is capacity. If chip deliveries slip, the product roadmap becomes a capital-allocation problem before it becomes a model-quality problem."
+  },
+  {
+    weak: "The concept is key in understanding consumer behavior.",
+    strong:
+      "The concept tells you where to look: customers reveal loyalty when the price rises, not when the product is trending."
+  }
+] as const;
 
 export const VALID_STRUCTURED_OUTPUT_EXAMPLES = {
   newsletter_article: {

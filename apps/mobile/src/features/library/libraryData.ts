@@ -7,7 +7,7 @@ import { normalizeSupabaseError, supabase } from "../../lib/supabase";
 import { mockLibraryDrops } from "../../mocks";
 import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
-import type { LibraryDropSummary } from "./libraryTypes";
+import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
 
 const readableDropStatuses = ["published", "read", "archived"] as const;
 
@@ -59,8 +59,10 @@ export async function fetchLibraryDrops(
 
     const summaries = await buildLibraryDropSummaries(drops, userId);
 
-    return summaries.length > 0
-      ? createSupabaseResult(summaries)
+    const displayableSummaries = summaries.filter((summary) => summary.item_count > 0);
+
+    return displayableSummaries.length > 0
+      ? createSupabaseResult(displayableSummaries)
       : createMockFallbackResult(mockLibraryDrops, "no_supabase_data");
   } catch (error) {
     return createMockFallbackResult(
@@ -107,6 +109,7 @@ async function buildLibraryDropSummaries(
       completed_item_count: countMatchingContentItems(contentItems, completedItemIds),
       drop_date: drop.drop_date,
       drop_id: drop.id,
+      items: mapLibraryItems(drop, contentItems, completedItemIds, savedItemIds),
       item_count: contentItems.length,
       language: drop.language,
       saved_item_count: countMatchingContentItems(contentItems, savedItemIds),
@@ -114,6 +117,36 @@ async function buildLibraryDropSummaries(
       topics: getTopicsForContentItems(contentItems)
     };
   });
+}
+
+function mapLibraryItems(
+  drop: DailyDrop,
+  contentItems: ContentItem[],
+  completedItemIds: Set<string>,
+  savedItemIds: Set<string>
+): LibraryItemSummary[] {
+  return contentItems
+    .map((contentItem) => {
+      const contentType = mapLibraryContentType(contentItem);
+
+      if (!contentType) {
+        return null;
+      }
+
+      return {
+        id: contentItem.id,
+        content_type: contentType,
+        drop_date: drop.drop_date,
+        drop_id: drop.id,
+        is_completed: completedItemIds.has(contentItem.id),
+        is_saved: savedItemIds.has(contentItem.id),
+        language: contentItem.language,
+        source_count: contentItem.source_count,
+        title: contentItem.title,
+        topic: readLibraryTopic(contentItem)
+      };
+    })
+    .filter(isLibraryItemSummary);
 }
 
 async function fetchContentItemsById(
@@ -208,6 +241,36 @@ function readTopicFromContentItem(contentItem: ContentItem): TopicId | null {
   return isTopicId(metadataTopic) ? metadataTopic : null;
 }
 
+function readLibraryTopic(contentItem: ContentItem): LibraryItemSummary["topic"] {
+  const topic = readTopicFromContentItem(contentItem);
+
+  if (topic) {
+    return topic;
+  }
+
+  const metadata = isRecord(contentItem.metadata) ? contentItem.metadata : {};
+
+  return metadata.category === "career" ? "career" : null;
+}
+
+function mapLibraryContentType(
+  contentItem: ContentItem
+): LibraryItemSummary["content_type"] | null {
+  if (contentItem.content_type === "concept") {
+    return "key_concept";
+  }
+
+  if (
+    contentItem.content_type === "newsletter_article" ||
+    contentItem.content_type === "business_story" ||
+    contentItem.content_type === "mini_case"
+  ) {
+    return contentItem.content_type;
+  }
+
+  return null;
+}
+
 function getLibraryDropTitle(drop: DailyDrop): string {
   return drop.language === "fr" ? "Brief quotidien" : "Daily drop";
 }
@@ -222,4 +285,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isContentItem(contentItem: ContentItem | undefined): contentItem is ContentItem {
   return Boolean(contentItem);
+}
+
+function isLibraryItemSummary(
+  item: LibraryItemSummary | null
+): item is LibraryItemSummary {
+  return item !== null;
 }

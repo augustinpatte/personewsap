@@ -164,6 +164,7 @@ export class ContentRepository {
     payload: DailyDropPayload;
     articles: RankedArticle[];
     contentStatus: "draft" | "review" | "published";
+    metadata?: Record<string, unknown>;
   }): Promise<StoredGeneratedItem[]> {
     assertDailyPayloadSourcesArePersistable({
       payload: input.payload,
@@ -184,7 +185,7 @@ export class ContentRepository {
       });
 
       try {
-        const insert = mapGeneratedItemToContentInsert(item, input.payload.drop_date, input.contentStatus, runId);
+        const insert = mapGeneratedItemToContentInsert(item, input.payload.drop_date, input.contentStatus, runId, input.metadata);
         const contentItemId = await this.insertContentItem(insert);
         const sourceLinks = mapContentItemSourceInserts({
           contentItemId,

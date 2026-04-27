@@ -10,6 +10,7 @@ export type LibraryDropSummary = {
   topics: TopicId[];
   completed_item_count: number;
   saved_item_count: number;
+  items?: LibraryItemSummary[];
 };
 
 export type LibraryItemSummary = {

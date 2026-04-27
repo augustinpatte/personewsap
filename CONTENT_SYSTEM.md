@@ -13,17 +13,43 @@ Preferred style:
 - Strong verbs.
 - Useful context before opinion.
 - Practical implications.
+- A sharp thesis.
+- A concrete mechanism.
+- A specific implication.
+- One observable signal.
+- Business judgment, not class-summary language.
 - No hype without evidence.
 - No patronizing student tone.
 
 Avoid:
 
 - "In today's fast-paced world..."
+- "This shift means..."
+- "It is important..."
 - "It is important to note..."
+- "Highlights the importance..."
 - "This highlights the importance of..."
+- "In the current climate..."
+- "Critical in..."
+- "Key in..."
 - Generic conclusions.
 - Unsupported predictions.
 - Fake certainty.
+
+Premium writing pattern:
+
+1. Say the thesis directly.
+2. Name the mechanism doing the work: pricing, incentives, distribution, regulation, capacity, trust, demand, risk, or execution.
+3. State the implication for a real actor: who gains leverage, who loses options, what decision gets harder, or what budget/timeline/default changes.
+4. End with one observable signal, not a generic conclusion.
+
+Weak:
+
+- "This shift means companies need to adapt in the current climate."
+
+Strong:
+
+- "The market is testing pricing power. If customers accept the new bundle without higher churn, the company can raise revenue without buying growth."
 
 ## FR/EN Content Parity Rules
 
@@ -59,9 +85,10 @@ Each newsletter article should include:
 Recommended structure:
 
 1. What happened
-2. Context
-3. Why it matters
-4. What to watch next
+2. Sharp thesis
+3. Concrete mechanism
+4. Specific implication
+5. Observable signal to watch
 
 Length target:
 
@@ -100,6 +127,8 @@ Good business story subjects:
 - Market entry.
 
 The story should teach one clear business lesson without becoming a textbook chapter.
+
+The business judgment should name the operator's trade-off, such as growth vs margin, trust vs speed, distribution vs control, regulation vs expansion, or scarcity vs demand.
 
 ## Mini-Case Challenge Format
 
@@ -309,3 +338,4 @@ A generated item is invalid if:
 - It does not match the requested language.
 - Its topic is outside the approved taxonomy.
 - Its content type is outside the approved modules.
+- It uses banned school-summary phrasing such as "this shift means", "it is important", "highlights the importance", "in the current climate", "critical in", or "key in".

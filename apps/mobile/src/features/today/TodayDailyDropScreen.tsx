@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { AppScreen, AppText, Card, PrimaryButton, ProgressPill, SecondaryButton, SectionHeader } from "../../components";
+import { AppScreen, AppText, Card, EmptyState, PrimaryButton, ProgressPill, SecondaryButton, SectionHeader } from "../../components";
 import { TOPICS } from "../../constants/product";
 import { tokens } from "../../design/tokens";
+import type { DataFallbackReason, DataFetchSource } from "../../lib/dataState";
+import { getAuthSession, type NormalizedSupabaseError } from "../../lib/supabase";
 import { flattenDailyDropItems, getMockSourcesForItem, mockTodayDailyDropsByLanguage } from "../../mocks";
 import type {
   BusinessStory,
@@ -11,11 +13,22 @@ import type {
   DailyDropContentItem,
   KeyConcept,
   MiniCaseChallenge,
-  NewsletterArticle
+  NewsletterArticle,
+  TodayDailyDrop
 } from "./contentTypes";
+import { fetchTodayDrop } from "./dailyDropData";
 
 const moduleOrder = ["newsletter", "business_story", "mini_case", "concept"] as const;
 type ModuleId = (typeof moduleOrder)[number];
+type TodayFallbackReason = DataFallbackReason | "missing_auth_session";
+
+type TodayLoadState = {
+  drop: TodayDailyDrop;
+  error: NormalizedSupabaseError | null;
+  fallbackReason: TodayFallbackReason | null;
+  source: DataFetchSource;
+  status: "loading" | "ready";
+};
 
 const activeLanguage: ContentLanguage = "en";
 
@@ -28,15 +41,68 @@ const topicLabels = TOPICS.reduce(
 );
 
 export function TodayDailyDropScreen() {
-  const drop = mockTodayDailyDropsByLanguage[activeLanguage];
+  const fallbackDrop = mockTodayDailyDropsByLanguage[activeLanguage];
+  const [loadState, setLoadState] = useState<TodayLoadState>({
+    drop: fallbackDrop,
+    error: null,
+    fallbackReason: null,
+    source: "mock",
+    status: "loading"
+  });
   const [completedModules, setCompletedModules] = useState<Set<ModuleId>>(new Set());
   const [showSampleAnswer, setShowSampleAnswer] = useState(false);
 
+  const drop = loadState.drop;
   const completedCount = completedModules.size;
   const progress = completedCount / moduleOrder.length;
   const isComplete = completedCount === moduleOrder.length;
   const formattedDate = useMemo(() => formatDropDate(drop.drop_date), [drop.drop_date]);
   const allItems = useMemo(() => flattenDailyDropItems(drop), [drop]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTodayDrop() {
+      setLoadState((currentState) => ({ ...currentState, status: "loading" }));
+
+      const sessionResult = await getAuthSession();
+      const userId = sessionResult.data?.user.id;
+
+      if (!userId) {
+        if (isMounted) {
+          setLoadState({
+            drop: fallbackDrop,
+            error: sessionResult.error,
+            fallbackReason: "missing_auth_session",
+            source: "mock",
+            status: "ready"
+          });
+        }
+
+        return;
+      }
+
+      const result = await fetchTodayDrop(userId, new Date(), {
+        language: activeLanguage
+      });
+
+      if (isMounted) {
+        setLoadState({
+          drop: result.data,
+          error: result.error,
+          fallbackReason: result.fallbackReason,
+          source: result.source,
+          status: "ready"
+        });
+      }
+    }
+
+    void loadTodayDrop();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fallbackDrop]);
 
   function markComplete(moduleId: ModuleId) {
     setCompletedModules((currentModules) => new Set(currentModules).add(moduleId));
@@ -88,6 +154,7 @@ export function TodayDailyDropScreen() {
               : "Finish the four modules. No feed, no backlog pressure."}
           </AppText>
         </Card>
+        <TodayDataStateBanner loadState={loadState} />
       </AppScreen.Header>
 
       <AppScreen.Body style={styles.body}>
@@ -121,6 +188,62 @@ export function TodayDailyDropScreen() {
       </AppScreen.Body>
     </AppScreen>
   );
+}
+
+function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
+  if (loadState.status === "loading") {
+    return (
+      <Card padding="md" tone="muted">
+        <ProgressPill label="Loading daily drop" tone="neutral" />
+        <AppText color="muted" variant="caption">
+          Checking Supabase for today's published drop.
+        </AppText>
+      </Card>
+    );
+  }
+
+  if (loadState.source === "supabase") {
+    return (
+      <Card padding="md" tone="accent">
+        <ProgressPill label="Live daily drop" tone="success" value={1} />
+        <AppText color="accentInk" variant="caption">
+          Loaded from Supabase.
+        </AppText>
+      </Card>
+    );
+  }
+
+  if (loadState.fallbackReason === "supabase_error") {
+    return (
+      <EmptyState
+        description={loadState.error?.message ?? "Supabase is unavailable, so the app is showing the mock daily drop."}
+        eyebrow="Mock fallback"
+        title="Could not load live content"
+      />
+    );
+  }
+
+  if (loadState.fallbackReason === "no_supabase_data") {
+    return (
+      <EmptyState
+        description="No published Supabase drop exists for today yet, so the app is showing the built-in mock drop."
+        eyebrow="Mock fallback"
+        title="No live drop yet"
+      />
+    );
+  }
+
+  if (loadState.fallbackReason === "missing_auth_session") {
+    return (
+      <EmptyState
+        description="Sign in to load a personalized Supabase drop. The mock drop keeps the app usable for now."
+        eyebrow="Mock fallback"
+        title="No active session"
+      />
+    );
+  }
+
+  return null;
 }
 
 type SectionCompleteButtonProps = {
@@ -160,7 +283,7 @@ function NewsletterSection({
               {topicLabels[article.topic]}
             </AppText>
             <AppText color="muted" variant="caption">
-              {getMockSourcesForItem(article).length} sources
+              {getSourceCount(article)} sources
             </AppText>
           </View>
         ))}
@@ -176,7 +299,7 @@ function NewsletterSection({
 }
 
 function NewsletterArticlePreview({ article }: { article: NewsletterArticle }) {
-  const sources = getMockSourcesForItem(article);
+  const sources = getDisplaySourceLabels(article);
 
   return (
     <Card padding="md" style={styles.articleCard}>
@@ -196,7 +319,7 @@ function NewsletterArticlePreview({ article }: { article: NewsletterArticle }) {
         </AppText>
         <AppText variant="body">{article.why_it_matters}</AppText>
       </View>
-      <SourceLine item={article} sources={sources.map((source) => source.publisher)} />
+      <SourceLine item={article} sources={sources} />
     </Card>
   );
 }
@@ -236,7 +359,7 @@ function BusinessStorySection({
           </AppText>
           <AppText variant="bodyStrong">{story.lesson}</AppText>
         </View>
-        <SourceLine item={story} sources={getMockSourcesForItem(story).map((source) => source.publisher)} />
+        <SourceLine item={story} sources={getDisplaySourceLabels(story)} />
       </Card>
       <SectionCompleteButton completed={completed} label="Mark story complete" onComplete={onComplete} />
     </View>
@@ -355,7 +478,7 @@ function ConceptSection({
           <ConceptNote label="Use it like this" text={concept.how_to_use_it} />
           <ConceptNote label="Common mistake" text={concept.common_mistake} />
         </View>
-        <SourceLine item={concept} sources={getMockSourcesForItem(concept).map((source) => source.publisher)} />
+        <SourceLine item={concept} sources={getDisplaySourceLabels(concept)} />
       </Card>
       <SectionCompleteButton completed={completed} label="Save concept for today" onComplete={onComplete} />
     </View>
@@ -430,6 +553,24 @@ function SourceLine({ item, sources }: { item: { version: number }; sources: str
       </AppText>
     </View>
   );
+}
+
+function getSourceCount(item: DailyDropContentItem) {
+  return Math.max(item.source_ids.length, getMockSourcesForItem(item).length);
+}
+
+function getDisplaySourceLabels(item: DailyDropContentItem) {
+  const mockSources = getMockSourcesForItem(item);
+
+  if (mockSources.length > 0) {
+    return mockSources.map((source) => source.publisher);
+  }
+
+  if (item.source_ids.length > 0) {
+    return [`${item.source_ids.length} linked source${item.source_ids.length === 1 ? "" : "s"}`];
+  }
+
+  return ["Source metadata pending"];
 }
 
 function formatDropDate(date: string) {

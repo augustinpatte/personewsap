@@ -34,6 +34,7 @@ export * from "./storage/supabaseClient.js";
 export * from "./scheduler/index.js";
 export * from "./cli/dryRun.js";
 export * from "./cli/llmRun.js";
+export * from "./cli/persistTest.js";
 
 export function createContentEngine(options?: {
   persist?: boolean;

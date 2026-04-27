@@ -83,7 +83,8 @@ export function mapGeneratedItemToContentInsert(
   item: GeneratedContentItem,
   publicationDate: string,
   status: "draft" | "review" | "published",
-  generationRunId: string | null
+  generationRunId: string | null,
+  extraMetadata: Record<string, unknown> = {}
 ): ContentItemInsert {
   return {
     content_type: item.content_type,
@@ -99,7 +100,10 @@ export function mapGeneratedItemToContentInsert(
     status,
     generation_run_id: generationRunId,
     source_count: new Set(item.source_urls).size,
-    metadata: metadataFor(item)
+    metadata: {
+      ...metadataFor(item),
+      ...extraMetadata
+    }
   };
 }
 

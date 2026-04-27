@@ -34,6 +34,7 @@ npm run check
 npm run build
 npm run dry-run
 npm run llm-run
+npm run persist-test
 ```
 
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
@@ -112,6 +113,46 @@ OPENAI_API_KEY=sk-... OPENAI_REQUEST_TIMEOUT_MS=10000 npm run llm-run
 ```
 
 If OpenAI fails, the command reports whether the failure was a timeout, network/endpoint problem, HTTP/API error, missing JSON output, or invalid JSON.
+
+## Safe Persistence Test
+
+`persist-test` is a local, explicit-confirmation command for checking that generated daily-drop content can be written through the Supabase persistence layer. It is fail-closed: it refuses to run unless all required environment variables are present.
+
+Required:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CONFIRM_PERSIST_TEST=true`
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_PERSIST_TEST=true \
+npm run persist-test
+```
+
+Safe defaults:
+
+- uses bundled sample articles only
+- generates one language only
+- generates one newsletter article, one business story, one mini-case, and one concept
+- stores content with `draft` status
+- does not create user daily drops
+- adds test metadata to each persisted `content_items.metadata` object:
+  - `is_test_data: true`
+  - `test_mode: "persist-test"`
+  - `test_run_id`
+  - `persisted_by`
+
+Useful options:
+
+```sh
+npm run persist-test -- --date 2026-04-26
+npm run persist-test -- --language fr
+npm run persist-test -- --topics business,tech_ai
+```
+
+`persist-test` ignores `--newsletter-count` and `--live-rss` to keep the write small and local-test friendly. Use a local or disposable Supabase project by default. Do not point it at production unless you are deliberately testing production persistence and accept that draft test rows will be written.
 
 ## Daily Job
 
