@@ -5,6 +5,7 @@ import { AppScreen } from "../../src/components/AppScreen";
 import { AppText } from "../../src/components/AppText";
 import { Card } from "../../src/components/Card";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { ProgressPill } from "../../src/components/ProgressPill";
 import { SecondaryButton } from "../../src/components/SecondaryButton";
 import { tokens } from "../../src/design/tokens";
 import { useAuth } from "../../src/features/auth";
@@ -86,30 +87,61 @@ export default function AccountScreen() {
   return (
     <AppScreen>
       <AppScreen.Header>
-        <AppText variant="eyebrow">Account</AppText>
-        <AppText variant="title">Profile</AppText>
-        <AppText variant="body">
-          Auth details for testing the daily drop flow and copying the current user id safely.
-        </AppText>
+        <View style={styles.headerTopline}>
+          <AppText variant="eyebrow">Account</AppText>
+          <ProgressPill
+            label={session ? "SIGNED IN" : "SIGNED OUT"}
+            tone={session ? "success" : "neutral"}
+          />
+        </View>
+        <View style={styles.headerCopy}>
+          <AppText variant="title">Profile and debug</AppText>
+          <AppText variant="body">
+            Copy the current user id for `TEST_USER_ID`, check mobile config, and manage the session.
+          </AppText>
+        </View>
       </AppScreen.Header>
 
       <AppScreen.Body>
-        <Card>
-          <AppText variant="subtitle">Signed in</AppText>
-          <InfoRow label="Email" value={user?.email ?? "Unavailable"} selectable />
-          <InfoRow label="TEST_USER_ID" value={user?.id ?? "Unavailable"} monospace selectable />
+        <Card elevated padding="lg" style={styles.heroCard}>
+          <View style={styles.cardTopline}>
+            <AppText variant="subtitle">{user?.email ?? "No active user"}</AppText>
+            <ProgressPill
+              label={profileCompleted ? "Ready" : onboardingLabel(status)}
+              tone={profileCompleted ? "success" : "warning"}
+            />
+          </View>
+          <AppText color="muted" variant="body">
+            Use this id when assigning a test daily drop from the content engine.
+          </AppText>
+          <View style={styles.idBox}>
+            <AppText color="muted" variant="caption">
+              TEST_USER_ID
+            </AppText>
+            <AppText selectable style={styles.idValue} variant="bodyStrong">
+              {user?.id ?? "Unavailable"}
+            </AppText>
+          </View>
         </Card>
 
         <Card>
-          <AppText variant="subtitle">Preferences</AppText>
+          <View style={styles.cardTopline}>
+            <AppText variant="subtitle">Product state</AppText>
+            <ProgressPill label={profile.language?.toUpperCase() ?? "No language"} tone="neutral" />
+          </View>
+          <InfoRow label="Email" value={user?.email ?? "Unavailable"} selectable />
           <InfoRow label="Language" value={profile.language ?? "Unavailable"} />
           <InfoRow label="Onboarding" value={profileCompleted ? "Complete" : onboardingLabel(status)} />
           {profileError ? <AppText color="danger" variant="caption">{profileError}</AppText> : null}
         </Card>
 
         <Card tone="muted">
-          <AppText variant="subtitle">Developer</AppText>
+          <View style={styles.cardTopline}>
+            <AppText variant="subtitle">App status</AppText>
+            <ProgressPill label={isConfigured ? "Configured" : "Needs env"} tone={isConfigured ? "success" : "warning"} />
+          </View>
           <InfoRow label="Supabase URL configured" value={supabaseConfigDiagnostics.urlHost ? "Yes" : "No"} />
+          <InfoRow label="Supabase host" value={supabaseConfigDiagnostics.urlHost ?? "Unavailable"} />
           <InfoRow label="Supabase client configured" value={isConfigured ? "Yes" : "No"} />
           <InfoRow label="Current session" value={session ? "Yes" : "No"} />
           <InfoRow label="Auth status" value={status} />
@@ -175,6 +207,37 @@ function InfoRow({
 const styles = StyleSheet.create({
   actions: {
     gap: tokens.space.md
+  },
+  headerTopline: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.space.md,
+    justifyContent: "space-between"
+  },
+  headerCopy: {
+    gap: tokens.space.sm
+  },
+  heroCard: {
+    gap: tokens.space.lg
+  },
+  cardTopline: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: tokens.space.md,
+    justifyContent: "space-between"
+  },
+  idBox: {
+    backgroundColor: tokens.color.backgroundRaised,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    gap: tokens.space.xs,
+    padding: tokens.space.md
+  },
+  idValue: {
+    fontFamily: "Courier",
+    fontSize: 13,
+    lineHeight: 19
   },
   monospace: {
     fontFamily: "Courier",

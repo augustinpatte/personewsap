@@ -3,6 +3,7 @@ import {
   createSupabaseResult,
   type DataFetchResult
 } from "../../lib/dataState";
+import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
 import { normalizeSupabaseError, supabase } from "../../lib/supabase";
 import {
   flattenDailyDropItems,
@@ -24,12 +25,15 @@ import type {
 } from "./contentTypes";
 
 type FetchTodayDropOptions = {
+  cacheTtlMs?: number;
   language?: ContentLanguage;
 };
 
 type SourceIdsByContentItemId = Record<string, string[]>;
 
 const publishedDropStatuses = ["published", "read", "archived"] as const;
+const todayDropCacheTtlMs = 60_000;
+const contentSourcesCacheTtlMs = 5 * 60_000;
 
 const topicIds = [
   "business",
@@ -43,12 +47,23 @@ const topicIds = [
 ] as const satisfies TopicId[];
 
 export async function fetchTodayDrop(
-  userId: string,
+  userId: string | null | undefined,
   date: string | Date,
   options: FetchTodayDropOptions = {}
 ): Promise<DataFetchResult<TodayDailyDrop>> {
   const dropDate = normalizeDropDate(date);
   const fallbackDrop = getMockTodayDrop(options.language);
+
+  if (!userId) {
+    return createMockFallbackResult(
+      fallbackDrop,
+      "missing_auth_session",
+      normalizeSupabaseError({
+        code: "missing_auth_session",
+        message: "Sign in to load your assigned daily drop."
+      })
+    );
+  }
 
   if (!supabase) {
     return createMockFallbackResult(
@@ -63,6 +78,13 @@ export async function fetchTodayDrop(
   }
 
   try {
+    const cacheKey = getTodayDropCacheKey(userId, dropDate, options.language);
+    const cachedDrop = getCachedValue<TodayDailyDrop>(cacheKey);
+
+    if (cachedDrop) {
+      return createSupabaseResult(cachedDrop);
+    }
+
     let dropQuery = supabase
       .from("daily_drops")
       .select("*")
@@ -90,9 +112,13 @@ export async function fetchTodayDrop(
 
     const mappedDrop = await fetchAndMapDailyDrop(drop);
 
-    return mappedDrop
-      ? createSupabaseResult(mappedDrop)
-      : createMockFallbackResult(fallbackDrop, "no_supabase_data");
+    if (!mappedDrop) {
+      return createMockFallbackResult(fallbackDrop, "no_supabase_data");
+    }
+
+    setCachedValue(cacheKey, mappedDrop, options.cacheTtlMs ?? todayDropCacheTtlMs);
+
+    return createSupabaseResult(mappedDrop);
   } catch (error) {
     return createMockFallbackResult(
       fallbackDrop,
@@ -120,6 +146,13 @@ export async function fetchContentItemSources(
   }
 
   try {
+    const cacheKey = getContentSourcesCacheKey(contentItemId);
+    const cachedSources = getCachedValue<SourceMetadata[]>(cacheKey);
+
+    if (cachedSources) {
+      return createSupabaseResult(cachedSources);
+    }
+
     const { data: sourceLinks, error: sourceLinksError } = await supabase
       .from("content_item_sources")
       .select("*")
@@ -159,9 +192,13 @@ export async function fetchContentItemSources(
       .filter(isSource)
       .map(mapSource);
 
-    return orderedSources.length > 0
-      ? createSupabaseResult(orderedSources)
-      : createMockFallbackResult(fallbackSources, "no_supabase_data");
+    if (orderedSources.length === 0) {
+      return createMockFallbackResult(fallbackSources, "no_supabase_data");
+    }
+
+    setCachedValue(cacheKey, orderedSources, contentSourcesCacheTtlMs);
+
+    return createSupabaseResult(orderedSources);
   } catch (error) {
     return createMockFallbackResult(
       fallbackSources,
@@ -490,6 +527,18 @@ function estimateReadMinutes(contentItems: ContentItem[]): number {
 
 function normalizeDropDate(date: string | Date): string {
   return typeof date === "string" ? date.slice(0, 10) : date.toISOString().slice(0, 10);
+}
+
+function getTodayDropCacheKey(
+  userId: string,
+  dropDate: string,
+  language?: ContentLanguage
+): string {
+  return ["today-drop", userId, dropDate, language ?? "any"].join(":");
+}
+
+function getContentSourcesCacheKey(contentItemId: string): string {
+  return ["content-sources", contentItemId].join(":");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

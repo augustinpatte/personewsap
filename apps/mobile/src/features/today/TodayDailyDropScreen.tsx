@@ -583,6 +583,7 @@ function NewsletterArticlePreview({
         </AppText>
       </View>
       <AppText variant="bodyStrong">{article.title}</AppText>
+      <ContentMetaRow item={article} topicLabel={topicLabels[article.topic]} />
       <AppText variant="body">{article.summary}</AppText>
       <View style={styles.callout}>
         <AppText color="accentInk" variant="caption">
@@ -632,6 +633,8 @@ function BusinessStorySection({
             {formatShortDate(story.story_date)}
           </AppText>
         </View>
+        <AppText variant="bodyStrong">{story.title}</AppText>
+        <ContentMetaRow item={story} topicLabel={story.company_or_market} />
         <StoryBeat label="Setup" text={story.setup} />
         <StoryBeat label="Tension" text={story.tension} />
         <StoryBeat label="Decision" text={story.decision} />
@@ -702,6 +705,8 @@ function MiniCaseSection({
             {topicLabels[challenge.topic]}
           </AppText>
         </View>
+        <AppText variant="bodyStrong">{challenge.title}</AppText>
+        <ContentMetaRow item={challenge} topicLabel={topicLabels[challenge.topic]} />
         <AppText variant="body">{challenge.context}</AppText>
         <View style={styles.challengeBox}>
           <AppText color="accentInk" variant="label">
@@ -773,6 +778,8 @@ function ConceptSection({
         title={concept.title}
       />
       <Card padding="lg">
+        <AppText variant="bodyStrong">{concept.title}</AppText>
+        <ContentMetaRow item={concept} topicLabel={getConceptTopicLabel(concept)} />
         <View style={styles.definitionBlock}>
           <AppText color="accentInk" variant="label">
             Definition
@@ -794,6 +801,25 @@ function ConceptSection({
         />
       </Card>
       <SectionCompleteButton completed={completed} label="Save concept for today" onComplete={onComplete} />
+    </View>
+  );
+}
+
+function ContentMetaRow({
+  item,
+  topicLabel
+}: {
+  item: DailyDropContentItem;
+  topicLabel: string;
+}) {
+  return (
+    <View style={styles.contentMetaRow}>
+      <ProgressPill label={topicLabel} tone="accent" />
+      <ProgressPill label={`${estimateItemReadMinutes(item)} min`} tone="neutral" />
+      <ProgressPill
+        label={`${getSourceCount(item)} source${getSourceCount(item) === 1 ? "" : "s"}`}
+        tone="neutral"
+      />
     </View>
   );
 }
@@ -993,6 +1019,53 @@ function getDisplaySourceLabels(item: DailyDropContentItem) {
   return ["Source metadata pending"];
 }
 
+function getConceptTopicLabel(concept: KeyConcept) {
+  return concept.category === "career" ? "Career" : topicLabels[concept.category];
+}
+
+function estimateItemReadMinutes(item: DailyDropContentItem) {
+  const words = getReadableText(item).trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 220));
+}
+
+function getReadableText(item: DailyDropContentItem) {
+  if (item.content_type === "newsletter_article") {
+    return [item.title, item.summary, item.body_md, item.why_it_matters].join(" ");
+  }
+
+  if (item.content_type === "business_story") {
+    return [
+      item.title,
+      item.setup,
+      item.tension,
+      item.decision,
+      item.outcome,
+      item.lesson
+    ].join(" ");
+  }
+
+  if (item.content_type === "mini_case") {
+    return [
+      item.title,
+      item.context,
+      item.challenge,
+      item.question,
+      item.constraints.join(" "),
+      item.sample_answer
+    ].join(" ");
+  }
+
+  return [
+    item.title,
+    item.definition,
+    item.plain_english,
+    item.example,
+    item.why_it_matters,
+    item.how_to_use_it,
+    item.common_mistake
+  ].join(" ");
+}
+
 function getPendingInteractionId({
   contentItemId,
   interactionType,
@@ -1131,7 +1204,10 @@ const styles = StyleSheet.create({
     borderColor: tokens.color.success
   },
   section: {
-    gap: tokens.space.md
+    borderTopColor: tokens.color.border,
+    borderTopWidth: 1,
+    gap: tokens.space.md,
+    paddingTop: tokens.space.xl
   },
   sectionButton: {
     alignSelf: "flex-start",
@@ -1158,6 +1234,11 @@ const styles = StyleSheet.create({
   },
   articleCard: {
     gap: tokens.space.md
+  },
+  contentMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.space.sm
   },
   cardHeaderRow: {
     alignItems: "center",

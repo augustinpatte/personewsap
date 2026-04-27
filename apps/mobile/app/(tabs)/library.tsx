@@ -252,7 +252,7 @@ export default function LibraryScreen() {
               filteredDrops.length === 1 ? "" : "s"
             }.`}
             eyebrow="Archive"
-            title="Daily drops"
+            title="Daily drops by date"
           />
 
           {filteredDrops.length > 0 ? (
@@ -451,7 +451,7 @@ function ArchiveDropCard({ drop, items }: ArchiveDropCardProps) {
       <View style={styles.dropHeader}>
         <View style={styles.dropTitleGroup}>
           <AppText color="muted" variant="caption">
-            {formatArchiveDate(drop.drop_date)} / {drop.language.toUpperCase()}
+            Drop date / {formatArchiveDate(drop.drop_date)} / {drop.language.toUpperCase()}
           </AppText>
           <AppText variant="subtitle">{drop.title}</AppText>
         </View>

@@ -58,6 +58,17 @@ export type PublishedPersistTestContentItem = {
   created_at: string;
 };
 
+export type PublishedContentItem = {
+  id: string;
+  content_type: string;
+  topic_id: TopicId | null;
+  language: Language;
+  title: string;
+  publication_date: string;
+  metadata: unknown;
+  created_at: string;
+};
+
 type DailyDropRow = {
   id: string;
 };
@@ -257,6 +268,38 @@ export class ContentRepository {
     }
 
     return (data ?? []).filter(isPublishedPersistTestContentItem);
+  }
+
+  async listPublishedContentItems(input: {
+    languages: Language[];
+    publicationDateLte: string;
+  }): Promise<PublishedContentItem[]> {
+    const uniqueLanguages = [...new Set(input.languages)];
+
+    if (uniqueLanguages.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from("content_items")
+      .select("id,content_type,topic_id,language,title,publication_date,metadata,created_at")
+      .eq("status", "published")
+      .in("language", uniqueLanguages)
+      .lte("publication_date", input.publicationDateLte)
+      .order("publication_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(200)
+      .returns<PublishedContentItem[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "content_items",
+        action: "select published content items for personalization",
+        error
+      });
+    }
+
+    return data ?? [];
   }
 
   private async deleteRowsByIds(input: {

@@ -48,6 +48,20 @@ function isAfterSince(article: RawArticle, since?: string): boolean {
   return publishedAt >= sinceDate;
 }
 
+function summarizeSources(sources: CuratedSource[]): Array<{
+  source_id: string;
+  publisher: string;
+  topic: string;
+  language: string;
+}> {
+  return sources.slice(0, 10).map((source) => ({
+    source_id: source.id,
+    publisher: source.publisher,
+    topic: source.topic,
+    language: source.language
+  }));
+}
+
 export class RssFeedConnector implements SourceConnector {
   readonly name = "rss";
 
@@ -60,17 +74,27 @@ export class RssFeedConnector implements SourceConnector {
   ) {}
 
   async fetchArticles(request: SourceFetchRequest): Promise<RawArticle[]> {
-    const selected = this.sources.filter(
-      (source) => source.rssUrl && request.topics.includes(source.topic) && request.languages.includes(source.language)
+    const matchingSources = this.sources.filter(
+      (source) => request.topics.includes(source.topic) && request.languages.includes(source.language)
     );
+    const selected = matchingSources.filter((source) => source.rssUrl);
+    const skippedNoRss = matchingSources.filter((source) => !source.rssUrl);
     const limitPerSource = this.resolveLimitPerSource(request);
 
     sourceLog("rss_fetch_started", {
       source_count: selected.length,
+      skipped_no_rss_count: skippedNoRss.length,
       limit_per_source: limitPerSource,
       languages: request.languages,
       topics: request.topics
     });
+
+    if (skippedNoRss.length > 0) {
+      sourceWarning("rss_sources_skipped_no_rss_url", {
+        skipped_count: skippedNoRss.length,
+        sources: summarizeSources(skippedNoRss)
+      });
+    }
 
     const batches = await Promise.allSettled(selected.map((source) => this.fetchSource(source, limitPerSource, request.since)));
     const failures = batches
@@ -93,6 +117,7 @@ export class RssFeedConnector implements SourceConnector {
 
     sourceLog("rss_fetch_completed", {
       source_count: selected.length,
+      skipped_no_rss_count: skippedNoRss.length,
       failed_sources: failures.length,
       article_count: articles.length
     });
@@ -132,11 +157,23 @@ export class RssFeedConnector implements SourceConnector {
     }
 
     const xml = await response.text();
-    return splitItems(xml)
+    const items = splitItems(xml);
+    let skippedMissingFields = 0;
+
+    if (items.length === 0) {
+      sourceWarning("rss_source_skipped_no_items", {
+        source_id: source.id,
+        publisher: source.publisher,
+        rss_url: source.rssUrl
+      });
+    }
+
+    const articles = items
       .map((item): (RawArticle & SourceArticleMetadata) | null => {
         const title = readTag(item, "title");
         const link = readLink(item);
         if (!title || !link) {
+          skippedMissingFields += 1;
           return null;
         }
 
@@ -158,6 +195,38 @@ export class RssFeedConnector implements SourceConnector {
       .filter((article): article is RawArticle & SourceArticleMetadata => article !== null)
       .filter((article) => isAfterSince(article, since))
       .slice(0, limit);
+
+    if (skippedMissingFields > 0) {
+      sourceWarning("rss_items_skipped_missing_fields", {
+        source_id: source.id,
+        publisher: source.publisher,
+        rss_url: source.rssUrl,
+        skipped_count: skippedMissingFields
+      });
+    }
+
+    if (items.length > 0 && articles.length === 0) {
+      sourceWarning("rss_source_skipped_no_usable_items", {
+        source_id: source.id,
+        publisher: source.publisher,
+        rss_url: source.rssUrl,
+        rss_items: items.length,
+        skipped_missing_fields: skippedMissingFields
+      });
+    }
+
+    sourceLog("rss_source_completed", {
+      source_id: source.id,
+      publisher: source.publisher,
+      topic: source.topic,
+      language: source.language,
+      rss_url: source.rssUrl,
+      rss_items: items.length,
+      skipped_missing_fields: skippedMissingFields,
+      article_count: articles.length
+    });
+
+    return articles;
   }
 
   private resolveLimitPerSource(request: SourceFetchRequest): number {

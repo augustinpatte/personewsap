@@ -3,13 +3,22 @@ import {
   createSupabaseResult,
   type DataFetchResult
 } from "../../lib/dataState";
+import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
 import { normalizeSupabaseError, supabase } from "../../lib/supabase";
 import { mockLibraryDrops } from "../../mocks";
 import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
 import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
 
+type FetchLibraryDropsOptions = {
+  cacheTtlMs?: number;
+  limit?: number;
+};
+
 const archiveDropStatuses = ["published", "read", "archived"] as const;
+const defaultLibraryDropLimit = 20;
+const libraryDropCacheTtlMs = 60_000;
+const maxLibraryDropLimit = 50;
 const publishedContentStatus = "published";
 const slotOrder = {
   newsletter: 0,
@@ -30,8 +39,20 @@ const topicIds = [
 ] as const satisfies TopicId[];
 
 export async function fetchLibraryDrops(
-  userId: string
+  userId: string | null | undefined,
+  options: FetchLibraryDropsOptions = {}
 ): Promise<DataFetchResult<LibraryDropSummary[]>> {
+  if (!userId) {
+    return createMockFallbackResult(
+      mockLibraryDrops,
+      "missing_auth_session",
+      normalizeSupabaseError({
+        code: "missing_auth_session",
+        message: "Sign in to load your library."
+      })
+    );
+  }
+
   if (!supabase) {
     return createMockFallbackResult(
       mockLibraryDrops,
@@ -45,12 +66,21 @@ export async function fetchLibraryDrops(
   }
 
   try {
+    const limit = normalizeLibraryLimit(options.limit);
+    const cacheKey = getLibraryDropsCacheKey(userId, limit);
+    const cachedDrops = getCachedValue<LibraryDropSummary[]>(cacheKey);
+
+    if (cachedDrops) {
+      return createSupabaseResult(cachedDrops);
+    }
+
     const { data: drops, error: dropsError } = await supabase
       .from("daily_drops")
       .select("*")
       .eq("user_id", userId)
       .in("status", [...archiveDropStatuses])
-      .order("drop_date", { ascending: false });
+      .order("drop_date", { ascending: false })
+      .limit(limit);
 
     if (dropsError) {
       return createMockFallbackResult(
@@ -68,9 +98,13 @@ export async function fetchLibraryDrops(
 
     const displayableSummaries = summaries.filter((summary) => summary.item_count > 0);
 
-    return displayableSummaries.length > 0
-      ? createSupabaseResult(displayableSummaries)
-      : createMockFallbackResult(mockLibraryDrops, "no_supabase_data");
+    if (displayableSummaries.length === 0) {
+      return createMockFallbackResult(mockLibraryDrops, "no_supabase_data");
+    }
+
+    setCachedValue(cacheKey, displayableSummaries, options.cacheTtlMs ?? libraryDropCacheTtlMs);
+
+    return createSupabaseResult(displayableSummaries);
   } catch (error) {
     return createMockFallbackResult(
       mockLibraryDrops,
@@ -292,6 +326,18 @@ function mapLibraryContentType(
 
 function getLibraryDropTitle(drop: DailyDrop): string {
   return drop.language === "fr" ? "Brief quotidien" : "Daily drop";
+}
+
+function normalizeLibraryLimit(limit: number | undefined): number {
+  if (!limit || !Number.isFinite(limit)) {
+    return defaultLibraryDropLimit;
+  }
+
+  return Math.min(Math.max(Math.floor(limit), 1), maxLibraryDropLimit);
+}
+
+function getLibraryDropsCacheKey(userId: string, limit: number): string {
+  return ["library-drops", userId, limit].join(":");
 }
 
 function isTopicId(value: unknown): value is TopicId {

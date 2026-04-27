@@ -38,6 +38,18 @@ export const CURATED_SOURCES = [
     description: "Management, strategy, leadership, and organizational behavior."
   },
   {
+    id: "mit-business-management",
+    topic: "business",
+    language: "en",
+    publisher: "MIT News",
+    url: "https://news.mit.edu/topic/business",
+    rssUrl: "https://news.mit.edu/rss/topic/business",
+    credibility_score: 0.88,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "University research and entrepreneurship updates with strong student relevance."
+  },
+  {
     id: "federal-reserve-press",
     topic: "finance",
     language: "en",
@@ -72,6 +84,18 @@ export const CURATED_SOURCES = [
     credibility_tier: "tier_2",
     source_type: "specialist_publisher",
     description: "Economic news explained for a broad audience."
+  },
+  {
+    id: "ecb-press",
+    topic: "finance",
+    language: "en",
+    publisher: "European Central Bank",
+    url: "https://www.ecb.europa.eu/press/",
+    rssUrl: "https://www.ecb.europa.eu/rss/press.html",
+    credibility_score: 0.95,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source European monetary policy, speeches, interviews, and press releases."
   },
   {
     id: "mit-tech-review",
@@ -110,6 +134,18 @@ export const CURATED_SOURCES = [
     description: "Longer-form AI research and industry analysis."
   },
   {
+    id: "mit-ai",
+    topic: "tech_ai",
+    language: "en",
+    publisher: "MIT News",
+    url: "https://news.mit.edu/topic/artificial-intelligence2",
+    rssUrl: "https://news.mit.edu/topic/mitartificial-intelligence2-rss.xml",
+    credibility_score: 0.88,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "AI research and education updates with strong student and career relevance."
+  },
+  {
     id: "scotusblog",
     topic: "law",
     language: "en",
@@ -144,6 +180,18 @@ export const CURATED_SOURCES = [
     credibility_tier: "tier_1",
     source_type: "rss",
     description: "Primary-source U.S. federal enforcement and legal policy updates."
+  },
+  {
+    id: "eff-deeplinks",
+    topic: "law",
+    language: "en",
+    publisher: "Electronic Frontier Foundation",
+    url: "https://www.eff.org/deeplinks",
+    rssUrl: "https://www.eff.org/deeplinks/index.xml",
+    credibility_score: 0.82,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Digital rights, privacy, speech, surveillance, and technology law analysis."
   },
   {
     id: "nature-medicine",
@@ -182,6 +230,18 @@ export const CURATED_SOURCES = [
     description: "Global public health news and institutional updates."
   },
   {
+    id: "fda-press-releases",
+    topic: "medicine",
+    language: "en",
+    publisher: "U.S. Food and Drug Administration",
+    url: "https://www.fda.gov/news-events/fda-newsroom",
+    rssUrl: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+    credibility_score: 0.94,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source U.S. medical products, drug, device, and public health regulatory updates."
+  },
+  {
     id: "ieee-spectrum",
     topic: "engineering",
     language: "en",
@@ -216,6 +276,18 @@ export const CURATED_SOURCES = [
     credibility_tier: "tier_1",
     source_type: "rss",
     description: "Peer-reviewed nanotechnology research table-of-contents feed."
+  },
+  {
+    id: "mit-engineering",
+    topic: "engineering",
+    language: "en",
+    publisher: "MIT News",
+    url: "https://news.mit.edu/school/engineering",
+    rssUrl: "https://news.mit.edu/rss/school/engineering",
+    credibility_score: 0.88,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Engineering research, applied science, robotics, energy, and student innovation."
   },
   {
     id: "sportspro",
@@ -254,6 +326,18 @@ export const CURATED_SOURCES = [
     description: "Sports business news with a strong audience and career lens."
   },
   {
+    id: "sportico",
+    topic: "sport_business",
+    language: "en",
+    publisher: "Sportico",
+    url: "https://www.sportico.com/",
+    rssUrl: "https://www.sportico.com/feed/",
+    credibility_score: 0.77,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Sports finance, team valuations, media rights, sponsorships, and leagues."
+  },
+  {
     id: "guardian-media",
     topic: "culture_media",
     language: "en",
@@ -288,6 +372,18 @@ export const CURATED_SOURCES = [
     credibility_tier: "tier_2",
     source_type: "specialist_publisher",
     description: "Entertainment business, film, TV, streaming, and cultural industries."
+  },
+  {
+    id: "deadline",
+    topic: "culture_media",
+    language: "en",
+    publisher: "Deadline",
+    url: "https://deadline.com/",
+    rssUrl: "https://deadline.com/feed/",
+    credibility_score: 0.76,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Entertainment industry, streaming, studios, labor, and media business coverage."
   },
   {
     id: "le-monde-economie",

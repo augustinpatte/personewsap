@@ -12,19 +12,62 @@ export type AsyncDataState<T> = {
 export type DataFetchSource = "supabase" | "mock";
 
 export type DataFallbackReason =
+  | "missing_auth_session"
   | "missing_supabase_config"
   | "no_supabase_data"
   | "supabase_error";
+
+export type DataIdleState = {
+  data: null;
+  error: null;
+  message: null;
+  status: "idle";
+};
+
+export type DataLoadingState<T> = {
+  data: T | null;
+  error: null;
+  message: null;
+  status: "loading";
+};
+
+export type DataSuccessState<T> = {
+  data: T;
+  error: null;
+  message: null;
+  status: "ready";
+};
+
+export type DataEmptyState = {
+  data: null;
+  error: null;
+  message: string;
+  status: "empty";
+};
+
+export type DataErrorState<T> = {
+  data: T | null;
+  error: NormalizedSupabaseError;
+  message: string;
+  status: "error";
+};
+
+export type DataLoadState<T> =
+  | DataIdleState
+  | DataLoadingState<T>
+  | DataSuccessState<T>
+  | DataEmptyState
+  | DataErrorState<T>;
 
 export type DataFetchResult<T> = {
   data: T;
   error: NormalizedSupabaseError | null;
   fallbackReason: DataFallbackReason | null;
   source: DataFetchSource;
-  state: AsyncDataState<T>;
+  state: DataLoadState<T>;
 };
 
-export function createIdleState<T>(): AsyncDataState<T> {
+export function createIdleState(): DataIdleState {
   return {
     data: null,
     error: null,
@@ -35,7 +78,7 @@ export function createIdleState<T>(): AsyncDataState<T> {
 
 export function createLoadingState<T>(
   previousData: T | null = null
-): AsyncDataState<T> {
+): DataLoadingState<T> {
   return {
     data: previousData,
     error: null,
@@ -44,7 +87,7 @@ export function createLoadingState<T>(
   };
 }
 
-export function createReadyState<T>(data: T): AsyncDataState<T> {
+export function createReadyState<T>(data: T): DataSuccessState<T> {
   return {
     data,
     error: null,
@@ -55,7 +98,7 @@ export function createReadyState<T>(data: T): AsyncDataState<T> {
 
 export function createEmptyState<T>(
   message = "No content is available yet."
-): AsyncDataState<T> {
+): DataEmptyState {
   return {
     data: null,
     error: null,
@@ -67,7 +110,7 @@ export function createEmptyState<T>(
 export function createErrorState<T>(
   error: NormalizedSupabaseError,
   fallbackData: T | null = null
-): AsyncDataState<T> {
+): DataErrorState<T> {
   return {
     data: fallbackData,
     error,
