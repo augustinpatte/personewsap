@@ -163,7 +163,7 @@ TEST_USER_ID=00000000-0000-0000-0000-000000000000 \
 npm run persist-test
 ```
 
-When `TEST_USER_ID` is provided, `persist-test` stores the test content as `published`, upserts one `daily_drops` row for that user and drop date with `status = published`, and upserts `daily_drop_items` links for the generated content items. It does not assign the test drop to any other users. The JSON output reports `user_daily_drops_created: 1` when this assignment succeeds.
+When `TEST_USER_ID` is provided, `persist-test` stores the test content as `published`, upserts one `daily_drops` row for that user and drop date with `status = published`, and replaces that drop's `daily_drop_items` links with the generated content items. It does not assign the test drop to any other users. On reruns, the JSON output reports whether the user drop was created or updated, plus stale link and duplicate-input counts.
 
 Useful options:
 
@@ -228,6 +228,7 @@ Safety limits:
 - selects only content with `metadata.test_mode = "persist-test"` and `metadata.is_test_data = true`
 - requires the test content group to contain newsletter, business story, mini-case, and concept slots
 - skips users who already have a `daily_drops` row for the selected test content date
+- logs every skipped existing drop and incomplete selection
 - skips users whose preferences cannot receive a complete test drop
 - writes only `daily_drops` and `daily_drop_items` assignments
 
@@ -307,7 +308,8 @@ Safety behavior:
 - `content_items.metadata` includes `is_test_data: true`, `test_mode: "daily-job-test"`, `test_run_id`, `use_llm`, and `live_rss`
 - assignments are limited by `USER_LIMIT`
 - app users are selected only through `profiles` with `user_preferences`, not legacy newsletter-only tables
-- users with an existing `daily_drops` row for the same date are skipped
+- users with an existing `daily_drops` row for the same date are updated predictably
+- stale `daily_drop_items` links are removed when a rerun generates fewer or different items
 - write stages are logged but not retried as a whole, to avoid duplicating partial writes
 
 Progress logs are printed to stderr for each stage:

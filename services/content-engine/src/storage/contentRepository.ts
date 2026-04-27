@@ -79,6 +79,26 @@ type DailyDropAssignmentRow = {
   status: DailyDropStatus;
 };
 
+type DailyDropItemRow = {
+  content_item_id: string;
+  slot: DailyDropSlot;
+  position: number;
+};
+
+type DailyDropItemInput = {
+  contentItemId: string;
+  slot: DailyDropSlot;
+  position: number;
+};
+
+export type DailyDropWriteResult = {
+  dailyDropId: string;
+  existingDropUpdated: boolean;
+  linkedItems: number;
+  staleItemsRemoved: number;
+  duplicateInputItemsSkipped: number;
+};
+
 export type PersistTestCleanupResult = {
   testRunId: string;
   matchedContentItems: number;
@@ -592,29 +612,37 @@ export class ContentRepository {
     dropDate: string;
     language: Language;
     status: DailyDropStatus;
-    itemIds: Array<{
-      contentItemId: string;
-      slot: DailyDropSlot;
-      position: number;
-    }>;
+    itemIds: DailyDropItemInput[];
   }): Promise<string> {
+    return (await this.createDailyDropForUserWithResult(input)).dailyDropId;
+  }
+
+  async createDailyDropForUserWithResult(input: {
+    userId: string;
+    dropDate: string;
+    language: Language;
+    status: DailyDropStatus;
+    itemIds: DailyDropItemInput[];
+  }): Promise<DailyDropWriteResult> {
+    const existingDrop = await this.listDailyDropsForUsersOnDate({
+      userIds: [input.userId],
+      dropDate: input.dropDate
+    });
     const dailyDropId = await this.insertDailyDrop({
       userId: input.userId,
       dropDate: input.dropDate,
       language: input.language,
       status: input.status
     });
+    const replaceResult = await this.replaceDailyDropItems(dailyDropId, input.itemIds);
 
-    await this.insertDailyDropItems(
-      input.itemIds.map((item) => ({
-        dailyDropId,
-        contentItemId: item.contentItemId,
-        slot: item.slot,
-        position: item.position
-      }))
-    );
-
-    return dailyDropId;
+    return {
+      dailyDropId,
+      existingDropUpdated: existingDrop.has(input.userId),
+      linkedItems: replaceResult.linkedItems,
+      staleItemsRemoved: replaceResult.staleItemsRemoved,
+      duplicateInputItemsSkipped: replaceResult.duplicateInputItemsSkipped
+    };
   }
 
   async insertDailyDrop(input: {
@@ -662,24 +690,152 @@ export class ContentRepository {
       return;
     }
 
-    const { error } = await this.supabase.from("daily_drop_items").upsert(
-      items.map((item) => ({
-        daily_drop_id: item.dailyDropId,
-        content_item_id: item.contentItemId,
+    const itemsByDrop = new Map<string, DailyDropItemInput[]>();
+
+    for (const item of items) {
+      const group = itemsByDrop.get(item.dailyDropId) ?? [];
+      group.push({
+        contentItemId: item.contentItemId,
         slot: item.slot,
         position: item.position
-      })),
-      { onConflict: "daily_drop_id,slot,position" }
-    );
+      });
+      itemsByDrop.set(item.dailyDropId, group);
+    }
+
+    for (const [dailyDropId, dropItems] of itemsByDrop) {
+      await this.replaceDailyDropItems(dailyDropId, dropItems);
+    }
+  }
+
+  private async replaceDailyDropItems(
+    dailyDropId: string,
+    items: DailyDropItemInput[]
+  ): Promise<{
+    linkedItems: number;
+    staleItemsRemoved: number;
+    duplicateInputItemsSkipped: number;
+  }> {
+    const normalized = normalizeDailyDropItems(items);
+    const existingItems = await this.listDailyDropItems(dailyDropId);
+    const desiredPositions = new Set(normalized.items.map((item) => dailyDropItemPositionKey(item)));
+    const staleItems = existingItems.filter((item) => !desiredPositions.has(dailyDropItemPositionKey(item)));
+    let staleItemsRemoved = 0;
+
+    for (const staleItem of staleItems) {
+      staleItemsRemoved += await this.deleteDailyDropItem({
+        dailyDropId,
+        contentItemId: staleItem.content_item_id,
+        slot: staleItem.slot,
+        position: staleItem.position
+      });
+    }
+
+    if (normalized.items.length > 0) {
+      const { error } = await this.supabase.from("daily_drop_items").upsert(
+        normalized.items.map((item) => ({
+          daily_drop_id: dailyDropId,
+          content_item_id: item.contentItemId,
+          slot: item.slot,
+          position: item.position
+        })),
+        { onConflict: "daily_drop_id,slot,position" }
+      );
+
+      if (error) {
+        throwPersistenceError({
+          table: "daily_drop_items",
+          action: "replace daily drop items",
+          error
+        });
+      }
+    }
+
+    return {
+      linkedItems: normalized.items.length,
+      staleItemsRemoved,
+      duplicateInputItemsSkipped: normalized.duplicatesSkipped
+    };
+  }
+
+  private async listDailyDropItems(dailyDropId: string): Promise<DailyDropItemRow[]> {
+    const { data, error } = await this.supabase
+      .from("daily_drop_items")
+      .select("content_item_id,slot,position")
+      .eq("daily_drop_id", dailyDropId)
+      .returns<DailyDropItemRow[]>();
 
     if (error) {
       throwPersistenceError({
         table: "daily_drop_items",
-        action: "upsert daily drop items",
+        action: "select existing daily drop items",
         error
       });
     }
+
+    return data ?? [];
   }
+
+  private async deleteDailyDropItem(input: {
+    dailyDropId: string;
+    contentItemId: string;
+    slot: DailyDropSlot;
+    position: number;
+  }): Promise<number> {
+    const { data, error } = await this.supabase
+      .from("daily_drop_items")
+      .delete()
+      .eq("daily_drop_id", input.dailyDropId)
+      .eq("content_item_id", input.contentItemId)
+      .eq("slot", input.slot)
+      .eq("position", input.position)
+      .select("content_item_id");
+
+    if (error) {
+      throwPersistenceError({
+        table: "daily_drop_items",
+        action: "delete stale daily drop item",
+        error
+      });
+    }
+
+    return data?.length ?? 0;
+  }
+}
+
+function normalizeDailyDropItems(items: DailyDropItemInput[]): {
+  items: DailyDropItemInput[];
+  duplicatesSkipped: number;
+} {
+  const normalized: DailyDropItemInput[] = [];
+  const seenSlotPositions = new Set<string>();
+  const seenSlotContent = new Set<string>();
+  let duplicatesSkipped = 0;
+
+  for (const item of items) {
+    const slotPositionKey = dailyDropItemPositionKey(item);
+    const slotContentKey = `${item.slot}:${item.contentItemId}`;
+
+    if (seenSlotPositions.has(slotPositionKey) || seenSlotContent.has(slotContentKey)) {
+      duplicatesSkipped += 1;
+      continue;
+    }
+
+    seenSlotPositions.add(slotPositionKey);
+    seenSlotContent.add(slotContentKey);
+    normalized.push(item);
+  }
+
+  return {
+    items: normalized,
+    duplicatesSkipped
+  };
+}
+
+function dailyDropItemPositionKey(item: {
+  slot: DailyDropSlot;
+  position: number;
+}): string {
+  return `${item.slot}:${item.position}`;
 }
 
 function isPersistTestContentItem(row: PersistTestContentItemRow, testRunId: string): boolean {

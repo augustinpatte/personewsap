@@ -30,16 +30,25 @@ export async function readContentInteractionSnapshot(
   contentItemIds: string[]
 ): Promise<ContentInteractionReadResult> {
   if (contentItemIds.length === 0) {
+    logContentInteractionProof("interaction_snapshot_empty", {
+      reason: "no_content_item_ids"
+    });
+
     return { ok: true, snapshot: createEmptyContentInteractionSnapshot() };
   }
 
   if (!supabase) {
+    logContentInteractionProof("interaction_snapshot_failed", {
+      reason: "missing_supabase_config"
+    });
+
     return {
       ok: false,
       error: {
         code: "missing_supabase_config",
-        message:
-          "Supabase is not configured. Previous content interactions cannot be loaded yet."
+        message: "Live progress is not configured yet.",
+        hint:
+          "Developer/Test info: configure the public live-data env vars to load saved progress."
       }
     };
   }
@@ -48,6 +57,10 @@ export async function readContentInteractionSnapshot(
   const userId = sessionResult.data?.user.id;
 
   if (sessionResult.error || !userId) {
+    logContentInteractionProof("interaction_snapshot_failed", {
+      reason: "missing_auth_session"
+    });
+
     return {
       ok: false,
       error:
@@ -68,17 +81,35 @@ export async function readContentInteractionSnapshot(
       .order("created_at", { ascending: true });
 
     if (error) {
+      logContentInteractionProof("interaction_snapshot_failed", {
+        content_item_count: contentItemIds.length,
+        reason: "supabase_error",
+        user_id: userId ? redactIdentifier(userId) : null
+      });
+
       return {
         ok: false,
         error: normalizeSupabaseError(error, "Could not load content interactions.")
       };
     }
 
+    logContentInteractionProof("interaction_snapshot_loaded", {
+      content_item_count: contentItemIds.length,
+      interaction_count: data?.length ?? 0,
+      user_id: redactIdentifier(userId)
+    });
+
     return {
       ok: true,
       snapshot: buildContentInteractionSnapshot(data ?? [])
     };
   } catch (error) {
+    logContentInteractionProof("interaction_snapshot_failed", {
+      content_item_count: contentItemIds.length,
+      reason: "supabase_error",
+      user_id: userId ? redactIdentifier(userId) : null
+    });
+
     return {
       ok: false,
       error: normalizeSupabaseError(error, "Could not load content interactions.")
@@ -93,12 +124,18 @@ export async function writeContentInteraction({
   message
 }: WriteContentInteractionParams): Promise<WriteContentInteractionResult> {
   if (!supabase) {
+    logContentInteractionProof("interaction_write_failed", {
+      interaction_type: interactionType,
+      reason: "missing_supabase_config"
+    });
+
     return {
       ok: false,
       error: {
         code: "missing_supabase_config",
-        message:
-          "Supabase is not configured. This action can only be saved locally for now."
+        message: "This action can only be saved on this device for now.",
+        hint:
+          "Developer/Test info: configure the public live-data env vars to save progress to the account."
       }
     };
   }
@@ -107,6 +144,11 @@ export async function writeContentInteraction({
   const userId = sessionResult.data?.user.id;
 
   if (sessionResult.error || !userId) {
+    logContentInteractionProof("interaction_write_failed", {
+      interaction_type: interactionType,
+      reason: "missing_auth_session"
+    });
+
     return {
       ok: false,
       error:
@@ -127,13 +169,34 @@ export async function writeContentInteraction({
     });
 
     if (error) {
+      logContentInteractionProof("interaction_write_failed", {
+        content_item_id: redactIdentifier(contentItemId),
+        interaction_type: interactionType,
+        reason: "supabase_error",
+        user_id: redactIdentifier(userId)
+      });
+
       return { ok: false, error: normalizeSupabaseError(error) };
     }
 
     clearMemoryCache("library-drops");
 
+    logContentInteractionProof("interaction_write_success", {
+      content_item_id: redactIdentifier(contentItemId),
+      interaction_type: interactionType,
+      rating: rating ?? null,
+      user_id: redactIdentifier(userId)
+    });
+
     return { ok: true };
   } catch (error) {
+    logContentInteractionProof("interaction_write_failed", {
+      content_item_id: redactIdentifier(contentItemId),
+      interaction_type: interactionType,
+      reason: "supabase_error",
+      user_id: userId ? redactIdentifier(userId) : null
+    });
+
     return {
       ok: false,
       error: normalizeSupabaseError(error, "Could not save this content interaction.")
@@ -170,4 +233,27 @@ function buildContentInteractionSnapshot(
     },
     createEmptyContentInteractionSnapshot()
   );
+}
+
+function logContentInteractionProof(
+  event:
+    | "interaction_snapshot_empty"
+    | "interaction_snapshot_failed"
+    | "interaction_snapshot_loaded"
+    | "interaction_write_failed"
+    | "interaction_write_success",
+  details: Record<string, unknown>
+): void {
+  if (__DEV__) {
+    console.info("[Content interaction proof]", {
+      event,
+      ...details
+    });
+  }
+}
+
+function redactIdentifier(identifier: string): string {
+  return identifier.length <= 8
+    ? identifier
+    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
 }

@@ -28,8 +28,8 @@ export function AuthRedirect() {
     return (
       <AppScreen centered>
         <Card elevated padding="lg">
-          <AppText variant="eyebrow">Configuration</AppText>
-          <AppText variant="title">Supabase is not configured</AppText>
+          <AppText variant="eyebrow">Developer/Test setup</AppText>
+          <AppText variant="title">Sign-in setup needed</AppText>
           <AppText color="muted" variant="body">
             {error.message}
           </AppText>
@@ -39,7 +39,7 @@ export function AuthRedirect() {
             </AppText>
           ) : null}
           <AppText color="muted" variant="caption">
-            Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo.
+            Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo.
           </AppText>
           <PrimaryButton label="Retry" onPress={refreshAuthState} />
         </Card>

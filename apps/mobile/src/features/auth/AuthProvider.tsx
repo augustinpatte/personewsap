@@ -8,8 +8,10 @@ import {
   type PropsWithChildren
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
 
 import {
+  applySupabaseAuthUrl,
   getAuthSession,
   getSupabaseConfigError,
   hasSupabaseConfig,
@@ -60,7 +62,7 @@ function getLocalTimezone() {
   }
 }
 
-async function ensureProfile(user: User) {
+async function createProfileIfMissing(user: User) {
   if (!supabase) {
     return {
       error: getAuthConfigError()
@@ -68,17 +70,32 @@ async function ensureProfile(user: User) {
   }
 
   try {
-    const { error } = await supabase.from("profiles").upsert(
-      {
-        id: user.id,
-        email: user.email ?? "",
-        language: "en",
-        timezone: getLocalTimezone()
-      },
-      { onConflict: "id" }
-    );
+    const { data: existingProfile, error: readError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    return { error: error ? normalizeSupabaseError(error) : null };
+    if (readError) {
+      return { error: normalizeSupabaseError(readError, "Could not read your mobile profile.") };
+    }
+
+    if (existingProfile) {
+      return { error: null };
+    }
+
+    const { error: insertError } = await supabase.from("profiles").insert({
+      id: user.id,
+      email: user.email ?? "",
+      language: "en",
+      timezone: getLocalTimezone()
+    });
+
+    if (insertError?.code === "23505") {
+      return { error: null };
+    }
+
+    return { error: insertError ? normalizeSupabaseError(insertError) : null };
   } catch (error) {
     return {
       error: normalizeSupabaseError(error, "Could not create your mobile profile.")
@@ -92,7 +109,9 @@ async function getProfileCompleted(userId: string) {
       completed: false,
       error: {
         code: "missing_supabase_config",
-        message: "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY."
+        message: "Live account data is not configured for this build.",
+        hint:
+          "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
       }
     };
   }
@@ -150,6 +169,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    const profileResult = await createProfileIfMissing(nextSession.user);
+    if (profileResult.error) {
+      setError(profileResult.error);
+      setProfileCompleted(false);
+      setStatus("needsOnboarding");
+      return;
+    }
+
     const profileStatus = await getProfileCompleted(nextSession.user.id);
     setError(profileStatus.error);
     setProfileCompleted(profileStatus.completed);
@@ -197,15 +224,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return { error: normalizedError };
         }
 
-        if (data.user) {
-          const { error: profileError } = await ensureProfile(data.user);
-          if (profileError) {
-            setError(profileError);
-            logAuthDebug("login_profile_error", profileError);
-            return { error: profileError };
-          }
-        }
-
         setError(null);
         await applySession(data.session);
         logAuthDebug("login_success");
@@ -243,15 +261,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setError(normalizedError);
           logAuthDebug("signup_error", normalizedError);
           return { error: normalizedError };
-        }
-
-        if (data.user && data.session) {
-          const { error: profileError } = await ensureProfile(data.user);
-          if (profileError) {
-            setError(profileError);
-            logAuthDebug("signup_profile_error", profileError);
-            return { error: profileError };
-          }
         }
 
         setError(null);
@@ -304,6 +313,44 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, [applySession, refreshAuthState]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function applyAuthUrl(url: string | null) {
+      if (!url) {
+        return;
+      }
+
+      const result = await applySupabaseAuthUrl(url);
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (result.error) {
+        setError(result.error);
+        logAuthDebug("auth_url_error", result.error);
+        return;
+      }
+
+      if (result.data) {
+        await applySession(result.data);
+        logAuthDebug("auth_url_session_applied");
+      }
+    }
+
+    void Linking.getInitialURL().then(applyAuthUrl);
+
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      void applyAuthUrl(url);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, [applySession]);
+
   const value = useMemo(
     () => ({
       status,
@@ -350,8 +397,9 @@ function getAuthConfigError(): NormalizedSupabaseError {
   return (
     getSupabaseConfigError() ?? {
       code: "missing_supabase_config",
-      message:
-        "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/mobile/.env."
+      message: "Sign-in is not configured for this build.",
+      hint:
+        "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
     }
   );
 }

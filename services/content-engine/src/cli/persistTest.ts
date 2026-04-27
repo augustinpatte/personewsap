@@ -27,6 +27,19 @@ export type PersistTestOutput = {
     stored_items: number;
     content_status: "draft" | "published";
     user_daily_drops_created: number;
+    user_daily_drops_updated: number;
+    stale_daily_drop_items_removed: number;
+    duplicate_daily_drop_items_skipped: number;
+  };
+  mobileProof: {
+    test_user_id: string | null;
+    daily_drop_id: string | null;
+    expected_today_log_prefix: "[Today data proof]";
+    expected_today_event: "live_daily_drop";
+    expected_library_log_prefix: "[Library data proof]";
+    expected_library_event: "live_library_drops";
+    expected_interaction_log_prefix: "[Content interaction proof]";
+    expected_interaction_event: "interaction_write_success";
   };
   storedContentItems: Array<{
     content_item_id: string;
@@ -173,6 +186,10 @@ export async function runPersistTest(options: PersistTestOptions): Promise<Persi
   }
 
   let userDailyDropsCreated = 0;
+  let userDailyDropsUpdated = 0;
+  let staleDailyDropItemsRemoved = 0;
+  let duplicateDailyDropItemsSkipped = 0;
+  let assignedDailyDropId: string | null = null;
 
   if (testUserId) {
     logProgress("test user daily drop assignment started", {
@@ -184,14 +201,18 @@ export async function runPersistTest(options: PersistTestOptions): Promise<Persi
     });
 
     try {
-      await repository.createDailyDropForUser({
+      const assignment = await repository.createDailyDropForUserWithResult({
         userId: testUserId,
         dropDate: testPayload.drop_date,
         language: testPayload.language,
         status: "published",
         itemIds: buildDailyDropItemLinks(stored)
       });
-      userDailyDropsCreated = 1;
+      assignedDailyDropId = assignment.dailyDropId;
+      userDailyDropsCreated = assignment.existingDropUpdated ? 0 : 1;
+      userDailyDropsUpdated = assignment.existingDropUpdated ? 1 : 0;
+      staleDailyDropItemsRemoved = assignment.staleItemsRemoved;
+      duplicateDailyDropItemsSkipped = assignment.duplicateInputItemsSkipped;
     } catch (error) {
       logProgress("test user daily drop assignment failed", {
         test_run_id: testRunId,
@@ -204,7 +225,11 @@ export async function runPersistTest(options: PersistTestOptions): Promise<Persi
     logProgress("test user daily drop assignment completed", {
       test_run_id: testRunId,
       test_user_id: testUserId,
-      user_daily_drops_created: userDailyDropsCreated
+      daily_drop_id: assignedDailyDropId,
+      user_daily_drops_created: userDailyDropsCreated,
+      user_daily_drops_updated: userDailyDropsUpdated,
+      stale_daily_drop_items_removed: staleDailyDropItemsRemoved,
+      duplicate_daily_drop_items_skipped: duplicateDailyDropItemsSkipped
     });
   } else {
     logProgress("no test user daily drop created", {
@@ -216,7 +241,10 @@ export async function runPersistTest(options: PersistTestOptions): Promise<Persi
   logProgress("persistence completed", {
     test_run_id: testRunId,
     stored_items: stored.length,
-    user_daily_drops_created: userDailyDropsCreated
+    user_daily_drops_created: userDailyDropsCreated,
+    user_daily_drops_updated: userDailyDropsUpdated,
+    stale_daily_drop_items_removed: staleDailyDropItemsRemoved,
+    duplicate_daily_drop_items_skipped: duplicateDailyDropItemsSkipped
   });
 
   return {
@@ -230,7 +258,20 @@ export async function runPersistTest(options: PersistTestOptions): Promise<Persi
       generated_items: testPayload.items.length,
       stored_items: stored.length,
       content_status: contentStatus,
-      user_daily_drops_created: userDailyDropsCreated
+      user_daily_drops_created: userDailyDropsCreated,
+      user_daily_drops_updated: userDailyDropsUpdated,
+      stale_daily_drop_items_removed: staleDailyDropItemsRemoved,
+      duplicate_daily_drop_items_skipped: duplicateDailyDropItemsSkipped
+    },
+    mobileProof: {
+      test_user_id: testUserId,
+      daily_drop_id: assignedDailyDropId,
+      expected_today_log_prefix: "[Today data proof]",
+      expected_today_event: "live_daily_drop",
+      expected_library_log_prefix: "[Library data proof]",
+      expected_library_event: "live_library_drops",
+      expected_interaction_log_prefix: "[Content interaction proof]",
+      expected_interaction_event: "interaction_write_success"
     },
     storedContentItems: stored.map((storedItem) => ({
       content_item_id: storedItem.content_item_id,

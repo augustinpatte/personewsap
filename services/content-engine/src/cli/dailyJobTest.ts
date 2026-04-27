@@ -60,8 +60,12 @@ export type DailyJobTestOutput = {
     storedItems: number;
     usersConsidered: number;
     usersAssigned: number;
+    usersCreated: number;
+    usersUpdatedExistingDrop: number;
     usersSkippedExistingDrop: number;
     usersSkippedIncompleteSelection: number;
+    staleDailyDropItemsRemoved: number;
+    duplicateDailyDropItemsSkipped: number;
   }>;
 };
 
@@ -224,8 +228,12 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
       storedItems: storedItems.length,
       usersConsidered: assignment.usersConsidered,
       usersAssigned: assignment.usersAssigned,
+      usersCreated: assignment.usersCreated,
+      usersUpdatedExistingDrop: assignment.usersUpdatedExistingDrop,
       usersSkippedExistingDrop: assignment.usersSkippedExistingDrop,
-      usersSkippedIncompleteSelection: assignment.usersSkippedIncompleteSelection
+      usersSkippedIncompleteSelection: assignment.usersSkippedIncompleteSelection,
+      staleDailyDropItemsRemoved: assignment.staleDailyDropItemsRemoved,
+      duplicateDailyDropItemsSkipped: assignment.duplicateDailyDropItemsSkipped
     });
 
     logProgress("language completed", {
@@ -235,7 +243,11 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
       processed_articles: rankedArticles.length,
       generated_items: testPayload.items.length,
       stored_items: storedItems.length,
-      users_assigned: assignment.usersAssigned
+      users_assigned: assignment.usersAssigned,
+      users_created: assignment.usersCreated,
+      users_updated_existing_drop: assignment.usersUpdatedExistingDrop,
+      stale_daily_drop_items_removed: assignment.staleDailyDropItemsRemoved,
+      duplicate_daily_drop_items_skipped: assignment.duplicateDailyDropItemsSkipped
     });
   }
 
@@ -283,8 +295,12 @@ async function assignStoredDropToUsers(input: {
 }): Promise<{
   usersConsidered: number;
   usersAssigned: number;
+  usersCreated: number;
+  usersUpdatedExistingDrop: number;
   usersSkippedExistingDrop: number;
   usersSkippedIncompleteSelection: number;
+  staleDailyDropItemsRemoved: number;
+  duplicateDailyDropItemsSkipped: number;
 }> {
   const preferences = await input.repository.listUserDailyDropPreferences(input.language);
   const candidates = preferences.slice(0, input.userLimit);
@@ -293,38 +309,73 @@ async function assignStoredDropToUsers(input: {
     dropDate: input.dropDate
   });
   let usersAssigned = 0;
+  let usersCreated = 0;
+  let usersUpdatedExistingDrop = 0;
   let usersSkippedExistingDrop = 0;
   let usersSkippedIncompleteSelection = 0;
+  let staleDailyDropItemsRemoved = 0;
+  let duplicateDailyDropItemsSkipped = 0;
 
   for (const preference of candidates) {
-    if (existingDrops.has(preference.user_id)) {
-      usersSkippedExistingDrop += 1;
-      continue;
-    }
+    const existingDrop = existingDrops.get(preference.user_id);
 
     const selection = selectDailyDropItemsForUser(preference, input.storedItems);
     const itemIds = completeSelection(selection.items, input.storedItems);
 
     if (!hasRequiredSlots(itemIds)) {
       usersSkippedIncompleteSelection += 1;
+      logProgress("assignment skipped incomplete selection", {
+        user_id: preference.user_id,
+        drop_date: input.dropDate,
+        language: input.language,
+        selected_items: itemIds.length
+      });
       continue;
     }
 
-    await input.repository.createDailyDropForUser({
+    if (existingDrop) {
+      logProgress("assignment updating existing drop", {
+        user_id: preference.user_id,
+        daily_drop_id: existingDrop.id,
+        previous_status: existingDrop.status,
+        drop_date: input.dropDate,
+        linked_items: itemIds.length
+      });
+    }
+
+    const assignment = await input.repository.createDailyDropForUserWithResult({
       userId: preference.user_id,
       dropDate: input.dropDate,
       language: input.language,
       status: "published",
       itemIds
     });
+
     usersAssigned += 1;
+    usersCreated += assignment.existingDropUpdated ? 0 : 1;
+    usersUpdatedExistingDrop += assignment.existingDropUpdated ? 1 : 0;
+    staleDailyDropItemsRemoved += assignment.staleItemsRemoved;
+    duplicateDailyDropItemsSkipped += assignment.duplicateInputItemsSkipped;
+
+    logProgress("assignment user completed", {
+      user_id: preference.user_id,
+      daily_drop_id: assignment.dailyDropId,
+      existing_drop_updated: assignment.existingDropUpdated,
+      linked_items: assignment.linkedItems,
+      stale_daily_drop_items_removed: assignment.staleItemsRemoved,
+      duplicate_daily_drop_items_skipped: assignment.duplicateInputItemsSkipped
+    });
   }
 
   return {
     usersConsidered: candidates.length,
     usersAssigned,
+    usersCreated,
+    usersUpdatedExistingDrop,
     usersSkippedExistingDrop,
-    usersSkippedIncompleteSelection
+    usersSkippedIncompleteSelection,
+    staleDailyDropItemsRemoved,
+    duplicateDailyDropItemsSkipped
   };
 }
 

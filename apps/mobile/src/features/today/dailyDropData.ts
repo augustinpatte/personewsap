@@ -55,6 +55,11 @@ export async function fetchTodayDrop(
   const fallbackDrop = getMockTodayDrop(options.language);
 
   if (!userId) {
+    logTodayDataProof("mock_fallback", {
+      drop_date: dropDate,
+      reason: "missing_auth_session"
+    });
+
     return createMockFallbackResult(
       fallbackDrop,
       "missing_auth_session",
@@ -66,13 +71,19 @@ export async function fetchTodayDrop(
   }
 
   if (!supabase) {
+    logTodayDataProof("mock_fallback", {
+      drop_date: dropDate,
+      reason: "missing_supabase_config"
+    });
+
     return createMockFallbackResult(
       fallbackDrop,
       "missing_supabase_config",
       normalizeSupabaseError({
         code: "missing_supabase_config",
-        message:
-          "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY."
+        message: "Live daily drops are not configured for this build.",
+        hint:
+          "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
       })
     );
   }
@@ -82,6 +93,13 @@ export async function fetchTodayDrop(
     const cachedDrop = getCachedValue<TodayDailyDrop>(cacheKey);
 
     if (cachedDrop) {
+      logTodayDataProof("live_daily_drop_cache_hit", {
+        drop_date: cachedDrop.drop_date,
+        daily_drop_id: cachedDrop.id,
+        item_count: flattenDailyDropItems(cachedDrop).length,
+        user_id: redactIdentifier(userId)
+      });
+
       return createSupabaseResult(cachedDrop);
     }
 
@@ -99,6 +117,11 @@ export async function fetchTodayDrop(
     const { data: drop, error: dropError } = await dropQuery.maybeSingle();
 
     if (dropError) {
+      logTodayDataProof("mock_fallback", {
+        drop_date: dropDate,
+        reason: "supabase_error"
+      });
+
       return createMockFallbackResult(
         fallbackDrop,
         "supabase_error",
@@ -107,19 +130,44 @@ export async function fetchTodayDrop(
     }
 
     if (!drop) {
+      logTodayDataProof("mock_fallback", {
+        drop_date: dropDate,
+        reason: "no_supabase_data",
+        user_id: redactIdentifier(userId)
+      });
+
       return createMockFallbackResult(fallbackDrop, "no_supabase_data");
     }
 
     const mappedDrop = await fetchAndMapDailyDrop(drop);
 
     if (!mappedDrop) {
+      logTodayDataProof("mock_fallback", {
+        daily_drop_id: drop.id,
+        drop_date: dropDate,
+        reason: "daily_drop_has_no_displayable_items"
+      });
+
       return createMockFallbackResult(fallbackDrop, "no_supabase_data");
     }
 
     setCachedValue(cacheKey, mappedDrop, options.cacheTtlMs ?? todayDropCacheTtlMs);
 
+    logTodayDataProof("live_daily_drop", {
+      daily_drop_id: mappedDrop.id,
+      drop_date: mappedDrop.drop_date,
+      item_count: flattenDailyDropItems(mappedDrop).length,
+      language: mappedDrop.language,
+      user_id: redactIdentifier(userId)
+    });
+
     return createSupabaseResult(mappedDrop);
   } catch (error) {
+    logTodayDataProof("mock_fallback", {
+      drop_date: dropDate,
+      reason: "supabase_error"
+    });
+
     return createMockFallbackResult(
       fallbackDrop,
       "supabase_error",
@@ -139,8 +187,9 @@ export async function fetchContentItemSources(
       "missing_supabase_config",
       normalizeSupabaseError({
         code: "missing_supabase_config",
-        message:
-          "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY."
+        message: "Live source details are not configured for this build.",
+        hint:
+          "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
       })
     );
   }
@@ -539,6 +588,24 @@ function getTodayDropCacheKey(
 
 function getContentSourcesCacheKey(contentItemId: string): string {
   return ["content-sources", contentItemId].join(":");
+}
+
+function logTodayDataProof(
+  event: "live_daily_drop" | "live_daily_drop_cache_hit" | "mock_fallback",
+  details: Record<string, unknown>
+): void {
+  if (__DEV__) {
+    console.info("[Today data proof]", {
+      event,
+      ...details
+    });
+  }
+}
+
+function redactIdentifier(identifier: string): string {
+  return identifier.length <= 8
+    ? identifier
+    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

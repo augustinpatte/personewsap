@@ -22,8 +22,9 @@ export async function saveOnboardingPreferences(
       ok: false,
       error: {
         code: "missing_supabase_config",
-        message:
-          "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY."
+        message: "Live account setup is not configured for this build.",
+        hint:
+          "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
       }
     };
   }

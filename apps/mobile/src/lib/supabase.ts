@@ -67,7 +67,7 @@ export function getSupabaseConfigError(): NormalizedSupabaseError | null {
 
 export function normalizeSupabaseError(
   error: unknown,
-  fallbackMessage = "Unexpected Supabase error"
+  fallbackMessage = "Unexpected live data error"
 ): NormalizedSupabaseError {
   if (!error) {
     return { message: fallbackMessage };
@@ -156,6 +156,118 @@ export async function signOut(): Promise<AuthResult<null>> {
   }
 }
 
+export async function requestPasswordReset(email: string): Promise<AuthResult<null>> {
+  if (!supabase) {
+    return {
+      data: null,
+      error: getSupabaseConfigError() ?? createMissingSupabaseConfigError()
+    };
+  }
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: "personewsap://reset-password"
+    });
+
+    return {
+      data: null,
+      error: error ? normalizeSupabaseError(error, "Could not send password reset email.") : null
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: normalizeSupabaseError(error, "Could not send password reset email.")
+    };
+  }
+}
+
+export async function updatePassword(password: string): Promise<AuthResult<null>> {
+  if (!supabase) {
+    return {
+      data: null,
+      error: getSupabaseConfigError() ?? createMissingSupabaseConfigError()
+    };
+  }
+
+  try {
+    const { error } = await supabase.auth.updateUser({ password });
+
+    return {
+      data: null,
+      error: error ? normalizeSupabaseError(error, "Could not update password.") : null
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: normalizeSupabaseError(error, "Could not update password.")
+    };
+  }
+}
+
+export async function applySupabaseAuthUrl(url: string): Promise<AuthResult<Session>> {
+  if (!supabase) {
+    return {
+      data: null,
+      error: getSupabaseConfigError() ?? createMissingSupabaseConfigError()
+    };
+  }
+
+  const params = getAuthUrlParams(url);
+  const authError = params.get("error") ?? params.get("error_code");
+
+  if (authError) {
+    return {
+      data: null,
+      error: normalizeSupabaseError({
+        code: authError,
+        message: params.get("error_description") ?? "The sign-in link could not be opened."
+      })
+    };
+  }
+
+  const code = params.get("code");
+
+  if (code) {
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+      return {
+        data: data.session,
+        error: error ? normalizeSupabaseError(error, "Could not open the sign-in link.") : null
+      };
+    } catch (error) {
+      return {
+        data: null,
+        error: normalizeSupabaseError(error, "Could not open the sign-in link.")
+      };
+    }
+  }
+
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+
+  if (accessToken && refreshToken) {
+    try {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
+
+      return {
+        data: data.session,
+        error: error ? normalizeSupabaseError(error, "Could not open the sign-in link.") : null
+      };
+    } catch (error) {
+      return {
+        data: null,
+        error: normalizeSupabaseError(error, "Could not open the sign-in link.")
+      };
+    }
+  }
+
+  return { data: null, error: null };
+}
+
 if (supabase) {
   if (AppState.currentState === "active") {
     void supabase.auth.startAutoRefresh();
@@ -200,8 +312,9 @@ function validateSupabaseConfig(url: string, anonKey: string): SupabaseConfigSta
       anonKeyPresent: Boolean(anonKey),
       error: {
         code: "placeholder_supabase_config",
-        message:
-          "Supabase is still using placeholder values. Replace EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/mobile/.env."
+        message: "Live data is still using placeholder values.",
+        hint:
+          "Developer/Test info: replace EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/mobile/.env, then restart Expo."
       },
       isConfigured: false,
       urlHost: getUrlHost(url)
@@ -219,8 +332,9 @@ function validateSupabaseConfig(url: string, anonKey: string): SupabaseConfigSta
         anonKeyPresent: true,
         error: {
           code: "invalid_supabase_url",
-          message:
-            "EXPO_PUBLIC_SUPABASE_URL must be a valid HTTPS Supabase URL, or a local development URL."
+          message: "The live data URL is not valid.",
+          hint:
+            "Developer/Test info: EXPO_PUBLIC_SUPABASE_URL must be HTTPS, or a local development URL."
         },
         isConfigured: false,
         urlHost: parsedUrl.host
@@ -238,8 +352,9 @@ function validateSupabaseConfig(url: string, anonKey: string): SupabaseConfigSta
       anonKeyPresent: true,
       error: {
         code: "invalid_supabase_url",
-        message:
-          "EXPO_PUBLIC_SUPABASE_URL is not a valid URL. Use the Project URL from Supabase settings."
+        message: "The live data URL is not valid.",
+        hint:
+          "Developer/Test info: use the Project URL from Supabase settings for EXPO_PUBLIC_SUPABASE_URL."
       },
       isConfigured: false,
       urlHost: null
@@ -250,8 +365,9 @@ function validateSupabaseConfig(url: string, anonKey: string): SupabaseConfigSta
 function createMissingSupabaseConfigError(): NormalizedSupabaseError {
   return {
     code: "missing_supabase_config",
-    message:
-      "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/mobile/.env."
+    message: "Live data is not configured for this build.",
+    hint:
+      "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
   };
 }
 
@@ -273,16 +389,80 @@ function isPlaceholderSupabaseValue(value: string): boolean {
   );
 }
 
+function getAuthUrlParams(url: string): URLSearchParams {
+  try {
+    const parsedUrl = new URL(url);
+    const params = new URLSearchParams(parsedUrl.search);
+
+    if (parsedUrl.hash.startsWith("#")) {
+      const hashParams = new URLSearchParams(parsedUrl.hash.slice(1));
+      hashParams.forEach((value, key) => params.set(key, value));
+    }
+
+    return params;
+  } catch {
+    return new URLSearchParams();
+  }
+}
+
 function normalizeNetworkErrorMessage(
   error: NormalizedSupabaseError
 ): NormalizedSupabaseError {
+  const message = error.message.toLowerCase();
+
+  if (
+    error.code === "invalid_credentials" ||
+    message.includes("invalid login credentials")
+  ) {
+    return {
+      ...error,
+      message: "The email or password is incorrect.",
+      hint: error.hint ?? "Check the email address and password, then try again."
+    };
+  }
+
+  if (message.includes("email not confirmed")) {
+    return {
+      ...error,
+      code: error.code ?? "email_not_confirmed",
+      message: "Confirm your email before logging in.",
+      hint: error.hint ?? "Open the confirmation email, then return to the app."
+    };
+  }
+
+  if (message.includes("user already registered") || message.includes("already registered")) {
+    return {
+      ...error,
+      code: error.code ?? "user_already_registered",
+      message: "An account already exists for this email.",
+      hint: error.hint ?? "Log in instead, or reset your password if you cannot access it."
+    };
+  }
+
+  if (message.includes("password should be") || message.includes("weak password")) {
+    return {
+      ...error,
+      code: error.code ?? "weak_password",
+      message: "Choose a stronger password.",
+      hint: error.hint ?? "Use at least 8 characters with a mix of letters and numbers."
+    };
+  }
+
+  if (message.includes("rate limit") || message.includes("too many requests")) {
+    return {
+      ...error,
+      code: error.code ?? "rate_limited",
+      message: "Too many attempts. Wait a moment, then try again."
+    };
+  }
+
   if (error.message.toLowerCase().includes("network request failed")) {
     return {
       ...error,
       code: error.code ?? "network_request_failed",
       hint:
         error.hint ??
-        "Check apps/mobile/.env, restart Expo after changing env vars, and confirm the Supabase URL is reachable from this device."
+        "Developer/Test info: check apps/mobile/.env, restart Expo after changing env vars, and confirm the live data URL is reachable from this device."
     };
   }
 

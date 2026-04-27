@@ -59,7 +59,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
         authError ?? {
           code: "missing_supabase_config",
           message:
-            "Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
+            "Sign-in is not set up for this build."
         }
       );
       return;
@@ -109,9 +109,9 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
           <View style={styles.fields}>
             {!isConfigured ? (
               <EmptyState
-                description="Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env. If you just changed them, restart Expo so the public env vars are bundled."
-                eyebrow="Configuration"
-                title="Supabase auth is not ready"
+                description="Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
+                eyebrow="Developer/Test setup"
+                title="Sign-in setup needed"
                 style={styles.inlineState}
               />
             ) : null}
@@ -171,6 +171,12 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
                 router.replace(isSignup ? "/(auth)/login" : "/(auth)/signup")
               }
             />
+            {!isSignup ? (
+              <SecondaryButton
+                label="Reset password"
+                onPress={() => router.replace("/(auth)/reset-password")}
+              />
+            ) : null}
           </View>
         </Card>
       </AppScreen>
@@ -191,7 +197,7 @@ function AuthErrorMessage({ error }: { error: NormalizedSupabaseError }) {
       ) : null}
       {error.code ? (
         <AppText color="muted" variant="caption">
-          Code: {error.code}
+          Developer/Test code: {error.code}
         </AppText>
       ) : null}
     </View>

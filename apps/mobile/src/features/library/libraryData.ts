@@ -43,6 +43,10 @@ export async function fetchLibraryDrops(
   options: FetchLibraryDropsOptions = {}
 ): Promise<DataFetchResult<LibraryDropSummary[]>> {
   if (!userId) {
+    logLibraryDataProof("mock_fallback", {
+      reason: "missing_auth_session"
+    });
+
     return createMockFallbackResult(
       mockLibraryDrops,
       "missing_auth_session",
@@ -54,13 +58,18 @@ export async function fetchLibraryDrops(
   }
 
   if (!supabase) {
+    logLibraryDataProof("mock_fallback", {
+      reason: "missing_supabase_config"
+    });
+
     return createMockFallbackResult(
       mockLibraryDrops,
       "missing_supabase_config",
       normalizeSupabaseError({
         code: "missing_supabase_config",
-        message:
-          "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY."
+        message: "Live archive is not configured for this build.",
+        hint:
+          "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
       })
     );
   }
@@ -71,6 +80,12 @@ export async function fetchLibraryDrops(
     const cachedDrops = getCachedValue<LibraryDropSummary[]>(cacheKey);
 
     if (cachedDrops) {
+      logLibraryDataProof("live_library_drops_cache_hit", {
+        drop_count: cachedDrops.length,
+        limit,
+        user_id: redactIdentifier(userId)
+      });
+
       return createSupabaseResult(cachedDrops);
     }
 
@@ -83,6 +98,11 @@ export async function fetchLibraryDrops(
       .limit(limit);
 
     if (dropsError) {
+      logLibraryDataProof("mock_fallback", {
+        reason: "supabase_error",
+        user_id: redactIdentifier(userId)
+      });
+
       return createMockFallbackResult(
         mockLibraryDrops,
         "supabase_error",
@@ -91,6 +111,11 @@ export async function fetchLibraryDrops(
     }
 
     if (!drops || drops.length === 0) {
+      logLibraryDataProof("mock_fallback", {
+        reason: "no_supabase_data",
+        user_id: redactIdentifier(userId)
+      });
+
       return createMockFallbackResult(mockLibraryDrops, "no_supabase_data");
     }
 
@@ -99,13 +124,31 @@ export async function fetchLibraryDrops(
     const displayableSummaries = summaries.filter((summary) => summary.item_count > 0);
 
     if (displayableSummaries.length === 0) {
+      logLibraryDataProof("mock_fallback", {
+        drop_count: drops.length,
+        reason: "no_displayable_items",
+        user_id: redactIdentifier(userId)
+      });
+
       return createMockFallbackResult(mockLibraryDrops, "no_supabase_data");
     }
 
     setCachedValue(cacheKey, displayableSummaries, options.cacheTtlMs ?? libraryDropCacheTtlMs);
 
+    logLibraryDataProof("live_library_drops", {
+      drop_count: displayableSummaries.length,
+      latest_drop_date: displayableSummaries[0]?.drop_date ?? null,
+      limit,
+      user_id: redactIdentifier(userId)
+    });
+
     return createSupabaseResult(displayableSummaries);
   } catch (error) {
+    logLibraryDataProof("mock_fallback", {
+      reason: "supabase_error",
+      user_id: redactIdentifier(userId)
+    });
+
     return createMockFallbackResult(
       mockLibraryDrops,
       "supabase_error",
@@ -338,6 +381,24 @@ function normalizeLibraryLimit(limit: number | undefined): number {
 
 function getLibraryDropsCacheKey(userId: string, limit: number): string {
   return ["library-drops", userId, limit].join(":");
+}
+
+function logLibraryDataProof(
+  event: "live_library_drops" | "live_library_drops_cache_hit" | "mock_fallback",
+  details: Record<string, unknown>
+): void {
+  if (__DEV__) {
+    console.info("[Library data proof]", {
+      event,
+      ...details
+    });
+  }
+}
+
+function redactIdentifier(identifier: string): string {
+  return identifier.length <= 8
+    ? identifier
+    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
 }
 
 function isTopicId(value: unknown): value is TopicId {

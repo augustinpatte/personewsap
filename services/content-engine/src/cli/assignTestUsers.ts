@@ -99,8 +99,16 @@ export async function runAssignTestUsers(
   let usersSkippedIncompleteSelection = 0;
 
   for (const preference of candidates) {
-    if (existingDrops.has(preference.user_id)) {
+    const existingDrop = existingDrops.get(preference.user_id);
+
+    if (existingDrop) {
       usersSkippedExistingDrop += 1;
+      logProgress("assignment skipped existing drop", {
+        user_id: preference.user_id,
+        daily_drop_id: existingDrop.id,
+        status: existingDrop.status,
+        drop_date: contentGroup.dropDate
+      });
       continue;
     }
 
@@ -108,11 +116,16 @@ export async function runAssignTestUsers(
 
     if (!hasRequiredSlots(itemIds)) {
       usersSkippedIncompleteSelection += 1;
+      logProgress("assignment skipped incomplete selection", {
+        user_id: preference.user_id,
+        drop_date: contentGroup.dropDate,
+        selected_items: itemIds.length
+      });
       continue;
     }
 
     try {
-      const dailyDropId = await repository.createDailyDropForUser({
+      const assignment = await repository.createDailyDropForUserWithResult({
         userId: preference.user_id,
         dropDate: contentGroup.dropDate,
         language: contentGroup.language,
@@ -121,9 +134,17 @@ export async function runAssignTestUsers(
       });
 
       assignedDrops.push({
-        daily_drop_id: dailyDropId,
+        daily_drop_id: assignment.dailyDropId,
         user_id: preference.user_id,
-        linked_items: itemIds.length
+        linked_items: assignment.linkedItems
+      });
+
+      logProgress("assignment user completed", {
+        user_id: preference.user_id,
+        daily_drop_id: assignment.dailyDropId,
+        linked_items: assignment.linkedItems,
+        stale_daily_drop_items_removed: assignment.staleItemsRemoved,
+        duplicate_daily_drop_items_skipped: assignment.duplicateInputItemsSkipped
       });
     } catch (error) {
       logProgress("assignment failed", {

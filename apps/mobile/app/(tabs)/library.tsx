@@ -193,7 +193,7 @@ export default function LibraryScreen() {
         <View style={styles.headerTopline}>
           <AppText variant="eyebrow">Library</AppText>
           <ProgressPill
-            label={loadState.source === "supabase" ? "LIVE" : "MOCK"}
+            label={loadState.source === "supabase" ? "Live archive" : "Preview archive"}
             tone={loadState.source === "supabase" ? "success" : "neutral"}
           />
         </View>
@@ -282,7 +282,7 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
       <Card padding="md" tone="muted">
         <ProgressPill label="Loading archive" tone="neutral" />
         <AppText color="muted" variant="caption">
-          Checking Supabase for published daily drops.
+          Looking for assigned past drops.
         </AppText>
       </Card>
     );
@@ -292,16 +292,16 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
     return (
       <Card padding="md" style={styles.stateCardLive} tone="accent">
         <View style={styles.stateHeader}>
-          <ProgressPill label="LIVE FROM SUPABASE" tone="success" value={1} />
+          <ProgressPill label="Live archive" tone="success" value={1} />
           <AppText color="accentInk" variant="caption">
             {loadState.drops.length} drop{loadState.drops.length === 1 ? "" : "s"}
           </AppText>
         </View>
         <AppText color="accentInk" variant="bodyStrong">
-          Showing assigned published daily drops.
+          Showing real archived daily drops.
         </AppText>
         <AppText color="accentInk" variant="caption">
-          Source: daily_drops, daily_drop_items, published content_items, and interactions.
+          These drops are assigned to this account.
         </AppText>
       </Card>
     );
@@ -310,9 +310,9 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
   if (loadState.fallbackReason === "supabase_error") {
     return (
       <EmptyState
-        description={`${loadState.error?.message ?? "Supabase is unavailable."} The Library is showing the built-in mock archive so the app remains usable.`}
-        eyebrow="MOCK FALLBACK"
-        title="Supabase error while loading Library"
+        description={`Live archive could not be reached, so the app is showing a built-in preview archive. ${loadState.error?.message ?? ""}`.trim()}
+        eyebrow="Preview archive"
+        title="Preview archive"
       />
     );
   }
@@ -320,8 +320,8 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
   if (loadState.fallbackReason === "missing_supabase_config") {
     return (
       <EmptyState
-        description={`${loadState.error?.message ?? "Supabase is not configured."} Add the Expo public Supabase env vars to load the live archive. The mock archive is shown for testing.`}
-        eyebrow="MOCK FALLBACK"
+        description="Preview archive content is shown for tester walkthroughs. Developer/Test info: configure the public live-data env vars to load assigned archived drops."
+        eyebrow="Preview archive"
         title="Live Library data is not configured"
       />
     );
@@ -330,9 +330,9 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
   if (loadState.fallbackReason === "no_supabase_data") {
     return (
       <EmptyState
-        description="No published daily_drops rows are assigned to this user yet. The mock archive is shown as a preview."
-        eyebrow="MOCK FALLBACK"
-        title="No live drops in Library yet"
+        description="No archived daily drops are assigned to this account yet. Preview archive content is shown below."
+        eyebrow="No archive yet"
+        title="No live archive yet"
       />
     );
   }
@@ -340,8 +340,8 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
   if (loadState.fallbackReason === "missing_auth_session") {
     return (
       <EmptyState
-        description="Sign in to load your Supabase archive. The mock archive keeps the app usable for now."
-        eyebrow="MOCK FALLBACK"
+        description="Sign in to load your archived daily drops. Preview archive content is shown below."
+        eyebrow="Preview archive"
         title="No active session"
       />
     );

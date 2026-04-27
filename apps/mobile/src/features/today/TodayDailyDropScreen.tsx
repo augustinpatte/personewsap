@@ -175,7 +175,7 @@ export function TodayDailyDropScreen() {
 
     if (loadState.source === "mock") {
       applyLocalInteraction(action);
-      setInteractionMessage("Mock preview action saved locally.");
+      setInteractionMessage("Preview action saved on this device.");
       setPendingInteractionIds((currentIds) => removeSetValue(currentIds, pendingId));
       return;
     }
@@ -255,7 +255,7 @@ export function TodayDailyDropScreen() {
           <AppText variant="eyebrow">Today</AppText>
           <View style={styles.headerMeta}>
             <ProgressPill
-              label={loadState.source === "supabase" ? "LIVE" : "MOCK"}
+              label={loadState.source === "supabase" ? "Live daily drop" : "Preview mode"}
               tone={loadState.source === "supabase" ? "success" : "neutral"}
             />
             <AppText color="muted" variant="caption">
@@ -350,7 +350,7 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
       <Card padding="md" tone="muted">
         <ProgressPill label="Loading daily drop" tone="neutral" />
         <AppText color="muted" variant="caption">
-          Checking Supabase for today's published drop.
+          Looking for today's assigned drop.
         </AppText>
       </Card>
     );
@@ -360,16 +360,16 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
     return (
       <Card padding="md" style={styles.stateCardLive} tone="accent">
         <View style={styles.stateHeader}>
-          <ProgressPill label="LIVE FROM SUPABASE" tone="success" value={1} />
+          <ProgressPill label="Live daily drop" tone="success" value={1} />
           <AppText color="accentInk" variant="caption">
             {formatShortDate(loadState.drop.drop_date)}
           </AppText>
         </View>
         <AppText color="accentInk" variant="bodyStrong">
-          Showing the assigned daily drop for this user.
+          Live daily drop
         </AppText>
         <AppText color="accentInk" variant="caption">
-          Source: daily_drops + daily_drop_items + published content_items.
+          You are viewing the assigned drop for this account.
         </AppText>
       </Card>
     );
@@ -378,9 +378,9 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
   if (loadState.fallbackReason === "supabase_error") {
     return (
       <EmptyState
-        description={`${loadState.error?.message ?? "Supabase is unavailable."} The app is still usable and is showing the built-in mock drop.`}
-        eyebrow="MOCK FALLBACK"
-        title="Supabase error while loading Today"
+        description={`Live content could not be reached, so the app is showing a built-in preview. ${loadState.error?.message ?? ""}`.trim()}
+        eyebrow="Preview mode"
+        title="Preview daily drop"
       />
     );
   }
@@ -388,8 +388,8 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
   if (loadState.fallbackReason === "missing_supabase_config") {
     return (
       <EmptyState
-        description={`${loadState.error?.message ?? "Supabase is not configured."} Add the Expo public Supabase env vars to load live assigned drops. The mock drop is shown for testing.`}
-        eyebrow="MOCK FALLBACK"
+        description="Preview content is shown below so testers can still walk through the experience. Developer/Test info: configure the public live-data env vars to load assigned drops."
+        eyebrow="Preview mode"
         title="Live Today data is not configured"
       />
     );
@@ -398,9 +398,9 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
   if (loadState.fallbackReason === "no_supabase_data") {
     return (
       <EmptyState
-        description="No published daily_drops row is assigned to this user for today. The mock drop is shown so the experience stays usable."
-        eyebrow="MOCK FALLBACK"
-        title="No assigned live drop today"
+        description="No daily drop is assigned to this account for today. Preview content is shown below."
+        eyebrow="No drop yet"
+        title="No live daily drop yet"
       />
     );
   }
@@ -408,8 +408,8 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
   if (loadState.fallbackReason === "missing_auth_session") {
     return (
       <EmptyState
-        description="Sign in to load a personalized Supabase drop. The mock drop keeps the app usable for now."
-        eyebrow="MOCK FALLBACK"
+        description="Sign in to load your assigned daily drop. Preview content is shown below."
+        eyebrow="Preview mode"
         title="No active session"
       />
     );
@@ -470,7 +470,7 @@ function DropSlotOverview({
       <View style={styles.slotOverviewHeader}>
         <AppText variant="bodyStrong">Four-slot daily drop</AppText>
         <ProgressPill
-          label={source === "supabase" ? "Live content" : "Mock content"}
+          label={source === "supabase" ? "Live content" : "Preview content"}
           tone={source === "supabase" ? "success" : "neutral"}
         />
       </View>
@@ -581,7 +581,7 @@ function NewsletterSection({
         </>
       ) : (
         <EmptyState
-          description="This assigned drop has no linked newsletter_article items. The other daily modules are still available."
+          description="This daily drop has no newsletter items. The other modules are still available."
           eyebrow="Newsletter"
           title="Newsletter slot is empty"
         />
@@ -609,9 +609,6 @@ function NewsletterArticlePreview({
         <AppText color="accent" variant="caption">
           {topicLabels[article.topic]}
         </AppText>
-        <AppText color="muted" variant="caption">
-          v{article.version}
-        </AppText>
       </View>
       <AppText variant="bodyStrong">{article.title}</AppText>
       <ContentMetaRow item={article} topicLabel={topicLabels[article.topic]} />
@@ -622,7 +619,7 @@ function NewsletterArticlePreview({
         </AppText>
         <AppText variant="body">{article.why_it_matters}</AppText>
       </View>
-      <SourceLine item={article} sources={sources} />
+      <SourceLine sources={sources} />
       <ContentInteractionControls
         item={article}
         interactionState={interactionState}
@@ -676,7 +673,7 @@ function BusinessStorySection({
           </AppText>
           <AppText variant="bodyStrong">{story.lesson}</AppText>
         </View>
-        <SourceLine item={story} sources={getDisplaySourceLabels(story)} />
+        <SourceLine sources={getDisplaySourceLabels(story)} />
         <ContentInteractionControls
           item={story}
           interactionState={interactionState}
@@ -823,7 +820,7 @@ function ConceptSection({
           <ConceptNote label="Use it like this" text={concept.how_to_use_it} />
           <ConceptNote label="Common mistake" text={concept.common_mistake} />
         </View>
-        <SourceLine item={concept} sources={getDisplaySourceLabels(concept)} />
+        <SourceLine sources={getDisplaySourceLabels(concept)} />
         <ContentInteractionControls
           item={concept}
           interactionState={interactionState}
@@ -1001,7 +998,7 @@ function CompletionState({
       {isComplete ? (
         <Pressable accessibilityRole="button" onPress={onReset} style={styles.resetLink}>
           <AppText color="accentInk" variant="label">
-            Reset demo progress
+            Reset today's progress
           </AppText>
         </Pressable>
       ) : null}
@@ -1020,14 +1017,11 @@ function BulletText({ children }: { children: string }) {
   );
 }
 
-function SourceLine({ item, sources }: { item: { version: number }; sources: string[] }) {
+function SourceLine({ sources }: { sources: string[] }) {
   return (
     <View style={styles.sourceLine}>
       <AppText color="muted" variant="caption">
         Sources: {sources.join(", ")}
-      </AppText>
-      <AppText color="muted" variant="caption">
-        v{item.version}
       </AppText>
     </View>
   );

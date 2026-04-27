@@ -1,39 +1,11 @@
 import type { Language, RawArticle } from "../domain.js";
+import { parseXmlFeed } from "./rssParser.js";
 import type { CuratedSource, SourceArticleMetadata, SourceConnector, SourceFetchRequest } from "./types.js";
 import { sourceLog, sourceWarning } from "./sourceLogger.js";
 
 const DEFAULT_RSS_TIMEOUT_MS = 8_000;
 const DEFAULT_RSS_LIMIT_PER_SOURCE = 5;
 const DEFAULT_RSS_MAX_AGE_DAYS = 21;
-
-function readTag(xml: string, tag: string): string | null {
-  const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
-  return match ? decodeXml(match[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim()) : null;
-}
-
-function decodeXml(value: string): string {
-  return value
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", "\"")
-    .replaceAll("&#39;", "'");
-}
-
-function stripMarkup(value: string | null): string | undefined {
-  const stripped = value?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  return stripped || undefined;
-}
-
-function splitItems(xml: string): string[] {
-  const matches = xml.match(/<item[\s\S]*?<\/item>|<entry[\s\S]*?<\/entry>/gi);
-  return matches ?? [];
-}
-
-function readLink(item: string): string | null {
-  const atomHref = item.match(/<link[^>]+href=["']([^"']+)["'][^>]*>/i)?.[1];
-  return readTag(item, "link") ?? atomHref ?? null;
-}
 
 function isAfterSince(article: RawArticle, since?: string): boolean {
   if (!since || !article.published_at) {
@@ -154,8 +126,10 @@ export class RssFeedConnector implements SourceConnector {
       rss_url: source.rssUrl
     });
 
+    const startedAt = Date.now();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.resolveTimeoutMs());
+    const timeoutMs = this.resolveTimeoutMs();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     let response: Response;
 
@@ -168,20 +142,41 @@ export class RssFeedConnector implements SourceConnector {
       });
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(`RSS fetch timed out for ${source.id} after ${this.resolveTimeoutMs()}ms`);
+        sourceWarning("rss_source_health", {
+          source_id: source.id,
+          publisher: source.publisher,
+          status: "failed",
+          duration_ms: Date.now() - startedAt,
+          error: `RSS fetch timed out after ${timeoutMs}ms`
+        });
+        throw new Error(`RSS fetch timed out for ${source.id} after ${timeoutMs}ms`);
       }
 
+      sourceWarning("rss_source_health", {
+        source_id: source.id,
+        publisher: source.publisher,
+        status: "failed",
+        duration_ms: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     } finally {
       clearTimeout(timeout);
     }
 
     if (!response.ok) {
+      sourceWarning("rss_source_health", {
+        source_id: source.id,
+        publisher: source.publisher,
+        status: "failed",
+        http_status: response.status,
+        duration_ms: Date.now() - startedAt
+      });
       throw new Error(`RSS fetch failed for ${source.id}: ${response.status}`);
     }
 
     const xml = await response.text();
-    const items = splitItems(xml);
+    const items = parseXmlFeed(xml);
     let skippedMissingFields = 0;
     let skippedStale = 0;
     const maxAgeDays = this.resolveMaxAgeDays();
@@ -196,9 +191,7 @@ export class RssFeedConnector implements SourceConnector {
 
     const articles = items
       .map((item): (RawArticle & SourceArticleMetadata) | null => {
-        const title = readTag(item, "title");
-        const link = readLink(item);
-        if (!title || !link) {
+        if (!item.title || !item.url) {
           skippedMissingFields += 1;
           return null;
         }
@@ -208,13 +201,13 @@ export class RssFeedConnector implements SourceConnector {
           source_region: source.region,
           source_type: source.source_type,
           credibility_tier: source.credibility_tier,
-          url: link,
-          title,
+          url: item.url,
+          title: item.title,
           publisher: source.publisher,
-          published_at: readTag(item, "pubDate") ?? readTag(item, "published") ?? readTag(item, "updated"),
+          published_at: item.publishedAt,
           retrieved_at: new Date().toISOString(),
           language: source.language as Language,
-          summary: stripMarkup(readTag(item, "description") ?? readTag(item, "summary") ?? readTag(item, "content")),
+          summary: item.summary ?? undefined,
           sourceTopic: source.topic,
           credibility_score: source.credibility_score
         };
@@ -261,6 +254,17 @@ export class RssFeedConnector implements SourceConnector {
       skipped_missing_fields: skippedMissingFields,
       skipped_stale: skippedStale,
       max_age_days: maxAgeDays,
+      duration_ms: Date.now() - startedAt,
+      article_count: articles.length
+    });
+
+    sourceLog("rss_source_health", {
+      source_id: source.id,
+      publisher: source.publisher,
+      status: "ok",
+      http_status: response.status,
+      duration_ms: Date.now() - startedAt,
+      rss_items: items.length,
       article_count: articles.length
     });
 

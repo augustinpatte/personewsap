@@ -95,14 +95,14 @@ export default function AccountScreen() {
         <View style={styles.headerTopline}>
           <AppText variant="eyebrow">Account</AppText>
           <ProgressPill
-            label={session ? "SIGNED IN" : "SIGNED OUT"}
+            label={session ? "Signed in" : "Signed out"}
             tone={session ? "success" : "neutral"}
           />
         </View>
         <View style={styles.headerCopy}>
-          <AppText variant="title">Profile and debug</AppText>
+          <AppText variant="title">Settings</AppText>
           <AppText variant="body">
-            Copy the current user id for `TEST_USER_ID`, check mobile config, and manage the session.
+            Manage your session, preferences, and tester information for assigned daily drops.
           </AppText>
         </View>
       </AppScreen.Header>
@@ -117,21 +117,13 @@ export default function AccountScreen() {
             />
           </View>
           <AppText color="muted" variant="body">
-            Use this id when assigning a test daily drop from the content engine.
+            This account is ready for the daily drop flow once onboarding and live content are available.
           </AppText>
-          <View style={styles.idBox}>
-            <AppText color="muted" variant="caption">
-              TEST_USER_ID
-            </AppText>
-            <AppText selectable style={styles.idValue} variant="bodyStrong">
-              {user?.id ?? "Unavailable"}
-            </AppText>
-          </View>
         </Card>
 
         <Card>
           <View style={styles.cardTopline}>
-            <AppText variant="subtitle">Product state</AppText>
+            <AppText variant="subtitle">Preferences</AppText>
             <ProgressPill label={profile.language?.toUpperCase() ?? "No language"} tone="neutral" />
           </View>
           <InfoRow label="Email" value={user?.email ?? "Unavailable"} selectable />
@@ -142,14 +134,23 @@ export default function AccountScreen() {
 
         <Card tone="muted">
           <View style={styles.cardTopline}>
-            <AppText variant="subtitle">App status</AppText>
+            <AppText variant="subtitle">Developer/Test info</AppText>
             <ProgressPill label={isConfigured ? "Configured" : "Needs env"} tone={isConfigured ? "success" : "warning"} />
           </View>
-          <InfoRow label="Supabase URL configured" value={supabaseConfigDiagnostics.urlHost ? "Yes" : "No"} />
-          <InfoRow label="Supabase host" value={supabaseConfigDiagnostics.urlHost ?? "Unavailable"} />
-          <InfoRow label="Supabase client configured" value={isConfigured ? "Yes" : "No"} />
-          <InfoRow label="Current session" value={session ? "Yes" : "No"} />
-          <InfoRow label="Auth status" value={status} />
+          <AppText color="muted" variant="body">
+            Select and copy this user id when assigning a test daily drop from the content engine.
+          </AppText>
+          <View style={styles.idBox}>
+            <AppText color="muted" variant="caption">
+              User id for TEST_USER_ID
+            </AppText>
+            <AppText selectable style={styles.idValue} variant="bodyStrong">
+              {user?.id ?? "Unavailable"}
+            </AppText>
+          </View>
+          <InfoRow label="Live data host" value={supabaseConfigDiagnostics.urlHost ?? "Unavailable"} />
+          <InfoRow label="Live data connection" value={isConfigured ? "Configured" : "Needs env"} />
+          <InfoRow label="Current session" value={session ? "Active" : "Not signed in"} />
           {error ? <AppText color="danger" variant="caption">{error.message}</AppText> : null}
         </Card>
 
