@@ -4,7 +4,6 @@ import { assertValidDailyDropPayload } from "../generation/validation.js";
 import { processArticles } from "../processing/pipeline.js";
 import type { SourceFetcher } from "../sources/sourceFetcher.js";
 import type { ContentRepository } from "../storage/contentRepository.js";
-import { sha256 } from "../utils/hash.js";
 import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "./dailyDropBuilder.js";
 
 export type DailyContentJobOptions = {
@@ -38,6 +37,19 @@ export class DailyContentJob {
   async run(options: DailyContentJobOptions): Promise<DailyContentJobResult> {
     const topics = options.topics ?? [...TOPIC_IDS];
     const results: DailyContentJobResult["languages"] = [];
+    const repository = this.repository;
+    let persistenceRepository: ContentRepository | undefined;
+
+    if (options.persist === true) {
+      if (!repository) {
+        throw new Error(
+          "DailyContentJob persistence requires persist=true and a server-side ContentRepository configured with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+        );
+      }
+
+      repository.assertPersistenceAvailable();
+      persistenceRepository = repository;
+    }
 
     for (const language of options.languages) {
       const rawArticles = await this.sourceFetcher.fetch({
@@ -62,20 +74,20 @@ export class DailyContentJob {
       let storedItems = 0;
       let userDropsCreated = 0;
 
-      if (options.persist !== false && this.repository) {
-        const stored = await this.repository.storeDailyPayload({
+      if (persistenceRepository) {
+        const stored = await persistenceRepository.storeDailyPayload({
           payload,
           articles: rankedArticles,
           contentStatus: options.publish ? "published" : "review"
         });
         storedItems = stored.length;
 
-        const preferences = await this.repository.listUserDailyDropPreferences(language);
+        const preferences = await persistenceRepository.listUserDailyDropPreferences(language);
         const dropStatus: DailyDropStatus = options.publish ? "published" : "generated";
 
         for (const preference of preferences) {
           const selection = selectDailyDropItemsForUser(preference, stored);
-          await this.repository.createDailyDropForUser({
+          await persistenceRepository.createDailyDropForUser({
             userId: selection.userId,
             dropDate: options.dropDate,
             language,
@@ -84,8 +96,6 @@ export class DailyContentJob {
           });
           userDropsCreated += 1;
         }
-
-        sha256(JSON.stringify(payload));
       }
 
       results.push({

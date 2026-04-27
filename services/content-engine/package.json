@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "dry-run": "npm run build && node dist/cli.js dry-run"
+    "dry-run": "npm run build && node dist/cli.js dry-run",
+    "llm-run": "npm run build && node dist/cli.js llm-run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3"

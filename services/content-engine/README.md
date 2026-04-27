@@ -23,6 +23,8 @@ Optional:
 
 - `NEWS_API_KEY`
 - `NEWS_API_ENDPOINT`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` defaults to `gpt-4.1-mini`
 
 ## Commands
 
@@ -30,6 +32,7 @@ Optional:
 npm run check
 npm run build
 npm run dry-run
+npm run llm-run
 ```
 
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
@@ -64,6 +67,25 @@ npm run dry-run -- --live-rss
 ```
 
 The command prints a JSON object with diagnostics and one or more daily drop payloads. `persisted` is always `false` in dry-run mode.
+
+## LLM Generation
+
+`llm-run` uses the same source collection and processing pipeline, then asks OpenAI for the final structured daily drop. It still does not write to Supabase.
+
+```sh
+OPENAI_API_KEY=sk-... npm run llm-run
+```
+
+Useful options match `dry-run`:
+
+```sh
+OPENAI_API_KEY=sk-... npm run llm-run -- --date 2026-04-26
+OPENAI_API_KEY=sk-... npm run llm-run -- --languages en,fr
+OPENAI_API_KEY=sk-... npm run llm-run -- --topics business,finance,tech_ai
+OPENAI_API_KEY=sk-... npm run llm-run -- --newsletter-count 3
+```
+
+The LLM path uses structured JSON output, validates the generated daily drop, and retries when required fields, source URLs, dates, reading time, slot/type consistency, or module counts are invalid. If `OPENAI_API_KEY` is missing, the command exits with a clear error before any generation request is attempted.
 
 ## Daily Job
 

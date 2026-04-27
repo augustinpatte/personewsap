@@ -23,12 +23,17 @@ export * from "./processing/categorize.js";
 export * from "./processing/rank.js";
 export * from "./generation/types.js";
 export * from "./generation/prompts.js";
+export * from "./generation/dailyDropSchema.js";
+export * from "./generation/llmGenerator.js";
+export * from "./generation/llmProvider.js";
+export * from "./generation/openAiProvider.js";
 export * from "./generation/structuredGenerator.js";
 export * from "./generation/validation.js";
 export * from "./storage/contentRepository.js";
 export * from "./storage/supabaseClient.js";
 export * from "./scheduler/index.js";
 export * from "./cli/dryRun.js";
+export * from "./cli/llmRun.js";
 
 export function createContentEngine(options?: {
   persist?: boolean;

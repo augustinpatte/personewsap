@@ -160,10 +160,13 @@ export function validateTitleAndBodyPresence(item: GeneratedContentItem, path: s
   }
 
   if (item.content_type === "mini_case") {
-    if (item.constraints.length === 0) {
+    const constraints = (item as unknown as Record<string, unknown>).constraints;
+    const expectedReasoning = (item as unknown as Record<string, unknown>).expected_reasoning;
+
+    if (!Array.isArray(constraints) || constraints.length === 0) {
       issues.push({ path: `${path}.constraints`, message: "Mini-case constraints are required." });
     }
-    if (item.expected_reasoning.length === 0) {
+    if (!Array.isArray(expectedReasoning) || expectedReasoning.length === 0) {
       issues.push({ path: `${path}.expected_reasoning`, message: "Mini-case expected reasoning is required." });
     }
   }
@@ -218,7 +221,7 @@ export function validateEstimatedReadingTime(item: GeneratedContentItem, path: s
     return [];
   }
 
-  const body = item.body_md;
+  const body = typeof item.body_md === "string" ? item.body_md : "";
   const estimatedReadSeconds = estimateReadingSeconds(body);
 
   if (estimatedReadSeconds < limits.min || estimatedReadSeconds > limits.max) {
@@ -249,7 +252,7 @@ function validateDatePresence(item: GeneratedContentItem, path: string): Validat
     issues.push({ path: `${path}.story_date`, message: "Business story story_date must use YYYY-MM-DD." });
   }
 
-  if (!DATE_PATTERN.test(item.body_md)) {
+  if (typeof item.body_md !== "string" || !DATE_PATTERN.test(item.body_md)) {
     issues.push({ path: `${path}.body_md`, message: "Body must include at least one source or event date in YYYY-MM-DD format." });
   }
 

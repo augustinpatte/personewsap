@@ -1,5 +1,6 @@
 import type {
   BusinessStory,
+  DailyDropPayload,
   GeneratedContentItem,
   KeyConcept,
   MiniCaseChallenge,
@@ -25,6 +26,25 @@ export type ContentItemInsert = {
   metadata: Record<string, unknown>;
 };
 
+export type SourceUpsertRow = {
+  url: string;
+  title: string;
+  publisher: string;
+  author: string | null;
+  published_at: string | null;
+  retrieved_at: string;
+  language: string | null;
+  credibility_score: number;
+  content_hash: string;
+};
+
+export type ContentItemSourceInsert = {
+  content_item_id: string;
+  source_id: string;
+  claim: null;
+  source_order: number;
+};
+
 export function sourceMetadataFromArticle(article: RankedArticle): SourceMetadata {
   return {
     url: article.url,
@@ -37,6 +57,26 @@ export function sourceMetadataFromArticle(article: RankedArticle): SourceMetadat
     content_hash: article.content_hash,
     credibility_score: article.credibility_score ?? 0.6
   };
+}
+
+export function mapArticlesToSourceUpserts(articles: RankedArticle[]): SourceUpsertRow[] {
+  const uniqueSources = new Map<string, SourceMetadata>();
+
+  for (const article of articles) {
+    uniqueSources.set(article.url, sourceMetadataFromArticle(article));
+  }
+
+  return Array.from(uniqueSources.values()).map((source) => ({
+    url: source.url,
+    title: source.title,
+    publisher: source.publisher,
+    author: source.author,
+    published_at: source.published_at,
+    retrieved_at: source.retrieved_at,
+    language: source.language,
+    credibility_score: source.credibility_score,
+    content_hash: source.content_hash
+  }));
 }
 
 export function mapGeneratedItemToContentInsert(
@@ -58,9 +98,54 @@ export function mapGeneratedItemToContentInsert(
     version: item.version,
     status,
     generation_run_id: generationRunId,
-    source_count: item.source_urls.length,
+    source_count: new Set(item.source_urls).size,
     metadata: metadataFor(item)
   };
+}
+
+export function mapContentItemSourceInserts(input: {
+  contentItemId: string;
+  sourceUrls: string[];
+  sourceIdsByUrl: Map<string, string>;
+}): ContentItemSourceInsert[] {
+  const seenSourceIds = new Set<string>();
+  const links: ContentItemSourceInsert[] = [];
+
+  input.sourceUrls.forEach((url, sourceOrder) => {
+    const sourceId = input.sourceIdsByUrl.get(url);
+
+    if (!sourceId || seenSourceIds.has(sourceId)) {
+      return;
+    }
+
+    seenSourceIds.add(sourceId);
+    links.push({
+      content_item_id: input.contentItemId,
+      source_id: sourceId,
+      claim: null,
+      source_order: sourceOrder
+    });
+  });
+
+  return links;
+}
+
+export function assertDailyPayloadSourcesArePersistable(input: {
+  payload: DailyDropPayload;
+  articles: RankedArticle[];
+}): void {
+  const articleUrls = new Set(input.articles.map((article) => article.url));
+  const missingUrls = Array.from(
+    new Set(
+      input.payload.items.flatMap((item) => item.source_urls).filter((url) => !articleUrls.has(url))
+    )
+  );
+
+  if (missingUrls.length > 0) {
+    throw new Error(
+      `Cannot persist daily drop because ${missingUrls.length} generated source URL(s) are missing source metadata: ${missingUrls.join(", ")}`
+    );
+  }
 }
 
 function summaryFor(item: GeneratedContentItem): string | null {

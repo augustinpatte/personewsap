@@ -8,7 +8,15 @@ import type {
   RankedArticle,
   UserDailyDropPreference
 } from "../domain.js";
-import { mapGeneratedItemToContentInsert, sourceMetadataFromArticle } from "./mappers.js";
+import { sha256 } from "../utils/hash.js";
+import {
+  assertDailyPayloadSourcesArePersistable,
+  mapArticlesToSourceUpserts,
+  mapContentItemSourceInserts,
+  mapGeneratedItemToContentInsert,
+  type ContentItemInsert,
+  type ContentItemSourceInsert
+} from "./mappers.js";
 
 type StoredGeneratedItem = {
   item: GeneratedContentItem;
@@ -35,7 +43,11 @@ type DailyDropRow = {
 export class ContentRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
-  async createGenerationRun(input: {
+  assertPersistenceAvailable(): void {
+    void this.supabase.from;
+  }
+
+  async insertGenerationRun(input: {
     runDate: string;
     contentType: string;
     language: Language;
@@ -63,6 +75,17 @@ export class ContentRepository {
     }
 
     return data.id;
+  }
+
+  async createGenerationRun(input: {
+    runDate: string;
+    contentType: string;
+    language: Language;
+    promptVersion: string;
+    generatorVersion: string;
+    inputHash: string;
+  }): Promise<string> {
+    return this.insertGenerationRun(input);
   }
 
   async completeGenerationRun(id: string, outputHash: string, status: "generated" | "published" = "generated"): Promise<void> {
@@ -96,7 +119,7 @@ export class ContentRepository {
   }
 
   async upsertSources(articles: RankedArticle[]): Promise<Map<string, string>> {
-    const uniqueSources = Array.from(new Map(articles.map((article) => [article.url, sourceMetadataFromArticle(article)])).values());
+    const uniqueSources = mapArticlesToSourceUpserts(articles);
 
     if (uniqueSources.length === 0) {
       return new Map();
@@ -104,20 +127,7 @@ export class ContentRepository {
 
     const { data, error } = await this.supabase
       .from("sources")
-      .upsert(
-        uniqueSources.map((source) => ({
-          url: source.url,
-          title: source.title,
-          publisher: source.publisher,
-          author: source.author,
-          published_at: source.published_at,
-          retrieved_at: source.retrieved_at,
-          language: source.language,
-          credibility_score: source.credibility_score,
-          content_hash: source.content_hash
-        })),
-        { onConflict: "url" }
-      )
+      .upsert(uniqueSources, { onConflict: "url" })
       .select("id,url")
       .returns<SourceRow[]>();
 
@@ -128,55 +138,63 @@ export class ContentRepository {
     return new Map((data ?? []).map((source) => [source.url, source.id]));
   }
 
+  async insertContentItem(insert: ContentItemInsert): Promise<string> {
+    const { data, error } = await this.supabase.from("content_items").insert(insert).select("id").single<ContentItemRow>();
+
+    if (error) {
+      throw error;
+    }
+
+    return data.id;
+  }
+
+  async insertContentItemSources(sourceLinks: ContentItemSourceInsert[]): Promise<void> {
+    if (sourceLinks.length === 0) {
+      return;
+    }
+
+    const { error } = await this.supabase.from("content_item_sources").insert(sourceLinks);
+
+    if (error) {
+      throw error;
+    }
+  }
+
   async storeDailyPayload(input: {
     payload: DailyDropPayload;
     articles: RankedArticle[];
     contentStatus: "draft" | "review" | "published";
   }): Promise<StoredGeneratedItem[]> {
+    assertDailyPayloadSourcesArePersistable({
+      payload: input.payload,
+      articles: input.articles
+    });
+
     const sourceIdsByUrl = await this.upsertSources(input.articles);
     const storedItems: StoredGeneratedItem[] = [];
 
     for (const item of input.payload.items) {
-      const runId = await this.createGenerationRun({
+      const runId = await this.insertGenerationRun({
         runDate: input.payload.drop_date,
         contentType: item.content_type,
         language: input.payload.language,
         promptVersion: input.payload.prompt_version,
         generatorVersion: input.payload.generator_version,
-        inputHash: item.source_urls.join("|")
+        inputHash: sha256(item.source_urls.join("|"))
       });
 
       try {
         const insert = mapGeneratedItemToContentInsert(item, input.payload.drop_date, input.contentStatus, runId);
-        const { data, error } = await this.supabase.from("content_items").insert(insert).select("id").single<ContentItemRow>();
+        const contentItemId = await this.insertContentItem(insert);
+        const sourceLinks = mapContentItemSourceInserts({
+          contentItemId,
+          sourceUrls: item.source_urls,
+          sourceIdsByUrl
+        });
 
-        if (error) {
-          throw error;
-        }
-
-        const sourceLinks = item.source_urls
-          .map((url, sourceOrder) => {
-            const sourceId = sourceIdsByUrl.get(url);
-            return sourceId
-              ? {
-                  content_item_id: data.id,
-                  source_id: sourceId,
-                  claim: null,
-                  source_order: sourceOrder
-                }
-              : null;
-          })
-          .filter((link): link is { content_item_id: string; source_id: string; claim: null; source_order: number } => link !== null);
-
-        if (sourceLinks.length > 0) {
-          const { error: linkError } = await this.supabase.from("content_item_sources").insert(sourceLinks);
-          if (linkError) {
-            throw linkError;
-          }
-        }
-
-        await this.completeGenerationRun(runId, JSON.stringify(item), input.contentStatus === "published" ? "published" : "generated");
-        storedItems.push({ item, content_item_id: data.id });
+        await this.insertContentItemSources(sourceLinks);
+        await this.completeGenerationRun(runId, sha256(JSON.stringify(item)), input.contentStatus === "published" ? "published" : "generated");
+        storedItems.push({ item, content_item_id: contentItemId });
       } catch (error) {
         await this.failGenerationRun(runId, error instanceof Error ? error.message : String(error));
         throw error;
@@ -239,6 +257,31 @@ export class ContentRepository {
       position: number;
     }>;
   }): Promise<string> {
+    const dailyDropId = await this.insertDailyDrop({
+      userId: input.userId,
+      dropDate: input.dropDate,
+      language: input.language,
+      status: input.status
+    });
+
+    await this.insertDailyDropItems(
+      input.itemIds.map((item) => ({
+        dailyDropId,
+        contentItemId: item.contentItemId,
+        slot: item.slot,
+        position: item.position
+      }))
+    );
+
+    return dailyDropId;
+  }
+
+  async insertDailyDrop(input: {
+    userId: string;
+    dropDate: string;
+    language: Language;
+    status: DailyDropStatus;
+  }): Promise<string> {
     const publishedAt = input.status === "published" ? new Date().toISOString() : null;
     const { data, error } = await this.supabase
       .from("daily_drops")
@@ -259,22 +302,33 @@ export class ContentRepository {
       throw error;
     }
 
-    if (input.itemIds.length > 0) {
-      const { error: itemsError } = await this.supabase.from("daily_drop_items").upsert(
-        input.itemIds.map((item) => ({
-          daily_drop_id: data.id,
-          content_item_id: item.contentItemId,
-          slot: item.slot,
-          position: item.position
-        })),
-        { onConflict: "daily_drop_id,content_item_id" }
-      );
+    return data.id;
+  }
 
-      if (itemsError) {
-        throw itemsError;
-      }
+  async insertDailyDropItems(
+    items: Array<{
+      dailyDropId: string;
+      contentItemId: string;
+      slot: DailyDropSlot;
+      position: number;
+    }>
+  ): Promise<void> {
+    if (items.length === 0) {
+      return;
     }
 
-    return data.id;
+    const { error } = await this.supabase.from("daily_drop_items").upsert(
+      items.map((item) => ({
+        daily_drop_id: item.dailyDropId,
+        content_item_id: item.contentItemId,
+        slot: item.slot,
+        position: item.position
+      })),
+      { onConflict: "daily_drop_id,slot,position" }
+    );
+
+    if (error) {
+      throw error;
+    }
   }
 }
