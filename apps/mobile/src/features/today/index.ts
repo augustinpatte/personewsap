@@ -12,4 +12,5 @@ export type {
   TodayDailyDrop
 } from "./contentTypes";
 
+export { fetchContentItemSources, fetchTodayDrop } from "./dailyDropData";
 export { TodayDailyDropScreen } from "./TodayDailyDropScreen";

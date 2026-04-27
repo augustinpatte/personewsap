@@ -3,3 +3,5 @@ export type {
   LibraryFilter,
   LibraryItemSummary
 } from "./libraryTypes";
+
+export { fetchLibraryDrops } from "./libraryData";

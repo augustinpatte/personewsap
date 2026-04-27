@@ -238,6 +238,73 @@ export type Database = {
           updated_at?: string;
         }
       >;
+      sources: TableDefinition<
+        {
+          id: string;
+          url: string;
+          title: string | null;
+          publisher: string | null;
+          author: string | null;
+          published_at: string | null;
+          retrieved_at: string;
+          language: Language | null;
+          credibility_score: number | null;
+          content_hash: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          url: string;
+          title?: string | null;
+          publisher?: string | null;
+          author?: string | null;
+          published_at?: string | null;
+          retrieved_at?: string;
+          language?: Language | null;
+          credibility_score?: number | null;
+          content_hash?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          url?: string;
+          title?: string | null;
+          publisher?: string | null;
+          author?: string | null;
+          published_at?: string | null;
+          retrieved_at?: string;
+          language?: Language | null;
+          credibility_score?: number | null;
+          content_hash?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+      content_item_sources: TableDefinition<
+        {
+          content_item_id: string;
+          source_id: string;
+          claim: string | null;
+          source_order: number;
+          created_at: string;
+        },
+        {
+          content_item_id: string;
+          source_id: string;
+          claim?: string | null;
+          source_order?: number;
+          created_at?: string;
+        },
+        {
+          content_item_id?: string;
+          source_id?: string;
+          claim?: string | null;
+          source_order?: number;
+          created_at?: string;
+        }
+      >;
       daily_drops: TableDefinition<
         {
           id: string;
