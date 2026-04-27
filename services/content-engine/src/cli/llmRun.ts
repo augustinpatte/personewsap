@@ -13,6 +13,8 @@ import { parseDryRunOptions, type DryRunOptions } from "./dryRun.js";
 
 export type LlmRunOptions = DryRunOptions;
 
+const LLM_RUN_NEWSLETTER_ARTICLE_COUNT = 1;
+
 export type LlmRunOutput = {
   mode: "llm-run";
   provider: "openai";
@@ -33,6 +35,18 @@ export type LlmRunOutput = {
 };
 
 export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
+  const runOptions: LlmRunOptions = {
+    ...options,
+    newsletterArticleCount: LLM_RUN_NEWSLETTER_ARTICLE_COUNT
+  };
+
+  logProgress("local test limit active", {
+    newsletter_articles: LLM_RUN_NEWSLETTER_ARTICLE_COUNT,
+    business_stories: 1,
+    mini_cases: 1,
+    concepts: 1
+  });
+
   const connectors: SourceConnector[] = [new SampleArticleConnector()];
 
   if (options.liveRss) {
@@ -41,30 +55,82 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
 
   const sourceFetcher = new SourceFetcher(connectors);
   const generator = new LlmContentGenerator({
-    provider: new OpenAiJsonProvider()
+    provider: new OpenAiJsonProvider(),
+    onProgress: logProgress
   });
   const diagnostics: LlmRunOutput["diagnostics"] = [];
   const drops: DailyDropPayload[] = [];
 
   for (const language of options.languages) {
+    logProgress("source fetch started", {
+      language,
+      topics: runOptions.topics,
+      live_rss: runOptions.liveRss,
+      limit_per_topic: 10
+    });
+
     const rawArticles = await sourceFetcher.fetch({
-      topics: options.topics,
+      topics: runOptions.topics,
       languages: [language],
-      since: options.dropDate,
+      since: runOptions.dropDate,
       limitPerTopic: 10
     });
+
+    logProgress("source fetch completed", {
+      language,
+      fetched_articles: rawArticles.length
+    });
+
+    logProgress("processing started", {
+      language,
+      candidate_articles: rawArticles.length
+    });
+
     const rankedArticles = processArticles(rawArticles).filter((article) => article.language === language);
+
+    logProgress("processing completed", {
+      language,
+      processed_articles: rankedArticles.length
+    });
+
+    for (const item of plannedLlmItems(runOptions.newsletterArticleCount)) {
+      logProgress("LLM generation started", {
+        language,
+        item: item.label,
+        content_type: item.contentType
+      });
+    }
+
     const payload = assembleDailyDropPayload(
       await generator.generateDailyDrop({
-        dropDate: options.dropDate,
+        dropDate: runOptions.dropDate,
         language,
         articles: rankedArticles,
-        newsletterTopics: options.topics,
-        newsletterArticleCount: options.newsletterArticleCount
+        newsletterTopics: runOptions.topics,
+        newsletterArticleCount: runOptions.newsletterArticleCount
       })
     );
 
+    for (const item of payload.items) {
+      logProgress("LLM generation completed", {
+        language,
+        item: item.title,
+        content_type: item.content_type,
+        slot: item.slot
+      });
+    }
+
+    logProgress("validation started", {
+      language,
+      generated_items: payload.items.length
+    });
+
     assertValidDailyDropPayload(payload);
+
+    logProgress("validation completed", {
+      language,
+      generated_items: payload.items.length
+    });
 
     diagnostics.push({
       language,
@@ -91,5 +157,27 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
 }
 
 export function parseLlmRunOptions(args: string[]): LlmRunOptions {
-  return parseDryRunOptions(args);
+  return {
+    ...parseDryRunOptions(args),
+    newsletterArticleCount: LLM_RUN_NEWSLETTER_ARTICLE_COUNT
+  };
+}
+
+function plannedLlmItems(newsletterArticleCount: number): Array<{
+  label: string;
+  contentType: string;
+}> {
+  return [
+    ...Array.from({ length: newsletterArticleCount }, (_, index) => ({
+      label: `newsletter article ${index + 1}`,
+      contentType: "newsletter_article"
+    })),
+    { label: "business story", contentType: "business_story" },
+    { label: "mini-case", contentType: "mini_case" },
+    { label: "concept", contentType: "concept" }
+  ];
+}
+
+function logProgress(message: string, details: Record<string, unknown>): void {
+  process.stderr.write(`[llm-run] ${new Date().toISOString()} ${message} ${JSON.stringify(details)}\n`);
 }

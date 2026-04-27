@@ -1,10 +1,12 @@
-export const PROMPT_VERSION = "daily_drop_v2";
+export const PROMPT_VERSION = "daily_drop_v3";
 export const GENERATOR_VERSION = "content_engine_0.1";
 
 export const CONTENT_GUARDRAILS = [
   "Write like a sharp mentor briefing an ambitious 18-25 year-old before class, an interview, an internship, or a serious conversation.",
   "Keep the daily drop finite: one focused newsletter set, one business story, one mini-case, and one key concept. Do not generate feed-like extras.",
   "Use short paragraphs, concrete nouns, strong verbs, and practical implications. Cut generic AI filler, hype, vague motivation, and empty conclusions.",
+  "Do not reuse stock transitions such as 'This matters because...', 'the useful question is not whether...', or 'the headline is loud'.",
+  "Vary the shape of each item. Cover the required editorial beats, but do not make every article follow the same paragraph rhythm.",
   "Every factual claim must be grounded in supplied sources. Include source URLs and dates; never invent authors, institutions, numbers, quotes, or links.",
   "FR and EN versions must carry the same facts, sources, dates, angle, and depth while sounding natural in each language.",
   "For legal, medical, and financial topics, explain facts, incentives, uncertainty, and context. Do not give individualized advice, diagnosis, treatment, or buy/sell instructions."
@@ -24,10 +26,10 @@ export const CONTENT_TYPE_PROMPTS = {
   newsletter_article: [
     "Newsletter article:",
     "- Explain one sourced factual development in 120-220 words.",
-    "- Structure the body as: what happened, context, why it matters, what to watch next.",
+    "- Cover what happened, the relevant context, the practical implication, and what to watch next without using the same paragraph template every time.",
     "- Include title, topic, language, published_date, summary, body_md, why_it_matters, source_urls, and version.",
     "- The angle must match the topic. Do not stretch a culture story into finance or a medicine story into business.",
-    "- Keep the tone direct and useful; no generic transition sentences."
+    "- Keep the tone direct and useful; no generic transition sentences or meta-commentary about headlines."
   ].join("\n"),
   business_story: [
     "Business story:",
@@ -73,7 +75,7 @@ export const VALID_STRUCTURED_OUTPUT_EXAMPLES = {
     published_date: "2026-04-26",
     summary: "A supplier delay forced a major AI company to rebalance cloud capacity plans before a customer launch.",
     body_md:
-      "A supplier delay forced a major AI company to rebalance cloud capacity plans before a customer launch.\n\nThe useful context is capacity, not drama: AI products depend on chips, data centers, power contracts, and customer trust arriving on the same calendar.\n\nWhy it matters: when one constraint moves, pricing, delivery promises, and competitive timing move with it.\n\nWatch the next measurable signal: whether customers change launch timelines, contract size, or provider choice.\n\nSource: Example Daily Tech Brief, published 2026-04-26, retrieved 2026-04-26.",
+      "A supplier delay forced a major AI company to rebalance cloud capacity plans before a customer launch.\n\nCapacity is the story: AI products depend on chips, data centers, power contracts, and customer trust arriving on the same calendar.\n\nThe practical implication is timing. When one constraint moves, pricing, delivery promises, and competitive positioning move with it.\n\nWatch whether customers change launch timelines, contract size, or provider choice.\n\nSource: Example Daily Tech Brief, published 2026-04-26, retrieved 2026-04-26.",
     why_it_matters: "AI competition is often a supply-chain and execution contest before it is a product contest.",
     source_urls: ["https://example.com/ai-capacity-brief"],
     version: 1

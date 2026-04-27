@@ -49,6 +49,17 @@ const GENERIC_AI_PHRASES = [
   "it goes without saying"
 ];
 
+export const BANNED_EDITORIAL_PHRASES = [
+  "this matters because",
+  "stories like this change incentives",
+  "the useful question is not whether",
+  "the headline is loud",
+  "the useful context is",
+  "ce type de sujet en",
+  "la bonne question n'est pas de savoir",
+  "le titre fait du bruit"
+] as const;
+
 const HIGH_STAKES_ADVICE_PATTERNS = [
   /\byou should buy\b/i,
   /\byou should sell\b/i,
@@ -95,7 +106,7 @@ export function assertValidDailyDropPayload(payload: DailyDropPayload): void {
 
 function validateGeneratedItem(item: GeneratedContentItem, path: string): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const fullText = JSON.stringify(item).toLowerCase();
+  const fullText = normalizeForPhraseCheck(JSON.stringify(item));
 
   issues.push(...validateContentTypeConsistency(item, path));
   issues.push(...validateTopicConsistency(item, path));
@@ -104,9 +115,9 @@ function validateGeneratedItem(item: GeneratedContentItem, path: string): Valida
   issues.push(...validateEstimatedReadingTime(item, path));
   issues.push(...validateDatePresence(item, path));
 
-  for (const phrase of GENERIC_AI_PHRASES) {
+  for (const phrase of [...GENERIC_AI_PHRASES, ...BANNED_EDITORIAL_PHRASES]) {
     if (fullText.includes(phrase)) {
-      issues.push({ path, message: `Generic AI phrase is not allowed: ${phrase}.` });
+      issues.push({ path, message: `Banned editorial phrase is not allowed: ${phrase}.` });
     }
   }
 
@@ -117,6 +128,13 @@ function validateGeneratedItem(item: GeneratedContentItem, path: string): Valida
   }
 
   return issues;
+}
+
+function normalizeForPhraseCheck(value: string): string {
+  return value
+    .replace(/[’‘]/g, "'")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 export function validateRequiredSourceCount(item: GeneratedContentItem, path: string): ValidationIssue[] {

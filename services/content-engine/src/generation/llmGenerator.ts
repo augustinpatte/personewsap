@@ -15,7 +15,7 @@ import {
   PROMPT_VERSION
 } from "./prompts.js";
 import type { ContentGenerator, GenerationRequest } from "./types.js";
-import { validateDailyDropPayload, type ValidationIssue } from "./validation.js";
+import { BANNED_EDITORIAL_PHRASES, validateDailyDropPayload, type ValidationIssue } from "./validation.js";
 
 const LLM_GENERATOR_VERSION = `${GENERATOR_VERSION}_llm`;
 const MAX_ATTEMPTS = 3;
@@ -25,6 +25,7 @@ const MAX_SOURCE_BODY_CHARS = 1200;
 type LlmContentGeneratorOptions = {
   provider: LlmProvider;
   maxAttempts?: number;
+  onProgress?: (message: string, details: Record<string, unknown>) => void;
 };
 
 type SourcePacket = {
@@ -46,10 +47,12 @@ type SourcePacket = {
 export class LlmContentGenerator implements ContentGenerator {
   private readonly provider: LlmProvider;
   private readonly maxAttempts: number;
+  private readonly onProgress?: (message: string, details: Record<string, unknown>) => void;
 
   constructor(options: LlmContentGeneratorOptions) {
     this.provider = options.provider;
     this.maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
+    this.onProgress = options.onProgress;
   }
 
   async generateDailyDrop(request: GenerationRequest): Promise<DailyDropPayload> {
@@ -63,12 +66,27 @@ export class LlmContentGenerator implements ContentGenerator {
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       try {
+        this.reportProgress("OpenAI request started", {
+          language: request.language,
+          attempt,
+          max_attempts: this.maxAttempts,
+          provider: this.provider.name
+        });
+
         const rawPayload = await this.provider.generateJson({
           systemPrompt: EDITORIAL_PROMPT,
           userPrompt: buildDailyDropPrompt(request, sources, feedback),
           jsonSchema: DAILY_DROP_JSON_SCHEMA as unknown as Record<string, unknown>,
           maxOutputTokens: 6500
         });
+
+        this.reportProgress("OpenAI request completed", {
+          language: request.language,
+          attempt,
+          max_attempts: this.maxAttempts,
+          provider: this.provider.name
+        });
+
         const payload = assembleDailyDropPayload(normalizePayload(rawPayload, request));
         const issues = [
           ...validateDailyDropPayload(payload),
@@ -82,13 +100,29 @@ export class LlmContentGenerator implements ContentGenerator {
 
         feedback = formatIssues(issues);
         lastError = new Error(`LLM generation failed validation on attempt ${attempt}: ${feedback}`);
+        this.reportProgress("LLM validation failed", {
+          language: request.language,
+          attempt,
+          max_attempts: this.maxAttempts,
+          issue_count: issues.length
+        });
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         feedback = lastError.message;
+        this.reportProgress("LLM generation attempt failed", {
+          language: request.language,
+          attempt,
+          max_attempts: this.maxAttempts,
+          error: lastError.message
+        });
       }
     }
 
     throw lastError ?? new Error("LLM generation failed validation.");
+  }
+
+  private reportProgress(message: string, details: Record<string, unknown>): void {
+    this.onProgress?.(message, details);
   }
 }
 
@@ -121,11 +155,14 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
       editorial_requirements: [
         "Concise, factual, direct tone for ambitious 18-25 year-old students.",
         "No filler language, generic conclusions, hype, or unsupported predictions.",
+        "Do not repeat the same body structure across every newsletter item.",
+        "Do not mention headline loudness or use meta phrases about what the useful question is.",
         "Ground factual claims in the supplied sources only.",
         "Do not invent URLs, dates, authors, institutions, numbers, or quotes.",
         "Make each item relevant to its topic; do not force a source into the wrong topic.",
         "For law, medicine, and finance, explain context and uncertainty without personalized advice."
       ],
+      banned_phrases: BANNED_EDITORIAL_PHRASES,
       content_type_guidance: {
         newsletter_article: CONTENT_TYPE_PROMPTS.newsletter_article,
         business_story: CONTENT_TYPE_PROMPTS.business_story,

@@ -25,6 +25,7 @@ Optional:
 - `NEWS_API_ENDPOINT`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` defaults to `gpt-4.1-mini`
+- `OPENAI_REQUEST_TIMEOUT_MS` defaults to `60000`
 
 ## Commands
 
@@ -76,16 +77,41 @@ The command prints a JSON object with diagnostics and one or more daily drop pay
 OPENAI_API_KEY=sk-... npm run llm-run
 ```
 
-Useful options match `dry-run`:
+For safe local testing, `llm-run` always limits the generated drop to:
+
+1. one newsletter article
+2. one business story
+3. one mini-case
+4. one concept
+
+This keeps local OpenAI requests smaller and easier to inspect. `dry-run` is unchanged and still honors `--newsletter-count`.
+
+Useful options mostly match `dry-run`:
 
 ```sh
 OPENAI_API_KEY=sk-... npm run llm-run -- --date 2026-04-26
 OPENAI_API_KEY=sk-... npm run llm-run -- --languages en,fr
 OPENAI_API_KEY=sk-... npm run llm-run -- --topics business,finance,tech_ai
-OPENAI_API_KEY=sk-... npm run llm-run -- --newsletter-count 3
 ```
 
+`--newsletter-count` is intentionally ignored by `llm-run` local test mode and capped at one newsletter article.
+
 The LLM path uses structured JSON output, validates the generated daily drop, and retries when required fields, source URLs, dates, reading time, slot/type consistency, or module counts are invalid. If `OPENAI_API_KEY` is missing, the command exits with a clear error before any generation request is attempted.
+
+Progress logs are printed to stderr so stdout can remain valid JSON for scripts. A normal run shows:
+
+- source fetch started/completed
+- processing started/completed
+- LLM generation started/completed for each planned/generated item
+- validation started/completed
+
+Use a shorter timeout when testing failure handling:
+
+```sh
+OPENAI_API_KEY=sk-... OPENAI_REQUEST_TIMEOUT_MS=10000 npm run llm-run
+```
+
+If OpenAI fails, the command reports whether the failure was a timeout, network/endpoint problem, HTTP/API error, missing JSON output, or invalid JSON.
 
 ## Daily Job
 
