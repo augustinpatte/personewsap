@@ -1,5 +1,5 @@
 import type { Language, RawArticle, TopicId } from "../domain.js";
-import type { SourceConnector, SourceFetchRequest } from "./types.js";
+import type { SourceArticleMetadata, SourceConnector, SourceFetchRequest } from "./types.js";
 
 type NewsApiArticle = {
   title?: string;
@@ -64,12 +64,15 @@ export class NewsApiConnector implements SourceConnector {
     const payload = (await response.json()) as { articles?: NewsApiArticle[] };
 
     return (payload.articles ?? [])
-      .map((article): RawArticle | null => {
+      .map((article): (RawArticle & SourceArticleMetadata) | null => {
         if (!article.title || !article.url) {
           return null;
         }
 
         return {
+          source_id: `news-api-${topic}-${language}`,
+          source_type: "aggregated_api",
+          credibility_tier: "tier_3",
           url: article.url,
           title: article.title,
           publisher: article.source?.name ?? "News API",
@@ -83,6 +86,6 @@ export class NewsApiConnector implements SourceConnector {
           credibility_score: 0.7
         };
       })
-      .filter((article): article is RawArticle => article !== null);
+      .filter((article): article is RawArticle & SourceArticleMetadata => article !== null);
   }
 }

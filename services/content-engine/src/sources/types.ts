@@ -12,6 +12,10 @@ export type SourceConnector = {
   fetchArticles(request: SourceFetchRequest): Promise<RawArticle[]>;
 };
 
+export type SourceCredibilityTier = "tier_1" | "tier_2" | "tier_3";
+
+export type CuratedSourceType = "rss" | "institutional_site" | "publisher_section" | "specialist_publisher" | "aggregated_api";
+
 export type CuratedSource = {
   id: string;
   topic: TopicId;
@@ -20,4 +24,14 @@ export type CuratedSource = {
   url: string;
   rssUrl?: string;
   credibility_score: number;
+  credibility_tier: SourceCredibilityTier;
+  source_type: CuratedSourceType;
+  description?: string;
+  usage_notes?: string;
+};
+
+export type SourceArticleMetadata = {
+  source_id: string;
+  source_type: CuratedSourceType;
+  credibility_tier: SourceCredibilityTier;
 };

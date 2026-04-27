@@ -1,30 +1,77 @@
 import type { CuratedSource } from "./types.js";
 
-export const CURATED_SOURCES: CuratedSource[] = [
+export const CURATED_SOURCES = [
   {
     id: "bbc-business",
     topic: "business",
     language: "en",
-    publisher: "BBC",
+    publisher: "BBC News",
     url: "https://www.bbc.com/business",
     rssUrl: "https://feeds.bbci.co.uk/news/business/rss.xml",
-    credibility_score: 0.88
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Broad business and economy reporting."
   },
   {
-    id: "reuters-business",
+    id: "npr-business",
     topic: "business",
     language: "en",
-    publisher: "Reuters",
-    url: "https://www.reuters.com/business/",
-    credibility_score: 0.94
+    publisher: "NPR",
+    url: "https://www.npr.org/sections/business/",
+    rssUrl: "https://feeds.npr.org/1006/rss.xml",
+    credibility_score: 0.86,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Business reporting with accessible policy and labor context."
   },
   {
-    id: "reuters-markets",
+    id: "hbr",
+    topic: "business",
+    language: "en",
+    publisher: "Harvard Business Review",
+    url: "https://hbr.org/",
+    rssUrl: "https://hbr.org/feed",
+    credibility_score: 0.82,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Management, strategy, leadership, and organizational behavior."
+  },
+  {
+    id: "federal-reserve-press",
     topic: "finance",
     language: "en",
-    publisher: "Reuters",
-    url: "https://www.reuters.com/markets/",
-    credibility_score: 0.94
+    publisher: "Federal Reserve",
+    url: "https://www.federalreserve.gov/newsevents/pressreleases.htm",
+    rssUrl: "https://www.federalreserve.gov/feeds/press_all.xml",
+    credibility_score: 0.95,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Primary-source monetary policy, supervision, and financial system updates."
+  },
+  {
+    id: "sec-press",
+    topic: "finance",
+    language: "en",
+    publisher: "U.S. Securities and Exchange Commission",
+    url: "https://www.sec.gov/newsroom/press-releases",
+    rssUrl: "https://www.sec.gov/news/pressreleases.rss",
+    credibility_score: 0.94,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Primary-source securities enforcement and market regulation updates."
+  },
+  {
+    id: "marketplace",
+    topic: "finance",
+    language: "en",
+    publisher: "Marketplace",
+    url: "https://www.marketplace.org/",
+    rssUrl: "https://www.marketplace.org/feed/",
+    credibility_score: 0.8,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Economic news explained for a broad audience."
   },
   {
     id: "mit-tech-review",
@@ -33,7 +80,70 @@ export const CURATED_SOURCES: CuratedSource[] = [
     publisher: "MIT Technology Review",
     url: "https://www.technologyreview.com/",
     rssUrl: "https://www.technologyreview.com/feed/",
-    credibility_score: 0.9
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Technology and AI reporting with research and industry context."
+  },
+  {
+    id: "google-ai-blog",
+    topic: "tech_ai",
+    language: "en",
+    publisher: "Google AI Blog",
+    url: "https://blog.google/technology/ai/",
+    rssUrl: "https://blog.google/technology/ai/rss/",
+    credibility_score: 0.78,
+    credibility_tier: "tier_2",
+    source_type: "institutional_site",
+    description: "Primary corporate AI announcements; treat as source material, not independent reporting."
+  },
+  {
+    id: "the-gradient",
+    topic: "tech_ai",
+    language: "en",
+    publisher: "The Gradient",
+    url: "https://thegradient.pub/",
+    rssUrl: "https://thegradient.pub/rss/",
+    credibility_score: 0.76,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Longer-form AI research and industry analysis."
+  },
+  {
+    id: "scotusblog",
+    topic: "law",
+    language: "en",
+    publisher: "SCOTUSblog",
+    url: "https://www.scotusblog.com/",
+    rssUrl: "https://www.scotusblog.com/feed/",
+    credibility_score: 0.86,
+    credibility_tier: "tier_1",
+    source_type: "specialist_publisher",
+    description: "U.S. Supreme Court reporting and legal analysis."
+  },
+  {
+    id: "ftc-competition",
+    topic: "law",
+    language: "en",
+    publisher: "Federal Trade Commission",
+    url: "https://www.ftc.gov/news-events/news/press-releases",
+    rssUrl: "https://www.ftc.gov/feeds/press-release-competition.xml",
+    credibility_score: 0.94,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Primary-source competition, consumer protection, and platform regulation updates."
+  },
+  {
+    id: "doj-news",
+    topic: "law",
+    language: "en",
+    publisher: "U.S. Department of Justice",
+    url: "https://www.justice.gov/news",
+    rssUrl: "https://www.justice.gov/feeds/opa/justice-news.xml",
+    credibility_score: 0.93,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Primary-source U.S. federal enforcement and legal policy updates."
   },
   {
     id: "nature-medicine",
@@ -42,7 +152,34 @@ export const CURATED_SOURCES: CuratedSource[] = [
     publisher: "Nature Medicine",
     url: "https://www.nature.com/nm/",
     rssUrl: "https://www.nature.com/nm.rss",
-    credibility_score: 0.95
+    credibility_score: 0.95,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Peer-reviewed medical research table-of-contents feed."
+  },
+  {
+    id: "nih-news-releases",
+    topic: "medicine",
+    language: "en",
+    publisher: "National Institutes of Health",
+    url: "https://www.nih.gov/news-events/news-releases",
+    rssUrl: "https://www.nih.gov/news-releases/feed.xml",
+    credibility_score: 0.94,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Primary-source biomedical research and public health news releases."
+  },
+  {
+    id: "who-news",
+    topic: "medicine",
+    language: "en",
+    publisher: "World Health Organization",
+    url: "https://www.who.int/news",
+    rssUrl: "https://www.who.int/rss-feeds/news-english.xml",
+    credibility_score: 0.92,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Global public health news and institutional updates."
   },
   {
     id: "ieee-spectrum",
@@ -51,41 +188,34 @@ export const CURATED_SOURCES: CuratedSource[] = [
     publisher: "IEEE Spectrum",
     url: "https://spectrum.ieee.org/",
     rssUrl: "https://spectrum.ieee.org/feeds/feed.rss",
-    credibility_score: 0.88
+    credibility_score: 0.88,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Engineering, applied science, electronics, energy, and robotics coverage."
   },
   {
-    id: "conseil-constitutionnel",
-    topic: "law",
-    language: "fr",
-    publisher: "Conseil constitutionnel",
-    url: "https://www.conseil-constitutionnel.fr/",
-    credibility_score: 0.93
-  },
-  {
-    id: "le-monde-economie",
-    topic: "business",
-    language: "fr",
-    publisher: "Le Monde",
-    url: "https://www.lemonde.fr/economie/",
-    rssUrl: "https://www.lemonde.fr/economie/rss_full.xml",
-    credibility_score: 0.86
-  },
-  {
-    id: "inserm",
-    topic: "medicine",
-    language: "fr",
-    publisher: "Inserm",
-    url: "https://www.inserm.fr/actualite/",
-    credibility_score: 0.92
-  },
-  {
-    id: "the-guardian-media",
-    topic: "culture_media",
+    id: "nasa-technology",
+    topic: "engineering",
     language: "en",
-    publisher: "The Guardian",
-    url: "https://www.theguardian.com/media",
-    rssUrl: "https://www.theguardian.com/media/rss",
-    credibility_score: 0.84
+    publisher: "NASA",
+    url: "https://www.nasa.gov/technology/",
+    rssUrl: "https://www.nasa.gov/technology/feed/",
+    credibility_score: 0.91,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Primary-source aerospace, robotics, and advanced engineering updates."
+  },
+  {
+    id: "nature-nanotechnology",
+    topic: "engineering",
+    language: "en",
+    publisher: "Nature Nanotechnology",
+    url: "https://www.nature.com/nnano/",
+    rssUrl: "https://www.nature.com/nnano.rss",
+    credibility_score: 0.93,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Peer-reviewed nanotechnology research table-of-contents feed."
   },
   {
     id: "sportspro",
@@ -94,6 +224,177 @@ export const CURATED_SOURCES: CuratedSource[] = [
     publisher: "SportsPro",
     url: "https://www.sportspromedia.com/",
     rssUrl: "https://www.sportspromedia.com/feed/",
-    credibility_score: 0.78
+    credibility_score: 0.78,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Sports media rights, sponsorship, leagues, and investment coverage."
+  },
+  {
+    id: "sportbusiness",
+    topic: "sport_business",
+    language: "en",
+    publisher: "SportBusiness",
+    url: "https://www.sportbusiness.com/",
+    rssUrl: "https://www.sportbusiness.com/feed/",
+    credibility_score: 0.78,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Sports industry, rights, governance, and commercial strategy coverage."
+  },
+  {
+    id: "front-office-sports",
+    topic: "sport_business",
+    language: "en",
+    publisher: "Front Office Sports",
+    url: "https://frontofficesports.com/",
+    rssUrl: "https://frontofficesports.com/feed/",
+    credibility_score: 0.74,
+    credibility_tier: "tier_3",
+    source_type: "specialist_publisher",
+    description: "Sports business news with a strong audience and career lens."
+  },
+  {
+    id: "guardian-media",
+    topic: "culture_media",
+    language: "en",
+    publisher: "The Guardian",
+    url: "https://www.theguardian.com/media",
+    rssUrl: "https://www.theguardian.com/media/rss",
+    credibility_score: 0.84,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "Media industry, journalism, streaming, and culture business coverage."
+  },
+  {
+    id: "nieman-lab",
+    topic: "culture_media",
+    language: "en",
+    publisher: "Nieman Journalism Lab",
+    url: "https://www.niemanlab.org/",
+    rssUrl: "https://www.niemanlab.org/feed/",
+    credibility_score: 0.84,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Journalism, media technology, publishing models, and platform shifts."
+  },
+  {
+    id: "variety",
+    topic: "culture_media",
+    language: "en",
+    publisher: "Variety",
+    url: "https://variety.com/",
+    rssUrl: "https://variety.com/feed/",
+    credibility_score: 0.78,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Entertainment business, film, TV, streaming, and cultural industries."
+  },
+  {
+    id: "le-monde-economie",
+    topic: "business",
+    language: "fr",
+    publisher: "Le Monde",
+    url: "https://www.lemonde.fr/economie/",
+    credibility_score: 0.86,
+    credibility_tier: "tier_1",
+    source_type: "publisher_section",
+    description: "French economy and business reporting.",
+    usage_notes: "RSS reuse requires permission for non-personal or collective use; keep disabled until licensed."
+  },
+  {
+    id: "le-monde-argent",
+    topic: "finance",
+    language: "fr",
+    publisher: "Le Monde",
+    url: "https://www.lemonde.fr/argent/",
+    credibility_score: 0.84,
+    credibility_tier: "tier_1",
+    source_type: "publisher_section",
+    description: "French personal finance and markets context.",
+    usage_notes: "RSS reuse requires permission for non-personal or collective use; keep disabled until licensed."
+  },
+  {
+    id: "le-monde-pixels",
+    topic: "tech_ai",
+    language: "fr",
+    publisher: "Le Monde Pixels",
+    url: "https://www.lemonde.fr/pixels/",
+    credibility_score: 0.84,
+    credibility_tier: "tier_1",
+    source_type: "publisher_section",
+    description: "French technology, platforms, and digital policy coverage.",
+    usage_notes: "RSS reuse requires permission for non-personal or collective use; keep disabled until licensed."
+  },
+  {
+    id: "conseil-constitutionnel",
+    topic: "law",
+    language: "fr",
+    publisher: "Conseil constitutionnel",
+    url: "https://www.conseil-constitutionnel.fr/",
+    credibility_score: 0.93,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source French constitutional law decisions and institutional updates."
+  },
+  {
+    id: "inserm",
+    topic: "medicine",
+    language: "fr",
+    publisher: "Inserm",
+    url: "https://www.inserm.fr/actualite/",
+    credibility_score: 0.92,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source French biomedical research news."
+  },
+  {
+    id: "cnrs-ingenierie",
+    topic: "engineering",
+    language: "fr",
+    publisher: "CNRS",
+    url: "https://www.cnrs.fr/fr/actualites",
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "French scientific research updates; filter for engineering and applied science."
+  },
+  {
+    id: "sportstrategies",
+    topic: "sport_business",
+    language: "fr",
+    publisher: "Sport Strategies",
+    url: "https://www.sportstrategies.com/",
+    credibility_score: 0.72,
+    credibility_tier: "tier_3",
+    source_type: "specialist_publisher",
+    description: "French sports marketing, sponsorship, and sports business coverage."
+  },
+  {
+    id: "ina-medias",
+    topic: "culture_media",
+    language: "fr",
+    publisher: "INA",
+    url: "https://larevuedesmedias.ina.fr/",
+    credibility_score: 0.82,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "French media analysis and cultural industry context."
   }
-];
+] satisfies CuratedSource[];
+
+export const CURATED_SOURCES_BY_TOPIC = CURATED_SOURCES.reduce(
+  (sourcesByTopic, source) => {
+    sourcesByTopic[source.topic].push(source);
+    return sourcesByTopic;
+  },
+  {
+    business: [],
+    finance: [],
+    tech_ai: [],
+    law: [],
+    medicine: [],
+    engineering: [],
+    sport_business: [],
+    culture_media: []
+  } as Record<CuratedSource["topic"], CuratedSource[]>
+);
