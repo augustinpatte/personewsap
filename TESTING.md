@@ -1,8 +1,18 @@
-# PersoNewsAP Testing
+# PersoNewsAP Testing Guide
 
-This is the lightweight MVP test flow for local development and tester handoff. It avoids production writes by default.
+This guide is for local development, disposable Supabase testing, and small tester handoff. The safe default is no production writes.
 
-## Install
+## 1. Environment Setup
+
+Install:
+
+- Node.js 20+
+- npm
+- Expo tooling through `npx expo` or the project scripts
+- Xcode + iOS Simulator for iOS testing, or Android Studio + emulator for Android testing
+- Optional: Supabase CLI for applying migrations from the terminal
+
+Install dependencies from the repo root:
 
 ```sh
 npm install
@@ -10,9 +20,7 @@ npm --prefix apps/mobile install
 npm --prefix services/content-engine install
 ```
 
-## Smoke Test
-
-Run the main smoke flow from the repo root:
+Run the repo smoke check:
 
 ```sh
 npm run smoke
@@ -26,59 +34,78 @@ npm run content:build
 npm run content:dry-run
 ```
 
-## Environment Safety
+## 2. Environment Safety
 
-Local env files are ignored:
+Local env files are ignored. Confirm with:
 
 ```sh
 git check-ignore -v --no-index .env apps/mobile/.env services/content-engine/.env supabase/.temp
 ```
 
-Use `apps/mobile/.env` only for public Expo variables:
+Use `apps/mobile/.env` only for public client keys:
 
 ```sh
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_LIVE_DATA_PROOF_MODE=false
 ```
 
-Use `services/content-engine/.env` or a local shell for server-only keys:
+Use `services/content-engine/.env` or a local shell only for server-side keys:
 
 ```sh
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
 OPENAI_API_KEY=your-openai-key
 ```
 
-Never put service role keys, OpenAI keys, Resend keys, or generation secrets in Expo, Vite, checked-in files, logs, screenshots, or issue comments.
+Never put service role keys, OpenAI keys, Resend keys, generation secrets, or production credentials in Expo, Vite, checked-in files, logs, screenshots, or issue comments.
 
-## Supabase Setup
+## 3. Supabase Setup
 
-1. Create or select a local/disposable Supabase project.
-2. Apply the SQL migrations in `supabase/migrations`.
-3. Copy the project URL and anon key into `apps/mobile/.env`.
-4. Keep the service role key only in a server-side shell or `services/content-engine/.env`.
-5. Create at least one test user and complete preferences before testing assigned daily drops.
+Use a local, disposable, or explicitly selected staging Supabase project for tester prep.
 
-Do not run persistence commands against production unless you deliberately intend to write test rows there.
+1. Create or select a Supabase project.
+2. Apply migrations in `supabase/migrations` in filename order.
+3. In Supabase Auth, enable email/password auth.
+4. For a small tester group, decide whether to disable email confirmation temporarily or manually confirm tester accounts in the dashboard.
+5. Copy the project URL and anon key into `apps/mobile/.env`.
+6. Keep the service role key only in `services/content-engine/.env` or a server-side shell.
 
-## Mobile Simulator
+With Supabase CLI, the usual remote flow is:
+
+```sh
+supabase login
+supabase link --project-ref your-project-ref
+supabase db push
+```
+
+If not using the CLI, paste and run each SQL migration in the Supabase SQL editor in order.
+
+## 4. Mobile Setup
 
 From the repo root:
 
 ```sh
-cd apps/mobile
-npm run ios
+cp apps/mobile/.env.example apps/mobile/.env
+npm --prefix apps/mobile run ios
 ```
 
-Manual checks:
+Use Android or Expo launcher when needed:
 
-- Sign in or create a tester account.
-- Complete onboarding and preferences.
-- Confirm Today loads either live content or a readable empty/mock state.
-- Open Library and Account.
-- Verify back navigation, loading states, and error messages are readable.
+```sh
+npm --prefix apps/mobile run android
+npm --prefix apps/mobile run start
+```
 
-## Content Engine
+Local mobile checks:
+
+- Sign up or log in.
+- Complete onboarding: language, goal, topics, article count, frequency.
+- Open Account and confirm the tester user id is visible.
+- Open Today and Library.
+- Confirm the app clearly labels live data versus preview/mock mode.
+
+## 5. Content-Engine Setup
 
 From the repo root:
 
@@ -87,185 +114,234 @@ npm run content:build
 npm run content:dry-run
 ```
 
-Optional LLM check, with a server-side OpenAI key:
+`content:dry-run` uses local sample articles and prints JSON. It does not need Supabase, API keys, LLM calls, or production data.
+
+Optional live RSS smoke check:
 
 ```sh
-OPENAI_API_KEY=... npm --prefix services/content-engine run llm-run
+npm --prefix services/content-engine run dry-run -- --live-rss
 ```
 
-## Persistence Test
-
-First verify the guard fails closed when env is missing:
+Optional LLM generation, still without Supabase writes:
 
 ```sh
-env -u SUPABASE_URL -u SUPABASE_SERVICE_ROLE_KEY -u CONFIRM_PERSIST_TEST npm --prefix services/content-engine run persist-test
+OPENAI_API_KEY=... npm --prefix services/content-engine run llm-run -- --language en
 ```
 
-To write test content to a local/disposable Supabase project:
+## 6. Daily Drop Generation For Testers
+
+### No-write dry run
+
+Use this before every tester handoff:
 
 ```sh
-SUPABASE_URL=... \
-SUPABASE_SERVICE_ROLE_KEY=... \
+npm run content:dry-run
+```
+
+Confirm the output contains:
+
+- `persisted: false`
+- one or more daily drops
+- newsletter, business story, mini-case, and concept slots
+- source URLs and dates
+
+### Assign one real tester
+
+1. Start the mobile app.
+2. Create/sign in as the tester.
+3. Complete onboarding.
+4. Open Account and copy the tester user id.
+5. In a separate terminal, run:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
 CONFIRM_PERSIST_TEST=true \
-npm --prefix services/content-engine run persist-test
+TEST_USER_ID="00000000-0000-0000-0000-000000000000" \
+npm --prefix services/content-engine run persist-test -- --date "$(date +%F)" --language en
 ```
 
-To assign the test drop to one known test user:
-
-```sh
-SUPABASE_URL=... \
-SUPABASE_SERVICE_ROLE_KEY=... \
-CONFIRM_PERSIST_TEST=true \
-TEST_USER_ID=00000000-0000-0000-0000-000000000000 \
-npm --prefix services/content-engine run persist-test
-```
-
-Save the returned `test_run_id`, then clean up draft test content when finished:
-
-```sh
-SUPABASE_URL=... \
-SUPABASE_SERVICE_ROLE_KEY=... \
-CONFIRM_CLEANUP_TEST=true \
-npm --prefix services/content-engine run cleanup-test -- --test-run-id persist-test-...
-```
-
-## Live Data Proof Harness
-
-Use this flow when a new tester needs to prove the mobile app is reading a real assigned Supabase daily drop, not the built-in mock preview. Run it only against a local or disposable Supabase project unless you deliberately intend to write test rows.
-
-### 1. Configure Mobile Env
-
-Create `apps/mobile/.env` with public Expo keys only:
-
-```sh
-cat apps/mobile/.env.example
-```
-
-`apps/mobile/.env` must contain:
-
-```sh
-EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-Do not put the service role key in `apps/mobile/.env`.
-
-### 2. Sign Up And Complete Onboarding
-
-Start the app from the repo root:
-
-```sh
-npm --prefix apps/mobile run ios
-```
-
-In the simulator:
-
-- Create a tester account or sign in.
-- Complete onboarding: language, goal, topics, article count, and frequency.
-- Open Supabase Dashboard -> Authentication -> Users and copy the tester auth user id.
-
-### 3. Persist And Assign A Test Drop
-
-In a separate terminal from the repo root, set server-only env vars in that shell:
-
-```sh
-export SUPABASE_URL="https://your-project.supabase.co"
-export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-export TEST_USER_ID="00000000-0000-0000-0000-000000000000"
-export DROP_DATE="$(date +%F)"
-```
-
-Persist marked test content and assign it directly to the tester:
-
-```sh
-SUPABASE_URL="$SUPABASE_URL" \
-SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
-CONFIRM_PERSIST_TEST=true \
-TEST_USER_ID="$TEST_USER_ID" \
-npm --prefix services/content-engine run persist-test -- --date "$DROP_DATE" --language en
-```
-
-Save the JSON output fields:
+Save the JSON output, especially:
 
 - `testRunId`
 - `mobileProof.daily_drop_id`
-- `mobileProof.test_user_id`
-- `mobileProof.expected_today_log_prefix`
 - `mobileProof.expected_today_event`
-- `mobileProof.expected_library_log_prefix`
 - `mobileProof.expected_library_event`
-- `mobileProof.expected_interaction_log_prefix`
 - `mobileProof.expected_interaction_event`
 
-For a valid live-data proof, `drop.user_daily_drops_created` must be `1` and `mobileProof.daily_drop_id` must not be `null`.
+Expected proof events in the Metro terminal:
 
-### 4. Prove Today Fetches Live Data
+- `[Profile proof]` with `event: "profile_saved"` or `event: "profile_exists"`
+- `[Onboarding proof]` with `event: "profile_saved"`
+- `[Onboarding proof]` with `event: "user_preferences_saved"`
+- `[Onboarding proof]` with `event: "onboarding_saved"`
+- `[Onboarding proof]` with `event: "daily_job_test_eligible"`
+- `[Today data proof]` with `event: "live_daily_drop"`
+- `[Library data proof]` with `event: "live_library_drops"`
+- `[Content interaction proof]` with `event: "interaction_write_success"`
 
-Restart the mobile app if it was already open:
-
-```sh
-npm --prefix apps/mobile run ios
-```
-
-Open Today while signed in as the same tester. The app UI should show the live state, and the Metro/Expo terminal should print:
-
-```text
-[Today data proof] ... event: "live_daily_drop" ...
-```
-
-The log should include the assigned `daily_drop_id`, `drop_date`, `language`, and `item_count`. If the terminal prints this instead, the app is not in live proof mode:
-
-```text
-[Today data proof] ... event: "mock_fallback" ...
-```
-
-Mock fallback reasons are explicit: `missing_auth_session`, `missing_supabase_config`, `no_supabase_data`, `daily_drop_has_no_displayable_items`, or `supabase_error`.
-
-### 5. Prove Library Fetches Live Data
-
-Open the Library tab. The Metro/Expo terminal should print:
-
-```text
-[Library data proof] ... event: "live_library_drops" ...
-```
-
-The log should include `drop_count`, `latest_drop_date`, and a redacted `user_id`. If it prints `event: "mock_fallback"`, inspect the logged `reason` before treating the Library result as live.
-
-### 6. Prove Interaction Writes
-
-On Today, tap one real content item interaction:
-
-- `Complete`
-- `Save`
-- `Good`, `Average`, or `Bad`
-
-The app should update visible state immediately. The Metro/Expo terminal should print:
-
-```text
-[Content interaction proof] ... event: "interaction_write_success" ...
-```
-
-That proves the mobile app inserted a row into `content_interactions` for the authenticated user and real `content_item_id`. If the terminal prints `interaction_write_failed`, the app should show a readable error and stay usable.
-
-### 7. Clean Up Draft Test Content
-
-If the test run created draft content, clean it up with the saved `testRunId`:
+For a stricter proof run, set this in `apps/mobile/.env`, restart Expo, and treat any mock fallback console error as proof failure:
 
 ```sh
-SUPABASE_URL="$SUPABASE_URL" \
-SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+EXPO_PUBLIC_LIVE_DATA_PROOF_MODE=true
+```
+
+In proof mode, Today and Library still render fallback content to keep the app usable, but `[Today data proof]` or `[Library data proof]` with `event: "mock_fallback"` is emitted as `console.error` and must not be accepted as live proof.
+
+The `persist-test` output proves the assignment layer when:
+
+- `drop.user_daily_drops_created` is `1`, or `drop.user_daily_drops_updated` is `1` for a rerun on the same user/date.
+- `mobileProof.daily_drop_id` is not `null`.
+- `drop.stale_daily_drop_items_removed` and `drop.duplicate_daily_drop_items_skipped` are recorded for reruns.
+
+### Assign a small tester group
+
+Use this only after testers have created accounts and completed onboarding.
+
+First create a published, marked test content set:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_PERSIST_TEST=true \
+TEST_USER_ID="first-tested-user-id" \
+npm --prefix services/content-engine run persist-test -- --date "$(date +%F)" --language en
+```
+
+Then assign that marked content to up to five app users with preferences:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_ASSIGN_TEST=true \
+npm --prefix services/content-engine run assign-test-users -- --limit 5
+```
+
+For a larger rehearsal, `daily-job-test` can generate, persist, and assign marked test drops, but treat it as a staging-only operation:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_DAILY_JOB_TEST=true \
+USER_LIMIT=5 \
+LANGUAGES=fr,en \
+npm --prefix services/content-engine run daily-job-test
+```
+
+From `services/content-engine`, the same language coverage commands are:
+
+```sh
+LANGUAGES=fr,en npm run daily-job-test
+LANGUAGES=fr,en npm run debug-users
+```
+
+## 7. App Manual Test Flow
+
+Use this as the core QA path:
+
+1. Install or open the Expo build.
+2. Create a new account with a tester email.
+3. Complete onboarding.
+4. Copy the user id from Account.
+5. Assign a test daily drop to that user.
+6. Reload Today.
+7. Confirm Today says `Live daily drop`, not `Preview mode`.
+8. Read each daily-drop module.
+9. Tap Complete on at least one item.
+10. Tap Save on at least one item.
+11. Rate one item Good, Average, or Bad.
+12. Open Library.
+13. Confirm the assigned drop appears.
+14. Confirm saved/completed state is reflected where applicable.
+15. Log out and log back in.
+16. Confirm Today and Library still load.
+
+For the tester-facing version, use [TESTER_SCRIPT_15_MIN.md](TESTER_SCRIPT_15_MIN.md).
+
+## 8. Real Data Path Audit
+
+Use this audit during the live proof run. Each row should have one positive signal before the proof is considered complete.
+
+| Layer | Table or feature | Proof signal |
+| --- | --- | --- |
+| Signup/profile | `profiles` | `[Profile proof]` logs `profile_saved` or `profile_exists` for the tester. |
+| Onboarding | `profiles` | `[Onboarding proof]` logs `profile_saved` with the selected language. |
+| Preferences | `user_preferences` | `[Onboarding proof]` logs `user_preferences_saved` with goal, frequency, and article count. |
+| Topics | `user_topic_preferences` | `[Onboarding proof]` logs `onboarding_saved` with enabled topic count. |
+| Assignment eligibility | `profiles` + `user_preferences` + `user_topic_preferences` | `[Onboarding proof]` logs `daily_job_test_eligible`. |
+| Content | `content_items` | `persist-test` returns marked `storedContentItems` for newsletter, business story, mini-case, and concept. |
+| Assignment | `daily_drops` | `persist-test` returns `mobileProof.daily_drop_id`. |
+| Assignment links | `daily_drop_items` | `persist-test` returns stored item count and assignment counters without throwing. |
+| Today | Supabase fetch | `[Today data proof]` logs `live_daily_drop`. |
+| Library | Supabase fetch | `[Library data proof]` logs `live_library_drops`. |
+| Interactions | `content_interactions` | `[Content interaction proof]` logs `interaction_write_success`. |
+
+Interaction write behavior:
+
+- Complete and Save run a preflight read and skip duplicate writes with `event: "interaction_write_skipped"` and `outcome: "already_exists"`.
+- Repeating the same rating skips with `outcome: "unchanged"`.
+- Changing the rating writes a new feedback event; Today reads feedback by `created_at` order, so the latest rating is the visible rating.
+
+## 9. Troubleshooting
+
+### App shows Preview mode
+
+Check the Metro terminal proof log:
+
+- `missing_auth_session`: tester is not signed in.
+- `missing_supabase_config`: `apps/mobile/.env` is missing public Supabase keys.
+- `no_supabase_data`: no published daily drop is assigned to this user/date.
+- `daily_drop_has_no_displayable_items`: daily drop exists but linked items are incomplete.
+- `supabase_error`: inspect the logged Supabase error.
+
+### Tester cannot save or complete content
+
+Check:
+
+- The app is using live data, not mock fallback.
+- The tester is signed in.
+- `content_interactions` RLS policies are applied.
+- The Metro terminal prints `[Content interaction proof]`.
+
+### Onboarding does not persist
+
+Check:
+
+- Auth session exists.
+- Migrations are applied.
+- `profiles`, `user_preferences`, and `user_topic_preferences` allow the authenticated user to write their own rows.
+- The app was restarted after changing env vars.
+
+### Content engine refuses to write
+
+This is usually expected. Persistence commands fail closed unless the required confirmation flag and server-side env vars are set:
+
+- `CONFIRM_PERSIST_TEST=true`
+- `CONFIRM_ASSIGN_TEST=true`
+- `CONFIRM_DAILY_JOB_TEST=true`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+### Cleanup
+
+For draft persist-test content:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
 CONFIRM_CLEANUP_TEST=true \
 npm --prefix services/content-engine run cleanup-test -- --test-run-id persist-test-...
 ```
 
-When `TEST_USER_ID` is set, `persist-test` publishes the assigned test content so Today can read it. Cleanup only removes draft persist-test content; inspect assigned published test rows manually before deleting anything else.
+Cleanup intentionally does not delete published assigned drops, users, preferences, sources, or production-like content. Inspect published test rows manually before deleting anything else.
 
-## Release Readiness Checklist
+## 10. Release Readiness Gate
+
+Before inviting testers:
 
 - `npm run smoke` passes.
 - Env files are ignored and no real keys are committed.
-- Mobile simulator can reach auth, onboarding, Today, Library, and Account.
-- Content dry-run prints valid JSON with sources and dates.
-- Any persisted test content is labeled `[TEST persist-test]`.
-- Any persistence test has a recorded `test_run_id` and cleanup plan.
-- Live data proof logs show `live_daily_drop`, `live_library_drops`, and `interaction_write_success` before declaring Supabase integration verified.
+- Supabase migrations are applied to the tester project.
+- At least one account can sign up, complete onboarding, receive a live daily drop, save/complete/rate content, see Library, log out, and log back in.
+- Known issues are documented in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+- TestFlight gaps are reviewed in [TESTFLIGHT_READINESS.md](TESTFLIGHT_READINESS.md).

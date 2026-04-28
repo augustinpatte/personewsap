@@ -1,39 +1,98 @@
 # PersoNewsAP MVP Status
 
+Last reviewed: 2026-04-27
+
+PersoNewsAP is close to a small controlled tester build, not production launch. The core product principle is intact: one finite daily drop, sourced content, no infinite feed.
+
 ## What Works
 
-- Mobile app package has Expo scripts for local simulator work and a TypeScript check.
-- Root smoke workflow checks mobile TypeScript, content-engine build, and content-engine dry-run.
-- Content engine can build, dry-run from sample input, run LLM generation when configured, and run explicit persistence test commands.
-- Persistence test content is intentionally marked as test content and can be cleaned up by test run id.
-- Local `.env` files are ignored for the root app, mobile app, and content engine.
+- Expo mobile app has auth, onboarding, Today, Library, Account, and public Supabase client configuration.
+- Mobile app can fall back to readable preview content when live Supabase data is missing.
+- Today can display a four-slot daily drop: newsletter, business story, mini-case, and concept.
+- Today supports content interactions: complete, save, and feedback rating.
+- Library can show archived daily drops and saved/completed state when live data is available.
+- Account screen exposes the tester user id needed for assignment.
+- Root smoke workflow runs mobile TypeScript, content-engine build, and content-engine dry-run.
+- Content engine can build, dry-run from sample sources, try curated RSS feeds, run LLM generation when configured, and persist marked test drops with explicit confirmation flags.
+- Persistence test commands are guarded and mark generated test content.
+- Local env files are ignored for root, mobile, content engine, and Supabase temp state.
 
-## What Is Mocked
+## What Is Real
 
-- Mobile screens can fall back to mock daily content when live Supabase data or a session is unavailable.
-- Content-engine dry-run uses bundled sample source data and does not publish content.
-- LLM generation and persistence require real server-side environment variables and are outside the default smoke flow.
-- Some production operations, scheduling, and editorial review steps are still manual.
+- Supabase auth/session integration in the mobile app.
+- Onboarding preference persistence for authenticated users.
+- Daily drop read path from Supabase when a published drop is assigned to the user.
+- Library read path from Supabase for assigned published drops.
+- `content_interactions` writes for live content.
+- Supabase migrations for mobile foundation tables and RLS policies.
+- Content-engine source processing pipeline: source fetch, dedupe, categorization, ranking, generation payload validation.
+- Curated source registry and RSS ingestion foundation for real source metadata.
+- Server-side Supabase persistence through the content engine when service role env vars are explicitly provided.
 
-## What Needs Real Data
+## What Is Mocked Or Local-Only
 
-- Mobile auth and user-specific daily drops need a Supabase project with the current migrations applied.
-- Today and Library need generated `content_items`, `daily_drops`, and `daily_drop_items` rows to validate the complete live-data path.
-- `llm-run` needs `OPENAI_API_KEY` configured in a server-side shell or `services/content-engine/.env`.
-- `persist-test`, `cleanup-test`, and user assignment commands need server-side `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
-- End-to-end tester validation needs at least one test user with preferences and one daily drop assigned to that user.
+- Preview Today and Library content are mock fallback data.
+- Default `content:dry-run` uses bundled sample articles and does not publish content.
+- Some daily content generation paths use structured placeholder generation unless `OPENAI_API_KEY` is configured for `llm-run` or `daily-job-test --llm`.
+- Small tester daily drops are currently created through marked test commands, not an automated production scheduler.
+- Editorial review is manual. There is no review dashboard yet.
+- Push notifications are not validated for testers.
+- App Store/TestFlight distribution has not been completed in this repo.
 
-## Not Production-Ready
+## Unsafe For Production
 
-- Never put Supabase service role keys in Expo, Vite, or other client-side environments.
-- Run `persist-test` only against local, disposable, or deliberately selected Supabase projects.
-- Real LLM output still needs editorial review before publication.
-- Production scheduling, monitoring, push-notification QA, account lifecycle flows, and release hardening need more validation.
+- Do not point tester persistence commands at production unless deliberately accepting test rows there.
+- Do not put `SUPABASE_SERVICE_ROLE_KEY`, OpenAI keys, Resend keys, or generation secrets in `apps/mobile/.env`, Vite env, screenshots, logs, docs, or issue comments.
+- Generated LLM output is not production-safe without editorial review, especially for law, medicine, and finance.
+- RSS ingestion reads feed metadata only; feed licensing and publisher terms still need review before production use.
+- Cleanup commands intentionally avoid deleting published assigned drops, users, preferences, and sources. Published test content may need manual cleanup.
+- There is no production monitoring, incident response, App Store privacy review, or tester support process yet.
 
-## How To Test Manually
+## Current Known Limitations
 
-- Run `npm run smoke` from the repo root before sharing with testers.
-- Run the mobile app with `cd apps/mobile && npm run ios`, then check auth, onboarding, Today, Library, and Account.
-- Run `npm run content:dry-run` and inspect the printed JSON for sourced items, dates, and expected content slots.
-- If testing writes, use a local or disposable Supabase project and run `persist-test` only with `CONFIRM_PERSIST_TEST=true`.
-- After a persistence test, record the `test_run_id` and run `cleanup-test` for that id when finished.
+- A tester may see Preview mode if no live daily drop is assigned for that account/date.
+- Live proof depends on Metro terminal logs; there is no in-app diagnostics panel.
+- Complete/save interaction writes now run a client preflight to suppress obvious duplicates, but there is no database uniqueness constraint, so fast concurrent taps or multi-device races can still create duplicate rows.
+- Rating writes are append-only: the app treats the latest feedback row as the visible rating.
+- FR live content depends on available generated/persisted FR drops; default smoke flow is mostly EN sample content.
+- Password reset and account lifecycle flows need full manual QA before broad testing.
+- Offline, flaky network, and cold-start behavior need more device coverage.
+
+See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for the maintained issue list.
+
+## Next Blockers
+
+1. Decide the tester Supabase environment: disposable project, staging project, or production-like project.
+2. Apply migrations and confirm auth settings for tester signups.
+3. Run one full live-data proof on a real device or simulator.
+4. Prepare TestFlight credentials, bundle identifiers, signing, privacy text, and App Store Connect metadata.
+5. Decide how daily tester drops will be produced during the test: manual `persist-test`, `assign-test-users`, or `daily-job-test`.
+6. Review source licensing and editorial workflow before any production content claim.
+7. Add a tester feedback collection path outside the app if in-app feedback is not enough.
+
+## Manual Verification Snapshot
+
+Before saying the MVP is ready for a small tester group:
+
+- `npm run smoke` passes.
+- A new account can sign up and complete onboarding.
+- A marked test daily drop can be assigned to that account.
+- Today shows `Live daily drop`.
+- Complete, save, and rating actions write successfully.
+- Library shows the assigned drop.
+- Logout/login preserves access to Today and Library.
+- Known limitations are shared with testers and the test coordinator.
+
+## Live Proof Checklist
+
+Use this checklist for the real end-to-end proof:
+
+- `apps/mobile/.env` has public Supabase URL, anon key, and `EXPO_PUBLIC_LIVE_DATA_PROOF_MODE=true`.
+- `services/content-engine` commands use server-side `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` only.
+- New tester signs up and `[Profile proof]` logs `profile_saved` or `profile_exists`.
+- Onboarding completes and `[Onboarding proof]` logs `user_preferences_saved` plus `onboarding_saved`.
+- `persist-test` returns `mobileProof.daily_drop_id`.
+- Today logs `[Today data proof]` with `event: "live_daily_drop"` and no proof-mode mock fallback error.
+- Library logs `[Library data proof]` with `event: "live_library_drops"` and no proof-mode mock fallback error.
+- Completing, saving, and rating live content logs `[Content interaction proof]` with `interaction_write_success`; repeated complete/save should log `interaction_write_skipped`.
+- The tester can log out, log back in, and still see the assigned daily drop and Library entry.

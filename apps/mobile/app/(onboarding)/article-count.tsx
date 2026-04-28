@@ -29,6 +29,11 @@ export default function ArticleCountScreen() {
   return (
     <OnboardingScaffold
       description="Choose how much depth each selected topic gets in the newsletter slot."
+      footerNote={
+        selectedTopics.length > 0
+          ? "One to three articles per selected topic. Keep it readable."
+          : "Choose topics before setting article counts."
+      }
       primaryDisabled={selectedTopics.length === 0}
       primaryLabel="Continue"
       onPrimaryPress={() => router.push("/(onboarding)/frequency")}

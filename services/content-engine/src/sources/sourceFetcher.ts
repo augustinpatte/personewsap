@@ -1,6 +1,6 @@
 import type { RawArticle } from "../domain.js";
 import type { SourceConnector, SourceFetchRequest } from "./types.js";
-import { CURATED_SOURCES } from "./curatedSources.js";
+import { CURATED_SOURCE_COVERAGE, CURATED_SOURCES } from "./curatedSources.js";
 import { RssFeedConnector } from "./rssFetcher.js";
 import { sourceLog, sourceWarning } from "./sourceLogger.js";
 
@@ -57,7 +57,8 @@ function withLiveRssConnector(connectors: SourceConnector[]): SourceConnector[] 
   }
 
   sourceLog("live_rss_enabled", {
-    source_count: CURATED_SOURCES.filter((source) => source.rssUrl).length
+    source_count: CURATED_SOURCES.filter((source) => source.rssUrl).length,
+    coverage: CURATED_SOURCE_COVERAGE
   });
 
   return [...connectors, new RssFeedConnector(CURATED_SOURCES)];

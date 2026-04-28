@@ -1,8 +1,10 @@
 export type ParsedFeedItem = {
+  publisher: string | null;
+  rawDate: string | null;
+  summary: string | null;
   title: string | null;
   url: string | null;
   publishedAt: string | null;
-  summary: string | null;
 };
 
 type XmlElement = {
@@ -12,28 +14,78 @@ type XmlElement = {
 };
 
 export function parseXmlFeed(xml: string): ParsedFeedItem[] {
+  const feedPublisher = readFeedPublisher(xml);
+
   return findElementsByLocalName(xml, "item")
     .concat(findElementsByLocalName(xml, "entry"))
-    .map((element) => ({
-      title: readText(element.innerXml, ["title"]),
-      url: readFeedUrl(element.innerXml),
-      publishedAt: readText(element.innerXml, ["pubDate", "published", "updated", "date"]),
-      summary: readText(element.innerXml, ["description", "summary", "content", "encoded", "subtitle"])
-    }));
+    .map((element) => {
+      const rawDate = readText(element.innerXml, ["pubDate", "published", "updated", "date", "modified"]);
+
+      return {
+        publisher: readItemPublisher(element.innerXml) ?? feedPublisher,
+        rawDate,
+        summary: readFeedSummary(element.innerXml),
+        title: readText(element.innerXml, ["title"]),
+        url: readFeedUrl(element.innerXml),
+        publishedAt: normalizePublishedAt(rawDate)
+      };
+    });
 }
 
 function readFeedUrl(xml: string): string | null {
   const rssLink = readText(xml, ["link"]);
-  if (rssLink && !rssLink.includes("<")) {
-    return rssLink;
+  if (rssLink && !rssLink.includes("<") && isLikelyUrl(rssLink)) {
+    return cleanUrl(rssLink);
   }
 
   const atomLinks = findElementsByLocalName(xml, "link");
   const alternateLink =
-    atomLinks.find((link) => !link.attributes.rel || link.attributes.rel === "alternate") ??
+    atomLinks.find((link) => !readAttribute(link, "rel") || readAttribute(link, "rel") === "alternate") ??
     atomLinks[0];
+  const href = alternateLink ? readAttribute(alternateLink, "href") : null;
+  if (href && isLikelyUrl(href)) {
+    return cleanUrl(href);
+  }
 
-  return alternateLink?.attributes.href ?? rssLink ?? readText(xml, ["guid", "id"]);
+  const permalinkGuid = findElementsByLocalName(xml, "guid").find((guid) => readAttribute(guid, "isPermaLink") !== "false");
+  const guidUrl = normalizeText(permalinkGuid?.innerXml ?? "");
+  if (guidUrl && isLikelyUrl(guidUrl)) {
+    return cleanUrl(guidUrl);
+  }
+
+  const id = readText(xml, ["id"]);
+  return id && isLikelyUrl(id) ? cleanUrl(id) : null;
+}
+
+function readFeedPublisher(xml: string): string | null {
+  const channel = findElementsByLocalName(xml, "channel").at(0);
+  const feed = findElementsByLocalName(xml, "feed").at(0);
+  const root = channel?.innerXml ?? feed?.innerXml ?? xml;
+
+  return readText(root, ["title", "publisher"]) ?? readAuthor(root);
+}
+
+function readItemPublisher(xml: string): string | null {
+  return readText(xml, ["source", "publisher", "creator"]) ?? readAuthor(xml);
+}
+
+function readAuthor(xml: string): string | null {
+  const author = findElementsByLocalName(xml, "author").at(0);
+  if (!author) {
+    return null;
+  }
+
+  return readText(author.innerXml, ["name"]) ?? normalizeText(author.innerXml);
+}
+
+function readFeedSummary(xml: string): string | null {
+  const summary = readText(xml, ["description", "summary", "subtitle"]);
+  if (summary) {
+    return limitSummary(summary);
+  }
+
+  const contentSnippet = readText(xml, ["encoded", "content"]);
+  return contentSnippet ? limitSummary(contentSnippet) : null;
 }
 
 function readText(xml: string, names: string[]): string | null {
@@ -202,6 +254,12 @@ function parseAttributes(value: string): Record<string, string> {
   return attributes;
 }
 
+function readAttribute(element: XmlElement, name: string): string | null {
+  const wantedName = normalizeName(name);
+  const entry = Object.entries(element.attributes).find(([attributeName]) => normalizeName(attributeName) === wantedName);
+  return entry?.[1] ?? null;
+}
+
 function normalizeName(name: string): string {
   return name.toLowerCase().split(":").at(-1) ?? name.toLowerCase();
 }
@@ -223,4 +281,30 @@ function decodeXml(value: string): string {
     .replaceAll("&quot;", "\"")
     .replaceAll("&apos;", "'")
     .replaceAll("&#39;", "'");
+}
+
+function normalizePublishedAt(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+}
+
+function cleanUrl(value: string): string {
+  return decodeXml(value).trim();
+}
+
+function isLikelyUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
+
+function limitSummary(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= 700) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, 697).trimEnd()}...`;
 }

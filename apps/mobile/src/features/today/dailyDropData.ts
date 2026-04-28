@@ -1,10 +1,12 @@
 import {
+  createCachedResult,
   createMockFallbackResult,
   createSupabaseResult,
+  type DataFallbackReason,
   type DataFetchResult
 } from "../../lib/dataState";
 import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
-import { normalizeSupabaseError, supabase } from "../../lib/supabase";
+import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import {
   flattenDailyDropItems,
   getMockSourcesForItem,
@@ -34,6 +36,7 @@ type SourceIdsByContentItemId = Record<string, string[]>;
 const publishedDropStatuses = ["published", "read", "archived"] as const;
 const todayDropCacheTtlMs = 60_000;
 const contentSourcesCacheTtlMs = 5 * 60_000;
+const liveDataProofMode = process.env.EXPO_PUBLIC_LIVE_DATA_PROOF_MODE === "true";
 
 const topicIds = [
   "business",
@@ -100,7 +103,7 @@ export async function fetchTodayDrop(
         user_id: redactIdentifier(userId)
       });
 
-      return createSupabaseResult(cachedDrop);
+      return createCachedResult(cachedDrop);
     }
 
     let dropQuery = supabase
@@ -117,15 +120,18 @@ export async function fetchTodayDrop(
     const { data: drop, error: dropError } = await dropQuery.maybeSingle();
 
     if (dropError) {
+      const normalizedError = normalizeSupabaseError(dropError);
+      const fallbackReason = getFallbackReasonForError(normalizedError);
+
       logTodayDataProof("mock_fallback", {
         drop_date: dropDate,
-        reason: "supabase_error"
+        reason: fallbackReason
       });
 
       return createMockFallbackResult(
         fallbackDrop,
-        "supabase_error",
-        normalizeSupabaseError(dropError)
+        fallbackReason,
+        normalizedError
       );
     }
 
@@ -163,15 +169,18 @@ export async function fetchTodayDrop(
 
     return createSupabaseResult(mappedDrop);
   } catch (error) {
+    const normalizedError = normalizeSupabaseError(error);
+    const fallbackReason = getFallbackReasonForError(normalizedError);
+
     logTodayDataProof("mock_fallback", {
       drop_date: dropDate,
-      reason: "supabase_error"
+      reason: fallbackReason
     });
 
     return createMockFallbackResult(
       fallbackDrop,
-      "supabase_error",
-      normalizeSupabaseError(error)
+      fallbackReason,
+      normalizedError
     );
   }
 }
@@ -199,7 +208,7 @@ export async function fetchContentItemSources(
     const cachedSources = getCachedValue<SourceMetadata[]>(cacheKey);
 
     if (cachedSources) {
-      return createSupabaseResult(cachedSources);
+      return createCachedResult(cachedSources);
     }
 
     const { data: sourceLinks, error: sourceLinksError } = await supabase
@@ -209,10 +218,12 @@ export async function fetchContentItemSources(
       .order("source_order", { ascending: true });
 
     if (sourceLinksError) {
+      const normalizedError = normalizeSupabaseError(sourceLinksError);
+
       return createMockFallbackResult(
         fallbackSources,
-        "supabase_error",
-        normalizeSupabaseError(sourceLinksError)
+        getFallbackReasonForError(normalizedError),
+        normalizedError
       );
     }
 
@@ -228,10 +239,12 @@ export async function fetchContentItemSources(
       .in("id", sourceIds);
 
     if (sourcesError) {
+      const normalizedError = normalizeSupabaseError(sourcesError);
+
       return createMockFallbackResult(
         fallbackSources,
-        "supabase_error",
-        normalizeSupabaseError(sourcesError)
+        getFallbackReasonForError(normalizedError),
+        normalizedError
       );
     }
 
@@ -249,10 +262,12 @@ export async function fetchContentItemSources(
 
     return createSupabaseResult(orderedSources);
   } catch (error) {
+    const normalizedError = normalizeSupabaseError(error);
+
     return createMockFallbackResult(
       fallbackSources,
-      "supabase_error",
-      normalizeSupabaseError(error)
+      getFallbackReasonForError(normalizedError),
+      normalizedError
     );
   }
 }
@@ -590,15 +605,27 @@ function getContentSourcesCacheKey(contentItemId: string): string {
   return ["content-sources", contentItemId].join(":");
 }
 
+function getFallbackReasonForError(error: ReturnType<typeof normalizeSupabaseError>): DataFallbackReason {
+  return isLikelyNetworkError(error) ? "network_unavailable" : "supabase_error";
+}
+
 function logTodayDataProof(
   event: "live_daily_drop" | "live_daily_drop_cache_hit" | "mock_fallback",
   details: Record<string, unknown>
 ): void {
   if (__DEV__) {
-    console.info("[Today data proof]", {
+    const payload = {
       event,
+      proof_mode: liveDataProofMode,
       ...details
-    });
+    };
+
+    if (liveDataProofMode && event === "mock_fallback") {
+      console.error("[Today data proof]", payload);
+      return;
+    }
+
+    console.info("[Today data proof]", payload);
   }
 }
 

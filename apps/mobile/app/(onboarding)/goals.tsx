@@ -14,6 +14,7 @@ export default function GoalsScreen() {
   return (
     <OnboardingScaffold
       description="Tell PersoNewsAP what the five minutes should sharpen first."
+      footerNote={state.goal ? "Good. Next, pick the topics that should show up in your drop." : "Choose one goal to continue."}
       primaryDisabled={!state.goal}
       primaryLabel="Continue"
       onPrimaryPress={() => router.push("/(onboarding)/topics")}

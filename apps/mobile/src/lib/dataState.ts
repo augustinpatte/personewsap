@@ -9,11 +9,12 @@ export type AsyncDataState<T> = {
   status: AsyncDataStatus;
 };
 
-export type DataFetchSource = "supabase" | "mock";
+export type DataFetchSource = "supabase" | "cache" | "mock";
 
 export type DataFallbackReason =
   | "missing_auth_session"
   | "missing_supabase_config"
+  | "network_unavailable"
   | "no_supabase_data"
   | "supabase_error";
 
@@ -126,6 +127,20 @@ export function createSupabaseResult<T>(data: T): DataFetchResult<T> {
     fallbackReason: null,
     source: "supabase",
     state: createReadyState(data)
+  };
+}
+
+export function createCachedResult<T>(
+  data: T,
+  fallbackReason: DataFallbackReason | null = null,
+  error: NormalizedSupabaseError | null = null
+): DataFetchResult<T> {
+  return {
+    data,
+    error,
+    fallbackReason,
+    source: "cache",
+    state: error ? createErrorState(error, data) : createReadyState(data)
   };
 }
 

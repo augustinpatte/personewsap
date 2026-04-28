@@ -39,10 +39,16 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
   const isSignup = mode === "signup";
   const title = isSignup ? "Create your account" : "Welcome back";
   const description = isSignup
-    ? "Use email and password for the first mobile build. Preferences come next."
-    : "Log in to continue your daily briefing.";
+    ? "Create an account, then set up the daily drop you want to receive."
+    : "Log in to continue your five-minute daily briefing.";
   const primaryLabel = isSignup ? "Create account" : "Log in";
   const secondaryLabel = isSignup ? "I already have an account" : "Create an account";
+  const formHint = getFormHint({
+    confirmPassword,
+    email,
+    isSignup,
+    password
+  });
   const formValid = useMemo(() => {
     const hasRequiredFields = email.trim().length > 3 && password.length >= 8;
     return isSignup
@@ -147,6 +153,11 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
                 value={confirmPassword}
               />
             ) : null}
+            {formHint ? (
+              <AppText color="muted" variant="caption">
+                {formHint}
+              </AppText>
+            ) : null}
           </View>
 
           {formError ? (
@@ -182,6 +193,32 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
       </AppScreen>
     </KeyboardAvoidingView>
   );
+}
+
+function getFormHint({
+  confirmPassword,
+  email,
+  isSignup,
+  password
+}: {
+  confirmPassword: string;
+  email: string;
+  isSignup: boolean;
+  password: string;
+}) {
+  if (!email.trim().includes("@")) {
+    return "Enter the email you want to use for PersoNewsAP.";
+  }
+
+  if (password.length > 0 && password.length < 8) {
+    return "Password must be at least 8 characters.";
+  }
+
+  if (isSignup && confirmPassword.length > 0 && password !== confirmPassword) {
+    return "Passwords need to match before you can continue.";
+  }
+
+  return null;
 }
 
 function AuthErrorMessage({ error }: { error: NormalizedSupabaseError }) {

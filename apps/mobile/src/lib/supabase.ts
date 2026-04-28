@@ -110,6 +110,27 @@ export function normalizeSupabaseError(
   return { message: fallbackMessage };
 }
 
+export function isLikelyNetworkError(error: NormalizedSupabaseError | null | undefined): boolean {
+  if (!error) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+  const normalizedCode = error.code?.toLowerCase() ?? "";
+
+  return (
+    normalizedCode.includes("network") ||
+    normalizedCode.includes("timeout") ||
+    normalizedMessage.includes("network request failed") ||
+    normalizedMessage.includes("failed to fetch") ||
+    normalizedMessage.includes("networkerror") ||
+    normalizedMessage.includes("offline") ||
+    normalizedMessage.includes("timed out") ||
+    normalizedMessage.includes("timeout") ||
+    normalizedMessage.includes("load failed")
+  );
+}
+
 export async function getAuthSession(): Promise<AuthResult<Session>> {
   if (!supabase) {
     return {
@@ -456,13 +477,22 @@ function normalizeNetworkErrorMessage(
     };
   }
 
-  if (error.message.toLowerCase().includes("network request failed")) {
+  if (
+    message.includes("network request failed") ||
+    message.includes("failed to fetch") ||
+    message.includes("networkerror") ||
+    message.includes("offline") ||
+    message.includes("timed out") ||
+    message.includes("timeout") ||
+    message.includes("load failed")
+  ) {
     return {
       ...error,
       code: error.code ?? "network_request_failed",
+      message: "The network is unavailable right now.",
       hint:
         error.hint ??
-        "Developer/Test info: check apps/mobile/.env, restart Expo after changing env vars, and confirm the live data URL is reachable from this device."
+        "Check your connection, then retry. Developer/Test info: confirm the live data URL is reachable from this device."
     };
   }
 

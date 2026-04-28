@@ -2,6 +2,7 @@
 import { parseAssignTestUsersOptions, runAssignTestUsers } from "./cli/assignTestUsers.js";
 import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
 import { parseDailyJobTestOptions, runDailyJobTest } from "./cli/dailyJobTest.js";
+import { parseDebugUsersOptions, runDebugUsers } from "./cli/debugUsers.js";
 import { parseDryRunOptions, runDryRun } from "./cli/dryRun.js";
 import { parseLlmRunOptions, runLlmRun } from "./cli/llmRun.js";
 import { parsePersonalizeTestOptions, runPersonalizeTest } from "./cli/personalizeTest.js";
@@ -53,6 +54,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "debug-users") {
+    const output = await runDebugUsers(parseDebugUsersOptions(args));
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+
   if (command === "help" || command === "--help" || command === "-h") {
     printHelp();
     return;
@@ -71,6 +78,7 @@ Commands:
   cleanup-test            Delete draft persist-test content for one test_run_id.
   assign-test-users       Assign existing published test content to app users.
   daily-job-test          Generate, publish, and assign a limited marked test daily drop.
+  debug-users             Read-only daily-job-test user eligibility diagnostic.
   personalize-test        Assign already-published content from app user preferences.
 
 Options:
@@ -81,6 +89,14 @@ Options:
   --newsletter-count 4    Newsletter article count. Defaults to 4.
   --live-rss              Also try live RSS feeds. No API key required.
 
+Daily job env:
+  USER_LIMIT=5            Max app users assigned per language.
+  LANGUAGES=en,fr         Languages for daily-job-test.
+  TOPIC_LIMIT=3           Limit approved topics after --topics/env defaults.
+  USE_LLM=true            Use OpenAI generation for daily-job-test.
+  LIVE_RSS=true           Add live RSS to daily-job-test sources.
+  CONTENT_STATUS=published Store draft, review, or published test content.
+
 Examples:
   npm run dry-run
   npm run dry-run -- --languages en,fr --newsletter-count 3
@@ -90,6 +106,8 @@ Examples:
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_CLEANUP_TEST=true npm run cleanup-test -- --test-run-id persist-test-abc123
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_ASSIGN_TEST=true npm run assign-test-users -- --limit 5
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true npm run daily-job-test
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true LANGUAGES=en,fr USER_LIMIT=5 CONTENT_STATUS=published npm run daily-job-test
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run debug-users -- --language en --date 2026-04-26
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSONALIZE_TEST=true npm run personalize-test
 `);
 }

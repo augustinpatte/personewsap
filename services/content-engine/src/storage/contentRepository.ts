@@ -1,13 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-  DailyDropStatus,
-  DailyDropPayload,
-  DailyDropSlot,
-  GeneratedContentItem,
-  Language,
-  RankedArticle,
-  TopicId,
-  UserDailyDropPreference
+import {
+  isLanguage,
+  isTopicId,
+  type DailyDropStatus,
+  type DailyDropPayload,
+  type DailyDropSlot,
+  type GeneratedContentItem,
+  type Language,
+  type RankedArticle,
+  type TopicId,
+  type UserDailyDropPreference
 } from "../domain.js";
 import { sha256 } from "../utils/hash.js";
 import {
@@ -91,12 +93,101 @@ type DailyDropItemInput = {
   position: number;
 };
 
+type DebugProfileRow = {
+  id: string;
+  language: Language;
+};
+
+type DebugUserPreferenceRow = {
+  user_id: string;
+};
+
+type DebugTopicPreferenceRow = {
+  user_id: string;
+  enabled: boolean | null;
+};
+
+type DebugDailyDropRow = {
+  user_id: string;
+  status: DailyDropStatus;
+  language: Language;
+};
+
+type AppProfilePreferenceRow = {
+  id: string;
+  language: string | null;
+};
+
+type AppUserPreferenceRow = {
+  user_id: string;
+  goal: string | null;
+  frequency: string | null;
+  newsletter_article_count: number | null;
+};
+
+type AppUserTopicPreferenceRow = {
+  user_id: string;
+  topic_id: string | null;
+  articles_count: number | null;
+  position: number | null;
+  enabled: boolean | null;
+};
+
+export type UserDailyDropPreferenceSkip = {
+  user_id: string;
+  reason:
+    | "invalid_profile_language"
+    | "language_mismatch"
+    | "missing_user_preferences"
+    | "missing_enabled_user_topic_preferences";
+  language: string | null;
+  expectedLanguage: Language;
+  enabledTopicCount?: number;
+};
+
+export type UserDailyDropPreferenceSelection = {
+  preferences: UserDailyDropPreference[];
+  skippedUsers: UserDailyDropPreferenceSkip[];
+  profilesRead: number;
+  userPreferencesRead: number;
+  userTopicPreferencesRead: number;
+};
+
 export type DailyDropWriteResult = {
   dailyDropId: string;
   existingDropUpdated: boolean;
   linkedItems: number;
   staleItemsRemoved: number;
   duplicateInputItemsSkipped: number;
+};
+
+export type DailyJobUserDebugResult = {
+  target: {
+    dropDate: string;
+    language: Language;
+    userLimit: number;
+  };
+  counts: {
+    profiles: number;
+    profilesMatchingLanguage: number;
+    userPreferences: number;
+    topicPreferences: number;
+    enabledTopicPreferences: number;
+    dailyDropsOnDate: number;
+    dailyDropsOnDateForLanguage: number;
+    dailyJobConsideredBeforeLimit: number;
+    dailyJobConsideredAfterLimit: number;
+    eligibleNewAssignments: number;
+    wouldUpdateExistingDrop: number;
+  };
+  skipReasons: {
+    no_profile: number;
+    no_preferences: number;
+    no_topics: number;
+    language_mismatch: number;
+    already_has_drop: number;
+  };
+  notes: string[];
 };
 
 export type PersistTestCleanupResult = {
@@ -534,49 +625,308 @@ export class ContentRepository {
   }
 
   async listUserDailyDropPreferences(language: Language): Promise<UserDailyDropPreference[]> {
-    const { data: profiles, error: profileError } = await this.supabase
-      .from("profiles")
-      .select("id, language, user_preferences(goal, frequency, newsletter_article_count), user_topic_preferences(topic_id, articles_count, position, enabled)")
-      .eq("language", language);
+    return (await this.listUserDailyDropPreferenceSelection(language)).preferences;
+  }
 
-    if (profileError) {
-      throwPersistenceError({
-        table: "profiles",
-        action: "select user daily drop preferences",
-        error: profileError
+  async listUserDailyDropPreferenceSelection(language: Language): Promise<UserDailyDropPreferenceSelection> {
+    const profiles = await this.listAppProfilesForPreferenceSelection();
+    const profileIds = profiles.map((profile) => profile.id);
+    const [preferences, topicPreferences] = await Promise.all([
+      this.listAppUserPreferences(profileIds),
+      this.listAppUserTopicPreferences(profileIds)
+    ]);
+    const preferencesByUserId = new Map(preferences.map((preference) => [preference.user_id, preference]));
+    const topicsByUserId = groupTopicPreferencesByUserId(topicPreferences);
+    const selectedPreferences: UserDailyDropPreference[] = [];
+    const skippedUsers: UserDailyDropPreferenceSkip[] = [];
+
+    for (const profile of profiles.sort((left, right) => left.id.localeCompare(right.id))) {
+      if (!isLanguage(profile.language ?? "")) {
+        skippedUsers.push({
+          user_id: profile.id,
+          reason: "invalid_profile_language",
+          language: profile.language,
+          expectedLanguage: language
+        });
+        continue;
+      }
+
+      if (profile.language !== language) {
+        skippedUsers.push({
+          user_id: profile.id,
+          reason: "language_mismatch",
+          language: profile.language,
+          expectedLanguage: language
+        });
+        continue;
+      }
+
+      const preference = preferencesByUserId.get(profile.id);
+
+      if (!preference) {
+        skippedUsers.push({
+          user_id: profile.id,
+          reason: "missing_user_preferences",
+          language: profile.language,
+          expectedLanguage: language
+        });
+        continue;
+      }
+
+      const enabledTopics = (topicsByUserId.get(profile.id) ?? [])
+        .filter((topic) => topic.enabled !== false)
+        .filter((topic) => isTopicId(topic.topic_id ?? ""));
+
+      if (enabledTopics.length === 0) {
+        skippedUsers.push({
+          user_id: profile.id,
+          reason: "missing_enabled_user_topic_preferences",
+          language: profile.language,
+          expectedLanguage: language,
+          enabledTopicCount: 0
+        });
+        continue;
+      }
+
+      selectedPreferences.push({
+        user_id: profile.id,
+        language,
+        goal: String(preference.goal ?? "become_sharper_daily") as UserDailyDropPreference["goal"],
+        frequency: String(preference.frequency ?? "daily") as UserDailyDropPreference["frequency"],
+        newsletter_article_count: normalizeNewsletterArticleCount(preference.newsletter_article_count),
+        topics: enabledTopics.map((topic) => ({
+          topic_id: topic.topic_id as UserDailyDropPreference["topics"][number]["topic_id"],
+          articles_count: normalizeArticlesCount(topic.articles_count),
+          position: topic.position === null || topic.position === undefined ? null : Number(topic.position)
+        }))
       });
     }
 
-    return (profiles ?? []).flatMap((profile: Record<string, unknown>) => {
-      const preferences = Array.isArray(profile.user_preferences)
-        ? (profile.user_preferences[0] as Record<string, unknown> | undefined)
-        : (profile.user_preferences as Record<string, unknown> | null);
+    return {
+      preferences: selectedPreferences,
+      skippedUsers,
+      profilesRead: profiles.length,
+      userPreferencesRead: preferences.length,
+      userTopicPreferencesRead: topicPreferences.length
+    };
+  }
 
-      if (!preferences) {
-        return [];
+  async debugDailyJobUsers(input: {
+    dropDate: string;
+    language: Language;
+    userLimit: number;
+  }): Promise<DailyJobUserDebugResult> {
+    const [profiles, preferences, topicPreferences, dailyDrops] = await Promise.all([
+      this.listDebugProfiles(),
+      this.listDebugUserPreferences(),
+      this.listDebugTopicPreferences(),
+      this.listDebugDailyDrops(input.dropDate)
+    ]);
+    const profileIds = new Set(profiles.map((profile) => profile.id));
+    const preferencesByUser = new Set(preferences.map((preference) => preference.user_id));
+    const enabledTopicsByUser = new Set(
+      topicPreferences
+        .filter((topic) => topic.enabled !== false)
+        .map((topic) => topic.user_id)
+    );
+    const dailyDropsByUser = new Set(dailyDrops.map((drop) => drop.user_id));
+    const orphanUserIds = new Set<string>();
+
+    for (const preference of preferences) {
+      if (!profileIds.has(preference.user_id)) {
+        orphanUserIds.add(preference.user_id);
       }
+    }
 
-      const topics = Array.isArray(profile.user_topic_preferences) ? profile.user_topic_preferences : [];
+    for (const topic of topicPreferences) {
+      if (!profileIds.has(topic.user_id)) {
+        orphanUserIds.add(topic.user_id);
+      }
+    }
 
-      return [
-        {
-          user_id: String(profile.id),
-          language,
-          goal: String(preferences.goal ?? "become_sharper_daily") as UserDailyDropPreference["goal"],
-          frequency: String(preferences.frequency ?? "daily") as UserDailyDropPreference["frequency"],
-          newsletter_article_count: Number(preferences.newsletter_article_count ?? 8),
-          topics: topics
-            .filter((topic): topic is Record<string, unknown> => {
-              return typeof topic === "object" && topic !== null && topic.enabled !== false;
-            })
-            .map((topic) => ({
-              topic_id: String(topic.topic_id) as UserDailyDropPreference["topics"][number]["topic_id"],
-              articles_count: Number(topic.articles_count ?? 1),
-              position: topic.position === null || topic.position === undefined ? null : Number(topic.position)
-            }))
-        }
-      ];
+    for (const drop of dailyDrops) {
+      if (!profileIds.has(drop.user_id)) {
+        orphanUserIds.add(drop.user_id);
+      }
+    }
+
+    const profilesMatchingLanguage = profiles.filter((profile) => profile.language === input.language);
+    const assignmentReadyProfiles = profilesMatchingLanguage.filter((profile) => {
+      return preferencesByUser.has(profile.id) && enabledTopicsByUser.has(profile.id);
     });
+    const dailyJobConsideredBeforeLimit = assignmentReadyProfiles.length;
+    const alreadyHasDrop = assignmentReadyProfiles.filter((profile) => dailyDropsByUser.has(profile.id)).length;
+
+    return {
+      target: {
+        dropDate: input.dropDate,
+        language: input.language,
+        userLimit: input.userLimit
+      },
+      counts: {
+        profiles: profiles.length,
+        profilesMatchingLanguage: profilesMatchingLanguage.length,
+        userPreferences: preferences.length,
+        topicPreferences: topicPreferences.length,
+        enabledTopicPreferences: topicPreferences.filter((topic) => topic.enabled !== false).length,
+        dailyDropsOnDate: dailyDrops.length,
+        dailyDropsOnDateForLanguage: dailyDrops.filter((drop) => drop.language === input.language).length,
+        dailyJobConsideredBeforeLimit,
+        dailyJobConsideredAfterLimit: Math.min(dailyJobConsideredBeforeLimit, input.userLimit),
+        eligibleNewAssignments: assignmentReadyProfiles.length - alreadyHasDrop,
+        wouldUpdateExistingDrop: alreadyHasDrop
+      },
+      skipReasons: {
+        no_profile: orphanUserIds.size,
+        no_preferences: profilesMatchingLanguage.filter((profile) => !preferencesByUser.has(profile.id)).length,
+        no_topics: profilesMatchingLanguage.filter((profile) => {
+          return preferencesByUser.has(profile.id) && !enabledTopicsByUser.has(profile.id);
+        }).length,
+        language_mismatch: profiles.filter((profile) => profile.language !== input.language).length,
+        already_has_drop: alreadyHasDrop
+      },
+      notes: [
+        "No emails are selected or printed by this diagnostic.",
+        "dailyJobConsideredBeforeLimit mirrors daily-job-test user selection: matching profile language, user_preferences, and at least one enabled topic.",
+        "eligibleNewAssignments additionally requires no daily_drops row for the target date.",
+        "daily-job-test updates existing user/date drops; already_has_drop explains why a user is not a new assignment."
+      ]
+    };
+  }
+
+  private async listAppProfilesForPreferenceSelection(): Promise<AppProfilePreferenceRow[]> {
+    const { data, error } = await this.supabase
+      .from("profiles")
+      .select("id,language")
+      .returns<AppProfilePreferenceRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "profiles",
+        action: "select profiles for daily drop preference selection",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  private async listAppUserPreferences(userIds: string[]): Promise<AppUserPreferenceRow[]> {
+    const uniqueUserIds = [...new Set(userIds)];
+
+    if (uniqueUserIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from("user_preferences")
+      .select("user_id,goal,frequency,newsletter_article_count")
+      .in("user_id", uniqueUserIds)
+      .returns<AppUserPreferenceRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "user_preferences",
+        action: "select user preferences for daily drop preference selection",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  private async listAppUserTopicPreferences(userIds: string[]): Promise<AppUserTopicPreferenceRow[]> {
+    const uniqueUserIds = [...new Set(userIds)];
+
+    if (uniqueUserIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from("user_topic_preferences")
+      .select("user_id,topic_id,articles_count,position,enabled")
+      .in("user_id", uniqueUserIds)
+      .order("position", { ascending: true, nullsFirst: false })
+      .returns<AppUserTopicPreferenceRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "user_topic_preferences",
+        action: "select user topic preferences for daily drop preference selection",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  private async listDebugProfiles(): Promise<DebugProfileRow[]> {
+    const { data, error } = await this.supabase
+      .from("profiles")
+      .select("id,language")
+      .returns<DebugProfileRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "profiles",
+        action: "select profiles for user debug",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  private async listDebugUserPreferences(): Promise<DebugUserPreferenceRow[]> {
+    const { data, error } = await this.supabase
+      .from("user_preferences")
+      .select("user_id")
+      .returns<DebugUserPreferenceRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "user_preferences",
+        action: "select user preferences for user debug",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  private async listDebugTopicPreferences(): Promise<DebugTopicPreferenceRow[]> {
+    const { data, error } = await this.supabase
+      .from("user_topic_preferences")
+      .select("user_id,enabled")
+      .returns<DebugTopicPreferenceRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "user_topic_preferences",
+        action: "select topic preferences for user debug",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  private async listDebugDailyDrops(dropDate: string): Promise<DebugDailyDropRow[]> {
+    const { data, error } = await this.supabase
+      .from("daily_drops")
+      .select("user_id,status,language")
+      .eq("drop_date", dropDate)
+      .returns<DebugDailyDropRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "daily_drops",
+        action: "select daily drops for user debug",
+        error
+      });
+    }
+
+    return data ?? [];
   }
 
   async listDailyDropsForUsersOnDate(input: {
@@ -836,6 +1186,26 @@ function dailyDropItemPositionKey(item: {
   position: number;
 }): string {
   return `${item.slot}:${item.position}`;
+}
+
+function groupTopicPreferencesByUserId(
+  rows: AppUserTopicPreferenceRow[]
+): Map<string, AppUserTopicPreferenceRow[]> {
+  const groupedRows = new Map<string, AppUserTopicPreferenceRow[]>();
+
+  for (const row of rows) {
+    groupedRows.set(row.user_id, [...(groupedRows.get(row.user_id) ?? []), row]);
+  }
+
+  return groupedRows;
+}
+
+function normalizeNewsletterArticleCount(value: number | null): number {
+  return Number.isFinite(value) && value && value > 0 ? Math.floor(value) : 8;
+}
+
+function normalizeArticlesCount(value: number | null): number {
+  return Number.isFinite(value) && value && value > 0 ? Math.floor(value) : 1;
 }
 
 function isPersistTestContentItem(row: PersistTestContentItemRow, testRunId: string): boolean {

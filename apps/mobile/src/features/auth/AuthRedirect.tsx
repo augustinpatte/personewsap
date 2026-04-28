@@ -1,6 +1,8 @@
 import { Redirect } from "expo-router";
+import { ActivityIndicator } from "react-native";
 
 import { AppScreen, AppText, Card, PrimaryButton } from "../../components";
+import { tokens } from "../../design/tokens";
 import { useAuth } from "./AuthProvider";
 
 export function AuthLoadingScreen() {
@@ -9,8 +11,9 @@ export function AuthLoadingScreen() {
       <Card elevated padding="lg">
         <AppText variant="eyebrow">PersoNewsAP</AppText>
         <AppText variant="title">Loading your session</AppText>
+        <ActivityIndicator color={tokens.color.accent} />
         <AppText color="muted" variant="body">
-          Preparing your daily briefing space.
+          Checking the saved session. If the network is slow, this screen will stay calm instead of flashing the app.
         </AppText>
       </Card>
     </AppScreen>

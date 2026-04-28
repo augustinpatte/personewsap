@@ -38,6 +38,7 @@ npm run persist-test
 npm run cleanup-test
 npm run assign-test-users
 npm run daily-job-test
+npm run debug-users
 ```
 
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
@@ -241,9 +242,9 @@ npm run assign-test-users -- --test-run-id persist-test-abc123
 
 The command logs how many users were considered, skipped, and assigned. Use this after publishing or creating a published persist-test content set, for example via `persist-test` with `TEST_USER_ID`.
 
-## Daily Job Test MVP
+## Daily Job Test
 
-`daily-job-test` is the scheduler-shaped local workflow. It fetches sources, processes/ranks/categorizes them, generates one marked test daily drop, persists the generated content as `published`, and assigns it to a small number of app users from `profiles` with `user_preferences`.
+`daily-job-test` is the scheduler-shaped local workflow. It fetches sources, processes/ranks/categorizes them, generates one marked test daily drop per language, persists the generated content, and assigns published drops to a small number of onboarded mobile app users.
 
 It is fail-closed: it refuses to write unless all required safety variables are present.
 
@@ -258,7 +259,9 @@ Optional:
 - `USE_LLM=true` uses OpenAI generation instead of the deterministic dry-run generator. Also set `OPENAI_API_KEY`.
 - `LIVE_RSS=true` adds live RSS feeds to the bundled sample articles.
 - `USER_LIMIT=5` controls the maximum number of app users assigned per language. Defaults to 5 and is capped at 25.
+- `LANGUAGES=fr,en` sets the languages when `--language` or `--languages` is not provided. Defaults to `fr,en` so French and English app profiles are covered by default.
 - `TOPIC_LIMIT=5` limits how many approved topics are used from the selected topic list.
+- `CONTENT_STATUS=published` stores generated content as `draft`, `review`, or `published`. Assignment only runs for `published`.
 
 Safe default run using sample articles and deterministic generation:
 
@@ -266,7 +269,15 @@ Safe default run using sample articles and deterministic generation:
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
 CONFIRM_DAILY_JOB_TEST=true \
+USER_LIMIT=5 \
+CONTENT_STATUS=published \
 npm run daily-job-test
+```
+
+If your shell already has the required Supabase safety variables exported, the standard language-coverage run is:
+
+```sh
+LANGUAGES=fr,en npm run daily-job-test
 ```
 
 LLM-backed run:
@@ -281,15 +292,26 @@ USER_LIMIT=5 \
 npm run daily-job-test
 ```
 
-Live RSS test with a smaller topic set:
+Multi-language live RSS test with a smaller topic set:
 
 ```sh
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
 CONFIRM_DAILY_JOB_TEST=true \
 LIVE_RSS=true \
+LANGUAGES=fr,en \
 TOPIC_LIMIT=3 \
 USER_LIMIT=3 \
+npm run daily-job-test
+```
+
+Generate and store review content without assigning users:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_DAILY_JOB_TEST=true \
+CONTENT_STATUS=review \
 npm run daily-job-test
 ```
 
@@ -297,7 +319,8 @@ Useful command options:
 
 ```sh
 npm run daily-job-test -- --date 2026-04-26
-npm run daily-job-test -- --languages en,fr
+npm run daily-job-test -- --languages fr,en
+npm run daily-job-test -- --languages en
 npm run daily-job-test -- --topics business,finance,tech_ai
 ```
 
@@ -305,9 +328,13 @@ Safety behavior:
 
 - no Supabase writes happen unless `CONFIRM_DAILY_JOB_TEST=true` and service-role credentials are present
 - generated titles are prefixed with `[TEST daily-job-test]`
-- `content_items.metadata` includes `is_test_data: true`, `test_mode: "daily-job-test"`, `test_run_id`, `use_llm`, and `live_rss`
-- assignments are limited by `USER_LIMIT`
-- app users are selected only through `profiles` with `user_preferences`, not legacy newsletter-only tables
+- `content_items.metadata` includes `is_test_data: true`, `test_mode: "daily-job-test"`, `test_run_id`, `use_llm`, `live_rss`, and `content_status`
+- the `test_run_id` is stable for the same date, language, generation mode, RSS mode, and topic set
+- assignments are limited by `USER_LIMIT` and run only when `CONTENT_STATUS=published`
+- each user is assigned from the generated drop matching their `profiles.language`
+- app users are selected only through mobile app tables: `profiles`, `user_preferences`, and enabled `user_topic_preferences`, sorted by `user_id`, not legacy newsletter-only tables
+- selection matches the current mobile onboarding completion rule: matching profile language, a `user_preferences` row, and at least one enabled topic preference
+- users skipped before assignment are logged with a reason such as language mismatch, missing preferences, or missing enabled topics
 - users with an existing `daily_drops` row for the same date are updated predictably
 - stale `daily_drop_items` links are removed when a rerun generates fewer or different items
 - write stages are logged but not retried as a whole, to avoid duplicating partial writes
@@ -320,9 +347,66 @@ Progress logs are printed to stderr for each stage:
 - validation
 - persistence preflight
 - persistence
+- content stored
 - assignment
 
-The JSON result reports fetched, processed, generated, stored, considered, assigned, and skipped counts per language.
+Failure behavior:
+
+- source connectors log failures individually
+- source fetch only fails a language when every configured source returns no usable articles
+- one language failure does not hide the other language diagnostics
+- the JSON result includes a top-level `status`, `summary`, and per-language `status`/`error`
+- the process exit code is set to failure when any language fails, after JSON is printed
+
+The JSON result reports fetched, processed, generated, stored, considered, assigned, created, updated, stale-link, duplicate-link, and skipped counts per language plus totals.
+
+### Debugging User Eligibility
+
+`debug-users` is a read-only diagnostic for explaining why `daily-job-test` might report `users_considered: 0` or assign fewer users than expected. It requires service-role credentials to inspect app profile and preference tables, but it does not write to Supabase and does not select or print emails.
+
+It checks `fr,en` by default. Set `LANGUAGES=en`, `LANGUAGES=fr,en`, `LANGUAGE=fr`, `--languages`, or `--language` to narrow or reorder the diagnostic.
+
+Required:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+npm run debug-users
+```
+
+If your shell already has the required Supabase credentials exported, check both app languages with:
+
+```sh
+LANGUAGES=fr,en npm run debug-users
+```
+
+Useful options:
+
+```sh
+npm run debug-users -- --languages fr,en
+npm run debug-users -- --languages en
+npm run debug-users -- --language en
+npm run debug-users -- --date 2026-04-26
+npm run debug-users -- --language fr --limit 10
+```
+
+The output reports:
+
+- total `profiles`
+- total `user_preferences`
+- total `user_topic_preferences`
+- enabled topic preference count
+- profiles matching each target language
+- users daily-job-test would consider before and after `USER_LIMIT`
+- eligible new assignments
+- users that would update an existing drop
+- skip reason counts for `no_profile`, `no_preferences`, `no_topics`, `language_mismatch`, and `already_has_drop`
+- a per-language result section plus a top-level summary across requested languages
+
+No emails, service keys, or user secrets are printed.
 
 ## Daily Job
 

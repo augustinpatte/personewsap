@@ -72,15 +72,25 @@ async function createProfileIfMissing(user: User) {
   try {
     const { data: existingProfile, error: readError } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, language")
       .eq("id", user.id)
       .maybeSingle();
 
     if (readError) {
+      logProfileProof("profile_read_failed", {
+        reason: "supabase_error",
+        user_id: redactIdentifier(user.id)
+      });
+
       return { error: normalizeSupabaseError(readError, "Could not read your mobile profile.") };
     }
 
     if (existingProfile) {
+      logProfileProof("profile_exists", {
+        language: existingProfile.language,
+        user_id: redactIdentifier(user.id)
+      });
+
       return { error: null };
     }
 
@@ -92,11 +102,35 @@ async function createProfileIfMissing(user: User) {
     });
 
     if (insertError?.code === "23505") {
+      logProfileProof("profile_exists", {
+        reason: "unique_conflict",
+        user_id: redactIdentifier(user.id)
+      });
+
       return { error: null };
     }
 
-    return { error: insertError ? normalizeSupabaseError(insertError) : null };
+    if (insertError) {
+      logProfileProof("profile_save_failed", {
+        reason: "supabase_error",
+        user_id: redactIdentifier(user.id)
+      });
+
+      return { error: normalizeSupabaseError(insertError) };
+    }
+
+    logProfileProof("profile_saved", {
+      language: "en",
+      user_id: redactIdentifier(user.id)
+    });
+
+    return { error: null };
   } catch (error) {
+    logProfileProof("profile_save_failed", {
+      reason: "exception",
+      user_id: redactIdentifier(user.id)
+    });
+
     return {
       error: normalizeSupabaseError(error, "Could not create your mobile profile.")
     };
@@ -116,42 +150,52 @@ async function getProfileCompleted(userId: string) {
     };
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("id", userId)
-    .maybeSingle();
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle();
 
-  if (profileError) {
-    return { completed: false, error: normalizeSupabaseError(profileError) };
+    if (profileError) {
+      return { completed: false, error: normalizeSupabaseError(profileError) };
+    }
+
+    const { data: preferences, error: preferencesError } = await supabase
+      .from("user_preferences")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (preferencesError) {
+      return { completed: false, error: normalizeSupabaseError(preferencesError) };
+    }
+
+    const { data: topicPreference, error: topicPreferenceError } = await supabase
+      .from("user_topic_preferences")
+      .select("topic_id")
+      .eq("user_id", userId)
+      .eq("enabled", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (topicPreferenceError) {
+      return { completed: false, error: normalizeSupabaseError(topicPreferenceError) };
+    }
+
+    return {
+      completed: Boolean(profile && preferences && topicPreference),
+      error: null
+    };
+  } catch (error) {
+    const normalizedError = normalizeSupabaseError(error, "Could not check onboarding status.");
+    logAuthDebug("profile_completion_exception", normalizedError);
+
+    return {
+      completed: false,
+      error: normalizedError
+    };
   }
-
-  const { data: preferences, error: preferencesError } = await supabase
-    .from("user_preferences")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (preferencesError) {
-    return { completed: false, error: normalizeSupabaseError(preferencesError) };
-  }
-
-  const { data: topicPreference, error: topicPreferenceError } = await supabase
-    .from("user_topic_preferences")
-    .select("topic_id")
-    .eq("user_id", userId)
-    .eq("enabled", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (topicPreferenceError) {
-    return { completed: false, error: normalizeSupabaseError(topicPreferenceError) };
-  }
-
-  return {
-    completed: Boolean(profile && preferences && topicPreference),
-    error: null
-  };
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -391,6 +435,21 @@ function logAuthDebug(event: string, error?: NormalizedSupabaseError | null) {
     hint: error?.hint,
     supabase: supabaseConfigDiagnostics
   });
+}
+
+function logProfileProof(event: string, details: Record<string, unknown>) {
+  if (__DEV__) {
+    console.info("[Profile proof]", {
+      event,
+      ...details
+    });
+  }
+}
+
+function redactIdentifier(identifier: string): string {
+  return identifier.length <= 8
+    ? identifier
+    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
 }
 
 function getAuthConfigError(): NormalizedSupabaseError {

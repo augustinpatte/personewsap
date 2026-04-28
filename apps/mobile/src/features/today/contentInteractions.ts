@@ -21,7 +21,10 @@ type ContentInteractionReadResult =
   | { ok: false; error: NormalizedSupabaseError };
 
 type WriteContentInteractionResult =
-  | { ok: true }
+  | {
+      ok: true;
+      outcome: "inserted" | "already_exists" | "unchanged";
+    }
   | { ok: false; error: NormalizedSupabaseError };
 
 const persistedInteractionTypes = ["complete", "save", "feedback"] as const;
@@ -160,6 +163,29 @@ export async function writeContentInteraction({
   }
 
   try {
+    const duplicateCheck = await resolveExistingInteractionOutcome({
+      contentItemId,
+      interactionType,
+      rating,
+      userId
+    });
+
+    if (!duplicateCheck.ok) {
+      return { ok: false, error: duplicateCheck.error };
+    }
+
+    if (duplicateCheck.outcome) {
+      logContentInteractionProof("interaction_write_skipped", {
+        content_item_id: redactIdentifier(contentItemId),
+        interaction_type: interactionType,
+        outcome: duplicateCheck.outcome,
+        rating: rating ?? null,
+        user_id: redactIdentifier(userId)
+      });
+
+      return { ok: true, outcome: duplicateCheck.outcome };
+    }
+
     const { error } = await supabase.from("content_interactions").insert({
       user_id: userId,
       content_item_id: contentItemId,
@@ -184,11 +210,12 @@ export async function writeContentInteraction({
     logContentInteractionProof("interaction_write_success", {
       content_item_id: redactIdentifier(contentItemId),
       interaction_type: interactionType,
+      outcome: "inserted",
       rating: rating ?? null,
       user_id: redactIdentifier(userId)
     });
 
-    return { ok: true };
+    return { ok: true, outcome: "inserted" };
   } catch (error) {
     logContentInteractionProof("interaction_write_failed", {
       content_item_id: redactIdentifier(contentItemId),
@@ -202,6 +229,76 @@ export async function writeContentInteraction({
       error: normalizeSupabaseError(error, "Could not save this content interaction.")
     };
   }
+}
+
+async function resolveExistingInteractionOutcome({
+  contentItemId,
+  interactionType,
+  rating,
+  userId
+}: {
+  contentItemId: string;
+  interactionType: InteractionType;
+  rating?: ContentRating;
+  userId: string;
+}): Promise<
+  | {
+      ok: true;
+      outcome: "already_exists" | "unchanged" | null;
+    }
+  | { ok: false; error: NormalizedSupabaseError }
+> {
+  if (!supabase) {
+    return {
+      ok: false,
+      error: {
+        code: "missing_supabase_config",
+        message: "This action can only be saved on this device for now."
+      }
+    };
+  }
+
+  if (interactionType !== "complete" && interactionType !== "save" && interactionType !== "feedback") {
+    return { ok: true, outcome: null };
+  }
+
+  const { data, error } = await supabase
+    .from("content_interactions")
+    .select("id,rating")
+    .eq("user_id", userId)
+    .eq("content_item_id", contentItemId)
+    .eq("interaction_type", interactionType)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    logContentInteractionProof("interaction_preflight_failed", {
+      content_item_id: redactIdentifier(contentItemId),
+      interaction_type: interactionType,
+      reason: "supabase_error",
+      user_id: redactIdentifier(userId)
+    });
+
+    return {
+      ok: false,
+      error: normalizeSupabaseError(error, "Could not check previous content interaction.")
+    };
+  }
+
+  const latestInteraction = data?.[0] ?? null;
+
+  if (!latestInteraction) {
+    return { ok: true, outcome: null };
+  }
+
+  if (interactionType === "feedback") {
+    return {
+      ok: true,
+      outcome: latestInteraction.rating === rating ? "unchanged" : null
+    };
+  }
+
+  return { ok: true, outcome: "already_exists" };
 }
 
 export function createEmptyContentInteractionSnapshot(): ContentInteractionSnapshot {
@@ -240,7 +337,9 @@ function logContentInteractionProof(
     | "interaction_snapshot_empty"
     | "interaction_snapshot_failed"
     | "interaction_snapshot_loaded"
+    | "interaction_preflight_failed"
     | "interaction_write_failed"
+    | "interaction_write_skipped"
     | "interaction_write_success",
   details: Record<string, unknown>
 ): void {

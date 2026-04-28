@@ -17,7 +17,31 @@ Curated sources live in `curatedSources.ts`. Each source includes:
 - optional `rssUrl`
 - optional `usage_notes`
 
-The RSS connector reads only feed-level fields: title, link, publication date, summary/description, publisher, language, topic, and retrieval time. It does not fetch full article pages and must not bypass paywalls, robots rules, or publisher licensing.
+The registry is grouped conceptually by the eight PersoNewsAP topics and exports `CURATED_SOURCE_COVERAGE` so live runs can log source count, RSS count, tier-1 count, and region coverage per topic. Source entries without `rssUrl` are deliberate curated references: they may be reputable, but they are not pulled during `LIVE_RSS=true` until licensing and feed stability are clear.
+
+The RSS connector reads only feed-level fields: title, link, publication date, summary/description, publisher, language, topic, and retrieval time. It does not fetch full article pages and must not bypass paywalls, robots rules, or publisher licensing. Long feed bodies from `content:encoded` are treated as short snippets only.
+
+## Topic Strategy
+
+- `business`: mix broad business news, public-service explainers, and university/business-school research.
+- `finance`: prioritize primary regulators and central banks, then accessible economic explainers.
+- `tech_ai`: balance independent tech reporting, institutional AI research, corporate primary-source blogs, and cautious preprint trend signals.
+- `law`: prioritize courts, regulators, and high-quality legal/digital-rights specialists.
+- `medicine`: prioritize journals and public-health institutions; generation must avoid personal medical advice.
+- `engineering`: combine applied engineering media, aerospace/agency sources, university research, and cautious preprint trend signals.
+- `sport_business`: use specialist trade sources, because high-quality public RSS coverage is thinner than other topics.
+- `culture_media`: combine media-industry reporting, journalism research, and entertainment business trades.
+
+## Live RSS Behavior
+
+`LIVE_RSS=false` is the default. When `LIVE_RSS=true`, the engine adds the RSS connector beside the safe sample/curated path. Each source is isolated:
+
+- `rss_source_attempted` logs before a fetch.
+- `rss_source_health` logs success or failure with duration, kept count, and skipped count.
+- `rss_source_succeeded` logs item counts, kept/skipped counts, stale skips, invalid URL skips, and configured max age.
+- `rss_source_failed` logs per-source failures after `Promise.allSettled`.
+
+One broken feed should never crash the whole source run.
 
 ## Credibility Tiers
 
@@ -36,6 +60,7 @@ Tier is not a truth label. It is an input to ranking and editorial review.
 - Some publishers permit RSS only for personal use. Keep those entries without `rssUrl` unless PersoNewsAP has permission.
 - Institutional sources are often primary but self-interested. Use them for what an institution said or filed, not as independent analysis.
 - Law, medicine, and finance sources need extra care: prefer primary documents and avoid personal legal, medical, or investment advice.
+- Weak sources to replace later: sport business has fewer open, stable, high-quality feeds; preprint feeds in AI/engineering are trend inputs only; some EU/French institutional references remain paused until stable RSS endpoints are confirmed.
 
 ## Add Or Remove Sources
 

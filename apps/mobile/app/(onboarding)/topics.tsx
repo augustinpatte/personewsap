@@ -14,7 +14,11 @@ export default function TopicsScreen() {
   return (
     <OnboardingScaffold
       description="Choose a focused mix. The product stays one daily drop, not a feed."
-      footerNote={`${state.selectedTopics.length} selected`}
+      footerNote={
+        state.selectedTopics.length > 0
+          ? `${state.selectedTopics.length} selected`
+          : "Choose at least one topic to continue."
+      }
       primaryDisabled={state.selectedTopics.length === 0}
       primaryLabel="Continue"
       onPrimaryPress={() => router.push("/(onboarding)/article-count")}

@@ -38,7 +38,11 @@ export default function FrequencyScreen() {
   return (
     <OnboardingScaffold
       description="PersoNewsAP is built around one focused update. Daily is the launch cadence."
-      footerNote="Preferences are saved to your PersoNewsAP account."
+      footerNote={
+        hasRequiredPreferences
+          ? "Preferences are saved to your PersoNewsAP account."
+          : "Go back and complete language, goal, and topic choices before saving."
+      }
       primaryDisabled={saving || !hasRequiredPreferences}
       primaryLabel={saving ? "Saving..." : "Save preferences"}
       primaryLoading={saving}

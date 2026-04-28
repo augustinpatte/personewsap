@@ -17,7 +17,8 @@
     "cleanup-test": "npm run build && node dist/cli.js cleanup-test",
     "assign-test-users": "npm run build && node dist/cli.js assign-test-users",
     "personalize-test": "npm run build && node dist/cli.js personalize-test",
-    "daily-job-test": "npm run build && node dist/cli.js daily-job-test"
+    "daily-job-test": "npm run build && node dist/cli.js daily-job-test",
+    "debug-users": "npm run build && node dist/cli.js debug-users"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3"

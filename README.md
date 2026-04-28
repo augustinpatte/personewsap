@@ -1,200 +1,106 @@
-# Welcome to your Lovable project
+# PersoNewsAP
 
-## Project info
+PersoNewsAP is a premium daily learning app for ambitious students and early-career users. The product principle is one focused daily drop, not an infinite feed.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+The current repo contains:
 
-## How can I edit this code?
+- Expo mobile app in `apps/mobile`
+- Content generation and persistence service in `services/content-engine`
+- Supabase migrations in `supabase/migrations`
+- Local/tester release documentation at the repo root
 
-There are several ways of editing your application.
+## Start Here
 
-**Use Lovable**
+For a small tester handoff, read these in order:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+1. [MVP_STATUS.md](MVP_STATUS.md) - what works, what is real, what is mocked, and what is unsafe for production.
+2. [TESTING.md](TESTING.md) - local setup, Supabase setup, daily-drop generation, manual QA, and troubleshooting.
+3. [SUPABASE_CHECKLIST.md](SUPABASE_CHECKLIST.md) - schema/RLS verification before testers use the mobile app.
+4. [TESTFLIGHT_READINESS.md](TESTFLIGHT_READINESS.md) - checklist for moving from local QA to TestFlight.
+5. [TESTER_SCRIPT_15_MIN.md](TESTER_SCRIPT_15_MIN.md) - step-by-step script for a short tester session.
+6. [KNOWN_ISSUES.md](KNOWN_ISSUES.md) - current limitations and tester risks.
 
-Changes made via Lovable will be committed automatically to this repo.
+Product and editorial context:
 
-**Use your preferred IDE**
+- [PRODUCT_BRIEF.md](PRODUCT_BRIEF.md)
+- [CONTENT_SYSTEM.md](CONTENT_SYSTEM.md)
+- [TECH_PLAN.md](TECH_PLAN.md)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Quick Local Setup
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
-
-## Self-hosted setup (without Lovable)
-
-### 1) Install dependencies
+Install dependencies:
 
 ```sh
 npm install
+npm --prefix apps/mobile install
+npm --prefix services/content-engine install
 ```
 
-### 2) Supabase project
-
-1. Create a Supabase project.
-2. Apply the SQL migrations in `supabase/migrations`.
-3. In Supabase Authentication settings:
-   - Enable email provider.
-   - Set the Site URL to your production domain.
-   - Add `https://<your-domain>/verify` to Redirect URLs.
-
-### 3) Environment variables
-
-Create a `.env` file (or configure your hosting provider) with:
-
-```
-VITE_SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY="YOUR_ANON_KEY"
-```
-
-### 4) Run locally
-
-```sh
-npm run dev
-```
-
-### 5) Newsletter feedback links
-
-At the end of each newsletter, include a link like:
-
-```
-https://<your-domain>/feedback?email={{email}}&issue=YYYY-MM-DD&lang=fr
-```
-
-Replace `lang=fr` with `lang=en` as needed.
-
-## Local MVP Developer Workflow
-
-Use [TESTING.md](TESTING.md) for the full tester handoff flow and [MVP_STATUS.md](MVP_STATUS.md) for the current MVP readiness notes.
-
-### Smoke Checks
-
-Run the current MVP smoke flow from the repo root:
+Run the smoke check:
 
 ```sh
 npm run smoke
 ```
 
-This runs:
+This runs mobile TypeScript, content-engine build, and content-engine dry-run.
 
-- `npm run mobile:typecheck`
-- `npm run content:build`
-- `npm run content:dry-run`
+## Mobile App
 
-Useful single checks:
+Use public Supabase client keys only:
 
 ```sh
+cp apps/mobile/.env.example apps/mobile/.env
+npm --prefix apps/mobile run ios
+```
+
+Other useful commands:
+
+```sh
+npm --prefix apps/mobile run start
+npm --prefix apps/mobile run android
 npm run mobile:typecheck
-npm run content:build
+```
+
+Never put a Supabase service role key, OpenAI key, Resend key, or generation secret in the mobile app.
+
+## Content Engine
+
+Safe no-write run:
+
+```sh
 npm run content:dry-run
 ```
 
-### Mobile App
-
-From the repo root:
+Build only:
 
 ```sh
-cd apps/mobile
-npm install
-npm run ios
-```
-
-Use `npm run android` for Android or `npm run start` for the Expo launcher. The mobile TypeScript check can be run from the repo root with `npm run mobile:typecheck`.
-
-Mobile env vars belong in `apps/mobile/.env`. Only use public client keys there, such as `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Never put a Supabase service role key in the mobile app.
-
-### Content Engine
-
-From the repo root:
-
-```sh
-npm --prefix services/content-engine install
 npm run content:build
-npm run content:dry-run
 ```
 
-`content:dry-run` builds the content engine and generates local output from sample sources. It does not write to Supabase.
+Persistence commands require explicit confirmation flags and server-side env vars. Use [TESTING.md](TESTING.md) before running them.
 
-For LLM generation, configure server-side env vars in `services/content-engine/.env` or your shell, then run:
+## Supabase
 
-```sh
-npm --prefix services/content-engine run llm-run
-```
+Migrations live in `supabase/migrations`.
 
-### Persistence Test
+For tester prep:
 
-`persist-test` writes test content and requires an explicit confirmation flag. Use a local or disposable Supabase project unless you intentionally choose another environment.
+- use a disposable or staging Supabase project
+- apply migrations in order
+- keep service-role access server-side only
+- verify schema/RLS with [SUPABASE_CHECKLIST.md](SUPABASE_CHECKLIST.md)
 
-```sh
-SUPABASE_URL=... \
-SUPABASE_SERVICE_ROLE_KEY=... \
-CONFIRM_PERSIST_TEST=true \
-npm --prefix services/content-engine run persist-test
-```
+## Release Safety
 
-If test content was created with a `test_run_id`, clean it up with:
+Before inviting testers:
 
-```sh
-SUPABASE_URL=... \
-SUPABASE_SERVICE_ROLE_KEY=... \
-CONFIRM_CLEANUP_TEST=true \
-npm --prefix services/content-engine run cleanup-test -- --test-run-id persist-test-...
-```
+- `npm run smoke` passes
+- a tester can sign up and complete onboarding
+- a marked test daily drop can be assigned to the tester
+- Today shows `Live daily drop`
+- complete/save/rating interactions work
+- Library loads the assigned drop
+- logout/login works
+- [KNOWN_ISSUES.md](KNOWN_ISSUES.md) is reviewed with the tester coordinator
 
-### Environment Safety
-
-- `.env` and `.env.*` files are ignored; keep real keys local.
-- The checked ignore rules cover root `.env`, `apps/mobile/.env`, `services/content-engine/.env`, and `supabase/.temp`.
-- Service role keys are server-side only. Do not place them in Expo, Vite, or any checked-in config.
-- Do not paste real API keys into logs, docs, issue comments, or screenshots.
+PersoNewsAP is not production-ready until TestFlight setup, privacy review, editorial review, source licensing, and production operations are completed.

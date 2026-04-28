@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { AppScreen, AppText, Card, EmptyState, PrimaryButton, ProgressPill, SecondaryButton, SectionHeader } from "../../components";
+import {
+  AppScreen,
+  AppText,
+  Card,
+  DataModeBanner,
+  EmptyState,
+  PrimaryButton,
+  ProgressPill,
+  SecondaryButton,
+  SectionHeader
+} from "../../components";
 import { TOPICS } from "../../constants/product";
 import { tokens } from "../../design/tokens";
 import type { DataFallbackReason, DataFetchSource } from "../../lib/dataState";
@@ -103,12 +113,9 @@ export function TodayDailyDropScreen() {
   const progress = totalItemCount > 0 ? completedItemCount / totalItemCount : 0;
   const isComplete = totalItemCount > 0 && completedItemCount === totalItemCount;
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadTodayDrop() {
+  const loadTodayDrop = useCallback(
+    async (isActive: () => boolean = () => true) => {
       setLoadState((currentState) => ({ ...currentState, status: "loading" }));
-      setInteractionState(createEmptyContentInteractionSnapshot());
       setInteractionError(null);
       setInteractionMessage(null);
 
@@ -116,7 +123,7 @@ export function TodayDailyDropScreen() {
       const userId = sessionResult.data?.user.id;
 
       if (!userId) {
-        if (isMounted) {
+        if (isActive()) {
           setLoadState({
             drop: fallbackDrop,
             error: sessionResult.error,
@@ -124,6 +131,7 @@ export function TodayDailyDropScreen() {
             source: "mock",
             status: "ready"
           });
+          setInteractionState(createEmptyContentInteractionSnapshot());
         }
 
         return;
@@ -131,7 +139,7 @@ export function TodayDailyDropScreen() {
 
       const result = await fetchTodayDrop(userId, getLocalDropDate(new Date()));
 
-      if (isMounted) {
+      if (isActive()) {
         setLoadState({
           drop: result.data,
           error: result.error,
@@ -141,12 +149,12 @@ export function TodayDailyDropScreen() {
         });
       }
 
-      if (result.source === "supabase") {
+      if (result.source === "supabase" || result.source === "cache") {
         const interactionResult = await readContentInteractionSnapshot(
           flattenDailyDropItems(result.data).map((item) => item.id)
         );
 
-        if (!isMounted) {
+        if (!isActive()) {
           return;
         }
 
@@ -158,14 +166,19 @@ export function TodayDailyDropScreen() {
       } else {
         setInteractionState(createEmptyContentInteractionSnapshot());
       }
-    }
+    },
+    [fallbackDrop]
+  );
 
-    void loadTodayDrop();
+  useEffect(() => {
+    let isMounted = true;
+
+    void loadTodayDrop(() => isMounted);
 
     return () => {
       isMounted = false;
     };
-  }, [fallbackDrop]);
+  }, [loadTodayDrop]);
 
   async function handleInteraction(action: InteractionAction) {
     const pendingId = getPendingInteractionId(action);
@@ -175,7 +188,7 @@ export function TodayDailyDropScreen() {
 
     if (loadState.source === "mock") {
       applyLocalInteraction(action);
-      setInteractionMessage("Preview action saved on this device.");
+      setInteractionMessage("Preview action marked for this session.");
       setPendingInteractionIds((currentIds) => removeSetValue(currentIds, pendingId));
       return;
     }
@@ -185,7 +198,9 @@ export function TodayDailyDropScreen() {
     setPendingInteractionIds((currentIds) => removeSetValue(currentIds, pendingId));
 
     if (!result.ok) {
+      applyLocalInteraction(action);
       setInteractionError(result.error);
+      setInteractionMessage("Saved on this device for this session. Live sync did not complete.");
       return;
     }
 
@@ -255,8 +270,8 @@ export function TodayDailyDropScreen() {
           <AppText variant="eyebrow">Today</AppText>
           <View style={styles.headerMeta}>
             <ProgressPill
-              label={loadState.source === "supabase" ? "Live daily drop" : "Preview mode"}
-              tone={loadState.source === "supabase" ? "success" : "neutral"}
+              label={getDataModeLabel(loadState.source)}
+              tone={getDataModeTone(loadState.source)}
             />
             <AppText color="muted" variant="caption">
               {formattedDate}
@@ -264,10 +279,10 @@ export function TodayDailyDropScreen() {
           </View>
         </View>
         <View style={styles.headerCopy}>
-          <AppText variant="title">Your 5-minute daily drop</AppText>
+          <AppText variant="title">Five minutes. Four sharp moves.</AppText>
           <AppText variant="body">
-            One focused briefing: news signal, one business lesson, one practical challenge,
-            one concept worth keeping.
+            Read the signal, understand the mechanism, solve the mini-case, keep the concept.
+            Then stop. This is your daily learning ritual, not a feed.
           </AppText>
         </View>
         <Card padding="md" style={styles.progressCard} tone={isComplete ? "accent" : "default"}>
@@ -290,7 +305,13 @@ export function TodayDailyDropScreen() {
               : "Finish the four modules. No feed, no backlog pressure."}
           </AppText>
         </Card>
-        <TodayDataStateBanner loadState={loadState} />
+        <TodayDataStateBanner
+          loadState={loadState}
+          onRetry={() => {
+            void loadTodayDrop();
+          }}
+        />
+        <DailyRitualCard />
         <DropSlotOverview
           completedModules={completedModules}
           drop={drop}
@@ -344,42 +365,66 @@ export function TodayDailyDropScreen() {
   );
 }
 
-function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
+function TodayDataStateBanner({
+  loadState,
+  onRetry
+}: {
+  loadState: TodayLoadState;
+  onRetry: () => void;
+}) {
   if (loadState.status === "loading") {
     return (
-      <Card padding="md" tone="muted">
-        <ProgressPill label="Loading daily drop" tone="neutral" />
-        <AppText color="muted" variant="caption">
-          Looking for today's assigned drop.
-        </AppText>
-      </Card>
+      <DataModeBanner
+        description="Looking for today's assigned drop. Existing content stays visible while the app checks live data."
+        mode="checking"
+        title="Loading today's drop"
+      />
     );
   }
 
   if (loadState.source === "supabase") {
     return (
-      <Card padding="md" style={styles.stateCardLive} tone="accent">
-        <View style={styles.stateHeader}>
-          <ProgressPill label="Live daily drop" tone="success" value={1} />
-          <AppText color="accentInk" variant="caption">
-            {formatShortDate(loadState.drop.drop_date)}
-          </AppText>
-        </View>
-        <AppText color="accentInk" variant="bodyStrong">
-          Live daily drop
-        </AppText>
-        <AppText color="accentInk" variant="caption">
-          You are viewing the assigned drop for this account.
-        </AppText>
-      </Card>
+      <DataModeBanner
+        description="This is the assigned daily drop for this account. Saves, completions, and ratings are stored."
+        detail={formatShortDate(loadState.drop.drop_date)}
+        mode="live"
+        title="Live daily drop"
+      />
+    );
+  }
+
+  if (loadState.source === "cache") {
+    return (
+      <DataModeBanner
+        actionLabel="Retry live data"
+        description="The latest live check is unavailable, so the app is showing the last daily drop kept in memory."
+        detail={formatShortDate(loadState.drop.drop_date)}
+        mode="cache"
+        onActionPress={onRetry}
+        title="Cached daily drop"
+      />
+    );
+  }
+
+  if (loadState.fallbackReason === "network_unavailable") {
+    return (
+      <DataModeBanner
+        actionLabel="Retry live data"
+        description="The network is unavailable, so the app is showing clearly labeled preview content instead of a blank screen."
+        mode="preview"
+        onActionPress={onRetry}
+        title="You appear to be offline"
+      />
     );
   }
 
   if (loadState.fallbackReason === "supabase_error") {
     return (
-      <EmptyState
+      <DataModeBanner
+        actionLabel="Retry live data"
         description={`Live content could not be reached, so the app is showing a built-in preview. ${loadState.error?.message ?? ""}`.trim()}
-        eyebrow="Preview mode"
+        mode="preview"
+        onActionPress={onRetry}
         title="Preview daily drop"
       />
     );
@@ -387,9 +432,11 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
 
   if (loadState.fallbackReason === "missing_supabase_config") {
     return (
-      <EmptyState
+      <DataModeBanner
+        actionLabel="Retry live data"
         description="Preview content is shown below so testers can still walk through the experience. Developer/Test info: configure the public live-data env vars to load assigned drops."
-        eyebrow="Preview mode"
+        mode="preview"
+        onActionPress={onRetry}
         title="Live Today data is not configured"
       />
     );
@@ -397,9 +444,11 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
 
   if (loadState.fallbackReason === "no_supabase_data") {
     return (
-      <EmptyState
-        description="No daily drop is assigned to this account for today. Preview content is shown below."
-        eyebrow="No drop yet"
+      <DataModeBanner
+        actionLabel="Check again"
+        description="No daily drop is assigned to this account for today. Preview content is shown below so the app can still be tested."
+        mode="preview"
+        onActionPress={onRetry}
         title="No live daily drop yet"
       />
     );
@@ -407,15 +456,46 @@ function TodayDataStateBanner({ loadState }: { loadState: TodayLoadState }) {
 
   if (loadState.fallbackReason === "missing_auth_session") {
     return (
-      <EmptyState
+      <DataModeBanner
+        actionLabel="Retry session check"
         description="Sign in to load your assigned daily drop. Preview content is shown below."
-        eyebrow="Preview mode"
+        mode="preview"
+        onActionPress={onRetry}
         title="No active session"
       />
     );
   }
 
   return null;
+}
+
+function DailyRitualCard() {
+  return (
+    <Card padding="md" style={styles.ritualCard}>
+      <AppText variant="bodyStrong">What to do now</AppText>
+      <View style={styles.ritualSteps}>
+        <RitualStep number="1" text="Read the newsletter signals." />
+        <RitualStep number="2" text="Finish the business story and mini-case." />
+        <RitualStep number="3" text="Save one idea you want to reuse." />
+        <RitualStep number="4" text="Mark each item complete when it lands." />
+      </View>
+    </Card>
+  );
+}
+
+function RitualStep({ number, text }: { number: string; text: string }) {
+  return (
+    <View style={styles.ritualStep}>
+      <View style={styles.ritualStepNumber}>
+        <AppText color="accentInk" variant="caption">
+          {number}
+        </AppText>
+      </View>
+      <AppText style={styles.ritualStepText} variant="caption">
+        {text}
+      </AppText>
+    </View>
+  );
 }
 
 function InteractionStatus({
@@ -470,8 +550,8 @@ function DropSlotOverview({
       <View style={styles.slotOverviewHeader}>
         <AppText variant="bodyStrong">Four-slot daily drop</AppText>
         <ProgressPill
-          label={source === "supabase" ? "Live content" : "Preview content"}
-          tone={source === "supabase" ? "success" : "neutral"}
+          label={source === "supabase" ? "Live content" : source === "cache" ? "Cached content" : "Preview content"}
+          tone={getDataModeTone(source)}
         />
       </View>
       {moduleOrder.map((moduleId) => (
@@ -926,9 +1006,12 @@ function ContentInteractionControls({
         />
       </View>
       <View style={styles.feedbackGroup}>
-        <AppText color="muted" variant="caption">
-          Rate this
-        </AppText>
+        <View style={styles.feedbackHeader}>
+          <AppText variant="label">Reflection</AppText>
+          <AppText color="muted" variant="caption">
+            Was this worth your five minutes?
+          </AppText>
+        </View>
         <View style={styles.feedbackButtons}>
           {(["good", "average", "bad"] as const).map((rating) => {
             const active = activeRating === rating;
@@ -1020,7 +1103,7 @@ function BulletText({ children }: { children: string }) {
 function SourceLine({ sources }: { sources: string[] }) {
   return (
     <View style={styles.sourceLine}>
-      <AppText color="muted" variant="caption">
+      <AppText color="muted" style={styles.sourceCopy} variant="caption">
         Sources: {sources.join(", ")}
       </AppText>
     </View>
@@ -1029,6 +1112,30 @@ function SourceLine({ sources }: { sources: string[] }) {
 
 function getModuleItemCount(drop: TodayDailyDrop, moduleId: ModuleId) {
   return getModuleItems(drop, moduleId).length;
+}
+
+function getDataModeLabel(source: DataFetchSource) {
+  if (source === "supabase") {
+    return "Live daily drop";
+  }
+
+  if (source === "cache") {
+    return "Cached live drop";
+  }
+
+  return "Preview mode";
+}
+
+function getDataModeTone(source: DataFetchSource): "success" | "warning" | "neutral" {
+  if (source === "supabase") {
+    return "success";
+  }
+
+  if (source === "cache") {
+    return "warning";
+  }
+
+  return "neutral";
 }
 
 function getCompletedModules(
@@ -1139,14 +1246,14 @@ function removeSetValue<T>(set: Set<T>, value: T) {
 
 function formatRatingLabel(rating: ContentRating) {
   if (rating === "good") {
-    return "Good";
+    return "Useful";
   }
 
   if (rating === "average") {
-    return "Average";
+    return "Okay";
   }
 
-  return "Bad";
+  return "Not useful";
 }
 
 function formatDropDate(date: string) {
@@ -1197,14 +1304,27 @@ const styles = StyleSheet.create({
   progressCard: {
     gap: tokens.space.md
   },
-  stateCardLive: {
+  ritualCard: {
+    gap: tokens.space.md
+  },
+  ritualSteps: {
     gap: tokens.space.sm
   },
-  stateHeader: {
-    alignItems: "center",
+  ritualStep: {
+    alignItems: "flex-start",
     flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
+    gap: tokens.space.sm
+  },
+  ritualStepNumber: {
+    alignItems: "center",
+    backgroundColor: tokens.color.accentSoft,
+    borderRadius: tokens.radius.pill,
+    height: 24,
+    justifyContent: "center",
+    width: 24
+  },
+  ritualStepText: {
+    flex: 1
   },
   slotOverview: {
     gap: tokens.space.md
@@ -1313,10 +1433,10 @@ const styles = StyleSheet.create({
   sourceLine: {
     borderTopColor: tokens.color.border,
     borderTopWidth: 1,
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between",
     paddingTop: tokens.space.md
+  },
+  sourceCopy: {
+    flexShrink: 1
   },
   storyBeat: {
     flexDirection: "row",
@@ -1414,6 +1534,9 @@ const styles = StyleSheet.create({
   },
   feedbackGroup: {
     gap: tokens.space.sm
+  },
+  feedbackHeader: {
+    gap: tokens.space.xs
   },
   feedbackButtons: {
     flexDirection: "row",

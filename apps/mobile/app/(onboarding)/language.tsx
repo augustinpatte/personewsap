@@ -21,6 +21,7 @@ export default function LanguageScreen() {
   return (
     <OnboardingScaffold
       description="Choose the language for your daily drop. FR and EN are written as native editorial versions."
+      footerNote={state.language ? "You can change language later from Account." : "Choose one language to continue."}
       primaryDisabled={!state.language}
       primaryLabel="Continue"
       onPrimaryPress={() => router.push("/(onboarding)/goals")}

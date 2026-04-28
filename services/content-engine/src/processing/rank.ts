@@ -50,10 +50,29 @@ const STUDENT_CAREER_TERMS = [
   "campus"
 ];
 
+const TOPIC_USEFULNESS_TERMS: Record<TopicId, string[]> = {
+  business: ["strategy", "pricing", "startup", "supply chain", "leadership", "management", "competition"],
+  finance: ["rates", "inflation", "market", "bank", "risk", "regulation", "earnings", "capital"],
+  tech_ai: ["ai", "model", "chip", "software", "data", "automation", "research", "cloud"],
+  law: ["court", "regulation", "privacy", "antitrust", "ruling", "enforcement", "rights"],
+  medicine: ["clinical", "trial", "drug", "patient", "public health", "approval", "research"],
+  engineering: ["engineering", "infrastructure", "energy", "battery", "robot", "manufacturing", "aerospace"],
+  sport_business: ["rights", "sponsorship", "league", "club", "stadium", "valuation", "media deal"],
+  culture_media: ["streaming", "media", "publisher", "creator", "studio", "platform", "journalism"]
+};
+
 const TIER_SCORE: Record<SourceCredibilityTier, number> = {
   tier_1: 1,
   tier_2: 0.82,
   tier_3: 0.68
+};
+
+const SOURCE_TYPE_SCORE: Record<CuratedSourceType, number> = {
+  rss: 0.84,
+  institutional_site: 0.9,
+  publisher_section: 0.78,
+  specialist_publisher: 0.86,
+  aggregated_api: 0.72
 };
 
 type CandidateSourceMetadata = {
@@ -73,7 +92,8 @@ type RankDraft = {
 function sourceCredibilityScore(article: ArticleCandidate & CandidateSourceMetadata): number {
   const numericScore = article.credibility_score ?? 0.6;
   const tierScore = article.credibility_tier ? TIER_SCORE[article.credibility_tier] : numericScore;
-  return Math.min(1, Math.max(0, numericScore * 0.7 + tierScore * 0.3));
+  const sourceTypeScore = article.source_type ? SOURCE_TYPE_SCORE[article.source_type] : numericScore;
+  return Math.min(1, Math.max(0, numericScore * 0.62 + tierScore * 0.28 + sourceTypeScore * 0.1));
 }
 
 function freshnessScore(article: ArticleCandidate, now: Date): number {
@@ -94,6 +114,15 @@ function topicRelevanceScore(article: ArticleCandidate, topic: ReturnType<typeof
 function studentCareerRelevance(article: ArticleCandidate): { score: number; hits: string[] } {
   const haystack = `${article.title} ${article.summary ?? ""} ${article.body ?? ""}`.toLowerCase();
   const hits = STUDENT_CAREER_TERMS.filter((term) => haystack.includes(term));
+  return {
+    score: Math.min(1, hits.length / 3),
+    hits
+  };
+}
+
+function topicUsefulness(article: ArticleCandidate, topic: TopicId): { score: number; hits: string[] } {
+  const haystack = `${article.title} ${article.summary ?? ""} ${article.body ?? ""}`.toLowerCase();
+  const hits = TOPIC_USEFULNESS_TERMS[topic].filter((term) => haystack.includes(term));
   return {
     score: Math.min(1, hits.length / 3),
     hits
@@ -145,13 +174,15 @@ export function rankArticles(articles: ArticleCandidate[], now = new Date()): Ra
       const importanceTermScore = Math.min(1, termHits.length / 3);
       const topicRelevance = topicRelevanceScore(article, topic);
       const careerRelevance = studentCareerRelevance(article);
+      const usefulness = topicUsefulness(article, topic);
       const hasSummaryScore = article.summary ? 0.04 : 0;
       const baseScore =
-        freshScore * 0.28 +
-        credibilityScore * 0.24 +
-        topicRelevance.score * 0.22 +
-        careerRelevance.score * 0.14 +
-        importanceTermScore * 0.08 +
+        freshScore * 0.25 +
+        credibilityScore * 0.23 +
+        topicRelevance.score * 0.2 +
+        careerRelevance.score * 0.13 +
+        usefulness.score * 0.1 +
+        importanceTermScore * 0.05 +
         hasSummaryScore;
 
       return {
@@ -164,10 +195,12 @@ export function rankArticles(articles: ArticleCandidate[], now = new Date()): Ra
           `credibility:${credibilityScore.toFixed(2)}`,
           `topic_relevance:${topicRelevance.score.toFixed(2)}`,
           `student_career:${careerRelevance.score.toFixed(2)}`,
+          `student_usefulness:${usefulness.score.toFixed(2)}`,
           ...termHits.map((term) => `term:${term}`)
             .slice(0, 3),
           ...topicRelevance.hits.map((term) => `topic:${term}`).slice(0, 3),
-          ...careerRelevance.hits.map((term) => `career:${term}`).slice(0, 3)
+          ...careerRelevance.hits.map((term) => `career:${term}`).slice(0, 3),
+          ...usefulness.hits.map((term) => `useful:${term}`).slice(0, 3)
         ]
       };
     })
@@ -188,7 +221,7 @@ export function rankArticles(articles: ArticleCandidate[], now = new Date()): Ra
       return {
         ...draft.article,
         topic: draft.topic,
-        importance_score: Number((draft.baseScore * 0.84 + diversityScore * 0.08 + topicBalanceScore * 0.08).toFixed(4)),
+        importance_score: Number((draft.baseScore * 0.78 + diversityScore * 0.09 + topicBalanceScore * 0.13).toFixed(4)),
         rank_reasons: [
           ...draft.reasons,
           `source_diversity:${diversityScore.toFixed(2)}`,

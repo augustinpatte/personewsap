@@ -1,3 +1,4 @@
+import type { TopicId } from "../domain.js";
 import type { CuratedSource, SourceRegion } from "./types.js";
 
 type CuratedSourceDefinition = Omit<CuratedSource, "region"> & {
@@ -54,6 +55,32 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "University research and entrepreneurship updates with strong student relevance."
   },
   {
+    id: "knowledge-at-wharton",
+    topic: "business",
+    language: "en",
+    publisher: "Knowledge at Wharton",
+    region: "us",
+    url: "https://knowledge.wharton.upenn.edu/",
+    rssUrl: "https://knowledge.wharton.upenn.edu/feed/",
+    credibility_score: 0.82,
+    credibility_tier: "tier_2",
+    source_type: "institutional_site",
+    description: "Business school research, management, markets, and leadership explainers."
+  },
+  {
+    id: "the-conversation-business",
+    topic: "business",
+    language: "en",
+    publisher: "The Conversation",
+    region: "global",
+    url: "https://theconversation.com/us/business",
+    rssUrl: "https://theconversation.com/us/business/articles.atom",
+    credibility_score: 0.78,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Expert-written business and economy analysis with university author attribution."
+  },
+  {
     id: "federal-reserve-press",
     topic: "finance",
     language: "en",
@@ -100,6 +127,32 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     credibility_tier: "tier_1",
     source_type: "institutional_site",
     description: "Primary-source European monetary policy, speeches, interviews, and press releases."
+  },
+  {
+    id: "bis-press",
+    topic: "finance",
+    language: "en",
+    publisher: "Bank for International Settlements",
+    region: "global",
+    url: "https://www.bis.org/press/",
+    rssUrl: "https://www.bis.org/list/press_releases/index.rss",
+    credibility_score: 0.93,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source central banking, financial stability, and market infrastructure updates."
+  },
+  {
+    id: "cftc-press",
+    topic: "finance",
+    language: "en",
+    publisher: "U.S. Commodity Futures Trading Commission",
+    region: "us",
+    url: "https://www.cftc.gov/PressRoom/PressReleases",
+    rssUrl: "https://www.cftc.gov/RSS/PressReleases.xml",
+    credibility_score: 0.92,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source derivatives, commodities, market integrity, and enforcement updates."
   },
   {
     id: "mit-tech-review",
@@ -150,6 +203,33 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "AI research and education updates with strong student and career relevance."
   },
   {
+    id: "stanford-hai",
+    topic: "tech_ai",
+    language: "en",
+    publisher: "Stanford HAI",
+    region: "us",
+    url: "https://hai.stanford.edu/news",
+    rssUrl: "https://hai.stanford.edu/news/rss.xml",
+    credibility_score: 0.86,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "AI research, policy, education, and human-centered AI institute updates."
+  },
+  {
+    id: "arxiv-cs-ai",
+    topic: "tech_ai",
+    language: "en",
+    publisher: "arXiv cs.AI",
+    region: "global",
+    url: "https://arxiv.org/list/cs.AI/recent",
+    rssUrl: "https://export.arxiv.org/rss/cs.AI",
+    credibility_score: 0.72,
+    credibility_tier: "tier_3",
+    source_type: "specialist_publisher",
+    description: "Unreviewed AI research preprints; useful for trend discovery but requires editorial caution.",
+    usage_notes: "Treat as early research signal, not confirmed findings."
+  },
+  {
     id: "scotusblog",
     topic: "law",
     language: "en",
@@ -196,6 +276,32 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     credibility_tier: "tier_2",
     source_type: "specialist_publisher",
     description: "Digital rights, privacy, speech, surveillance, and technology law analysis."
+  },
+  {
+    id: "us-courts-news",
+    topic: "law",
+    language: "en",
+    publisher: "U.S. Courts",
+    region: "us",
+    url: "https://www.uscourts.gov/news",
+    rssUrl: "https://www.uscourts.gov/news/rss.xml",
+    credibility_score: 0.91,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source federal judiciary updates, court administration, and civic legal context."
+  },
+  {
+    id: "eu-commission-law",
+    topic: "law",
+    language: "en",
+    publisher: "European Commission",
+    region: "eu",
+    url: "https://ec.europa.eu/commission/presscorner/",
+    credibility_score: 0.88,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source EU policy and legal/regulatory announcements.",
+    usage_notes: "RSS endpoint varies by query; keep as a curated reference until a stable topic feed is confirmed."
   },
   {
     id: "nature-medicine",
@@ -246,6 +352,32 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "Primary-source U.S. medical products, drug, device, and public health regulatory updates."
   },
   {
+    id: "bmj-recent",
+    topic: "medicine",
+    language: "en",
+    publisher: "The BMJ",
+    region: "uk",
+    url: "https://www.bmj.com/",
+    rssUrl: "https://www.bmj.com/rss/recent.xml",
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "rss",
+    description: "Medical research, policy, and clinical practice updates from a major medical journal."
+  },
+  {
+    id: "cdc-newsroom",
+    topic: "medicine",
+    language: "en",
+    publisher: "Centers for Disease Control and Prevention",
+    region: "us",
+    url: "https://www.cdc.gov/media/",
+    rssUrl: "https://tools.cdc.gov/api/v2/resources/media/132608.rss",
+    credibility_score: 0.91,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source U.S. public health advisories and newsroom updates."
+  },
+  {
     id: "ieee-spectrum",
     topic: "engineering",
     language: "en",
@@ -292,6 +424,33 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     credibility_tier: "tier_1",
     source_type: "institutional_site",
     description: "Engineering research, applied science, robotics, energy, and student innovation."
+  },
+  {
+    id: "arxiv-robotics",
+    topic: "engineering",
+    language: "en",
+    publisher: "arXiv cs.RO",
+    region: "global",
+    url: "https://arxiv.org/list/cs.RO/recent",
+    rssUrl: "https://export.arxiv.org/rss/cs.RO",
+    credibility_score: 0.72,
+    credibility_tier: "tier_3",
+    source_type: "specialist_publisher",
+    description: "Unreviewed robotics preprints; useful for emerging engineering signals.",
+    usage_notes: "Treat as early research signal and avoid unsupported factual claims."
+  },
+  {
+    id: "nibib-news",
+    topic: "engineering",
+    language: "en",
+    publisher: "National Institute of Biomedical Imaging and Bioengineering",
+    region: "us",
+    url: "https://www.nibib.nih.gov/news-events/newsroom",
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Biomedical engineering, imaging, devices, and translational health technology updates.",
+    usage_notes: "Keep as a curated reference until a stable public feed is confirmed."
   },
   {
     id: "sportspro",
@@ -342,6 +501,32 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "Sports finance, team valuations, media rights, sponsorships, and leagues."
   },
   {
+    id: "sports-travel-magazine",
+    topic: "sport_business",
+    language: "en",
+    publisher: "SportsTravel Magazine",
+    region: "us",
+    url: "https://www.sportstravelmagazine.com/",
+    rssUrl: "https://www.sportstravelmagazine.com/feed/",
+    credibility_score: 0.7,
+    credibility_tier: "tier_3",
+    source_type: "specialist_publisher",
+    description: "Sports events, destinations, venue economics, and tournament operations."
+  },
+  {
+    id: "sports-business-journal",
+    topic: "sport_business",
+    language: "en",
+    publisher: "Sports Business Journal",
+    region: "us",
+    url: "https://www.sportsbusinessjournal.com/",
+    credibility_score: 0.82,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Sports business trade reporting; maintain as a reference while feed licensing is reviewed.",
+    usage_notes: "No RSS URL enabled until licensing and a stable feed endpoint are confirmed."
+  },
+  {
     id: "guardian-media",
     topic: "culture_media",
     language: "en",
@@ -388,6 +573,32 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     credibility_tier: "tier_2",
     source_type: "specialist_publisher",
     description: "Entertainment industry, streaming, studios, labor, and media business coverage."
+  },
+  {
+    id: "columbia-journalism-review",
+    topic: "culture_media",
+    language: "en",
+    publisher: "Columbia Journalism Review",
+    region: "us",
+    url: "https://www.cjr.org/",
+    rssUrl: "https://www.cjr.org/feed",
+    credibility_score: 0.82,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Journalism, media institutions, trust, platforms, and publishing economics."
+  },
+  {
+    id: "hollywood-reporter",
+    topic: "culture_media",
+    language: "en",
+    publisher: "The Hollywood Reporter",
+    region: "us",
+    url: "https://www.hollywoodreporter.com/",
+    rssUrl: "https://www.hollywoodreporter.com/feed/",
+    credibility_score: 0.76,
+    credibility_tier: "tier_2",
+    source_type: "specialist_publisher",
+    description: "Entertainment industry, studios, awards, streaming, labor, and cultural business coverage."
   },
   {
     id: "le-monde-economie",
@@ -535,3 +746,23 @@ export const CURATED_SOURCES_BY_TOPIC = CURATED_SOURCES.reduce(
     culture_media: []
   } as Record<CuratedSource["topic"], CuratedSource[]>
 );
+
+export const CURATED_SOURCE_COVERAGE = Object.fromEntries(
+  Object.entries(CURATED_SOURCES_BY_TOPIC).map(([topic, sources]) => [
+    topic,
+    {
+      source_count: sources.length,
+      live_rss_count: sources.filter((source) => source.rssUrl).length,
+      tier_1_count: sources.filter((source) => source.credibility_tier === "tier_1").length,
+      regions: Array.from(new Set(sources.map((source) => source.region))).sort()
+    }
+  ])
+) as Record<
+  TopicId,
+  {
+    live_rss_count: number;
+    regions: SourceRegion[];
+    source_count: number;
+    tier_1_count: number;
+  }
+>;

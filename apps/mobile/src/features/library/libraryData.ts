@@ -1,10 +1,12 @@
 import {
+  createCachedResult,
   createMockFallbackResult,
   createSupabaseResult,
+  type DataFallbackReason,
   type DataFetchResult
 } from "../../lib/dataState";
 import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
-import { normalizeSupabaseError, supabase } from "../../lib/supabase";
+import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import { mockLibraryDrops } from "../../mocks";
 import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
@@ -18,6 +20,7 @@ type FetchLibraryDropsOptions = {
 const archiveDropStatuses = ["published", "read", "archived"] as const;
 const defaultLibraryDropLimit = 20;
 const libraryDropCacheTtlMs = 60_000;
+const liveDataProofMode = process.env.EXPO_PUBLIC_LIVE_DATA_PROOF_MODE === "true";
 const maxLibraryDropLimit = 50;
 const publishedContentStatus = "published";
 const slotOrder = {
@@ -86,7 +89,7 @@ export async function fetchLibraryDrops(
         user_id: redactIdentifier(userId)
       });
 
-      return createSupabaseResult(cachedDrops);
+      return createCachedResult(cachedDrops);
     }
 
     const { data: drops, error: dropsError } = await supabase
@@ -98,15 +101,18 @@ export async function fetchLibraryDrops(
       .limit(limit);
 
     if (dropsError) {
+      const normalizedError = normalizeSupabaseError(dropsError);
+      const fallbackReason = getFallbackReasonForError(normalizedError);
+
       logLibraryDataProof("mock_fallback", {
-        reason: "supabase_error",
+        reason: fallbackReason,
         user_id: redactIdentifier(userId)
       });
 
       return createMockFallbackResult(
         mockLibraryDrops,
-        "supabase_error",
-        normalizeSupabaseError(dropsError)
+        fallbackReason,
+        normalizedError
       );
     }
 
@@ -144,15 +150,18 @@ export async function fetchLibraryDrops(
 
     return createSupabaseResult(displayableSummaries);
   } catch (error) {
+    const normalizedError = normalizeSupabaseError(error);
+    const fallbackReason = getFallbackReasonForError(normalizedError);
+
     logLibraryDataProof("mock_fallback", {
-      reason: "supabase_error",
+      reason: fallbackReason,
       user_id: redactIdentifier(userId)
     });
 
     return createMockFallbackResult(
       mockLibraryDrops,
-      "supabase_error",
-      normalizeSupabaseError(error)
+      fallbackReason,
+      normalizedError
     );
   }
 }
@@ -383,15 +392,27 @@ function getLibraryDropsCacheKey(userId: string, limit: number): string {
   return ["library-drops", userId, limit].join(":");
 }
 
+function getFallbackReasonForError(error: ReturnType<typeof normalizeSupabaseError>): DataFallbackReason {
+  return isLikelyNetworkError(error) ? "network_unavailable" : "supabase_error";
+}
+
 function logLibraryDataProof(
   event: "live_library_drops" | "live_library_drops_cache_hit" | "mock_fallback",
   details: Record<string, unknown>
 ): void {
   if (__DEV__) {
-    console.info("[Library data proof]", {
+    const payload = {
       event,
+      proof_mode: liveDataProofMode,
       ...details
-    });
+    };
+
+    if (liveDataProofMode && event === "mock_fallback") {
+      console.error("[Library data proof]", payload);
+      return;
+    }
+
+    console.info("[Library data proof]", payload);
   }
 }
 

@@ -18,6 +18,10 @@ export async function saveOnboardingPreferences(
   const goal = state.goal;
 
   if (!client) {
+    logOnboardingProof("onboarding_save_failed", {
+      reason: "missing_supabase_config"
+    });
+
     return {
       ok: false,
       error: {
@@ -30,6 +34,10 @@ export async function saveOnboardingPreferences(
   }
 
   if (!language || !goal || state.selectedTopics.length === 0) {
+    logOnboardingProof("onboarding_save_failed", {
+      reason: "incomplete_onboarding"
+    });
+
     return {
       ok: false,
       error: {
@@ -42,6 +50,10 @@ export async function saveOnboardingPreferences(
   try {
     return await saveValidatedOnboardingPreferences(client, state, language, goal);
   } catch (error) {
+    logOnboardingProof("onboarding_save_failed", {
+      reason: "exception"
+    });
+
     return { ok: false, error: normalizeSupabaseError(error) };
   }
 }
@@ -55,6 +67,10 @@ async function saveValidatedOnboardingPreferences(
   const sessionResult = await getAuthSession();
 
   if (sessionResult.error || !sessionResult.data?.user) {
+    logOnboardingProof("onboarding_save_failed", {
+      reason: "missing_auth_session"
+    });
+
     return {
       ok: false,
       error:
@@ -69,6 +85,11 @@ async function saveValidatedOnboardingPreferences(
   const user = sessionResult.data.user;
 
   if (!user.email) {
+    logOnboardingProof("onboarding_save_failed", {
+      reason: "missing_user_email",
+      user_id: redactIdentifier(user.id)
+    });
+
     return {
       ok: false,
       error: {
@@ -92,8 +113,18 @@ async function saveValidatedOnboardingPreferences(
   });
 
   if (profileResult.error) {
+    logOnboardingProof("profile_save_failed", {
+      reason: "supabase_error",
+      user_id: redactIdentifier(user.id)
+    });
+
     return { ok: false, error: normalizeSupabaseError(profileResult.error) };
   }
+
+  logOnboardingProof("profile_saved", {
+    language,
+    user_id: redactIdentifier(user.id)
+  });
 
   const preferencesResult = await client.from("user_preferences").upsert({
     user_id: user.id,
@@ -103,8 +134,20 @@ async function saveValidatedOnboardingPreferences(
   });
 
   if (preferencesResult.error) {
+    logOnboardingProof("user_preferences_save_failed", {
+      reason: "supabase_error",
+      user_id: redactIdentifier(user.id)
+    });
+
     return { ok: false, error: normalizeSupabaseError(preferencesResult.error) };
   }
+
+  logOnboardingProof("user_preferences_saved", {
+    frequency: state.frequency,
+    goal,
+    newsletter_article_count: totalArticleCount,
+    user_id: redactIdentifier(user.id)
+  });
 
   const topicPreferenceRows = TOPIC_OPTIONS.map((topic, index) => {
     const enabled = selectedTopicIds.has(topic.id);
@@ -126,12 +169,50 @@ async function saveValidatedOnboardingPreferences(
   );
 
   if (topicsResult.error) {
+    logOnboardingProof("user_topic_preferences_save_failed", {
+      reason: "supabase_error",
+      selected_topic_count: state.selectedTopics.length,
+      user_id: redactIdentifier(user.id)
+    });
+
     return { ok: false, error: normalizeSupabaseError(topicsResult.error) };
   }
+
+  logOnboardingProof("onboarding_saved", {
+    enabled_topic_count: state.selectedTopics.length,
+    language,
+    total_topic_rows: topicPreferenceRows.length,
+    user_id: redactIdentifier(user.id)
+  });
+
+  logOnboardingProof("daily_job_test_eligible", {
+    enabled_topic_count: state.selectedTopics.length,
+    has_profile: true,
+    has_user_preferences: true,
+    has_user_topic_preferences: true,
+    language,
+    newsletter_article_count: totalArticleCount,
+    user_id: redactIdentifier(user.id)
+  });
 
   return { ok: true };
 }
 
 function getDeviceTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIMEZONE;
+}
+
+function logOnboardingProof(event: string, details: Record<string, unknown>) {
+  if (__DEV__) {
+    console.info("[Onboarding proof]", {
+      event,
+      ...details
+    });
+  }
+}
+
+function redactIdentifier(identifier: string): string {
+  return identifier.length <= 8
+    ? identifier
+    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
 }

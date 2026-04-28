@@ -201,7 +201,10 @@ export default function ResetPasswordScreen() {
                 onPress={requestReset}
               />
             )}
-            <SecondaryButton label="Back to login" onPress={() => router.replace("/(auth)/login")} />
+            <SecondaryButton
+              label={isRecoverySession ? "Skip for now" : "Back to login"}
+              onPress={() => router.replace(isRecoverySession ? "/" : "/(auth)/login")}
+            />
           </View>
         </Card>
       </AppScreen>

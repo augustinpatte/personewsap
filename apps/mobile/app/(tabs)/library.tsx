@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -13,8 +13,10 @@ import {
   AppScreen,
   AppText,
   Card,
+  DataModeBanner,
   EmptyState,
   ProgressPill,
+  SecondaryButton,
   SectionHeader
 } from "../../src/components";
 import { tokens } from "../../src/design/tokens";
@@ -98,17 +100,15 @@ export default function LibraryScreen() {
     status: "loading"
   });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadLibraryDrops() {
+  const loadLibraryDrops = useCallback(
+    async (isActive: () => boolean = () => true) => {
       setLoadState((currentState) => ({ ...currentState, status: "loading" }));
 
       const sessionResult = await getAuthSession();
       const userId = sessionResult.data?.user.id;
 
       if (!userId) {
-        if (isMounted) {
+        if (isActive()) {
           setLoadState({
             drops: mockLibraryDrops,
             error: sessionResult.error,
@@ -123,7 +123,7 @@ export default function LibraryScreen() {
 
       const result = await fetchLibraryDrops(userId);
 
-      if (isMounted) {
+      if (isActive()) {
         setLoadState({
           drops: result.data,
           error: result.error,
@@ -132,14 +132,19 @@ export default function LibraryScreen() {
           status: "ready"
         });
       }
-    }
+    },
+    []
+  );
 
-    void loadLibraryDrops();
+  useEffect(() => {
+    let isMounted = true;
+
+    void loadLibraryDrops(() => isMounted);
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [loadLibraryDrops]);
 
   const libraryDrops = loadState.drops;
   const libraryItems = useMemo(() => getItemsForDrops(libraryDrops), [libraryDrops]);
@@ -186,6 +191,14 @@ export default function LibraryScreen() {
     () => libraryItems.filter((item) => item.is_saved).slice(0, 3),
     [libraryItems]
   );
+  const hasActiveFilters =
+    activeContentFilter !== "all" || activeTopicFilter !== "all" || searchQuery.trim().length > 0;
+
+  const clearFilters = () => {
+    setActiveContentFilter("all");
+    setActiveTopicFilter("all");
+    setSearchQuery("");
+  };
 
   return (
     <AppScreen contentStyle={styles.screen}>
@@ -193,8 +206,8 @@ export default function LibraryScreen() {
         <View style={styles.headerTopline}>
           <AppText variant="eyebrow">Library</AppText>
           <ProgressPill
-            label={loadState.source === "supabase" ? "Live archive" : "Preview archive"}
-            tone={loadState.source === "supabase" ? "success" : "neutral"}
+            label={getDataModeLabel(loadState.source)}
+            tone={getDataModeTone(loadState.source)}
           />
         </View>
         <View style={styles.headerCopy}>
@@ -206,9 +219,25 @@ export default function LibraryScreen() {
       </AppScreen.Header>
 
       <AppScreen.Body>
-        <LibraryDataStateBanner loadState={loadState} />
+        <LibraryDataStateBanner
+          loadState={loadState}
+          onRetry={() => {
+            void loadLibraryDrops();
+          }}
+        />
 
         <Card padding="md" style={styles.controls}>
+          <View style={styles.controlsHeader}>
+            <View style={styles.controlsCopy}>
+              <AppText variant="bodyStrong">Find a past lesson</AppText>
+              <AppText color="muted" variant="caption">
+                Filter by format, topic, or title. The archive stays finite: past daily drops only.
+              </AppText>
+            </View>
+            {hasActiveFilters ? (
+              <SecondaryButton label="Clear" onPress={clearFilters} style={styles.clearButton} />
+            ) : null}
+          </View>
           <TextInput
             accessibilityLabel="Search library"
             onChangeText={setSearchQuery}
@@ -219,7 +248,7 @@ export default function LibraryScreen() {
             value={searchQuery}
           />
 
-          <FilterRail label="Type">
+          <FilterRail label="Show">
             {contentFilters.map((filter) => (
               <FilterChip
                 active={activeContentFilter === filter.id}
@@ -265,8 +294,14 @@ export default function LibraryScreen() {
             ))
           ) : (
             <EmptyState
-              description="Try a different content type, topic, or search term."
+              actionLabel={hasActiveFilters ? "Clear filters" : undefined}
+              description={
+                hasActiveFilters
+                  ? "Your archive is still here. Clear filters or search for a broader topic."
+                  : "Completed and assigned drops will appear here by date after your first live daily drop."
+              }
               eyebrow="No results"
+              onActionPress={hasActiveFilters ? clearFilters : undefined}
               title="No archived drop matches these filters"
             />
           )}
@@ -276,42 +311,66 @@ export default function LibraryScreen() {
   );
 }
 
-function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) {
+function LibraryDataStateBanner({
+  loadState,
+  onRetry
+}: {
+  loadState: LibraryLoadState;
+  onRetry: () => void;
+}) {
   if (loadState.status === "loading") {
     return (
-      <Card padding="md" tone="muted">
-        <ProgressPill label="Loading archive" tone="neutral" />
-        <AppText color="muted" variant="caption">
-          Looking for assigned past drops.
-        </AppText>
-      </Card>
+      <DataModeBanner
+        description="Looking for assigned past drops. Existing archive content stays visible while the app checks live data."
+        mode="checking"
+        title="Loading archive"
+      />
     );
   }
 
   if (loadState.source === "supabase") {
     return (
-      <Card padding="md" style={styles.stateCardLive} tone="accent">
-        <View style={styles.stateHeader}>
-          <ProgressPill label="Live archive" tone="success" value={1} />
-          <AppText color="accentInk" variant="caption">
-            {loadState.drops.length} drop{loadState.drops.length === 1 ? "" : "s"}
-          </AppText>
-        </View>
-        <AppText color="accentInk" variant="bodyStrong">
-          Showing real archived daily drops.
-        </AppText>
-        <AppText color="accentInk" variant="caption">
-          These drops are assigned to this account.
-        </AppText>
-      </Card>
+      <DataModeBanner
+        description="These archived drops are assigned to this account."
+        detail={`${loadState.drops.length} drop${loadState.drops.length === 1 ? "" : "s"}`}
+        mode="live"
+        title="Live archive"
+      />
+    );
+  }
+
+  if (loadState.source === "cache") {
+    return (
+      <DataModeBanner
+        actionLabel="Retry live archive"
+        description="The latest archive check is unavailable, so the app is showing the last archive kept in memory."
+        detail={`${loadState.drops.length} drop${loadState.drops.length === 1 ? "" : "s"}`}
+        mode="cache"
+        onActionPress={onRetry}
+        title="Cached archive"
+      />
+    );
+  }
+
+  if (loadState.fallbackReason === "network_unavailable") {
+    return (
+      <DataModeBanner
+        actionLabel="Retry live archive"
+        description="The network is unavailable, so the app is showing clearly labeled preview archive content."
+        mode="preview"
+        onActionPress={onRetry}
+        title="You appear to be offline"
+      />
     );
   }
 
   if (loadState.fallbackReason === "supabase_error") {
     return (
-      <EmptyState
+      <DataModeBanner
+        actionLabel="Retry live archive"
         description={`Live archive could not be reached, so the app is showing a built-in preview archive. ${loadState.error?.message ?? ""}`.trim()}
-        eyebrow="Preview archive"
+        mode="preview"
+        onActionPress={onRetry}
         title="Preview archive"
       />
     );
@@ -319,9 +378,11 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
 
   if (loadState.fallbackReason === "missing_supabase_config") {
     return (
-      <EmptyState
+      <DataModeBanner
+        actionLabel="Retry live archive"
         description="Preview archive content is shown for tester walkthroughs. Developer/Test info: configure the public live-data env vars to load assigned archived drops."
-        eyebrow="Preview archive"
+        mode="preview"
+        onActionPress={onRetry}
         title="Live Library data is not configured"
       />
     );
@@ -329,9 +390,11 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
 
   if (loadState.fallbackReason === "no_supabase_data") {
     return (
-      <EmptyState
+      <DataModeBanner
+        actionLabel="Check again"
         description="No archived daily drops are assigned to this account yet. Preview archive content is shown below."
-        eyebrow="No archive yet"
+        mode="preview"
+        onActionPress={onRetry}
         title="No live archive yet"
       />
     );
@@ -339,9 +402,11 @@ function LibraryDataStateBanner({ loadState }: { loadState: LibraryLoadState }) 
 
   if (loadState.fallbackReason === "missing_auth_session") {
     return (
-      <EmptyState
+      <DataModeBanner
+        actionLabel="Retry session check"
         description="Sign in to load your archived daily drops. Preview archive content is shown below."
-        eyebrow="Preview archive"
+        mode="preview"
+        onActionPress={onRetry}
         title="No active session"
       />
     );
@@ -358,6 +423,30 @@ function getItemsForDrops(drops: LibraryDropSummary[]) {
 
     return mockLibraryItems.filter((item) => item.drop_id === drop.drop_id);
   });
+}
+
+function getDataModeLabel(source: DataFetchSource) {
+  if (source === "supabase") {
+    return "Live archive";
+  }
+
+  if (source === "cache") {
+    return "Cached archive";
+  }
+
+  return "Preview archive";
+}
+
+function getDataModeTone(source: DataFetchSource): "success" | "warning" | "neutral" {
+  if (source === "supabase") {
+    return "success";
+  }
+
+  if (source === "cache") {
+    return "warning";
+  }
+
+  return "neutral";
 }
 
 type FilterRailProps = {
@@ -572,17 +661,23 @@ const styles = StyleSheet.create({
   headerCopy: {
     gap: tokens.space.sm
   },
-  stateCardLive: {
-    gap: tokens.space.sm
+  controls: {
+    gap: tokens.space.lg
   },
-  stateHeader: {
-    alignItems: "center",
+  controlsHeader: {
+    alignItems: "flex-start",
     flexDirection: "row",
     gap: tokens.space.md,
     justifyContent: "space-between"
   },
-  controls: {
-    gap: tokens.space.lg
+  controlsCopy: {
+    flex: 1,
+    gap: tokens.space.xs
+  },
+  clearButton: {
+    minHeight: 38,
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.sm
   },
   searchInput: {
     backgroundColor: tokens.color.surface,

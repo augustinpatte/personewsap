@@ -147,6 +147,8 @@ export class RssFeedConnector implements SourceConnector {
           publisher: source.publisher,
           status: "failed",
           duration_ms: Date.now() - startedAt,
+          kept_count: 0,
+          skipped_count: 0,
           error: `RSS fetch timed out after ${timeoutMs}ms`
         });
         throw new Error(`RSS fetch timed out for ${source.id} after ${timeoutMs}ms`);
@@ -157,6 +159,8 @@ export class RssFeedConnector implements SourceConnector {
         publisher: source.publisher,
         status: "failed",
         duration_ms: Date.now() - startedAt,
+        kept_count: 0,
+        skipped_count: 0,
         error: error instanceof Error ? error.message : String(error)
       });
       throw error;
@@ -170,7 +174,9 @@ export class RssFeedConnector implements SourceConnector {
         publisher: source.publisher,
         status: "failed",
         http_status: response.status,
-        duration_ms: Date.now() - startedAt
+        duration_ms: Date.now() - startedAt,
+        kept_count: 0,
+        skipped_count: 0
       });
       throw new Error(`RSS fetch failed for ${source.id}: ${response.status}`);
     }
@@ -179,6 +185,7 @@ export class RssFeedConnector implements SourceConnector {
     const items = parseXmlFeed(xml);
     let skippedMissingFields = 0;
     let skippedStale = 0;
+    let skippedInvalidUrl = 0;
     const maxAgeDays = this.resolveMaxAgeDays();
 
     if (items.length === 0) {
@@ -196,14 +203,20 @@ export class RssFeedConnector implements SourceConnector {
           return null;
         }
 
+        const resolvedUrl = resolveArticleUrl(item.url, source);
+        if (!resolvedUrl) {
+          skippedInvalidUrl += 1;
+          return null;
+        }
+
         return {
           source_id: source.id,
           source_region: source.region,
           source_type: source.source_type,
           credibility_tier: source.credibility_tier,
-          url: item.url,
+          url: resolvedUrl,
           title: item.title,
-          publisher: source.publisher,
+          publisher: item.publisher ?? source.publisher,
           published_at: item.publishedAt,
           retrieved_at: new Date().toISOString(),
           language: source.language as Language,
@@ -232,6 +245,15 @@ export class RssFeedConnector implements SourceConnector {
       });
     }
 
+    if (skippedInvalidUrl > 0) {
+      sourceWarning("rss_items_skipped_invalid_url", {
+        source_id: source.id,
+        publisher: source.publisher,
+        rss_url: source.rssUrl,
+        skipped_count: skippedInvalidUrl
+      });
+    }
+
     if (items.length > 0 && articles.length === 0) {
       sourceWarning("rss_source_skipped_no_usable_items", {
         source_id: source.id,
@@ -239,9 +261,12 @@ export class RssFeedConnector implements SourceConnector {
         rss_url: source.rssUrl,
         rss_items: items.length,
         skipped_missing_fields: skippedMissingFields,
+        skipped_invalid_url: skippedInvalidUrl,
         skipped_stale: skippedStale
       });
     }
+
+    const skippedCount = skippedMissingFields + skippedInvalidUrl + skippedStale + Math.max(0, items.length - skippedMissingFields - skippedInvalidUrl - skippedStale - articles.length);
 
     sourceLog("rss_source_succeeded", {
       source_id: source.id,
@@ -251,7 +276,10 @@ export class RssFeedConnector implements SourceConnector {
       region: source.region,
       rss_url: source.rssUrl,
       rss_items: items.length,
+      kept_count: articles.length,
+      skipped_count: skippedCount,
       skipped_missing_fields: skippedMissingFields,
+      skipped_invalid_url: skippedInvalidUrl,
       skipped_stale: skippedStale,
       max_age_days: maxAgeDays,
       duration_ms: Date.now() - startedAt,
@@ -265,6 +293,8 @@ export class RssFeedConnector implements SourceConnector {
       http_status: response.status,
       duration_ms: Date.now() - startedAt,
       rss_items: items.length,
+      kept_count: articles.length,
+      skipped_count: skippedCount,
       article_count: articles.length
     });
 
@@ -297,5 +327,13 @@ export class RssFeedConnector implements SourceConnector {
     const maxAgeDays = Number.isInteger(envMaxAgeDays) && envMaxAgeDays > 0 ? envMaxAgeDays : DEFAULT_RSS_MAX_AGE_DAYS;
 
     return Math.max(1, Math.min(maxAgeDays, 120));
+  }
+}
+
+function resolveArticleUrl(value: string, source: CuratedSource): string | null {
+  try {
+    return new URL(value, source.rssUrl ?? source.url).toString();
+  } catch {
+    return null;
   }
 }
