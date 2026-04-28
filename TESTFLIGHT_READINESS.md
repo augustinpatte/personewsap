@@ -2,6 +2,17 @@
 
 This is the checklist for moving from local/simulator tester prep to an installable TestFlight build.
 
+## Backend Readiness Status
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Root smoke scripts | done | `npm run smoke` covers mobile typecheck, content build, and dry-run. |
+| Env/secret safety | done | Env files are ignored; service-role and OpenAI keys must stay outside mobile/client builds. |
+| Supabase schema/RLS verification | done | Use `npm run supabase:doctor` plus `SUPABASE_CHECKLIST.md` against the tester project. |
+| Live daily-drop backend path | partial | Implemented, but each tester wave still needs an assigned marked drop and live proof. |
+| Production content generation | partial | LLM and deterministic test paths exist; production editorial approval is not automated. |
+| Production scheduler/ops | partial | `content:daily-job` exists; unattended scheduler, monitoring, incident response, and cleanup owner are not defined. |
+
 ## Must Be Done Before TestFlight
 
 - Confirm the Apple Developer account, App Store Connect app record, bundle identifier, signing certificates, and provisioning are ready.

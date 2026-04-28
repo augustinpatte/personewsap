@@ -8,6 +8,7 @@ The test coordinator should:
 
 - Confirm the tester has the app installed or can open the Expo build.
 - Confirm the tester Supabase project is configured.
+- Run `npm run smoke` and, when server env is available, `npm run backend:e2e` before the tester session.
 - Have a way to assign the tester a daily drop after onboarding.
 - Have a feedback channel ready: form, shared doc, or direct message.
 - For internal QA, set `EXPO_PUBLIC_LIVE_DATA_PROOF_MODE=true` before launching the app and watch the Metro logs.

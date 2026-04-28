@@ -11,10 +11,23 @@ const TRACKING_PARAMS = new Set([
   "utm_reader",
   "utm_viz_id",
   "utm_pubreferrer",
+  "utm_id",
+  "utm_source_platform",
+  "utm_creative_format",
+  "utm_marketing_tactic",
   "fbclid",
   "gclid",
+  "dclid",
+  "gbraid",
+  "wbraid",
+  "msclkid",
+  "yclid",
   "mc_cid",
   "mc_eid",
+  "igshid",
+  "pk_campaign",
+  "pk_kwd",
+  "spm",
   "cmpid",
   "cid",
   "smid",
@@ -60,27 +73,48 @@ function normalizeArticleUrl(url: string): string {
     parsed.protocol = parsed.protocol.toLowerCase();
     parsed.hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
     parsed.hash = "";
+    parsed.username = "";
+    parsed.password = "";
 
     for (const key of Array.from(parsed.searchParams.keys())) {
-      if (TRACKING_PARAMS.has(key.toLowerCase()) || key.toLowerCase().startsWith("utm_")) {
+      const normalizedKey = key.toLowerCase();
+      if (
+        TRACKING_PARAMS.has(normalizedKey) ||
+        normalizedKey.startsWith("utm_") ||
+        normalizedKey.startsWith("pk_") ||
+        normalizedKey.startsWith("vero_")
+      ) {
         parsed.searchParams.delete(key);
       }
     }
 
     parsed.searchParams.sort();
-    parsed.pathname = parsed.pathname.replace(/\/amp\/?$/i, "").replace(/\/$/, "");
-    return parsed.toString();
+    parsed.pathname = parsed.pathname
+      .replace(/\/amp\/?$/i, "")
+      .replace(/\/index\.(html?|php)$/i, "")
+      .replace(/\/$/, "");
+
+    return parsed.toString().replace(/\?$/, "");
   } catch {
-    return url.trim().replace(/#.*$/, "").replace(/[?&](utm_[^=&]+|fbclid|gclid|mc_cid|mc_eid)=[^&]+/gi, "");
+    return url
+      .trim()
+      .replace(/#.*$/, "")
+      .replace(/[?&](utm_[^=&]+|fbclid|gclid|dclid|gbraid|wbraid|msclkid|yclid|mc_cid|mc_eid|igshid)=[^&]+/gi, "")
+      .replace(/[?&]$/, "");
   }
 }
 
 function dedupeKeys(article: ArticleCandidate): string[] {
-  return [
-    `url:${article.normalized_url}`,
-    `hash:${article.content_hash}`,
-    `title:${titleFingerprint(article.title)}`
-  ].filter((key) => !key.endsWith(":"));
+  const keys = [`url:${article.normalized_url}`, `hash:${article.content_hash}`];
+  const title = titleFingerprint(article.title);
+  const publisher = publisherKey(article.publisher);
+  const date = publishedDateKey(article.published_at);
+
+  if (title && publisher && date) {
+    keys.push(`title-source-date:${title}|${publisher}|${date}`);
+  }
+
+  return keys.filter((key) => !key.endsWith(":"));
 }
 
 function isDuplicate(left: ArticleCandidate, right: ArticleCandidate): boolean {
@@ -95,8 +129,10 @@ function isDuplicate(left: ArticleCandidate, right: ArticleCandidate): boolean {
   }
 
   const samePublisher = publisherKey(left.publisher) === publisherKey(right.publisher);
+  const samePublishedDate = publishedDateKey(left.published_at) === publishedDateKey(right.published_at);
   const datesClose = publishedDatesClose(left.published_at, right.published_at);
-  return samePublisher || datesClose;
+
+  return (samePublisher && (samePublishedDate || datesClose)) || (samePublisher && similarity >= 0.94);
 }
 
 function isBetterDuplicate(incoming: ArticleCandidate, existing: ArticleCandidate): boolean {
@@ -160,6 +196,15 @@ function publishedDatesClose(left: string | null | undefined, right: string | nu
   }
 
   return Math.abs(leftTime - rightTime) <= 3 * 86_400_000;
+}
+
+function publishedDateKey(value: string | null | undefined): string {
+  const time = parseTime(value);
+  if (time === 0) {
+    return "";
+  }
+
+  return new Date(time).toISOString().slice(0, 10);
 }
 
 function parseTime(value: string | null | undefined): number {

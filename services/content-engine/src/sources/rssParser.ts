@@ -14,21 +14,29 @@ type XmlElement = {
 };
 
 export function parseXmlFeed(xml: string): ParsedFeedItem[] {
+  if (!xml.trim()) {
+    return [];
+  }
+
   const feedPublisher = readFeedPublisher(xml);
 
   return findElementsByLocalName(xml, "item")
     .concat(findElementsByLocalName(xml, "entry"))
-    .map((element) => {
-      const rawDate = readText(element.innerXml, ["pubDate", "published", "updated", "date", "modified"]);
+    .flatMap((element) => {
+      try {
+        const rawDate = readText(element.innerXml, ["pubDate", "published", "updated", "date", "modified"]);
 
-      return {
-        publisher: readItemPublisher(element.innerXml) ?? feedPublisher,
-        rawDate,
-        summary: readFeedSummary(element.innerXml),
-        title: readText(element.innerXml, ["title"]),
-        url: readFeedUrl(element.innerXml),
-        publishedAt: normalizePublishedAt(rawDate)
-      };
+        return {
+          publisher: readItemPublisher(element.innerXml) ?? feedPublisher,
+          rawDate,
+          summary: readFeedSummary(element.innerXml),
+          title: readText(element.innerXml, ["title"]),
+          url: readFeedUrl(element.innerXml),
+          publishedAt: normalizePublishedAt(rawDate)
+        };
+      } catch {
+        return [];
+      }
     });
 }
 

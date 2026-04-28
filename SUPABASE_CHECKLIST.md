@@ -132,6 +132,61 @@ The SQL doctor checks:
 - expected policy names exist
 - there is published content/daily drop data available for app-read tests
 
+## Production-Beta Data Integrity Verification
+
+Before applying the beta hardening migration to a remote project, run the duplicate audit so constraint creation cannot hide existing bad rows:
+
+```sh
+psql "$DATABASE_URL" -f supabase/verification/constraints_and_duplicates.sql
+```
+
+The beta hardening migration is additive and checks:
+
+- one `daily_drops` row per `user_id` and `drop_date`
+- no duplicate `daily_drop_items` rows for the same `daily_drop_id` and `content_item_id`
+- no duplicate `daily_drop_items` rows for the same `daily_drop_id`, `slot`, and `position`
+- one `complete` interaction per user/content item
+- one `save` interaction per user/content item
+
+Rating/feedback interactions remain event-based so a changed rating can be recorded; the app treats the newest feedback row as the visible rating.
+
+For a live RLS and service-role proof, choose two real tester users and one published content item, then run:
+
+```sh
+export DATABASE_URL="postgresql://postgres:...@db.YOUR_PROJECT_REF.supabase.co:5432/postgres"
+export SUPABASE_VERIFY_USER_A="tester-a-auth-user-id"
+export SUPABASE_VERIFY_USER_A_EMAIL="tester-a@example.com"
+export SUPABASE_VERIFY_USER_B="tester-b-auth-user-id"
+export SUPABASE_VERIFY_PUBLISHED_CONTENT_ID="published-content-item-id"
+./scripts/run-supabase-verification.sh
+```
+
+This runner executes the read-only SQL doctor, the duplicate/constraint audit, an RLS access matrix, and a rollbacked `service_role` write probe. Use a direct or pooled Postgres connection with enough privilege to `SET ROLE anon`, `authenticated`, and `service_role`. Do not paste API keys into SQL output or screenshots.
+
+Expected RLS proof:
+
+- `anon` cannot read private profile, preference, topic preference, interaction, daily drop, or daily drop item data
+- an authenticated tester can read/update only their own profile/preferences/topic preferences
+- authenticated clients can read published content and their own visible daily drops
+- authenticated clients cannot insert another user's interaction
+- authenticated clients cannot insert daily drops; daily-drop writes stay service-side
+- `service_role` can write content, daily drops, and daily-drop item links inside the rollbacked probe
+
+If any duplicate audit row reports `FAIL`, inspect and repair the duplicate data before applying the hardening migration. Do not delete production rows blindly.
+
+## Dashboard Checks Before Beta
+
+In the Supabase dashboard for the selected beta project:
+
+- Auth: email/password is enabled and tester email confirmation behavior is intentional.
+- Table Editor: legacy newsletter tables still exist: `users`, `user_topics`, `newsletter_feedback`, `pending_registrations`.
+- Table Editor: app tables exist: `profiles`, `user_preferences`, `user_topic_preferences`, `topics`, `content_items`, `daily_drops`, `daily_drop_items`, `content_interactions`.
+- Authentication > Policies: RLS is enabled on app-facing tables, especially private user tables.
+- SQL Editor: `supabase/verification/schema_doctor.sql` returns no failed table/RLS/policy checks.
+- SQL Editor or psql: `supabase/verification/constraints_and_duplicates.sql` reports no duplicate groups.
+- API Settings: only anon/public keys are used by mobile; service role key is used only server-side.
+- Logs: no service role key, OpenAI key, or generated secret appears in client logs.
+
 ## Verify One Test User Receives One Drop
 
 1. Create or choose one test auth user.

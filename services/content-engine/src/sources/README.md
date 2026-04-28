@@ -40,6 +40,8 @@ The RSS connector reads only feed-level fields: title, link, publication date, s
 - `rss_source_health` logs success or failure with duration, kept count, and skipped count.
 - `rss_source_succeeded` logs item counts, kept/skipped counts, stale skips, invalid URL skips, and configured max age.
 - `rss_source_failed` logs per-source failures after `Promise.allSettled`.
+- `rss_connector_health` logs source-level rollups with attempted, succeeded, failed, article count, and sampled errors.
+- `rss_items_skipped_stale` and `rss_items_skipped_before_since` explain recency-filter drops.
 
 One broken feed should never crash the whole source run.
 
@@ -56,6 +58,7 @@ Tier is not a truth label. It is an input to ranking and editorial review.
 - RSS availability changes. Failed feeds are ignored by the connector so dry-run and scheduled jobs can continue.
 - Live RSS is opt-in. Keep `LIVE_RSS=false` or unset for sample-only dry-runs. Use `LIVE_RSS=true` only when intentionally testing external feeds.
 - RSS fetches are capped and timed out. Tune with `RSS_ARTICLES_PER_SOURCE`, `RSS_TIMEOUT_MS`, and `RSS_MAX_AGE_DAYS`.
+- Stale RSS items are rejected by default. Use `RSS_ALLOW_STALE=true` only when diagnosing a source whose feed dates are known to lag.
 - RSS summaries can be incomplete or promotional. Generation should cite sources conservatively and avoid unsupported claims.
 - Some publishers permit RSS only for personal use. Keep those entries without `rssUrl` unless PersoNewsAP has permission.
 - Institutional sources are often primary but self-interested. Use them for what an institution said or filed, not as independent analysis.

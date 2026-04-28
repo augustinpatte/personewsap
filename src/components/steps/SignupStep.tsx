@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useWizard } from '@/contexts/WizardContext';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,7 @@ const SignupStep = ({ onNext, onVerify, onBack, totalSteps, currentStep }: Signu
       if (!phoneSchema.safeParse(userData.phoneNumber).success) {
         errors.phoneNumber = t('signup.error.phone.invalid');
       } else if (userData.phoneCountry) {
-        const parsed = parsePhoneNumberFromString(userData.phoneNumber, userData.phoneCountry as any);
+        const parsed = parsePhoneNumberFromString(userData.phoneNumber, userData.phoneCountry as CountryCode);
         if (!parsed || !parsed.isValid()) {
           errors.phoneNumber = t('signup.error.phone.invalid');
         } else {

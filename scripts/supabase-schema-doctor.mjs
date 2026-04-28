@@ -63,6 +63,11 @@ const EXPECTED_POLICIES = {
   ]
 };
 
+const EXPECTED_UNIQUE_INDEXES = [
+  "content_interactions_complete_once_per_user_content",
+  "content_interactions_save_once_per_user_content"
+];
+
 const args = new Set(process.argv.slice(2));
 
 if (args.has("--help") || args.has("-h")) {
@@ -155,6 +160,32 @@ async function runStaticMigrationAudit() {
     /status\s*=\s*'published'|status\s+in\s*\('published',\s*'read',\s*'archived'\)/i,
     "migration restricts app reads to published/read/archive content paths"
   );
+
+  assertRegex(
+    sql,
+    /unique\s*\(\s*user_id\s*,\s*drop_date\s*\)|add\s+constraint\s+\w+\s+unique\s*\(\s*user_id\s*,\s*drop_date\s*\)/i,
+    "migration enforces one daily_drop per user/date"
+  );
+
+  assertRegex(
+    sql,
+    /primary\s+key\s*\(\s*daily_drop_id\s*,\s*content_item_id\s*\)|unique\s*\(\s*daily_drop_id\s*,\s*content_item_id\s*\)|add\s+constraint\s+\w+\s+unique\s*\(\s*daily_drop_id\s*,\s*content_item_id\s*\)/i,
+    "migration prevents duplicate daily_drop/content_item links"
+  );
+
+  assertRegex(
+    sql,
+    /unique\s*\(\s*daily_drop_id\s*,\s*slot\s*,\s*position\s*\)|add\s+constraint\s+\w+\s+unique\s*\(\s*daily_drop_id\s*,\s*slot\s*,\s*position\s*\)/i,
+    "migration prevents duplicate daily_drop slot positions"
+  );
+
+  for (const indexName of EXPECTED_UNIQUE_INDEXES) {
+    assertRegex(
+      sql,
+      new RegExp(`create\\s+unique\\s+index\\s+(if\\s+not\\s+exists\\s+)?${escapeRegExp(indexName)}\\b`, "i"),
+      `migration defines idempotency index ${indexName}`
+    );
+  }
 }
 
 async function runLiveReadOnlyChecks() {

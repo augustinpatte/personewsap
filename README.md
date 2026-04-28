@@ -65,19 +65,60 @@ Never put a Supabase service role key, OpenAI key, Resend key, or generation sec
 
 ## Content Engine
 
-Safe no-write run:
+Safe no-write test commands:
 
 ```sh
 npm run content:dry-run
+npm run content:llm-run
+npm run supabase:doctor
 ```
 
-Build only:
+`content:llm-run` requires `OPENAI_API_KEY` and still does not write to Supabase. `supabase:doctor` reads local migrations by default.
+
+Build command:
 
 ```sh
 npm run content:build
 ```
 
-Persistence commands require explicit confirmation flags and server-side env vars. Use [TESTING.md](TESTING.md) before running them.
+Production-shaped command:
+
+```sh
+DRY_RUN=true npm run content:daily-job
+```
+
+Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow.
+
+Read-only diagnostic commands:
+
+```sh
+npm run supabase:doctor -- --live
+npm run content:debug-users
+```
+
+Local-only write commands for disposable/staging projects:
+
+```sh
+npm run content:persist-test
+npm run content:cleanup-test
+npm run content:assign-test-users
+npm run content:personalize-test
+npm run content:daily-job-test
+npm run backend:e2e
+```
+
+Dangerous write commands require explicit confirmation flags and server-side env vars:
+
+- `content:persist-test`
+- `content:assign-test-users`
+- `content:personalize-test`
+- `content:daily-job-test`
+- `content:cleanup-test`
+- `backend:e2e`
+- `backend:e2e:live-rss`
+- `backend:e2e:llm`
+
+Use [TESTING.md](TESTING.md) before running them. `content:daily-job` is production-shaped but is not wired to unattended scheduling or monitoring yet.
 
 ## Supabase
 
@@ -104,3 +145,16 @@ Before inviting testers:
 - [KNOWN_ISSUES.md](KNOWN_ISSUES.md) is reviewed with the tester coordinator
 
 PersoNewsAP is not production-ready until TestFlight setup, privacy review, editorial review, source licensing, and production operations are completed.
+
+## Production Readiness Snapshot
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Env file ignores | done | Root, mobile, content-engine env files and Supabase temp state are ignored. |
+| Root smoke workflow | done | `npm run smoke` runs mobile typecheck plus content build and no-write dry-run. |
+| Supabase schema/RLS verification | done | `npm run supabase:doctor` and [SUPABASE_CHECKLIST.md](SUPABASE_CHECKLIST.md) cover local/static and live read-only checks. |
+| Backend persistence safety | done | Write commands fail closed behind confirmation flags and service-role env vars. |
+| Tester live-data path | partial | Supported through marked test persistence and assignment; still needs a selected tester Supabase project and manual proof run. |
+| Production scheduler | partial | `content:daily-job` exists, but unattended scheduling, monitoring, and operational ownership are not wired. |
+| Editorial production workflow | missing | LLM output still needs human review before production publication. |
+| Source licensing | missing | RSS/source terms need review before production use. |

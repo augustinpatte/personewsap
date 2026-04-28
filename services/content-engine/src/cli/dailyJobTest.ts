@@ -35,6 +35,22 @@ const REQUIRED_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] 
 const CONTENT_STATUSES = ["draft", "review", "published"] as const;
 
 type DailyJobContentStatus = (typeof CONTENT_STATUSES)[number];
+type DailyJobMode = "daily-job" | "daily-job-test";
+
+export type DailyJobRunOptions = {
+  mode: DailyJobMode;
+  dropDate: string;
+  languages: Language[];
+  topics: TopicId[];
+  newsletterArticleCount: number;
+  liveRss: boolean;
+  useLlm: boolean;
+  userLimit: number | null;
+  contentStatus: DailyJobContentStatus;
+  dryRun: boolean;
+  testMode: boolean;
+  logPrefix: string;
+};
 
 export type DailyJobTestOptions = {
   dropDate: string;
@@ -49,14 +65,15 @@ export type DailyJobTestOptions = {
 
 type StoredItems = Awaited<ReturnType<ContentRepository["storeDailyPayload"]>>;
 
-export type DailyJobTestOutput = {
-  mode: "daily-job-test";
-  confirmation: "CONFIRM_DAILY_JOB_TEST=true";
-  persisted: true;
+export type DailyJobOutput = {
+  mode: DailyJobMode;
+  confirmation?: "CONFIRM_DAILY_JOB_TEST=true";
+  persisted: boolean;
+  dryRun: boolean;
   status: "completed" | "completed_with_failures" | "failed";
   generator: "dry-run" | "llm";
   liveRss: boolean;
-  userLimit: number;
+  userLimit: number | null;
   contentStatus: DailyJobContentStatus;
   summary: {
     languagesRequested: number;
@@ -70,6 +87,7 @@ export type DailyJobTestOutput = {
     totalUsersAssigned: number;
     totalUsersCreated: number;
     totalUsersUpdatedExistingDrop: number;
+    totalUsersSkippedBeforeAssignment: number;
     totalUsersSkippedExistingDrop: number;
     totalUsersSkippedIncompleteSelection: number;
     totalStaleDailyDropItemsRemoved: number;
@@ -87,6 +105,7 @@ export type DailyJobTestOutput = {
     usersAssigned: number;
     usersCreated: number;
     usersUpdatedExistingDrop: number;
+    usersSkippedBeforeAssignment: number;
     usersSkippedExistingDrop: number;
     usersSkippedIncompleteSelection: number;
     staleDailyDropItemsRemoved: number;
@@ -96,10 +115,35 @@ export type DailyJobTestOutput = {
   }>;
 };
 
-type DailyJobLanguageResult = DailyJobTestOutput["languages"][number];
+export type DailyJobTestOutput = DailyJobOutput & {
+  mode: "daily-job-test";
+  confirmation: "CONFIRM_DAILY_JOB_TEST=true";
+  persisted: true;
+  dryRun: false;
+};
+
+type DailyJobLanguageResult = DailyJobOutput["languages"][number];
 
 export async function runDailyJobTest(options: DailyJobTestOptions): Promise<DailyJobTestOutput> {
-  assertDailyJobTestEnvironment(options);
+  const output = await runDailyJob({
+    ...options,
+    mode: "daily-job-test",
+    dryRun: false,
+    testMode: true,
+    logPrefix: "daily-job-test"
+  });
+
+  return {
+    ...output,
+    mode: "daily-job-test",
+    confirmation: "CONFIRM_DAILY_JOB_TEST=true",
+    persisted: true,
+    dryRun: false
+  };
+}
+
+export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJobOutput> {
+  assertDailyJobEnvironment(options);
 
   logProgress("job started", {
     drop_date: options.dropDate,
@@ -107,22 +151,25 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
     topics: options.topics,
     use_llm: options.useLlm,
     live_rss: options.liveRss,
-    user_limit: options.userLimit,
+    user_limit: options.userLimit ?? "all",
     newsletter_articles: options.newsletterArticleCount,
-    content_status: options.contentStatus
-  });
+    content_status: options.contentStatus,
+    dry_run: options.dryRun
+  }, options.logPrefix);
 
   const sourceFetcher = new SourceFetcher(buildSourceConnectors(options.liveRss));
-  const generator = createGenerator(options.useLlm);
-  const repository = new ContentRepository(
-    createServiceRoleSupabaseClient({
-      requireCredentials: true
-    })
-  );
+  const generator = createGenerator(options.useLlm, options.logPrefix);
+  const repository = options.dryRun
+    ? undefined
+    : new ContentRepository(
+        createServiceRoleSupabaseClient({
+          requireCredentials: true
+        })
+      );
   const languageResults: DailyJobLanguageResult[] = [];
 
   for (const language of options.languages) {
-    const testRunId = buildTestRunId(options, language);
+    const testRunId = buildRunId(options, language);
 
     try {
       languageResults.push(
@@ -142,7 +189,7 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
         test_run_id: testRunId,
         language,
         error: serializedError
-      });
+      }, options.logPrefix);
     }
   }
 
@@ -157,16 +204,17 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
   logProgress("job completed", {
     status,
     ...toLogSummary(summary)
-  });
+  }, options.logPrefix);
 
   if (status !== "completed") {
     process.exitCode = 1;
   }
 
   return {
-    mode: "daily-job-test",
-    confirmation: "CONFIRM_DAILY_JOB_TEST=true",
-    persisted: true,
+    mode: options.mode,
+    confirmation: options.testMode ? "CONFIRM_DAILY_JOB_TEST=true" : undefined,
+    persisted: !options.dryRun,
+    dryRun: options.dryRun,
     status,
     generator: options.useLlm ? "llm" : "dry-run",
     liveRss: options.liveRss,
@@ -197,11 +245,35 @@ export function parseDailyJobTestOptions(args: string[]): DailyJobTestOptions {
   };
 }
 
+export function parseDailyJobOptions(args: string[]): DailyJobRunOptions {
+  const flags = readFlags(args);
+  const useLlm = envFlag("USE_LLM") || flags.has("llm");
+  const topics = applyTopicLimit(parseTopics(flags.get("topics") ?? flags.get("topic") ?? TOPIC_IDS.join(",")));
+  const explicitNewsletterCount = readPositiveInteger(flags.get("newsletter-count"), "--newsletter-count");
+  const newsletterArticleCount =
+    explicitNewsletterCount ?? Math.min(useLlm ? LLM_NEWSLETTER_ARTICLE_COUNT : DRY_RUN_NEWSLETTER_ARTICLE_COUNT, topics.length);
+
+  return {
+    mode: "daily-job",
+    dropDate: flags.get("date") ?? toDateOnly(new Date()),
+    languages: parseLanguages(flags.get("languages") ?? flags.get("language") ?? process.env.LANGUAGES ?? DEFAULT_LANGUAGES),
+    topics,
+    newsletterArticleCount,
+    liveRss: envFlag("LIVE_RSS") || flags.has("live-rss"),
+    useLlm,
+    userLimit: parseOptionalUserLimit(process.env.USER_LIMIT),
+    contentStatus: parseContentStatus(process.env.CONTENT_STATUS ?? "published"),
+    dryRun: envFlag("DRY_RUN") || flags.has("dry-run"),
+    testMode: false,
+    logPrefix: "daily-job"
+  };
+}
+
 async function runDailyJobLanguage(input: {
   generator: ContentGenerator;
   language: Language;
-  options: DailyJobTestOptions;
-  repository: ContentRepository;
+  options: DailyJobRunOptions;
+  repository: ContentRepository | undefined;
   sourceFetcher: SourceFetcher;
   testRunId: string;
 }): Promise<DailyJobLanguageResult> {
@@ -210,8 +282,9 @@ async function runDailyJobLanguage(input: {
   logProgress("language started", {
     test_run_id: testRunId,
     language,
-    content_status: options.contentStatus
-  });
+    content_status: options.contentStatus,
+    dry_run: options.dryRun
+  }, options.logPrefix);
 
   const rawArticles = await runStage(
     "source fetch",
@@ -236,7 +309,8 @@ async function runDailyJobLanguage(input: {
       }
 
       return articles;
-    }
+    },
+    { logPrefix: options.logPrefix }
   );
 
   const rankedArticles = await runStage(
@@ -246,7 +320,8 @@ async function runDailyJobLanguage(input: {
       language,
       candidate_articles: rawArticles.length
     },
-    async () => processArticles(rawArticles).filter((article) => article.language === language)
+    async () => processArticles(rawArticles).filter((article) => article.language === language),
+    { logPrefix: options.logPrefix }
   );
 
   if (rankedArticles.length === 0) {
@@ -270,99 +345,108 @@ async function runDailyJobLanguage(input: {
           newsletterTopics: options.topics,
           newsletterArticleCount: options.newsletterArticleCount
         })
-      )
+      ),
+    { logPrefix: options.logPrefix }
   );
 
-  const testPayload = markPayloadAsTestData(payload, testRunId);
+  const jobPayload = options.testMode ? markPayloadAsTestData(payload, testRunId) : payload;
 
   await runStage(
     "validation",
     {
       test_run_id: testRunId,
       language,
-      generated_items: testPayload.items.length
+      generated_items: jobPayload.items.length
     },
     async () => {
-      assertValidDailyDropPayload(testPayload);
-    }
+      assertValidDailyDropPayload(jobPayload);
+    },
+    { logPrefix: options.logPrefix }
   );
 
-  await runStage(
-    "persistence preflight",
-    {
+  let storedItems: StoredItems = [];
+
+  if (options.dryRun) {
+    logProgress("persistence skipped", {
       test_run_id: testRunId,
       language,
-      tables: ["generation_runs", "sources", "content_items", "content_item_sources", "topics"]
-    },
-    async () => {
-      await repository.assertPersistTestSchemaReady(options.topics);
+      reason: "dry_run"
+    }, options.logPrefix);
+  } else {
+    if (!repository) {
+      throw new Error("Daily job persistence requested without a ContentRepository.");
     }
-  );
 
-  const storedItems = await runStage(
-    "persistence",
-    {
+    await runStage(
+      "persistence preflight",
+      {
+        test_run_id: testRunId,
+        language,
+        tables: ["generation_runs", "sources", "content_items", "content_item_sources", "topics"]
+      },
+      async () => {
+        await repository.assertPersistTestSchemaReady(options.topics);
+      },
+      { logPrefix: options.logPrefix }
+    );
+
+    storedItems = await runStage(
+      "persistence",
+      {
+        test_run_id: testRunId,
+        language,
+        generated_items: jobPayload.items.length,
+        content_status: options.contentStatus
+      },
+      async () =>
+        repository.storeDailyPayload({
+          payload: jobPayload,
+          articles: rankedArticles,
+          contentStatus: options.contentStatus,
+          metadata: buildContentMetadata(options, testRunId)
+        }),
+      { maxAttempts: 1, logPrefix: options.logPrefix }
+    );
+
+    logProgress("content stored", {
       test_run_id: testRunId,
       language,
-      generated_items: testPayload.items.length,
-      content_status: options.contentStatus
-    },
-    async () =>
-      repository.storeDailyPayload({
-        payload: testPayload,
-        articles: rankedArticles,
-        contentStatus: options.contentStatus,
-        metadata: {
-          is_test_data: true,
-          test_mode: "daily-job-test",
-          test_run_id: testRunId,
-          test_label: "TEST DAILY JOB CONTENT - safe to inspect and delete manually",
-          persisted_by: "services/content-engine npm run daily-job-test",
-          safe_persistence_note:
-            "Local daily-job-test data. Created only after CONFIRM_DAILY_JOB_TEST=true.",
-          use_llm: options.useLlm,
-          live_rss: options.liveRss,
-          content_status: options.contentStatus
-        }
-      }),
-    { maxAttempts: 1 }
-  );
-
-  logProgress("content stored", {
-    test_run_id: testRunId,
-    language,
-    content_status: options.contentStatus,
-    stored_items: storedItems.length
-  });
+      content_status: options.contentStatus,
+      stored_items: storedItems.length
+    }, options.logPrefix);
+  }
 
   const assignment =
-    options.contentStatus === "published"
+    options.dryRun
+      ? skippedAssignment("dry_run")
+      : options.contentStatus === "published"
       ? await runStage(
           "assignment",
           {
             test_run_id: testRunId,
             language,
-            user_limit: options.userLimit,
+            user_limit: options.userLimit ?? "all",
             stored_items: storedItems.length
           },
           async () =>
             assignStoredDropToUsers({
-              repository,
+              repository: repository ?? missingRepository(),
               storedItems,
-              dropDate: testPayload.drop_date,
+              dropDate: jobPayload.drop_date,
               language,
-              userLimit: options.userLimit
+              userLimit: options.userLimit,
+              logPrefix: options.logPrefix
             }),
-          { maxAttempts: 1 }
+          { maxAttempts: 1, logPrefix: options.logPrefix }
         )
       : skippedAssignment(`content_status_${options.contentStatus}`);
 
-  if (options.contentStatus !== "published") {
+  if (assignment.assignmentSkippedReason) {
     logProgress("assignment skipped", {
       test_run_id: testRunId,
       language,
       reason: assignment.assignmentSkippedReason
-    });
+    }, options.logPrefix);
   }
 
   const result: DailyJobLanguageResult = {
@@ -371,12 +455,13 @@ async function runDailyJobLanguage(input: {
     testRunId,
     fetchedArticles: rawArticles.length,
     processedArticles: rankedArticles.length,
-    generatedItems: testPayload.items.length,
+    generatedItems: jobPayload.items.length,
     storedItems: storedItems.length,
     usersConsidered: assignment.usersConsidered,
     usersAssigned: assignment.usersAssigned,
     usersCreated: assignment.usersCreated,
     usersUpdatedExistingDrop: assignment.usersUpdatedExistingDrop,
+    usersSkippedBeforeAssignment: assignment.usersSkippedBeforeAssignment,
     usersSkippedExistingDrop: assignment.usersSkippedExistingDrop,
     usersSkippedIncompleteSelection: assignment.usersSkippedIncompleteSelection,
     staleDailyDropItemsRemoved: assignment.staleDailyDropItemsRemoved,
@@ -399,7 +484,7 @@ async function runDailyJobLanguage(input: {
     stale_daily_drop_items_removed: result.staleDailyDropItemsRemoved,
     duplicate_daily_drop_items_skipped: result.duplicateDailyDropItemsSkipped,
     assignment_skipped_reason: result.assignmentSkippedReason
-  });
+  }, options.logPrefix);
 
   return result;
 }
@@ -409,12 +494,14 @@ async function assignStoredDropToUsers(input: {
   storedItems: StoredItems;
   dropDate: string;
   language: Language;
-  userLimit: number;
+  userLimit: number | null;
+  logPrefix: string;
 }): Promise<{
   usersConsidered: number;
   usersAssigned: number;
   usersCreated: number;
   usersUpdatedExistingDrop: number;
+  usersSkippedBeforeAssignment: number;
   usersSkippedExistingDrop: number;
   usersSkippedIncompleteSelection: number;
   staleDailyDropItemsRemoved: number;
@@ -423,7 +510,8 @@ async function assignStoredDropToUsers(input: {
 }> {
   const selection = await input.repository.listUserDailyDropPreferenceSelection(input.language);
   const preferences = selection.preferences;
-  const candidates = [...preferences].sort((left, right) => left.user_id.localeCompare(right.user_id)).slice(0, input.userLimit);
+  const sortedPreferences = [...preferences].sort((left, right) => left.user_id.localeCompare(right.user_id));
+  const candidates = input.userLimit === null ? sortedPreferences : sortedPreferences.slice(0, input.userLimit);
 
   for (const skippedUser of selection.skippedUsers) {
     logProgress("user skipped before assignment", {
@@ -433,7 +521,7 @@ async function assignStoredDropToUsers(input: {
       expected_language: skippedUser.expectedLanguage,
       reason: skippedUser.reason,
       enabled_topic_count: skippedUser.enabledTopicCount ?? null
-    });
+    }, input.logPrefix);
   }
 
   logProgress("users selected", {
@@ -444,11 +532,11 @@ async function assignStoredDropToUsers(input: {
     user_topic_preferences_read: selection.userTopicPreferencesRead,
     preferences_loaded: preferences.length,
     users_skipped_before_limit: selection.skippedUsers.length,
-    user_limit: input.userLimit,
+    user_limit: input.userLimit ?? "all",
     users_considered: candidates.length,
     selection_rule:
       "profiles with matching language, user_preferences, and enabled user_topic_preferences; sorted by user_id; limited by USER_LIMIT"
-  });
+  }, input.logPrefix);
 
   const existingDrops = await input.repository.listDailyDropsForUsersOnDate({
     userIds: candidates.map((preference) => preference.user_id),
@@ -461,12 +549,12 @@ async function assignStoredDropToUsers(input: {
     users_considered: candidates.length,
     existing_drops_found: existingDrops.size,
     existing_drop_policy: "update_existing_drop_items"
-  });
+  }, input.logPrefix);
 
   let usersAssigned = 0;
   let usersCreated = 0;
   let usersUpdatedExistingDrop = 0;
-  let usersSkippedExistingDrop = 0;
+  const usersSkippedExistingDrop = 0;
   let usersSkippedIncompleteSelection = 0;
   let staleDailyDropItemsRemoved = 0;
   let duplicateDailyDropItemsSkipped = 0;
@@ -490,7 +578,7 @@ async function assignStoredDropToUsers(input: {
           articles_count: topic.articles_count,
           position: topic.position
         }))
-      });
+      }, input.logPrefix);
       continue;
     }
 
@@ -501,7 +589,7 @@ async function assignStoredDropToUsers(input: {
         previous_status: existingDrop.status,
         drop_date: input.dropDate,
         linked_items: itemIds.length
-      });
+      }, input.logPrefix);
     }
 
     const assignment = await input.repository.createDailyDropForUserWithResult({
@@ -525,7 +613,7 @@ async function assignStoredDropToUsers(input: {
       linked_items: assignment.linkedItems,
       stale_daily_drop_items_removed: assignment.staleItemsRemoved,
       duplicate_daily_drop_items_skipped: assignment.duplicateInputItemsSkipped
-    });
+    }, input.logPrefix);
   }
 
   return {
@@ -533,6 +621,7 @@ async function assignStoredDropToUsers(input: {
     usersAssigned,
     usersCreated,
     usersUpdatedExistingDrop,
+    usersSkippedBeforeAssignment: selection.skippedUsers.length,
     usersSkippedExistingDrop,
     usersSkippedIncompleteSelection,
     staleDailyDropItemsRemoved,
@@ -546,6 +635,7 @@ function skippedAssignment(reason: string): {
   usersAssigned: number;
   usersCreated: number;
   usersUpdatedExistingDrop: number;
+  usersSkippedBeforeAssignment: number;
   usersSkippedExistingDrop: number;
   usersSkippedIncompleteSelection: number;
   staleDailyDropItemsRemoved: number;
@@ -557,6 +647,7 @@ function skippedAssignment(reason: string): {
     usersAssigned: 0,
     usersCreated: 0,
     usersUpdatedExistingDrop: 0,
+    usersSkippedBeforeAssignment: 0,
     usersSkippedExistingDrop: 0,
     usersSkippedIncompleteSelection: 0,
     staleDailyDropItemsRemoved: 0,
@@ -578,6 +669,7 @@ function emptyFailedLanguageResult(language: Language, testRunId: string, error:
     usersAssigned: 0,
     usersCreated: 0,
     usersUpdatedExistingDrop: 0,
+    usersSkippedBeforeAssignment: 0,
     usersSkippedExistingDrop: 0,
     usersSkippedIncompleteSelection: 0,
     staleDailyDropItemsRemoved: 0,
@@ -600,6 +692,7 @@ function summarizeLanguageResults(results: DailyJobLanguageResult[]): DailyJobTe
     totalUsersAssigned: sumResults(results, "usersAssigned"),
     totalUsersCreated: sumResults(results, "usersCreated"),
     totalUsersUpdatedExistingDrop: sumResults(results, "usersUpdatedExistingDrop"),
+    totalUsersSkippedBeforeAssignment: sumResults(results, "usersSkippedBeforeAssignment"),
     totalUsersSkippedExistingDrop: sumResults(results, "usersSkippedExistingDrop"),
     totalUsersSkippedIncompleteSelection: sumResults(results, "usersSkippedIncompleteSelection"),
     totalStaleDailyDropItemsRemoved: sumResults(results, "staleDailyDropItemsRemoved"),
@@ -617,6 +710,7 @@ function sumResults(results: DailyJobLanguageResult[], key: keyof Pick<
   | "usersAssigned"
   | "usersCreated"
   | "usersUpdatedExistingDrop"
+  | "usersSkippedBeforeAssignment"
   | "usersSkippedExistingDrop"
   | "usersSkippedIncompleteSelection"
   | "staleDailyDropItemsRemoved"
@@ -638,6 +732,7 @@ function toLogSummary(summary: DailyJobTestOutput["summary"]): Record<string, nu
     total_users_assigned: summary.totalUsersAssigned,
     total_users_created: summary.totalUsersCreated,
     total_users_updated_existing_drop: summary.totalUsersUpdatedExistingDrop,
+    total_users_skipped_before_assignment: summary.totalUsersSkippedBeforeAssignment,
     total_users_skipped_existing_drop: summary.totalUsersSkippedExistingDrop,
     total_users_skipped_incomplete_selection: summary.totalUsersSkippedIncompleteSelection,
     total_stale_daily_drop_items_removed: summary.totalStaleDailyDropItemsRemoved,
@@ -713,9 +808,11 @@ async function runStage<T>(
   action: () => Promise<T>,
   options: {
     maxAttempts?: number;
+    logPrefix?: string;
   } = {}
 ): Promise<T> {
   const maxAttempts = options.maxAttempts ?? RETRYABLE_STAGE_ATTEMPTS;
+  const logPrefix = options.logPrefix ?? "daily-job-test";
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -723,7 +820,7 @@ async function runStage<T>(
       ...details,
       attempt,
       max_attempts: maxAttempts
-    });
+    }, logPrefix);
 
     try {
       const result = await action();
@@ -731,7 +828,7 @@ async function runStage<T>(
         ...details,
         attempt,
         max_attempts: maxAttempts
-      });
+      }, logPrefix);
       return result;
     } catch (error) {
       lastError = error;
@@ -740,14 +837,14 @@ async function runStage<T>(
         attempt,
         max_attempts: maxAttempts,
         error: serializePersistenceError(error)
-      });
+      }, logPrefix);
 
       if (attempt < maxAttempts) {
         logProgress(`${stage} retrying`, {
           ...details,
           next_attempt: attempt + 1,
           max_attempts: maxAttempts
-        });
+        }, logPrefix);
       }
     }
   }
@@ -755,14 +852,14 @@ async function runStage<T>(
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-function createGenerator(useLlm: boolean): ContentGenerator {
+function createGenerator(useLlm: boolean, logPrefix: string): ContentGenerator {
   if (!useLlm) {
     return new StructuredContentGenerator();
   }
 
   return new LlmContentGenerator({
     provider: new OpenAiJsonProvider(),
-    onProgress: (message, details) => logProgress(message, details)
+    onProgress: (message, details) => logProgress(message, details, logPrefix)
   });
 }
 
@@ -787,17 +884,44 @@ function markPayloadAsTestData(payload: DailyDropPayload, testRunId: string): Da
   };
 }
 
-function buildTestRunId(options: DailyJobTestOptions, language: Language): string {
-  return `daily-job-test-${sha256(
+function buildRunId(options: DailyJobRunOptions, language: Language): string {
+  return `${options.mode}-${sha256(
     [options.dropDate, language, options.useLlm ? "llm" : "dry-run", options.liveRss ? "live-rss" : "sample", ...options.topics].join("|")
   ).slice(0, 12)}`;
 }
 
-function assertDailyJobTestEnvironment(options: DailyJobTestOptions): void {
+function buildContentMetadata(options: DailyJobRunOptions, testRunId: string): Record<string, unknown> {
+  if (options.testMode) {
+    return {
+      is_test_data: true,
+      test_mode: "daily-job-test",
+      test_run_id: testRunId,
+      test_label: "TEST DAILY JOB CONTENT - safe to inspect and delete manually",
+      persisted_by: "services/content-engine npm run daily-job-test",
+      safe_persistence_note: "Local daily-job-test data. Created only after CONFIRM_DAILY_JOB_TEST=true.",
+      content_status: options.contentStatus,
+      use_llm: options.useLlm,
+      live_rss: options.liveRss
+    };
+  }
+
+  return {
+    is_test_data: false,
+    scheduler_mode: "daily-job",
+    scheduler_run_id: testRunId,
+    persisted_by: "services/content-engine npm run daily-job",
+    content_status: options.contentStatus,
+    use_llm: options.useLlm,
+    live_rss: options.liveRss,
+    safe_persistence_note: "Production daily job generated content."
+  };
+}
+
+function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
   const missing = [
-    process.env.SUPABASE_URL ? null : "SUPABASE_URL",
-    process.env.SUPABASE_SERVICE_ROLE_KEY ? null : "SUPABASE_SERVICE_ROLE_KEY",
-    process.env.CONFIRM_DAILY_JOB_TEST === "true" ? null : "CONFIRM_DAILY_JOB_TEST=true",
+    !options.dryRun && !process.env.SUPABASE_URL ? "SUPABASE_URL" : null,
+    !options.dryRun && !process.env.SUPABASE_SERVICE_ROLE_KEY ? "SUPABASE_SERVICE_ROLE_KEY" : null,
+    options.testMode && process.env.CONFIRM_DAILY_JOB_TEST !== "true" ? "CONFIRM_DAILY_JOB_TEST=true" : null,
     options.useLlm && !process.env.OPENAI_API_KEY ? "OPENAI_API_KEY when USE_LLM=true" : null
   ].filter((value): value is string => value !== null);
 
@@ -806,13 +930,24 @@ function assertDailyJobTestEnvironment(options: DailyJobTestOptions): void {
   }
 
   throw new Error(
-    [
-      `daily-job-test refused to write because the following required setting(s) are missing: ${missing.join(", ")}.`,
-      "This command persists published test content and assigns daily drops to a limited set of app users.",
-      "To run it intentionally, set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and CONFIRM_DAILY_JOB_TEST=true.",
-      "Use USER_LIMIT=5 or lower for local checks, and use a local or disposable Supabase project by default."
-    ].join(" ")
+    options.testMode
+      ? [
+          `daily-job-test refused to write because the following required setting(s) are missing: ${missing.join(", ")}.`,
+          "This command persists published test content and assigns daily drops to a limited set of app users.",
+          "To run it intentionally, set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and CONFIRM_DAILY_JOB_TEST=true.",
+          "Use USER_LIMIT=5 or lower for local checks, and use a local or disposable Supabase project by default."
+        ].join(" ")
+      : [
+          `daily-job refused to run because the following required setting(s) are missing: ${missing.join(", ")}.`,
+          options.dryRun
+            ? "DRY_RUN=true prevents Supabase writes. USE_LLM=true still requires OPENAI_API_KEY."
+            : "Production writes require SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in a server-side environment."
+        ].join(" ")
   );
+}
+
+function missingRepository(): never {
+  throw new Error("Daily job assignment requested without a ContentRepository.");
 }
 
 function applyTopicLimit(topics: TopicId[]): TopicId[] {
@@ -823,6 +958,10 @@ function applyTopicLimit(topics: TopicId[]): TopicId[] {
 function parseUserLimit(value: string | undefined): number {
   const parsed = readPositiveInteger(value, "USER_LIMIT") ?? DEFAULT_USER_LIMIT;
   return Math.max(1, Math.min(parsed, MAX_USER_LIMIT));
+}
+
+function parseOptionalUserLimit(value: string | undefined): number | null {
+  return readPositiveInteger(value, "USER_LIMIT");
 }
 
 function parseContentStatus(value: string): DailyJobContentStatus {
@@ -897,6 +1036,6 @@ function envFlag(name: string): boolean {
   return process.env[name]?.toLowerCase() === "true";
 }
 
-function logProgress(message: string, details: Record<string, unknown>): void {
-  process.stderr.write(`[daily-job-test] ${new Date().toISOString()} ${message} ${JSON.stringify(details)}\n`);
+function logProgress(message: string, details: Record<string, unknown>, prefix = "daily-job-test"): void {
+  process.stderr.write(`[${prefix}] ${new Date().toISOString()} ${message} ${JSON.stringify(details)}\n`);
 }

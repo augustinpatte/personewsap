@@ -1,8 +1,20 @@
 # Known Issues
 
-Last reviewed: 2026-04-27
+Last reviewed: 2026-04-28
 
 Use this list when preparing a small tester group. Keep it practical: what testers may hit, what the coordinator should watch, and what is not production-safe yet.
+
+## Backend Blockers Remaining
+
+These are the backend-only blockers after the current cleanup pass:
+
+| Blocker | Status | Why it matters |
+| --- | --- | --- |
+| Tester Supabase project not selected/proven | open | The code path exists, but beta still needs one selected environment with migrations, RLS, and auth settings verified. |
+| Full live-data proof not rerun for this wave | open | The repo has proof commands, but a real tester account still needs signup, onboarding, assignment, Today, Library, and interaction verification. |
+| Production scheduler/ops incomplete | open | `content:daily-job` exists, but unattended scheduling, monitoring, and ownership are not set. |
+| Editorial review gate missing | open | LLM output can be structurally valid but still needs human review before production publication. |
+| Source licensing review missing | open | RSS/source metadata should remain internal-test-only until reuse rights are approved. |
 
 ## Active Issues
 

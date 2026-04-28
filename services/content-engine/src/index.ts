@@ -35,6 +35,7 @@ export * from "./storage/supabaseClient.js";
 export * from "./scheduler/index.js";
 export * from "./cli/assignTestUsers.js";
 export * from "./cli/cleanupTest.js";
+export * from "./cli/dailyJob.js";
 export * from "./cli/dryRun.js";
 export * from "./cli/llmRun.js";
 export * from "./cli/persistTest.js";

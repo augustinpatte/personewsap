@@ -23,26 +23,50 @@ export class SourceFetcher {
     const results = await Promise.allSettled(this.connectors.map((connector) => connector.fetchArticles(request)));
     const articles: RawArticle[] = [];
     let failedConnectors = 0;
+    let succeededConnectors = 0;
 
     results.forEach((result, index) => {
+      const connector = this.connectors[index].name;
+
       if (result.status === "fulfilled") {
         articles.push(...result.value);
+        succeededConnectors += 1;
         sourceLog("connector_fetch_completed", {
-          connector: this.connectors[index].name,
+          connector,
           article_count: result.value.length
+        });
+        sourceLog("source_connector_health", {
+          connector,
+          attempted: 1,
+          succeeded: 1,
+          failed: 0,
+          article_count: result.value.length,
+          error: null
         });
         return;
       }
 
       failedConnectors += 1;
+      const error = result.reason instanceof Error ? result.reason.message : String(result.reason);
       sourceWarning("connector_fetch_failed", {
-        connector: this.connectors[index].name,
-        error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+        connector,
+        error
+      });
+      sourceWarning("source_connector_health", {
+        connector,
+        attempted: 1,
+        succeeded: 0,
+        failed: 1,
+        article_count: 0,
+        error
       });
     });
 
     sourceLog("fetch_completed", {
       connector_count: this.connectors.length,
+      attempted: this.connectors.length,
+      succeeded: succeededConnectors,
+      failed: failedConnectors,
       failed_connectors: failedConnectors,
       article_count: articles.length
     });

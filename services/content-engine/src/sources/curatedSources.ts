@@ -36,11 +36,11 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     language: "en",
     publisher: "Harvard Business Review",
     url: "https://hbr.org/",
-    rssUrl: "https://hbr.org/feed",
     credibility_score: 0.82,
     credibility_tier: "tier_2",
     source_type: "specialist_publisher",
-    description: "Management, strategy, leadership, and organizational behavior."
+    description: "Management, strategy, leadership, and organizational behavior.",
+    usage_notes: "No stable public RSS endpoint is currently enabled; keep as curated reference."
   },
   {
     id: "mit-business-management",
@@ -110,11 +110,11 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     language: "en",
     publisher: "Marketplace",
     url: "https://www.marketplace.org/",
-    rssUrl: "https://www.marketplace.org/feed/",
     credibility_score: 0.8,
     credibility_tier: "tier_2",
     source_type: "specialist_publisher",
-    description: "Economic news explained for a broad audience."
+    description: "Economic news explained for a broad audience.",
+    usage_notes: "RSS endpoint blocks server-side fetches; keep as curated reference until an allowed feed path is confirmed."
   },
   {
     id: "ecb-press",
@@ -148,7 +148,7 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     publisher: "U.S. Commodity Futures Trading Commission",
     region: "us",
     url: "https://www.cftc.gov/PressRoom/PressReleases",
-    rssUrl: "https://www.cftc.gov/RSS/PressReleases.xml",
+    rssUrl: "https://www.cftc.gov/RSS/RSSGP/rssgp.xml",
     credibility_score: 0.92,
     credibility_tier: "tier_1",
     source_type: "institutional_site",
@@ -259,7 +259,7 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     language: "en",
     publisher: "U.S. Department of Justice",
     url: "https://www.justice.gov/news",
-    rssUrl: "https://www.justice.gov/feeds/opa/justice-news.xml",
+    rssUrl: "https://www.justice.gov/news/rss",
     credibility_score: 0.93,
     credibility_tier: "tier_1",
     source_type: "rss",
@@ -271,7 +271,7 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     language: "en",
     publisher: "Electronic Frontier Foundation",
     url: "https://www.eff.org/deeplinks",
-    rssUrl: "https://www.eff.org/deeplinks/index.xml",
+    rssUrl: "https://www.eff.org/rss/updates.xml",
     credibility_score: 0.82,
     credibility_tier: "tier_2",
     source_type: "specialist_publisher",
@@ -284,7 +284,7 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     publisher: "U.S. Courts",
     region: "us",
     url: "https://www.uscourts.gov/news",
-    rssUrl: "https://www.uscourts.gov/news/rss.xml",
+    rssUrl: "https://www.uscourts.gov/news/rss",
     credibility_score: 0.91,
     credibility_tier: "tier_1",
     source_type: "institutional_site",
@@ -613,6 +613,31 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     usage_notes: "RSS reuse requires permission for non-personal or collective use; keep disabled until licensed."
   },
   {
+    id: "service-public-pro",
+    topic: "business",
+    language: "fr",
+    publisher: "Service-Public.fr",
+    url: "https://www.service-public.gouv.fr/professionnels-entreprises/actualites",
+    rssUrl: "https://www.service-public.gouv.fr/abonnements/rss/actu-actu-pro.rss",
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source French administrative updates for professionals and companies.",
+    usage_notes: "Official public RSS feed; keep source attribution visible when reusing metadata."
+  },
+  {
+    id: "france24-fr-economie",
+    topic: "business",
+    language: "fr",
+    publisher: "France 24",
+    url: "https://www.france24.com/fr/%C3%A9co-tech/",
+    rssUrl: "https://www.france24.com/fr/%C3%A9co-tech/rss",
+    credibility_score: 0.8,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French-language economy and business news from France 24."
+  },
+  {
     id: "le-monde-argent",
     topic: "finance",
     language: "fr",
@@ -623,6 +648,18 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     source_type: "publisher_section",
     description: "French personal finance and markets context.",
     usage_notes: "RSS reuse requires permission for non-personal or collective use; keep disabled until licensed."
+  },
+  {
+    id: "economie-gouv-actualites",
+    topic: "finance",
+    language: "fr",
+    publisher: "Ministere de l'Economie et des Finances",
+    url: "https://www.economie.gouv.fr/tous-les-fils-d-infos",
+    credibility_score: 0.92,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source French economy, finance, public policy, and ministry updates.",
+    usage_notes: "RSS catalogue is public, but the direct portal feed endpoint is unstable; keep as curated reference until a current feed URL is verified."
   },
   {
     id: "le-monde-pixels",
@@ -637,6 +674,18 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     usage_notes: "RSS reuse requires permission for non-personal or collective use; keep disabled until licensed."
   },
   {
+    id: "france24-fr-tech",
+    topic: "tech_ai",
+    language: "fr",
+    publisher: "France 24",
+    url: "https://www.france24.com/fr/tag/technologie/",
+    rssUrl: "https://www.france24.com/fr/tag/technologie/rss",
+    credibility_score: 0.78,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French-language technology coverage useful for AI and platform trend monitoring."
+  },
+  {
     id: "conseil-constitutionnel",
     topic: "law",
     language: "fr",
@@ -648,11 +697,24 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "Primary-source French constitutional law decisions and institutional updates."
   },
   {
+    id: "vie-publique-lois",
+    topic: "law",
+    language: "fr",
+    publisher: "Vie-publique.fr",
+    url: "https://www.vie-publique.fr/lois",
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "French public-law and legislative tracking from La Documentation francaise.",
+    usage_notes: "Public RSS endpoint currently returns bot-mitigation HTML to server-side fetches; keep as curated reference."
+  },
+  {
     id: "inserm",
     topic: "medicine",
     language: "fr",
     publisher: "Inserm",
     url: "https://www.inserm.fr/actualite/",
+    rssUrl: "https://www.inserm.fr/actualite/feed/",
     credibility_score: 0.92,
     credibility_tier: "tier_1",
     source_type: "institutional_site",
@@ -670,6 +732,19 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "French scientific research updates; filter for engineering and applied science."
   },
   {
+    id: "cnrs-news",
+    topic: "engineering",
+    language: "en",
+    publisher: "CNRS News",
+    region: "fr",
+    url: "https://news.cnrs.fr/",
+    rssUrl: "https://news.cnrs.fr/feed",
+    credibility_score: 0.88,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "French national research center news in English, including engineering and applied science."
+  },
+  {
     id: "sportstrategies",
     topic: "sport_business",
     language: "fr",
@@ -681,6 +756,18 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "French sports marketing, sponsorship, and sports business coverage."
   },
   {
+    id: "france24-fr-sports",
+    topic: "sport_business",
+    language: "fr",
+    publisher: "France 24",
+    url: "https://www.france24.com/fr/sports/",
+    rssUrl: "https://www.france24.com/fr/sports/rss",
+    credibility_score: 0.76,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French sports coverage; use mainly for league, governance, event, and commercial signals."
+  },
+  {
     id: "ina-medias",
     topic: "culture_media",
     language: "fr",
@@ -690,6 +777,18 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     credibility_tier: "tier_2",
     source_type: "specialist_publisher",
     description: "French media analysis and cultural industry context."
+  },
+  {
+    id: "france24-fr-culture",
+    topic: "culture_media",
+    language: "fr",
+    publisher: "France 24",
+    url: "https://www.france24.com/fr/culture/",
+    rssUrl: "https://www.france24.com/fr/culture/rss",
+    credibility_score: 0.76,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French-language culture and media-industry coverage."
   }
 ];
 

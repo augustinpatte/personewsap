@@ -34,6 +34,30 @@ npm run content:build
 npm run content:dry-run
 ```
 
+Run the backend E2E proof after Supabase env is configured:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_DAILY_JOB_TEST=true \
+LANGUAGES=en \
+USER_LIMIT=3 \
+npm run backend:e2e
+```
+
+This proof writes marked test content through `daily-job-test`. Use a local, staging, or disposable Supabase project unless you intentionally want marked test rows in the target project.
+
+## Command Safety Map
+
+| Category | Commands | Writes data? | Intended use |
+| --- | --- | --- | --- |
+| Test commands | `npm run smoke`, `npm run mobile:typecheck`, `npm run content:build`, `npm run content:dry-run` | No | Routine local validation before handoff. |
+| Local no-write commands | `npm run content:llm-run`, `npm run supabase:doctor`, `npm run content:debug-users` | No | LLM inspection, static/live read-only schema checks, and user eligibility diagnostics. |
+| Local-only dangerous write commands | `npm run backend:e2e`, `npm run backend:e2e:live-rss`, `npm run backend:e2e:llm`, `npm run content:persist-test`, `npm run content:assign-test-users`, `npm run content:personalize-test`, `npm run content:daily-job-test`, `npm run content:cleanup-test` | Yes | Disposable or staging Supabase testing with explicit confirmation flags. |
+| Production commands | `npm run content:daily-job` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. It is not wired to unattended scheduling or monitoring yet. |
+
+Dangerous write commands require `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the command-specific `CONFIRM_*` flag. Treat them as staging/test tools unless a production owner intentionally accepts test rows in production. `content:daily-job` does not use a test confirmation flag, so run it with `DRY_RUN=true` until the production environment, scheduler, monitoring, source rights, and editorial review workflow are explicitly approved.
+
 ## 2. Environment Safety
 
 Local env files are ignored. Confirm with:
@@ -55,7 +79,7 @@ Use `services/content-engine/.env` or a local shell only for server-side keys:
 ```sh
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
-OPENAI_API_KEY=your-openai-key
+OPENAI_API_KEY=...
 ```
 
 Never put service role keys, OpenAI keys, Resend keys, generation secrets, or production credentials in Expo, Vite, checked-in files, logs, screenshots, or issue comments.
@@ -80,6 +104,27 @@ supabase db push
 ```
 
 If not using the CLI, paste and run each SQL migration in the Supabase SQL editor in order.
+
+Run the production-beta SQL verification after migrations are applied and two tester users exist:
+
+```sh
+cd ~/personewsap
+export DATABASE_URL="postgresql://postgres:...@db.YOUR_PROJECT_REF.supabase.co:5432/postgres"
+export SUPABASE_VERIFY_USER_A="tester-a-auth-user-id"
+export SUPABASE_VERIFY_USER_A_EMAIL="tester-a@example.com"
+export SUPABASE_VERIFY_USER_B="tester-b-auth-user-id"
+export SUPABASE_VERIFY_PUBLISHED_CONTENT_ID="published-content-item-id"
+./scripts/run-supabase-verification.sh
+```
+
+Expected output:
+
+- the schema doctor reports required tables, RLS, policies, and topics
+- the constraint audit reports no duplicate daily drops, drop items, complete rows, or save rows
+- the RLS matrix reports PASS for anon isolation, authenticated own-row access, and client-side daily-drop write blocking
+- the rollbacked service-role probe reports PASS for content and daily-drop writes
+
+If `constraints_and_duplicates.sql` reports duplicate complete/save interactions, clean or archive those duplicate test rows before applying the beta hardening migration. Rating feedback remains append-only by design.
 
 ## 4. Mobile Setup
 
@@ -112,6 +157,7 @@ From the repo root:
 ```sh
 npm run content:build
 npm run content:dry-run
+npm run supabase:doctor
 ```
 
 `content:dry-run` uses local sample articles and prints JSON. It does not need Supabase, API keys, LLM calls, or production data.
@@ -120,15 +166,97 @@ Optional live RSS smoke check:
 
 ```sh
 npm --prefix services/content-engine run dry-run -- --live-rss
+LIVE_RSS=true npm --prefix services/content-engine run dry-run
 ```
+
+The live RSS check is read-only and may show source failures from remote feeds. That is acceptable when the command still completes and logs per-source health. Look for `rss_connector_health`, `rss_source_health`, and stale-item diagnostics in stderr. Useful diagnostic controls:
+
+```sh
+LIVE_RSS=true RSS_TIMEOUT_MS=10000 RSS_ARTICLES_PER_SOURCE=3 npm --prefix services/content-engine run dry-run
+LIVE_RSS=true RSS_ALLOW_STALE=true npm --prefix services/content-engine run dry-run
+```
+
+Use `RSS_ALLOW_STALE=true` only to inspect slow-moving feeds; keep it unset for normal test runs.
 
 Optional LLM generation, still without Supabase writes:
 
 ```sh
-OPENAI_API_KEY=... npm --prefix services/content-engine run llm-run -- --language en
+OPENAI_API_KEY=... npm run content:llm-run -- --language en
 ```
 
-## 6. Daily Drop Generation For Testers
+Read-only live schema/RLS check against a selected Supabase project:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_ANON_KEY=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+npm run supabase:doctor -- --live
+```
+
+## 6. Backend E2E Proof
+
+Use this when you want to say the backend is ready except prompts/content quality.
+
+Exact command sequence:
+
+```sh
+cd ~/personewsap
+npm run smoke
+
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_DAILY_JOB_TEST=true \
+LANGUAGES=en \
+USER_LIMIT=3 \
+npm run backend:e2e
+```
+
+`npm run backend:e2e` runs:
+
+- mobile typecheck
+- content-engine build
+- content-engine dry-run
+- `debug-users`
+- `daily-job-test`
+- `daily-job-test` again on the same date to verify idempotent daily-drop updates
+
+Pass criteria printed by the command:
+
+- required server env is present and explicit confirmation is true
+- mobile typecheck passes
+- content-engine builds
+- dry-run generates content and has no language mismatch
+- `debug-users` can read eligible app-user state
+- `daily-job-test` generates and stores content
+- if eligible users exist, at least one user is assigned
+- second `daily-job-test` run updates an existing daily drop when eligible users exist
+
+Optional live RSS proof:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_DAILY_JOB_TEST=true \
+LANGUAGES=en \
+USER_LIMIT=3 \
+npm run backend:e2e:live-rss
+```
+
+Optional LLM proof:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_DAILY_JOB_TEST=true \
+OPENAI_API_KEY="<openai-key>" \
+LANGUAGES=en \
+USER_LIMIT=3 \
+npm run backend:e2e:llm
+```
+
+The LLM proof is not required for smoke readiness.
+
+## 7. Daily Drop Generation For Testers
 
 ### No-write dry run
 
@@ -217,6 +345,15 @@ CONFIRM_ASSIGN_TEST=true \
 npm --prefix services/content-engine run assign-test-users -- --limit 5
 ```
 
+To assign already-published, non-test content by app preferences during a controlled staging rehearsal, use `personalize-test`. This is a dangerous write command and should not be used as the default tester flow:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_PERSONALIZE_TEST=true \
+npm run content:personalize-test -- --date "$(date +%F)" --limit 3
+```
+
 For a larger rehearsal, `daily-job-test` can generate, persist, and assign marked test drops, but treat it as a staging-only operation:
 
 ```sh
@@ -235,7 +372,16 @@ LANGUAGES=fr,en npm run daily-job-test
 LANGUAGES=fr,en npm run debug-users
 ```
 
-## 7. App Manual Test Flow
+For the production scheduler command, prove the no-write path first:
+
+```sh
+cd services/content-engine
+DRY_RUN=true LANGUAGES=fr,en CONTENT_STATUS=published USE_LLM=false LIVE_RSS=false npm run daily-job
+```
+
+Cron or GitHub Actions should later use the same `npm run daily-job` command without `DRY_RUN=true`, with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and, when `USE_LLM=true`, `OPENAI_API_KEY` supplied as server-side secrets.
+
+## 8. App Manual Test Flow
 
 Use this as the core QA path:
 

@@ -101,12 +101,30 @@ export class RssFeedConnector implements SourceConnector {
     }
 
     const articles = batches.flatMap((batch) => (batch.status === "fulfilled" ? batch.value : []));
+    const succeededSources = batches.filter((batch) => batch.status === "fulfilled").length;
 
     sourceLog("rss_fetch_completed", {
       source_count: selected.length,
+      attempted: selected.length,
+      succeeded: succeededSources,
+      failed: failures.length,
       skipped_no_rss_count: skippedNoRss.length,
       failed_sources: failures.length,
       article_count: articles.length
+    });
+
+    sourceLog("rss_connector_health", {
+      connector: this.name,
+      attempted: selected.length,
+      succeeded: succeededSources,
+      failed: failures.length,
+      article_count: articles.length,
+      skipped_no_rss_count: skippedNoRss.length,
+      errors: failures.slice(0, 10).map((failure) => ({
+        source_id: failure.source.id,
+        publisher: failure.source.publisher,
+        error: failure.batch.reason instanceof Error ? failure.batch.reason.message : String(failure.batch.reason)
+      }))
     });
 
     return articles;
@@ -182,11 +200,31 @@ export class RssFeedConnector implements SourceConnector {
     }
 
     const xml = await response.text();
-    const items = parseXmlFeed(xml);
+    let items: ReturnType<typeof parseXmlFeed>;
+    try {
+      items = parseXmlFeed(xml);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      sourceWarning("rss_source_health", {
+        source_id: source.id,
+        publisher: source.publisher,
+        status: "failed",
+        http_status: response.status,
+        duration_ms: Date.now() - startedAt,
+        kept_count: 0,
+        skipped_count: 0,
+        article_count: 0,
+        error: `RSS parse failed: ${message}`
+      });
+      throw new Error(`RSS parse failed for ${source.id}: ${message}`);
+    }
+
     let skippedMissingFields = 0;
     let skippedStale = 0;
+    let skippedBeforeSince = 0;
     let skippedInvalidUrl = 0;
     const maxAgeDays = this.resolveMaxAgeDays();
+    const allowStale = this.resolveAllowStaleArticles();
 
     if (items.length === 0) {
       sourceWarning("rss_source_skipped_no_items", {
@@ -227,12 +265,17 @@ export class RssFeedConnector implements SourceConnector {
       })
       .filter((article): article is RawArticle & SourceArticleMetadata => article !== null)
       .filter((article) => {
-        const keep = isAfterSince(article, since) && isFreshEnough(article, maxAgeDays);
-        if (!keep) {
-          skippedStale += 1;
+        if (!isAfterSince(article, since)) {
+          skippedBeforeSince += 1;
+          return false;
         }
 
-        return keep;
+        if (!allowStale && !isFreshEnough(article, maxAgeDays)) {
+          skippedStale += 1;
+          return false;
+        }
+
+        return true;
       })
       .slice(0, limit);
 
@@ -254,6 +297,27 @@ export class RssFeedConnector implements SourceConnector {
       });
     }
 
+    if (skippedBeforeSince > 0) {
+      sourceWarning("rss_items_skipped_before_since", {
+        source_id: source.id,
+        publisher: source.publisher,
+        rss_url: source.rssUrl,
+        since,
+        skipped_count: skippedBeforeSince
+      });
+    }
+
+    if (skippedStale > 0) {
+      sourceWarning("rss_items_skipped_stale", {
+        source_id: source.id,
+        publisher: source.publisher,
+        rss_url: source.rssUrl,
+        skipped_count: skippedStale,
+        max_age_days: maxAgeDays,
+        allow_stale: allowStale
+      });
+    }
+
     if (items.length > 0 && articles.length === 0) {
       sourceWarning("rss_source_skipped_no_usable_items", {
         source_id: source.id,
@@ -262,11 +326,17 @@ export class RssFeedConnector implements SourceConnector {
         rss_items: items.length,
         skipped_missing_fields: skippedMissingFields,
         skipped_invalid_url: skippedInvalidUrl,
+        skipped_before_since: skippedBeforeSince,
         skipped_stale: skippedStale
       });
     }
 
-    const skippedCount = skippedMissingFields + skippedInvalidUrl + skippedStale + Math.max(0, items.length - skippedMissingFields - skippedInvalidUrl - skippedStale - articles.length);
+    const skippedCount =
+      skippedMissingFields +
+      skippedInvalidUrl +
+      skippedBeforeSince +
+      skippedStale +
+      Math.max(0, items.length - skippedMissingFields - skippedInvalidUrl - skippedBeforeSince - skippedStale - articles.length);
 
     sourceLog("rss_source_succeeded", {
       source_id: source.id,
@@ -280,8 +350,10 @@ export class RssFeedConnector implements SourceConnector {
       skipped_count: skippedCount,
       skipped_missing_fields: skippedMissingFields,
       skipped_invalid_url: skippedInvalidUrl,
+      skipped_before_since: skippedBeforeSince,
       skipped_stale: skippedStale,
       max_age_days: maxAgeDays,
+      allow_stale: allowStale,
       duration_ms: Date.now() - startedAt,
       article_count: articles.length
     });
@@ -295,6 +367,10 @@ export class RssFeedConnector implements SourceConnector {
       rss_items: items.length,
       kept_count: articles.length,
       skipped_count: skippedCount,
+      skipped_before_since: skippedBeforeSince,
+      skipped_stale: skippedStale,
+      max_age_days: maxAgeDays,
+      allow_stale: allowStale,
       article_count: articles.length
     });
 
@@ -327,6 +403,10 @@ export class RssFeedConnector implements SourceConnector {
     const maxAgeDays = Number.isInteger(envMaxAgeDays) && envMaxAgeDays > 0 ? envMaxAgeDays : DEFAULT_RSS_MAX_AGE_DAYS;
 
     return Math.max(1, Math.min(maxAgeDays, 120));
+  }
+
+  private resolveAllowStaleArticles(): boolean {
+    return process.env.RSS_ALLOW_STALE?.toLowerCase() === "true";
   }
 }
 

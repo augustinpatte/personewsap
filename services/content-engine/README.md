@@ -29,19 +29,40 @@ Optional:
 
 ## Commands
 
+Test/no-write commands:
+
 ```sh
 npm run check
 npm run build
 npm run dry-run
 npm run llm-run
-npm run persist-test
-npm run cleanup-test
-npm run assign-test-users
-npm run daily-job-test
+```
+
+Read-only diagnostic:
+
+```sh
 npm run debug-users
 ```
 
+Dangerous write commands for local/disposable/staging projects:
+
+```sh
+npm run persist-test
+npm run cleanup-test
+npm run assign-test-users
+npm run personalize-test
+npm run daily-job-test
+```
+
+Production scheduler command:
+
+```sh
+npm run daily-job
+```
+
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
+
+`daily-job` is the production scheduler entrypoint. Use `DRY_RUN=true` for a no-write rehearsal; write mode requires server-side Supabase service-role credentials.
 
 The default dry run uses bundled sample articles, including a duplicate URL variant, then runs the normal pipeline:
 
@@ -70,16 +91,33 @@ Optional live RSS fetching can be added without API keys:
 
 ```sh
 npm run dry-run -- --live-rss
+LIVE_RSS=true npm run dry-run
 ```
 
 The command prints a JSON object with diagnostics and one or more daily drop payloads. `persisted` is always `false` in dry-run mode.
+
+Live RSS remains opt-in and read-only. Each feed is fetched independently, so one malformed XML document, timeout, or HTTP failure is logged and skipped without failing the whole run. Source logs are written to stderr and include:
+
+- `source_connector_health` for each connector with `connector`, `attempted`, `succeeded`, `failed`, `article_count`, and `error`
+- `rss_source_health` for each RSS source with source id, publisher, status, article count, skipped count, duration, and error when failed
+- `rss_connector_health` with attempted/succeeded/failed feed counts and a short error list
+- `rss_items_skipped_stale` and `rss_items_skipped_before_since` when recency filtering drops feed items
+
+RSS tuning knobs:
+
+```sh
+LIVE_RSS=true RSS_TIMEOUT_MS=8000 RSS_ARTICLES_PER_SOURCE=5 RSS_MAX_AGE_DAYS=21 npm run dry-run
+LIVE_RSS=true RSS_ALLOW_STALE=true npm run dry-run
+```
+
+Use `RSS_ALLOW_STALE=true` only for diagnostics against slow-moving feeds. The default rejects clearly stale articles and keeps sample mode unchanged when `LIVE_RSS` is unset.
 
 ## LLM Generation
 
 `llm-run` uses the same source collection and processing pipeline, then asks OpenAI for the final structured daily drop. It still does not write to Supabase.
 
 ```sh
-OPENAI_API_KEY=sk-... npm run llm-run
+OPENAI_API_KEY=... npm run llm-run
 ```
 
 For safe local testing, `llm-run` always limits the generated drop to:
@@ -94,9 +132,9 @@ This keeps local OpenAI requests smaller and easier to inspect. `dry-run` is unc
 Useful options mostly match `dry-run`:
 
 ```sh
-OPENAI_API_KEY=sk-... npm run llm-run -- --date 2026-04-26
-OPENAI_API_KEY=sk-... npm run llm-run -- --languages en,fr
-OPENAI_API_KEY=sk-... npm run llm-run -- --topics business,finance,tech_ai
+OPENAI_API_KEY=... npm run llm-run -- --date 2026-04-26
+OPENAI_API_KEY=... npm run llm-run -- --languages en,fr
+OPENAI_API_KEY=... npm run llm-run -- --topics business,finance,tech_ai
 ```
 
 `--newsletter-count` is intentionally ignored by `llm-run` local test mode and capped at one newsletter article.
@@ -113,7 +151,7 @@ Progress logs are printed to stderr so stdout can remain valid JSON for scripts.
 Use a shorter timeout when testing failure handling:
 
 ```sh
-OPENAI_API_KEY=sk-... OPENAI_REQUEST_TIMEOUT_MS=10000 npm run llm-run
+OPENAI_API_KEY=... OPENAI_REQUEST_TIMEOUT_MS=10000 npm run llm-run
 ```
 
 If OpenAI fails, the command reports whether the failure was a timeout, network/endpoint problem, HTTP/API error, missing JSON output, or invalid JSON.
@@ -242,6 +280,103 @@ npm run assign-test-users -- --test-run-id persist-test-abc123
 
 The command logs how many users were considered, skipped, and assigned. Use this after publishing or creating a published persist-test content set, for example via `persist-test` with `TEST_USER_ID`.
 
+### Assigning Published Content By Preferences
+
+`personalize-test` assigns already-published content to app users from `profiles`, `user_preferences`, and `user_topic_preferences`. It does not generate content and never reads legacy newsletter-only users.
+
+Required:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CONFIRM_PERSONALIZE_TEST=true`
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_PERSONALIZE_TEST=true \
+npm run personalize-test -- --date 2026-04-26 --limit 3
+```
+
+Safety limits:
+
+- default limit is 3 users
+- skips users who already have a daily drop for the selected date
+- requires enough published content for each selected user's language and topics
+- writes only `daily_drops` and `daily_drop_items`
+- intended for controlled staging rehearsal, not default tester setup
+
+## Production Daily Job
+
+`daily-job` is the production-safe scheduler command. It reuses the same fetch, processing, generation, validation, persistence, and assignment path as `daily-job-test`, but it does not mark titles as test content and it can assign all eligible app users when `USER_LIMIT` is absent.
+
+Supported env:
+
+- `LANGUAGES=fr,en` controls generated languages. Defaults to `fr,en`.
+- `CONTENT_STATUS=published` stores generated content as `draft`, `review`, or `published`. Assignment only runs for `published`.
+- `USE_LLM=true` uses OpenAI generation. Requires `OPENAI_API_KEY`, including in dry runs.
+- `LIVE_RSS=true` enables curated RSS fetching.
+- `USER_LIMIT=5` optionally limits assignments per language. Omit it to consider all eligible users.
+- `DRY_RUN=true` fetches, processes, generates, validates, and prints summary JSON without Supabase writes.
+- `TOPIC_LIMIT=3` can narrow the default topic set for local rehearsals.
+
+Local no-write rehearsal:
+
+```sh
+DRY_RUN=true \
+LANGUAGES=fr,en \
+CONTENT_STATUS=published \
+USE_LLM=false \
+LIVE_RSS=false \
+npm run daily-job
+```
+
+Production-like write run:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+LANGUAGES=fr,en \
+CONTENT_STATUS=published \
+USE_LLM=true \
+OPENAI_API_KEY=... \
+LIVE_RSS=true \
+npm run daily-job
+```
+
+Limited staging write run:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+LANGUAGES=fr,en \
+CONTENT_STATUS=published \
+USE_LLM=false \
+LIVE_RSS=true \
+USER_LIMIT=5 \
+npm run daily-job
+```
+
+Cron or GitHub Actions should call the same script from `services/content-engine`:
+
+```sh
+cd services/content-engine
+LANGUAGES=fr,en CONTENT_STATUS=published USE_LLM=true LIVE_RSS=true npm run daily-job
+```
+
+For GitHub Actions, store `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY` as repository or environment secrets. Start with `DRY_RUN=true` in the workflow until the JSON summary shows healthy fetched, processed, generated, and failure counts.
+
+Safety behavior:
+
+- `DRY_RUN=true` never creates `content_items`, `generation_runs`, `daily_drops`, or `daily_drop_items`.
+- write mode refuses to run without `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+- `USE_LLM=true` refuses to run without `OPENAI_API_KEY`.
+- source fetch and generation stages retry before failing a language.
+- one language failure is reported in the JSON summary without hiding successful languages.
+- assignment uses only app `profiles`, `user_preferences`, and enabled `user_topic_preferences`; newsletter-only users are not selected.
+- assignment uses the generated drop matching the user's profile language.
+
+The JSON summary reports fetched, processed, generated, stored, users considered, users assigned, failures, skipped users before assignment, incomplete selections, stale item links removed, and duplicate input links skipped.
+
 ## Daily Job Test
 
 `daily-job-test` is the scheduler-shaped local workflow. It fetches sources, processes/ranks/categorizes them, generates one marked test daily drop per language, persists the generated content, and assigns published drops to a small number of onboarded mobile app users.
@@ -287,7 +422,7 @@ SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
 CONFIRM_DAILY_JOB_TEST=true \
 USE_LLM=true \
-OPENAI_API_KEY=sk-... \
+OPENAI_API_KEY=... \
 USER_LIMIT=5 \
 npm run daily-job-test
 ```

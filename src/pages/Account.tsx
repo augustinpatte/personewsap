@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -151,7 +151,7 @@ const Account = () => {
     }
 
     const normalizedPhone = phoneNumber
-      ? parsePhoneNumberFromString(phoneNumber, phoneCountry as any)?.number ?? phoneNumber
+      ? parsePhoneNumberFromString(phoneNumber, phoneCountry as CountryCode)?.number ?? phoneNumber
       : null;
 
     const { error: updateError } = await supabase
