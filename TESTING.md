@@ -52,7 +52,7 @@ This proof writes marked test content through `daily-job-test`. Use a local, sta
 | Category | Commands | Writes data? | Intended use |
 | --- | --- | --- | --- |
 | Test commands | `npm run smoke`, `npm run mobile:typecheck`, `npm run content:build`, `npm run content:dry-run` | No | Routine local validation before handoff. |
-| Local no-write commands | `npm run content:llm-run`, `npm run supabase:doctor`, `npm run content:debug-users` | No | LLM inspection, static/live read-only schema checks, and user eligibility diagnostics. |
+| Local no-write commands | `npm run content:llm-run`, `npm run content:llm-proof`, `npm run content:rss-check`, `npm run supabase:doctor`, `npm run content:debug-users` | No | LLM/RSS inspection, static/live read-only schema checks, and user eligibility diagnostics. |
 | Local-only dangerous write commands | `npm run backend:e2e`, `npm run backend:e2e:live-rss`, `npm run backend:e2e:llm`, `npm run content:persist-test`, `npm run content:assign-test-users`, `npm run content:personalize-test`, `npm run content:daily-job-test`, `npm run content:cleanup-test` | Yes | Disposable or staging Supabase testing with explicit confirmation flags. |
 | Production commands | `npm run content:daily-job` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. It is not wired to unattended scheduling or monitoring yet. |
 
@@ -181,8 +181,24 @@ Use `RSS_ALLOW_STALE=true` only to inspect slow-moving feeds; keep it unset for 
 Optional LLM generation, still without Supabase writes:
 
 ```sh
-OPENAI_API_KEY=... npm run content:llm-run -- --language en
+OPENAI_API_KEY=... LIVE_RSS=true npm run content:llm-run -- --language en
+OPENAI_API_KEY=... ALLOW_SAMPLE_CONTENT=true npm run content:llm-run -- --language en
 ```
+
+First safe live RSS + LLM proof, still without Supabase writes:
+
+```sh
+OPENAI_API_KEY="sk-..." \
+LIVE_RSS=true \
+LIVE_RSS_ONLY=true \
+USE_LLM=true \
+DRY_RUN=true \
+LANGUAGES=en \
+RSS_ARTICLES_PER_SOURCE=1 \
+npm run content:llm-proof -- --topics business,finance --source-article-limit 6 --max-attempts 1 --max-output-tokens 4500
+```
+
+This command uses live RSS only, no sample articles, no mobile app, no Supabase, and no persistence. It fails if generated source URLs include `example.com`, if generated item language does not match the requested language, or if required item fields are missing.
 
 Read-only live schema/RLS check against a selected Supabase project:
 
@@ -255,6 +271,16 @@ npm run backend:e2e:llm
 ```
 
 The LLM proof is not required for smoke readiness.
+
+Read-only user eligibility diagnostic:
+
+```sh
+cd ~/personewsap
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+LANGUAGES=fr,en \
+npm run content:debug-users
+```
 
 ## 7. Daily Drop Generation For Testers
 
@@ -379,7 +405,29 @@ cd services/content-engine
 DRY_RUN=true LANGUAGES=fr,en CONTENT_STATUS=published USE_LLM=false LIVE_RSS=false npm run daily-job
 ```
 
+Then prove RSS-only source mode, still without writes:
+
+```sh
+DRY_RUN=true LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=false RSS_ARTICLES_PER_SOURCE=1 LANGUAGES=fr,en npm run daily-job
+```
+
+The RSS-only run should log `source_mode: "rss"`, `sample_content_enabled: false`, and `connectors: ["rss"]`. Generated content should not contain `example.com` sample URLs.
+
 Cron or GitHub Actions should later use the same `npm run daily-job` command without `DRY_RUN=true`, with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and, when `USE_LLM=true`, `OPENAI_API_KEY` supplied as server-side secrets.
+
+Production-like writes are RSS-only by default:
+
+```sh
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... LANGUAGES=fr,en CONTENT_STATUS=published USE_LLM=true OPENAI_API_KEY=... LIVE_RSS=true npm run daily-job
+```
+
+Sample articles can still be used in `dry-run`, `daily-job-test`, `persist-test`, smoke, and backend E2E. A non-dry `daily-job` write using samples now requires an explicit override:
+
+```sh
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... ALLOW_SAMPLE_CONTENT=true USER_LIMIT=1 npm run daily-job
+```
+
+Do not set `ALLOW_SAMPLE_CONTENT=true` in the production scheduler.
 
 ## 8. App Manual Test Flow
 
@@ -404,7 +452,7 @@ Use this as the core QA path:
 
 For the tester-facing version, use [TESTER_SCRIPT_15_MIN.md](TESTER_SCRIPT_15_MIN.md).
 
-## 8. Real Data Path Audit
+## 9. Real Data Path Audit
 
 Use this audit during the live proof run. Each row should have one positive signal before the proof is considered complete.
 
@@ -428,7 +476,7 @@ Interaction write behavior:
 - Repeating the same rating skips with `outcome: "unchanged"`.
 - Changing the rating writes a new feedback event; Today reads feedback by `created_at` order, so the latest rating is the visible rating.
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 ### App shows Preview mode
 
@@ -481,7 +529,7 @@ npm --prefix services/content-engine run cleanup-test -- --test-run-id persist-t
 
 Cleanup intentionally does not delete published assigned drops, users, preferences, sources, or production-like content. Inspect published test rows manually before deleting anything else.
 
-## 10. Release Readiness Gate
+## 11. Release Readiness Gate
 
 Before inviting testers:
 

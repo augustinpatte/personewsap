@@ -25,6 +25,7 @@ const MAX_SOURCE_BODY_CHARS = 1200;
 
 type LlmContentGeneratorOptions = {
   provider: LlmProvider;
+  maxOutputTokens?: number;
   maxAttempts?: number;
   onProgress?: (message: string, details: Record<string, unknown>) => void;
 };
@@ -47,11 +48,13 @@ type SourcePacket = {
 
 export class LlmContentGenerator implements ContentGenerator {
   private readonly provider: LlmProvider;
+  private readonly maxOutputTokens: number;
   private readonly maxAttempts: number;
   private readonly onProgress?: (message: string, details: Record<string, unknown>) => void;
 
   constructor(options: LlmContentGeneratorOptions) {
     this.provider = options.provider;
+    this.maxOutputTokens = options.maxOutputTokens ?? 6500;
     this.maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
     this.onProgress = options.onProgress;
   }
@@ -78,7 +81,7 @@ export class LlmContentGenerator implements ContentGenerator {
           systemPrompt: EDITORIAL_PROMPT,
           userPrompt: buildDailyDropPrompt(request, sources, feedback),
           jsonSchema: DAILY_DROP_JSON_SCHEMA as unknown as Record<string, unknown>,
-          maxOutputTokens: 6500
+          maxOutputTokens: this.maxOutputTokens
         });
 
         this.reportProgress("OpenAI request completed", {

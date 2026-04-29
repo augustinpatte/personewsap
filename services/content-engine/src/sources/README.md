@@ -34,16 +34,24 @@ The RSS connector reads only feed-level fields: title, link, publication date, s
 
 ## Live RSS Behavior
 
-`LIVE_RSS=false` is the default. When `LIVE_RSS=true`, the engine adds the RSS connector beside the safe sample/curated path. Each source is isolated:
+`LIVE_RSS=false` is the default. Dry-run and explicit test commands may combine sample articles with RSS for local inspection. Production-like `daily-job` writes use RSS-only when `LIVE_RSS=true`; sample articles are disabled unless `ALLOW_SAMPLE_CONTENT=true` is set deliberately. Each source is isolated:
 
 - `rss_source_attempted` logs before a fetch.
 - `rss_source_health` logs success or failure with duration, kept count, and skipped count.
 - `rss_source_succeeded` logs item counts, kept/skipped counts, stale skips, invalid URL skips, and configured max age.
 - `rss_source_failed` logs per-source failures after `Promise.allSettled`.
-- `rss_connector_health` logs source-level rollups with attempted, succeeded, failed, article count, and sampled errors.
+- `rss_connector_health` logs source-level rollups with attempted, succeeded, failed, article count, duplicate count, and sampled errors.
+- `rss_items_missing_dates` and `rss_items_invalid_dates` make date quality explicit. Items without a usable date are kept with `published_at = null`; downstream generation falls back to the run date where a display date is required.
+- `rss_items_deduplicated` reports URL/title duplicates removed before ranking.
 - `rss_items_skipped_stale` and `rss_items_skipped_before_since` explain recency-filter drops.
 
-One broken feed should never crash the whole source run.
+One broken feed should never crash the whole source run. A pure RSS run should fail loudly when every selected RSS source fails, or when selected feeds produce zero usable articles.
+
+Use this no-write check before relying on live RSS:
+
+```sh
+npm run rss-check -- --languages en --topics business,finance --limit-per-source 3
+```
 
 ## Credibility Tiers
 
@@ -56,7 +64,8 @@ Tier is not a truth label. It is an input to ranking and editorial review.
 ## Source Limitations
 
 - RSS availability changes. Failed feeds are ignored by the connector so dry-run and scheduled jobs can continue.
-- Live RSS is opt-in. Keep `LIVE_RSS=false` or unset for sample-only dry-runs. Use `LIVE_RSS=true` only when intentionally testing external feeds.
+- Live RSS is opt-in. Keep `LIVE_RSS=false` or unset for sample-only dry-runs. Use `LIVE_RSS=true` for production-shaped source runs.
+- Sample articles are not production sources. Non-dry `daily-job` writes refuse sample mode unless `ALLOW_SAMPLE_CONTENT=true` is explicitly set.
 - RSS fetches are capped and timed out. Tune with `RSS_ARTICLES_PER_SOURCE`, `RSS_TIMEOUT_MS`, and `RSS_MAX_AGE_DAYS`.
 - Stale RSS items are rejected by default. Use `RSS_ALLOW_STALE=true` only when diagnosing a source whose feed dates are known to lag.
 - RSS summaries can be incomplete or promotional. Generation should cite sources conservatively and avoid unsupported claims.

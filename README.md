@@ -9,6 +9,17 @@ The current repo contains:
 - Supabase migrations in `supabase/migrations`
 - Local/tester release documentation at the repo root
 
+## Current Release Status
+
+| Area | Status | What this means |
+| --- | --- | --- |
+| Backend sample mode | validated | `npm run smoke` passes and `content:dry-run` generates a no-write daily drop from sample articles. |
+| Backend real RSS mode | validated for internal testing | `LIVE_RSS=true npm run content:dry-run` completes with source health logs; RSS/source rights are not production-approved. |
+| LLM generation | not release-validated | `llm-run` exists and validates structure, but this release pass did not validate prompt quality or production editorial safety. |
+| Mobile live data | implemented, proof required per tester wave | Auth, onboarding, assigned daily-drop reads, Library reads, and interaction writes exist; each tester Supabase project still needs a live proof run. |
+| TestFlight | not ready | Signing, App Store Connect, privacy text, tester support, and a device proof run are still required. |
+| Production | not ready | Editorial review, source licensing, scheduler/monitoring, incident response, and cleanup ownership are not complete. |
+
 ## Start Here
 
 For a small tester handoff, read these in order:
@@ -44,6 +55,74 @@ npm run smoke
 
 This runs mobile TypeScript, content-engine build, and content-engine dry-run.
 
+## Exact Commands
+
+Smoke test:
+
+```sh
+cd ~/personewsap
+npm run smoke
+```
+
+Backend E2E proof for a disposable or staging Supabase project:
+
+```sh
+cd ~/personewsap
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_DAILY_JOB_TEST=true \
+LANGUAGES=en \
+USER_LIMIT=3 \
+npm run backend:e2e
+```
+
+Debug app-user eligibility:
+
+```sh
+cd ~/personewsap
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+LANGUAGES=fr,en \
+npm run content:debug-users
+```
+
+Daily job test:
+
+```sh
+cd ~/personewsap
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_DAILY_JOB_TEST=true \
+LANGUAGES=fr,en \
+USER_LIMIT=5 \
+npm run content:daily-job-test
+```
+
+Live RSS no-write test:
+
+```sh
+cd ~/personewsap
+LIVE_RSS=true npm run content:dry-run
+```
+
+Mobile start:
+
+```sh
+cd ~/personewsap
+cp apps/mobile/.env.example apps/mobile/.env
+npm --prefix apps/mobile run start
+```
+
+Cleanup draft persist-test data:
+
+```sh
+cd ~/personewsap
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_CLEANUP_TEST=true \
+npm run content:cleanup-test -- --test-run-id persist-test-...
+```
+
 ## Mobile App
 
 Use public Supabase client keys only:
@@ -69,11 +148,17 @@ Safe no-write test commands:
 
 ```sh
 npm run content:dry-run
-npm run content:llm-run
+LIVE_RSS=true OPENAI_API_KEY=... npm run content:llm-run
 npm run supabase:doctor
 ```
 
-`content:llm-run` requires `OPENAI_API_KEY` and still does not write to Supabase. `supabase:doctor` reads local migrations by default.
+`content:llm-run` requires `OPENAI_API_KEY` and still does not write to Supabase. It uses live RSS by default in the safe command above; add `ALLOW_SAMPLE_CONTENT=true` only for an intentional sample-content LLM rehearsal. `supabase:doctor` reads local migrations by default.
+
+For a no-write daily-job run with samples disabled:
+
+```sh
+DRY_RUN=true LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=false RSS_ARTICLES_PER_SOURCE=1 npm run content:daily-job
+```
 
 Build command:
 
@@ -152,9 +237,13 @@ PersoNewsAP is not production-ready until TestFlight setup, privacy review, edit
 | --- | --- | --- |
 | Env file ignores | done | Root, mobile, content-engine env files and Supabase temp state are ignored. |
 | Root smoke workflow | done | `npm run smoke` runs mobile typecheck plus content build and no-write dry-run. |
+| Backend sample mode | validated | Sample/dry-run pipeline is the current MVP-ready backend mode. |
+| Backend real RSS mode | internal-test validated | Live RSS dry-run is safe and observable; source rights remain unapproved for production. |
+| LLM generation | unvalidated for release | Command exists, but prompt quality and editorial safety are next-phase work. |
 | Supabase schema/RLS verification | done | `npm run supabase:doctor` and [SUPABASE_CHECKLIST.md](SUPABASE_CHECKLIST.md) cover local/static and live read-only checks. |
 | Backend persistence safety | done | Write commands fail closed behind confirmation flags and service-role env vars. |
-| Tester live-data path | partial | Supported through marked test persistence and assignment; still needs a selected tester Supabase project and manual proof run. |
+| Mobile live-data path | implemented, wave proof required | Supported through marked test persistence and assignment; still needs a selected tester Supabase project and manual proof run. |
+| TestFlight | not ready | Build/signing/privacy/tester operations are not complete. |
 | Production scheduler | partial | `content:daily-job` exists, but unattended scheduling, monitoring, and operational ownership are not wired. |
 | Editorial production workflow | missing | LLM output still needs human review before production publication. |
 | Source licensing | missing | RSS/source terms need review before production use. |

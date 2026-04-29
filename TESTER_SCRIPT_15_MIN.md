@@ -47,11 +47,12 @@ Pass:
 After receiving the tester user id, assign a marked test drop:
 
 ```sh
+TESTER_LANGUAGE="en" # use "fr" if the tester selected French
 SUPABASE_URL="https://your-project.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
 CONFIRM_PERSIST_TEST=true \
 TEST_USER_ID="tester-user-id" \
-npm --prefix services/content-engine run persist-test -- --date "$(date +%F)" --language en
+npm --prefix services/content-engine run persist-test -- --date "$(date +%F)" --language "$TESTER_LANGUAGE"
 ```
 
 Ask the tester to pull to refresh, restart the app, or switch tabs if Today was already open.

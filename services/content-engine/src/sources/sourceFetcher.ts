@@ -4,18 +4,26 @@ import { CURATED_SOURCE_COVERAGE, CURATED_SOURCES } from "./curatedSources.js";
 import { RssFeedConnector } from "./rssFetcher.js";
 import { sourceLog, sourceWarning } from "./sourceLogger.js";
 
+type SourceMode = "sample" | "rss" | "mixed";
+
 export class SourceFetcher {
   private readonly connectors: SourceConnector[];
 
   constructor(connectors: SourceConnector[]) {
-    this.connectors = withLiveRssConnector(connectors);
+    this.connectors = applySourceEnvPolicy(connectors);
   }
 
   async fetch(request: SourceFetchRequest): Promise<RawArticle[]> {
+    const connectorNames = this.connectors.map((connector) => connector.name);
+    const sampleContentEnabled = connectorNames.includes("sample_articles");
+    const liveRss = connectorNames.includes("rss");
+
     sourceLog("fetch_started", {
       connector_count: this.connectors.length,
-      connectors: this.connectors.map((connector) => connector.name),
-      live_rss: isLiveRssEnabled(),
+      connectors: connectorNames,
+      source_mode: resolveSourceMode(sampleContentEnabled, liveRss),
+      sample_content_enabled: sampleContentEnabled,
+      live_rss: liveRss,
       languages: request.languages,
       topics: request.topics
     });
@@ -71,23 +79,59 @@ export class SourceFetcher {
       article_count: articles.length
     });
 
+    if (failedConnectors === this.connectors.length) {
+      throw new Error(
+        `All source connectors failed. Checked connectors: ${this.connectors.map((connector) => connector.name).join(", ")}.`
+      );
+    }
+
     return articles;
   }
 }
 
-function withLiveRssConnector(connectors: SourceConnector[]): SourceConnector[] {
-  if (!isLiveRssEnabled() || connectors.some((connector) => connector.name === "rss")) {
-    return connectors;
+function resolveSourceMode(sampleContentEnabled: boolean, liveRss: boolean): SourceMode {
+  if (sampleContentEnabled && liveRss) {
+    return "mixed";
   }
 
-  sourceLog("live_rss_enabled", {
-    source_count: CURATED_SOURCES.filter((source) => source.rssUrl).length,
-    coverage: CURATED_SOURCE_COVERAGE
-  });
+  if (sampleContentEnabled) {
+    return "sample";
+  }
 
-  return [...connectors, new RssFeedConnector(CURATED_SOURCES)];
+  return "rss";
+}
+
+function applySourceEnvPolicy(connectors: SourceConnector[]): SourceConnector[] {
+  let resolved = connectors;
+
+  if (isLiveRssEnabled() && !resolved.some((connector) => connector.name === "rss")) {
+    sourceLog("live_rss_enabled", {
+      source_count: CURATED_SOURCES.filter((source) => source.rssUrl).length,
+      coverage: CURATED_SOURCE_COVERAGE
+    });
+
+    resolved = [...resolved, new RssFeedConnector(CURATED_SOURCES)];
+  }
+
+  if (isLiveRssOnlyEnabled() && isLiveRssEnabled()) {
+    const withoutSamples = resolved.filter((connector) => connector.name !== "sample_articles");
+    if (withoutSamples.length !== resolved.length) {
+      sourceLog("sample_articles_disabled", {
+        reason: "LIVE_RSS_ONLY=true",
+        connectors: withoutSamples.map((connector) => connector.name)
+      });
+    }
+
+    resolved = withoutSamples;
+  }
+
+  return resolved;
 }
 
 function isLiveRssEnabled(): boolean {
-  return process.env.LIVE_RSS?.toLowerCase() === "true";
+  return process.env.LIVE_RSS?.toLowerCase() === "true" || isLiveRssOnlyEnabled();
+}
+
+function isLiveRssOnlyEnabled(): boolean {
+  return process.env.LIVE_RSS_ONLY?.toLowerCase() === "true";
 }

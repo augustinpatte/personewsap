@@ -7,6 +7,21 @@ const DEFAULT_RSS_TIMEOUT_MS = 8_000;
 const DEFAULT_RSS_LIMIT_PER_SOURCE = 5;
 const DEFAULT_RSS_MAX_AGE_DAYS = 21;
 
+export type RssFetchDiagnostics = {
+  attempted: number;
+  succeeded: number;
+  failed: number;
+  skippedNoRss: number;
+  fetchedArticles: number;
+  returnedArticles: number;
+  duplicateArticlesSkipped: number;
+  errors: Array<{
+    source_id: string;
+    publisher: string;
+    error: string;
+  }>;
+};
+
 function isAfterSince(article: RawArticle, since?: string): boolean {
   if (!since || !article.published_at) {
     return true;
@@ -51,6 +66,7 @@ function summarizeSources(sources: CuratedSource[]): Array<{
 
 export class RssFeedConnector implements SourceConnector {
   readonly name = "rss";
+  private lastDiagnostics: RssFetchDiagnostics = emptyDiagnostics();
 
   constructor(
     private readonly sources: CuratedSource[],
@@ -101,7 +117,21 @@ export class RssFeedConnector implements SourceConnector {
     }
 
     const articles = batches.flatMap((batch) => (batch.status === "fulfilled" ? batch.value : []));
+    const deduped = deduplicateRssArticles(articles);
     const succeededSources = batches.filter((batch) => batch.status === "fulfilled").length;
+    const errors = failures.slice(0, 10).map((failure) => ({
+      source_id: failure.source.id,
+      publisher: failure.source.publisher,
+      error: failure.batch.reason instanceof Error ? failure.batch.reason.message : String(failure.batch.reason)
+    }));
+
+    if (deduped.duplicatesSkipped > 0) {
+      sourceWarning("rss_items_deduplicated", {
+        duplicate_count: deduped.duplicatesSkipped,
+        before_count: articles.length,
+        after_count: deduped.articles.length
+      });
+    }
 
     sourceLog("rss_fetch_completed", {
       source_count: selected.length,
@@ -110,24 +140,43 @@ export class RssFeedConnector implements SourceConnector {
       failed: failures.length,
       skipped_no_rss_count: skippedNoRss.length,
       failed_sources: failures.length,
-      article_count: articles.length
+      article_count: deduped.articles.length,
+      fetched_article_count: articles.length,
+      duplicate_articles_skipped: deduped.duplicatesSkipped
     });
+
+    this.lastDiagnostics = {
+      attempted: selected.length,
+      succeeded: succeededSources,
+      failed: failures.length,
+      skippedNoRss: skippedNoRss.length,
+      fetchedArticles: articles.length,
+      returnedArticles: deduped.articles.length,
+      duplicateArticlesSkipped: deduped.duplicatesSkipped,
+      errors
+    };
 
     sourceLog("rss_connector_health", {
       connector: this.name,
       attempted: selected.length,
       succeeded: succeededSources,
       failed: failures.length,
-      article_count: articles.length,
+      article_count: deduped.articles.length,
+      fetched_article_count: articles.length,
+      duplicate_articles_skipped: deduped.duplicatesSkipped,
       skipped_no_rss_count: skippedNoRss.length,
-      errors: failures.slice(0, 10).map((failure) => ({
-        source_id: failure.source.id,
-        publisher: failure.source.publisher,
-        error: failure.batch.reason instanceof Error ? failure.batch.reason.message : String(failure.batch.reason)
-      }))
+      errors
     });
 
-    return articles;
+    if (selected.length > 0 && succeededSources === 0) {
+      throw new Error(`All RSS sources failed. Attempted ${selected.length} feed(s); see rss_source_failed logs.`);
+    }
+
+    return deduped.articles;
+  }
+
+  getLastDiagnostics(): RssFetchDiagnostics {
+    return this.lastDiagnostics;
   }
 
   private async fetchSource(source: CuratedSource, limit: number, since?: string): Promise<RawArticle[]> {
@@ -223,6 +272,8 @@ export class RssFeedConnector implements SourceConnector {
     let skippedStale = 0;
     let skippedBeforeSince = 0;
     let skippedInvalidUrl = 0;
+    let missingDateCount = 0;
+    let invalidDateCount = 0;
     const maxAgeDays = this.resolveMaxAgeDays();
     const allowStale = this.resolveAllowStaleArticles();
 
@@ -239,6 +290,12 @@ export class RssFeedConnector implements SourceConnector {
         if (!item.title || !item.url) {
           skippedMissingFields += 1;
           return null;
+        }
+
+        if (!item.rawDate) {
+          missingDateCount += 1;
+        } else if (!item.publishedAt) {
+          invalidDateCount += 1;
         }
 
         const resolvedUrl = resolveArticleUrl(item.url, source);
@@ -288,6 +345,26 @@ export class RssFeedConnector implements SourceConnector {
       });
     }
 
+    if (missingDateCount > 0) {
+      sourceWarning("rss_items_missing_dates", {
+        source_id: source.id,
+        publisher: source.publisher,
+        rss_url: source.rssUrl,
+        item_count: missingDateCount,
+        handling: "kept_with_null_published_at"
+      });
+    }
+
+    if (invalidDateCount > 0) {
+      sourceWarning("rss_items_invalid_dates", {
+        source_id: source.id,
+        publisher: source.publisher,
+        rss_url: source.rssUrl,
+        item_count: invalidDateCount,
+        handling: "kept_with_null_published_at"
+      });
+    }
+
     if (skippedInvalidUrl > 0) {
       sourceWarning("rss_items_skipped_invalid_url", {
         source_id: source.id,
@@ -326,6 +403,8 @@ export class RssFeedConnector implements SourceConnector {
         rss_items: items.length,
         skipped_missing_fields: skippedMissingFields,
         skipped_invalid_url: skippedInvalidUrl,
+        missing_date_count: missingDateCount,
+        invalid_date_count: invalidDateCount,
         skipped_before_since: skippedBeforeSince,
         skipped_stale: skippedStale
       });
@@ -350,6 +429,8 @@ export class RssFeedConnector implements SourceConnector {
       skipped_count: skippedCount,
       skipped_missing_fields: skippedMissingFields,
       skipped_invalid_url: skippedInvalidUrl,
+      missing_date_count: missingDateCount,
+      invalid_date_count: invalidDateCount,
       skipped_before_since: skippedBeforeSince,
       skipped_stale: skippedStale,
       max_age_days: maxAgeDays,
@@ -369,6 +450,8 @@ export class RssFeedConnector implements SourceConnector {
       skipped_count: skippedCount,
       skipped_before_since: skippedBeforeSince,
       skipped_stale: skippedStale,
+      missing_date_count: missingDateCount,
+      invalid_date_count: invalidDateCount,
       max_age_days: maxAgeDays,
       allow_stale: allowStale,
       article_count: articles.length
@@ -416,4 +499,127 @@ function resolveArticleUrl(value: string, source: CuratedSource): string | null 
   } catch {
     return null;
   }
+}
+
+function emptyDiagnostics(): RssFetchDiagnostics {
+  return {
+    attempted: 0,
+    succeeded: 0,
+    failed: 0,
+    skippedNoRss: 0,
+    fetchedArticles: 0,
+    returnedArticles: 0,
+    duplicateArticlesSkipped: 0,
+    errors: []
+  };
+}
+
+function deduplicateRssArticles<T extends RawArticle>(articles: T[]): { articles: T[]; duplicatesSkipped: number } {
+  const selected: T[] = [];
+  const keyOwners = new Map<string, number>();
+  let duplicatesSkipped = 0;
+
+  for (const article of articles) {
+    const keys = rssDedupeKeys(article);
+    const existingIndex = keys.map((key) => keyOwners.get(key)).find((index) => index !== undefined);
+
+    if (existingIndex === undefined) {
+      const nextIndex = selected.length;
+      selected.push(article);
+      for (const key of keys) {
+        keyOwners.set(key, nextIndex);
+      }
+      continue;
+    }
+
+    duplicatesSkipped += 1;
+    const existing = selected[existingIndex];
+    if (isBetterRssDuplicate(article, existing)) {
+      selected[existingIndex] = article;
+      for (const key of keys) {
+        keyOwners.set(key, existingIndex);
+      }
+    }
+  }
+
+  return {
+    articles: selected,
+    duplicatesSkipped
+  };
+}
+
+function rssDedupeKeys(article: RawArticle): string[] {
+  const url = normalizeRssUrl(article.url);
+  const title = titleKey(article.title);
+  const publisher = publisherKey(article.publisher);
+  const date = article.published_at?.slice(0, 10) ?? "";
+  const keys = [`url:${url}`];
+
+  if (title && publisher && date) {
+    keys.push(`title-publisher-date:${title}|${publisher}|${date}`);
+  } else if (title && publisher) {
+    keys.push(`title-publisher:${title}|${publisher}`);
+  }
+
+  return keys;
+}
+
+function normalizeRssUrl(value: string): string {
+  try {
+    const parsed = new URL(value);
+    parsed.protocol = parsed.protocol.toLowerCase();
+    parsed.hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    parsed.hash = "";
+    parsed.username = "";
+    parsed.password = "";
+
+    for (const key of Array.from(parsed.searchParams.keys())) {
+      const normalizedKey = key.toLowerCase();
+      if (normalizedKey.startsWith("utm_") || ["fbclid", "gclid", "mc_cid", "mc_eid", "ref", "ref_src"].includes(normalizedKey)) {
+        parsed.searchParams.delete(key);
+      }
+    }
+
+    parsed.searchParams.sort();
+    parsed.pathname = parsed.pathname.replace(/\/amp\/?$/i, "").replace(/\/$/, "");
+    return parsed.toString();
+  } catch {
+    return value.trim().toLowerCase();
+  }
+}
+
+function titleKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&amp;/g, "and")
+    .replace(/\b(exclusive|breaking|analysis|opinion|live|updated?)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 2)
+    .slice(0, 16)
+    .join(" ");
+}
+
+function publisherKey(value: string): string {
+  return value.toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, "");
+}
+
+function isBetterRssDuplicate(incoming: RawArticle, existing: RawArticle): boolean {
+  const incomingTime = parseTime(incoming.published_at);
+  const existingTime = parseTime(existing.published_at);
+  if (incomingTime !== existingTime) {
+    return incomingTime > existingTime;
+  }
+
+  return (incoming.summary?.length ?? 0) > (existing.summary?.length ?? 0);
+}
+
+function parseTime(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
 }

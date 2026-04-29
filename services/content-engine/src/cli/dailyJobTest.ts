@@ -36,6 +36,7 @@ const CONTENT_STATUSES = ["draft", "review", "published"] as const;
 
 type DailyJobContentStatus = (typeof CONTENT_STATUSES)[number];
 type DailyJobMode = "daily-job" | "daily-job-test";
+type SourceMode = "sample" | "rss" | "mixed";
 
 export type DailyJobRunOptions = {
   mode: DailyJobMode;
@@ -44,6 +45,7 @@ export type DailyJobRunOptions = {
   topics: TopicId[];
   newsletterArticleCount: number;
   liveRss: boolean;
+  liveRssOnly: boolean;
   useLlm: boolean;
   userLimit: number | null;
   contentStatus: DailyJobContentStatus;
@@ -58,6 +60,7 @@ export type DailyJobTestOptions = {
   topics: TopicId[];
   newsletterArticleCount: number;
   liveRss: boolean;
+  liveRssOnly: boolean;
   useLlm: boolean;
   userLimit: number;
   contentStatus: DailyJobContentStatus;
@@ -73,6 +76,9 @@ export type DailyJobOutput = {
   status: "completed" | "completed_with_failures" | "failed";
   generator: "dry-run" | "llm";
   liveRss: boolean;
+  liveRssOnly: boolean;
+  sourceMode: SourceMode;
+  sampleContentEnabled: boolean;
   userLimit: number | null;
   contentStatus: DailyJobContentStatus;
   summary: {
@@ -144,6 +150,7 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
 
 export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJobOutput> {
   assertDailyJobEnvironment(options);
+  const sourcePolicy = resolveSourcePolicy(options);
 
   logProgress("job started", {
     drop_date: options.dropDate,
@@ -151,13 +158,16 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
     topics: options.topics,
     use_llm: options.useLlm,
     live_rss: options.liveRss,
+    live_rss_only: options.liveRssOnly,
+    source_mode: sourcePolicy.sourceMode,
+    sample_content_enabled: sourcePolicy.sampleContentEnabled,
     user_limit: options.userLimit ?? "all",
     newsletter_articles: options.newsletterArticleCount,
     content_status: options.contentStatus,
     dry_run: options.dryRun
   }, options.logPrefix);
 
-  const sourceFetcher = new SourceFetcher(buildSourceConnectors(options.liveRss));
+  const sourceFetcher = new SourceFetcher(sourcePolicy.connectors);
   const generator = createGenerator(options.useLlm, options.logPrefix);
   const repository = options.dryRun
     ? undefined
@@ -218,6 +228,9 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
     status,
     generator: options.useLlm ? "llm" : "dry-run",
     liveRss: options.liveRss,
+    liveRssOnly: options.liveRssOnly,
+    sourceMode: sourcePolicy.sourceMode,
+    sampleContentEnabled: sourcePolicy.sampleContentEnabled,
     userLimit: options.userLimit,
     contentStatus: options.contentStatus,
     summary,
@@ -228,6 +241,7 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
 export function parseDailyJobTestOptions(args: string[]): DailyJobTestOptions {
   const flags = readFlags(args);
   const useLlm = envFlag("USE_LLM");
+  const liveRssOnly = envFlag("LIVE_RSS_ONLY") || flags.has("live-rss-only");
   const topics = applyTopicLimit(parseTopics(flags.get("topics") ?? flags.get("topic") ?? TOPIC_IDS.join(",")));
   const explicitNewsletterCount = readPositiveInteger(flags.get("newsletter-count"), "--newsletter-count");
   const newsletterArticleCount =
@@ -238,7 +252,8 @@ export function parseDailyJobTestOptions(args: string[]): DailyJobTestOptions {
     languages: parseLanguages(flags.get("languages") ?? flags.get("language") ?? process.env.LANGUAGES ?? DEFAULT_LANGUAGES),
     topics,
     newsletterArticleCount,
-    liveRss: envFlag("LIVE_RSS") || flags.has("live-rss"),
+    liveRss: liveRssOnly || envFlag("LIVE_RSS") || flags.has("live-rss"),
+    liveRssOnly,
     useLlm,
     userLimit: parseUserLimit(process.env.USER_LIMIT),
     contentStatus: parseContentStatus(process.env.CONTENT_STATUS ?? "published")
@@ -248,6 +263,7 @@ export function parseDailyJobTestOptions(args: string[]): DailyJobTestOptions {
 export function parseDailyJobOptions(args: string[]): DailyJobRunOptions {
   const flags = readFlags(args);
   const useLlm = envFlag("USE_LLM") || flags.has("llm");
+  const liveRssOnly = envFlag("LIVE_RSS_ONLY") || flags.has("live-rss-only");
   const topics = applyTopicLimit(parseTopics(flags.get("topics") ?? flags.get("topic") ?? TOPIC_IDS.join(",")));
   const explicitNewsletterCount = readPositiveInteger(flags.get("newsletter-count"), "--newsletter-count");
   const newsletterArticleCount =
@@ -259,7 +275,8 @@ export function parseDailyJobOptions(args: string[]): DailyJobRunOptions {
     languages: parseLanguages(flags.get("languages") ?? flags.get("language") ?? process.env.LANGUAGES ?? DEFAULT_LANGUAGES),
     topics,
     newsletterArticleCount,
-    liveRss: envFlag("LIVE_RSS") || flags.has("live-rss"),
+    liveRss: liveRssOnly || envFlag("LIVE_RSS") || flags.has("live-rss"),
+    liveRssOnly,
     useLlm,
     userLimit: parseOptionalUserLimit(process.env.USER_LIMIT),
     contentStatus: parseContentStatus(process.env.CONTENT_STATUS ?? "published"),
@@ -292,7 +309,11 @@ async function runDailyJobLanguage(input: {
       test_run_id: testRunId,
       language,
       topics: options.topics,
-      live_rss: options.liveRss
+      live_rss: options.liveRss,
+      live_rss_only: options.liveRssOnly,
+      source_mode: resolveSourcePolicySummary(options).sourceMode,
+      sample_content_enabled: resolveSourcePolicySummary(options).sampleContentEnabled,
+      dry_run: options.dryRun
     },
     async () => {
       const articles = await sourceFetcher.fetch({
@@ -863,14 +884,69 @@ function createGenerator(useLlm: boolean, logPrefix: string): ContentGenerator {
   });
 }
 
-function buildSourceConnectors(liveRss: boolean): SourceConnector[] {
-  const connectors: SourceConnector[] = [new SampleArticleConnector()];
+function buildSourceConnectors(options: DailyJobRunOptions): SourceConnector[] {
+  const connectors: SourceConnector[] = [];
 
-  if (liveRss) {
+  if (isSampleContentEnabled(options)) {
+    connectors.push(new SampleArticleConnector());
+  }
+
+  if (options.liveRss) {
     connectors.push(new RssFeedConnector(CURATED_SOURCES));
   }
 
   return connectors;
+}
+
+function resolveSourcePolicy(options: DailyJobRunOptions): {
+  connectors: SourceConnector[];
+  sourceMode: SourceMode;
+  sampleContentEnabled: boolean;
+} {
+  const connectors = buildSourceConnectors(options);
+  const summary = resolveSourcePolicySummary(options);
+
+  if (connectors.length === 0) {
+    throw new Error(
+      [
+        "daily-job refused to run because no source connector is enabled.",
+        "Production-like writes do not use sample_articles unless ALLOW_SAMPLE_CONTENT=true.",
+        "Set LIVE_RSS=true for live sources, DRY_RUN=true for local sample dry-runs, or ALLOW_SAMPLE_CONTENT=true for an intentional sample write."
+      ].join(" ")
+    );
+  }
+
+  return {
+    connectors,
+    ...summary
+  };
+}
+
+function resolveSourcePolicySummary(options: DailyJobRunOptions): {
+  sourceMode: SourceMode;
+  sampleContentEnabled: boolean;
+} {
+  const sampleContentEnabled = isSampleContentEnabled(options);
+  return {
+    sampleContentEnabled,
+    sourceMode: resolveSourceMode(sampleContentEnabled, options.liveRss)
+  };
+}
+
+function resolveSourceMode(sampleContentEnabled: boolean, liveRss: boolean): SourceMode {
+  if (sampleContentEnabled && liveRss) {
+    return "mixed";
+  }
+
+  if (sampleContentEnabled) {
+    return "sample";
+  }
+
+  return "rss";
+}
+
+function isSampleContentEnabled(options: DailyJobRunOptions): boolean {
+  return !options.liveRssOnly && (options.dryRun || options.testMode || envFlag("ALLOW_SAMPLE_CONTENT"));
 }
 
 function markPayloadAsTestData(payload: DailyDropPayload, testRunId: string): DailyDropPayload {
@@ -885,8 +961,9 @@ function markPayloadAsTestData(payload: DailyDropPayload, testRunId: string): Da
 }
 
 function buildRunId(options: DailyJobRunOptions, language: Language): string {
+  const { sourceMode } = resolveSourcePolicySummary(options);
   return `${options.mode}-${sha256(
-    [options.dropDate, language, options.useLlm ? "llm" : "dry-run", options.liveRss ? "live-rss" : "sample", ...options.topics].join("|")
+    [options.dropDate, language, options.useLlm ? "llm" : "dry-run", sourceMode, ...options.topics].join("|")
   ).slice(0, 12)}`;
 }
 
@@ -901,7 +978,10 @@ function buildContentMetadata(options: DailyJobRunOptions, testRunId: string): R
       safe_persistence_note: "Local daily-job-test data. Created only after CONFIRM_DAILY_JOB_TEST=true.",
       content_status: options.contentStatus,
       use_llm: options.useLlm,
-      live_rss: options.liveRss
+      live_rss: options.liveRss,
+      live_rss_only: options.liveRssOnly,
+      source_mode: resolveSourcePolicySummary(options).sourceMode,
+      sample_content_enabled: resolveSourcePolicySummary(options).sampleContentEnabled
     };
   }
 
@@ -913,6 +993,9 @@ function buildContentMetadata(options: DailyJobRunOptions, testRunId: string): R
     content_status: options.contentStatus,
     use_llm: options.useLlm,
     live_rss: options.liveRss,
+    live_rss_only: options.liveRssOnly,
+    source_mode: resolveSourcePolicySummary(options).sourceMode,
+    sample_content_enabled: resolveSourcePolicySummary(options).sampleContentEnabled,
     safe_persistence_note: "Production daily job generated content."
   };
 }
@@ -921,6 +1004,9 @@ function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
   const missing = [
     !options.dryRun && !process.env.SUPABASE_URL ? "SUPABASE_URL" : null,
     !options.dryRun && !process.env.SUPABASE_SERVICE_ROLE_KEY ? "SUPABASE_SERVICE_ROLE_KEY" : null,
+    !options.dryRun && !options.testMode && !options.liveRss && !envFlag("ALLOW_SAMPLE_CONTENT")
+      ? "LIVE_RSS=true or ALLOW_SAMPLE_CONTENT=true"
+      : null,
     options.testMode && process.env.CONFIRM_DAILY_JOB_TEST !== "true" ? "CONFIRM_DAILY_JOB_TEST=true" : null,
     options.useLlm && !process.env.OPENAI_API_KEY ? "OPENAI_API_KEY when USE_LLM=true" : null
   ].filter((value): value is string => value !== null);
@@ -941,7 +1027,10 @@ function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
           `daily-job refused to run because the following required setting(s) are missing: ${missing.join(", ")}.`,
           options.dryRun
             ? "DRY_RUN=true prevents Supabase writes. USE_LLM=true still requires OPENAI_API_KEY."
-            : "Production writes require SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in a server-side environment."
+            : [
+                "Production writes require SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in a server-side environment.",
+                "Production-like writes use RSS sources by default; sample_articles require ALLOW_SAMPLE_CONTENT=true."
+              ].join(" ")
         ].join(" ")
   );
 }

@@ -297,7 +297,7 @@ function normalizePublishedAt(value: string | null): string | null {
   }
 
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function cleanUrl(value: string): string {

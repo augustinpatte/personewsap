@@ -5,7 +5,7 @@ import path from "node:path";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CONTENT_CLI = path.join(ROOT, "services/content-engine/dist/cli.js");
-const DEFAULT_LANGUAGES = "en";
+const DEFAULT_LANGUAGES = "fr,en";
 const DEFAULT_USER_LIMIT = "3";
 const DEFAULT_NEWSLETTER_COUNT = "4";
 

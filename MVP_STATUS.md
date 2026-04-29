@@ -4,6 +4,17 @@ Last reviewed: 2026-04-28
 
 PersoNewsAP is close to a small controlled tester build, not production launch. The core product principle is intact: one finite daily drop, sourced content, no infinite feed.
 
+## Final Status For This Release Pass
+
+| Area | Status | Evidence / caveat |
+| --- | --- | --- |
+| Backend sample mode | validated | `npm run smoke` and `content:dry-run` validate the no-write sample pipeline. |
+| Backend real RSS mode | validated for internal testing | Live RSS dry-run completes with source-level health reporting; source licensing and production editorial policy are not approved. |
+| LLM generation | not validated for release | Commands exist and validate structure, but prompt quality, cost controls, and editorial review remain next-phase work. |
+| Mobile live data | implemented, not wave-validated yet | Supabase read/write paths exist; each tester project still needs signup, onboarding, assignment, Today, Library, and interaction proof. |
+| TestFlight | not ready | App Store Connect, signing, privacy review, tester support, and device proof are outstanding. |
+| Production | not ready | Scheduler ownership, monitoring, incident response, editorial workflow, source rights, and cleanup policy are incomplete. |
+
 ## What Works
 
 - Expo mobile app has auth, onboarding, Today, Library, Account, and public Supabase client configuration.
@@ -79,9 +90,9 @@ PersoNewsAP is close to a small controlled tester build, not production launch. 
 
 See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for the maintained issue list.
 
-## Backend Blockers Remaining After This Wave
+## Beta Blockers Remaining After This Wave
 
-These are the backend blockers that remain before beta can be treated as production-like:
+These are the remaining blockers before beta can be treated as production-like:
 
 1. Pick the tester Supabase environment and run the live `supabase:doctor`/SQL checks against it.
 2. Apply the additive beta hardening migration after `constraints_and_duplicates.sql` reports no duplicate groups.

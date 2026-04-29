@@ -4,9 +4,9 @@ Last reviewed: 2026-04-28
 
 Use this list when preparing a small tester group. Keep it practical: what testers may hit, what the coordinator should watch, and what is not production-safe yet.
 
-## Backend Blockers Remaining
+## Release Blockers Remaining
 
-These are the backend-only blockers after the current cleanup pass:
+These are the release blockers after the current cleanup pass:
 
 | Blocker | Status | Why it matters |
 | --- | --- | --- |
@@ -15,6 +15,7 @@ These are the backend-only blockers after the current cleanup pass:
 | Production scheduler/ops incomplete | open | `content:daily-job` exists, but unattended scheduling, monitoring, and ownership are not set. |
 | Editorial review gate missing | open | LLM output can be structurally valid but still needs human review before production publication. |
 | Source licensing review missing | open | RSS/source metadata should remain internal-test-only until reuse rights are approved. |
+| TestFlight operations incomplete | open | Signing, App Store Connect, privacy review, support channel, and invite process still need an owner. |
 
 ## Active Issues
 
@@ -62,9 +63,9 @@ Workaround: manually inspect published test rows before deleting them.
 
 Status: product decision pending.
 
-Complete and Save run a client preflight to skip obvious duplicate writes, but there is no database uniqueness constraint. Fast concurrent taps or multi-device races can still create duplicate rows. Ratings are append-only; the app treats the latest feedback row as the visible rating.
+Complete and Save run a client preflight to skip obvious duplicate writes. The beta hardening migration adds database-level uniqueness for complete/save interactions once it is applied to the selected tester project. Before that migration, fast concurrent taps or multi-device races can still create duplicate rows. Ratings are append-only by design; the app treats the latest feedback row as the visible rating.
 
-Workaround: treat interaction rows as events during tester analysis. Add database-level uniqueness or idempotent mutation endpoints before production analytics depend on exact counts.
+Workaround: run the duplicate audit before applying the beta hardening migration, then treat rating rows as events during tester analysis. Add idempotent mutation endpoints before production analytics depend on exact counts.
 
 ### FR Coverage Needs Manual Attention
 

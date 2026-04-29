@@ -35,7 +35,8 @@ Test/no-write commands:
 npm run check
 npm run build
 npm run dry-run
-npm run llm-run
+LIVE_RSS=true OPENAI_API_KEY=... npm run llm-run
+ALLOW_SAMPLE_CONTENT=true OPENAI_API_KEY=... npm run llm-run
 ```
 
 Read-only diagnostic:
@@ -92,6 +93,7 @@ Optional live RSS fetching can be added without API keys:
 ```sh
 npm run dry-run -- --live-rss
 LIVE_RSS=true npm run dry-run
+npm run rss-check -- --languages en --topics business,finance --limit-per-source 3
 ```
 
 The command prints a JSON object with diagnostics and one or more daily drop payloads. `persisted` is always `false` in dry-run mode.
@@ -100,24 +102,31 @@ Live RSS remains opt-in and read-only. Each feed is fetched independently, so on
 
 - `source_connector_health` for each connector with `connector`, `attempted`, `succeeded`, `failed`, `article_count`, and `error`
 - `rss_source_health` for each RSS source with source id, publisher, status, article count, skipped count, duration, and error when failed
-- `rss_connector_health` with attempted/succeeded/failed feed counts and a short error list
+- `rss_connector_health` with attempted/succeeded/failed feed counts, duplicate counts, and a short error list
+- `rss_items_missing_dates` and `rss_items_invalid_dates` when a feed item has no usable publication date; those items are kept with `published_at = null`
+- `rss_items_deduplicated` when duplicate URL/title feed items are collapsed before processing
 - `rss_items_skipped_stale` and `rss_items_skipped_before_since` when recency filtering drops feed items
+
+`rss-check` uses only live RSS sources, never sample articles, Supabase, or the LLM. It exits non-zero if every selected RSS source fails or if the selected feeds produce zero usable articles, so it is the clearest local health check before enabling `LIVE_RSS=true` in a daily job rehearsal.
 
 RSS tuning knobs:
 
 ```sh
 LIVE_RSS=true RSS_TIMEOUT_MS=8000 RSS_ARTICLES_PER_SOURCE=5 RSS_MAX_AGE_DAYS=21 npm run dry-run
 LIVE_RSS=true RSS_ALLOW_STALE=true npm run dry-run
+npm run rss-check -- --languages fr,en --topics business,finance,tech_ai --limit-per-source 2
+npm run rss-check -- --languages en --topics business --since 2026-04-01
 ```
 
 Use `RSS_ALLOW_STALE=true` only for diagnostics against slow-moving feeds. The default rejects clearly stale articles and keeps sample mode unchanged when `LIVE_RSS` is unset.
 
 ## LLM Generation
 
-`llm-run` uses the same source collection and processing pipeline, then asks OpenAI for the final structured daily drop. It still does not write to Supabase.
+`llm-run` uses the same source collection and processing pipeline, then asks OpenAI for the final structured daily drop. It still does not write to Supabase. It does not enable sample articles by default; choose live RSS or explicitly allow samples for a local rehearsal.
 
 ```sh
-OPENAI_API_KEY=... npm run llm-run
+OPENAI_API_KEY=... LIVE_RSS=true npm run llm-run
+OPENAI_API_KEY=... ALLOW_SAMPLE_CONTENT=true npm run llm-run
 ```
 
 For safe local testing, `llm-run` always limits the generated drop to:
@@ -132,9 +141,9 @@ This keeps local OpenAI requests smaller and easier to inspect. `dry-run` is unc
 Useful options mostly match `dry-run`:
 
 ```sh
-OPENAI_API_KEY=... npm run llm-run -- --date 2026-04-26
-OPENAI_API_KEY=... npm run llm-run -- --languages en,fr
-OPENAI_API_KEY=... npm run llm-run -- --topics business,finance,tech_ai
+OPENAI_API_KEY=... LIVE_RSS=true npm run llm-run -- --date 2026-04-26
+OPENAI_API_KEY=... LIVE_RSS=true npm run llm-run -- --languages en,fr
+OPENAI_API_KEY=... LIVE_RSS=true npm run llm-run -- --topics business,finance,tech_ai
 ```
 
 `--newsletter-count` is intentionally ignored by `llm-run` local test mode and capped at one newsletter article.
@@ -155,6 +164,48 @@ OPENAI_API_KEY=... OPENAI_REQUEST_TIMEOUT_MS=10000 npm run llm-run
 ```
 
 If OpenAI fails, the command reports whether the failure was a timeout, network/endpoint problem, HTTP/API error, missing JSON output, or invalid JSON.
+
+## Safe Live RSS + LLM Proof
+
+Use `llm-proof` for the first real-source LLM proof. It is intentionally narrow:
+
+- always `persisted: false`
+- always `dryRun: true`
+- always `liveRss: true`
+- always `useLlm: true`
+- always `rssOnly: true`
+- never uses sample articles
+- never writes to Supabase
+- defaults to one newsletter article, one business story, one mini-case, and one concept
+- defaults to one LLM attempt, one RSS item per feed, and six ranked source articles sent to the model
+
+First safe command:
+
+```sh
+OPENAI_API_KEY="sk-..." \
+LIVE_RSS=true \
+LIVE_RSS_ONLY=true \
+USE_LLM=true \
+DRY_RUN=true \
+LANGUAGES=en \
+RSS_ARTICLES_PER_SOURCE=1 \
+npm run llm-proof -- --topics business,finance --source-article-limit 6 --max-attempts 1 --max-output-tokens 4500
+```
+
+Two-language proof after the English run works:
+
+```sh
+OPENAI_API_KEY="sk-..." \
+LIVE_RSS=true \
+LIVE_RSS_ONLY=true \
+USE_LLM=true \
+DRY_RUN=true \
+LANGUAGES=fr,en \
+RSS_ARTICLES_PER_SOURCE=1 \
+npm run llm-proof -- --topics business,finance,tech_ai --source-article-limit 6 --max-attempts 1
+```
+
+`llm-proof` validates that every generated item has `title`, `language`, `topic`, `body_md`, and `source_urls`, that item language matches the requested language, and that no `example.com` sample URL appears when proving RSS-only mode. The JSON output reports the OpenAI model, endpoint host, request timeout, attempt/token caps, and whether an API key was configured; it never prints the API key.
 
 ## Safe Persistence Test
 
@@ -307,7 +358,7 @@ Safety limits:
 
 ## Production Daily Job
 
-`daily-job` is the production-safe scheduler command. It reuses the same fetch, processing, generation, validation, persistence, and assignment path as `daily-job-test`, but it does not mark titles as test content and it can assign all eligible app users when `USER_LIMIT` is absent.
+`daily-job` is the production-shaped scheduler command. It reuses the same fetch, processing, generation, validation, persistence, and assignment path as `daily-job-test`, but it does not mark titles as test content and it can assign all eligible app users when `USER_LIMIT` is absent. It is not production-approved until scheduler ownership, monitoring, source rights, and editorial review are in place.
 
 Supported env:
 
@@ -315,6 +366,8 @@ Supported env:
 - `CONTENT_STATUS=published` stores generated content as `draft`, `review`, or `published`. Assignment only runs for `published`.
 - `USE_LLM=true` uses OpenAI generation. Requires `OPENAI_API_KEY`, including in dry runs.
 - `LIVE_RSS=true` enables curated RSS fetching.
+- `LIVE_RSS_ONLY=true` enables curated RSS and disables `sample_articles`, including in `DRY_RUN=true` rehearsals.
+- `ALLOW_SAMPLE_CONTENT=true` explicitly allows `sample_articles` outside dry-run/test commands. Do not set it for production scheduler runs.
 - `USER_LIMIT=5` optionally limits assignments per language. Omit it to consider all eligible users.
 - `DRY_RUN=true` fetches, processes, generates, validates, and prints summary JSON without Supabase writes.
 - `TOPIC_LIMIT=3` can narrow the default topic set for local rehearsals.
@@ -327,6 +380,19 @@ LANGUAGES=fr,en \
 CONTENT_STATUS=published \
 USE_LLM=false \
 LIVE_RSS=false \
+npm run daily-job
+```
+
+RSS-only no-write rehearsal:
+
+```sh
+DRY_RUN=true \
+LANGUAGES=fr,en \
+CONTENT_STATUS=published \
+USE_LLM=false \
+LIVE_RSS=true \
+LIVE_RSS_ONLY=true \
+RSS_ARTICLES_PER_SOURCE=1 \
 npm run daily-job
 ```
 
@@ -343,6 +409,8 @@ LIVE_RSS=true \
 npm run daily-job
 ```
 
+This run is RSS-only by default. It refuses to persist `sample_articles` unless `ALLOW_SAMPLE_CONTENT=true` is set deliberately.
+
 Limited staging write run:
 
 ```sh
@@ -355,6 +423,20 @@ LIVE_RSS=true \
 USER_LIMIT=5 \
 npm run daily-job
 ```
+
+Intentional sample-content write rehearsal:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+ALLOW_SAMPLE_CONTENT=true \
+LANGUAGES=fr,en \
+CONTENT_STATUS=published \
+USER_LIMIT=1 \
+npm run daily-job
+```
+
+Use this only against local or disposable Supabase data. For normal test writes, prefer `daily-job-test` or `persist-test`, which mark content as test data.
 
 Cron or GitHub Actions should call the same script from `services/content-engine`:
 
@@ -369,6 +451,9 @@ Safety behavior:
 
 - `DRY_RUN=true` never creates `content_items`, `generation_runs`, `daily_drops`, or `daily_drop_items`.
 - write mode refuses to run without `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+- non-dry `daily-job` refuses sample-only writes unless `ALLOW_SAMPLE_CONTENT=true`.
+- when `LIVE_RSS=true` and `ALLOW_SAMPLE_CONTENT` is absent, non-dry `daily-job` uses RSS-only source mode, not mixed mode.
+- `LIVE_RSS_ONLY=true` forces RSS-only source mode even in dry runs and test-shaped commands.
 - `USE_LLM=true` refuses to run without `OPENAI_API_KEY`.
 - source fetch and generation stages retry before failing a language.
 - one language failure is reported in the JSON summary without hiding successful languages.

@@ -47,11 +47,34 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
     concepts: 1
   });
 
-  const connectors: SourceConnector[] = [new SampleArticleConnector()];
+  const sampleContentEnabled = !options.liveRssOnly && envFlag("ALLOW_SAMPLE_CONTENT");
+  const connectors: SourceConnector[] = [];
+
+  if (sampleContentEnabled) {
+    connectors.push(new SampleArticleConnector());
+  }
 
   if (options.liveRss) {
     connectors.push(new RssFeedConnector(CURATED_SOURCES));
   }
+
+  if (connectors.length === 0) {
+    throw new Error(
+      [
+        "llm-run refused to run because no source connector is enabled.",
+        "sample_articles are no longer enabled by default for LLM runs.",
+        "Set LIVE_RSS=true or LIVE_RSS_ONLY=true for live RSS sources, or ALLOW_SAMPLE_CONTENT=true for an intentional sample-content LLM rehearsal."
+      ].join(" ")
+    );
+  }
+
+  logProgress("source policy", {
+    source_mode: sampleContentEnabled && options.liveRss ? "mixed" : sampleContentEnabled ? "sample" : "rss",
+    sample_content_enabled: sampleContentEnabled,
+    live_rss: options.liveRss,
+    live_rss_only: options.liveRssOnly,
+    dry_run: true
+  });
 
   const sourceFetcher = new SourceFetcher(connectors);
   const generator = new LlmContentGenerator({
@@ -176,6 +199,10 @@ function plannedLlmItems(newsletterArticleCount: number): Array<{
     { label: "mini-case", contentType: "mini_case" },
     { label: "concept", contentType: "concept" }
   ];
+}
+
+function envFlag(name: string): boolean {
+  return process.env[name]?.toLowerCase() === "true";
 }
 
 function logProgress(message: string, details: Record<string, unknown>): void {

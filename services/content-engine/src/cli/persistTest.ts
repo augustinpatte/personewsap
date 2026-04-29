@@ -70,7 +70,10 @@ export async function runPersistTest(options: PersistTestOptions): Promise<Persi
     newsletter_articles: PERSIST_TEST_NEWSLETTER_ARTICLE_COUNT,
     content_status: contentStatus,
     test_user_id: testUserId ?? null,
-    live_rss: false
+    source_mode: "sample",
+    sample_content_enabled: true,
+    live_rss: false,
+    dry_run: false
   });
 
   const sourceFetcher = new SourceFetcher([new SampleArticleConnector()]);
