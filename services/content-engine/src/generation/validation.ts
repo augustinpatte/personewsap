@@ -1,8 +1,36 @@
-import { CONTENT_TYPES, TOPIC_IDS, type ContentType, type DailyDropPayload, type GeneratedContentItem } from "../domain.js";
+import {
+  CONTENT_TYPES,
+  TOPIC_IDS,
+  type ContentType,
+  type DailyDropPayload,
+  type GeneratedContentItem,
+  type RankedArticle,
+  type TopicId
+} from "../domain.js";
 
 export type ValidationIssue = {
   path: string;
   message: string;
+  code?: string;
+  severity?: "error" | "warning";
+};
+
+export type ContentQualityOptions = {
+  articles?: RankedArticle[];
+  productionStrict?: boolean;
+  rssOnly?: boolean;
+};
+
+export type ContentQualityDiagnostics = {
+  status: "passed" | "warning" | "failed";
+  score: number;
+  strict: boolean;
+  issues: ValidationIssue[];
+  checks: Array<{
+    code: string;
+    status: "passed" | "warning" | "failed";
+    issue_count: number;
+  }>;
 };
 
 const DATE_PATTERN = /\b\d{4}-\d{2}-\d{2}\b/;
@@ -85,6 +113,19 @@ const HIGH_STAKES_ADVICE_PATTERNS = [
   /\byou should plead\b/i
 ];
 
+const CONCEPT_ANCHORS: Record<TopicId, string[]> = {
+  business: ["customer", "pricing", "price", "revenue", "margin", "retention", "distribution", "demand", "churn"],
+  finance: ["rate", "risk", "asset", "credit", "loan", "funding", "yield", "market", "capital", "default"],
+  tech_ai: ["ai", "model", "data", "compute", "chip", "platform", "software", "security", "automation"],
+  law: ["rule", "regulation", "legal", "court", "compliance", "enforcement", "privacy", "rights", "law"],
+  medicine: ["clinical", "patient", "trial", "treatment", "health", "safety", "endpoint", "care", "medical"],
+  engineering: ["system", "design", "failure", "reliability", "capacity", "maintenance", "deployment", "infrastructure"],
+  sport_business: ["rights", "sponsorship", "league", "audience", "fans", "tickets", "media", "attendance", "broadcast"],
+  culture_media: ["attention", "audience", "subscriber", "platform", "licensing", "content", "media", "format", "loyalty"]
+};
+
+const ALLOWED_REPEATED_TEMPLATE_SENTENCES = new Set(["source"]);
+
 export function validateDailyDropPayload(payload: DailyDropPayload): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
@@ -106,11 +147,63 @@ export function validateDailyDropPayload(payload: DailyDropPayload): ValidationI
   return issues;
 }
 
-export function assertValidDailyDropPayload(payload: DailyDropPayload): void {
+export function assertValidDailyDropPayload(payload: DailyDropPayload, options: ContentQualityOptions = {}): void {
   const issues = validateDailyDropPayload(payload);
-  if (issues.length > 0) {
-    throw new Error(`Generated daily drop failed validation: ${issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ")}`);
+  const quality = validateDailyDropQuality(payload, options);
+  const blockingIssues = [
+    ...issues,
+    ...quality.issues.filter((issue) => issue.severity === "error")
+  ];
+
+  if (blockingIssues.length > 0) {
+    throw new Error(
+      `Generated daily drop failed validation: ${blockingIssues
+        .map((issue) => `${issue.path}: ${issue.message}`)
+        .join("; ")}`
+    );
   }
+}
+
+export function validateDailyDropQuality(
+  payload: DailyDropPayload,
+  options: ContentQualityOptions = {}
+): ContentQualityDiagnostics {
+  const strict = options.productionStrict ?? readProductionContentStrict();
+  const issues: ValidationIssue[] = [];
+  const sourceByUrl = new Map<string, RankedArticle>();
+
+  for (const article of options.articles ?? []) {
+    sourceByUrl.set(normalizeUrlKey(article.url), article);
+  }
+
+  payload.items.forEach((item, index) => {
+    const path = `items.${index}`;
+    issues.push(...validateSampleUrls(item, path, strict || Boolean(options.rssOnly)));
+    issues.push(...validateBodySourceCitations(item, path, sourceByUrl, strict));
+    issues.push(...validateItemSourceTopicMatch(item, path, sourceByUrl, strict));
+    issues.push(...validateConceptRelevance(item, path, sourceByUrl, strict));
+  });
+
+  issues.push(...validateRepeatedTemplatePhrases(payload, strict));
+
+  const checks = summarizeQualityChecks(issues);
+  const failedChecks = checks.filter((check) => check.status === "failed").length;
+  const warningChecks = checks.filter((check) => check.status === "warning").length;
+  const errorCount = issues.filter((issue) => issue.severity === "error").length;
+  const warningCount = issues.filter((issue) => issue.severity !== "error").length;
+  const score = Math.max(0, 100 - failedChecks * 25 - warningChecks * 8);
+
+  return {
+    status: errorCount > 0 ? "failed" : warningCount > 0 ? "warning" : "passed",
+    score,
+    strict,
+    issues,
+    checks
+  };
+}
+
+export function readProductionContentStrict(): boolean {
+  return process.env.PRODUCTION_CONTENT_STRICT?.toLowerCase() === "true";
 }
 
 function validateGeneratedItem(item: GeneratedContentItem, path: string): ValidationIssue[] {
@@ -284,6 +377,338 @@ function validateDatePresence(item: GeneratedContentItem, path: string): Validat
   }
 
   return issues;
+}
+
+function validateSampleUrls(item: GeneratedContentItem, path: string, blockSampleUrls: boolean): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const urls = [
+    ...(Array.isArray(item.source_urls) ? item.source_urls : []),
+    typeof item.body_md === "string" ? item.body_md : ""
+  ];
+
+  urls.forEach((value, index) => {
+    if (containsSampleUrl(value)) {
+      issues.push(qualityIssue({
+        path: index < item.source_urls.length ? `${path}.source_urls.${index}` : `${path}.body_md`,
+        code: "sample_url_blocked",
+        message: "Sample/example.com URLs are not allowed in production-strict or RSS-only mode.",
+        strict: blockSampleUrls
+      }));
+    }
+  });
+
+  return issues;
+}
+
+function validateBodySourceCitations(
+  item: GeneratedContentItem,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const body = typeof item.body_md === "string" ? item.body_md : "";
+  const bodyLower = body.toLowerCase();
+  const sourceUrls = Array.isArray(item.source_urls) ? item.source_urls : [];
+
+  sourceUrls.forEach((sourceUrl, index) => {
+    if (!bodyIncludesUrl(body, sourceUrl)) {
+      issues.push(qualityIssue({
+        path: `${path}.body_md`,
+        code: "source_url_not_cited",
+        message: `Body must cite source URL from source_urls.${index}.`,
+        strict
+      }));
+    }
+
+    const source = sourceByUrl.get(normalizeUrlKey(sourceUrl));
+    const sourceDate = source?.published_at?.slice(0, 10) ?? null;
+    const retrievedDate = source?.retrieved_at?.slice(0, 10) ?? null;
+
+    if (sourceDate && !body.includes(sourceDate)) {
+      issues.push(qualityIssue({
+        path: `${path}.body_md`,
+        code: "source_date_not_cited",
+        message: `Body must cite source/event date ${sourceDate}.`,
+        strict
+      }));
+    }
+
+    if (!sourceDate && source && retrievedDate && !body.includes(retrievedDate)) {
+      issues.push(qualityIssue({
+        path: `${path}.body_md`,
+        code: "retrieved_date_missing",
+        message: `Undated source must cite retrieved date ${retrievedDate}.`,
+        strict
+      }));
+    }
+
+    if (sourceDate && bodyLower.includes("published unknown")) {
+      issues.push(qualityIssue({
+        path: `${path}.body_md`,
+        code: "published_unknown_with_known_date",
+        message: "Body says published unknown even though the source has a publication date.",
+        strict
+      }));
+    }
+  });
+
+  if (bodyLower.includes("published unknown") && !/\bretrieved\s+\d{4}-\d{2}-\d{2}\b/i.test(body)) {
+    issues.push(qualityIssue({
+      path: `${path}.body_md`,
+      code: "published_unknown_without_retrieved_date",
+      message: "published unknown is allowed only when a retrieved date is present.",
+      strict
+    }));
+  }
+
+  return issues;
+}
+
+function validateItemSourceTopicMatch(
+  item: GeneratedContentItem,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  if (!item.topic) {
+    return [];
+  }
+
+  const sourceTopics = knownSourcesForItem(item, sourceByUrl).map((source) => source.topic);
+  if (sourceTopics.length === 0) {
+    return [];
+  }
+
+  const hasMatchingTopic = sourceTopics.includes(item.topic);
+  if (hasMatchingTopic) {
+    return [];
+  }
+
+  return [
+    qualityIssue({
+      path: `${path}.topic`,
+      code: "source_topic_mismatch",
+      message: `Item topic ${item.topic} must match at least one cited source topic (${Array.from(new Set(sourceTopics)).join(", ")}).`,
+      strict
+    })
+  ];
+}
+
+function validateConceptRelevance(
+  item: GeneratedContentItem,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  if (item.content_type !== "concept" || !item.topic) {
+    return [];
+  }
+
+  const conceptText = normalizeForPhraseCheck(
+    [item.title, item.definition, item.plain_english, item.why_it_matters, item.how_to_use_it, item.common_mistake].join(" ")
+  );
+  const anchors = CONCEPT_ANCHORS[item.topic];
+  const hasTopicAnchor = anchors.some((anchor) => conceptText.includes(anchor));
+  const sources = knownSourcesForItem(item, sourceByUrl);
+  const sourceText = normalizeForPhraseCheck(
+    sources.map((source) => `${source.title} ${source.summary ?? ""} ${source.body ?? ""}`).join(" ")
+  );
+  const exampleText = normalizeForPhraseCheck(`${item.example} ${item.body_md}`);
+  const overlapsSource = keywordOverlap(exampleText, sourceText) >= 2;
+
+  const issues: ValidationIssue[] = [];
+
+  if (!hasTopicAnchor) {
+    issues.push(qualityIssue({
+      path: `${path}.title`,
+      code: "concept_missing_topic_anchor",
+      message: `Concept lens must contain a clear ${item.topic} analytical anchor.`,
+      strict
+    }));
+  }
+
+  if (sources.length > 0 && !overlapsSource) {
+    issues.push(qualityIssue({
+      path: `${path}.example`,
+      code: "concept_example_source_mismatch",
+      message: "Concept example must reuse concrete terms from the cited source, not a generic template example.",
+      strict
+    }));
+  }
+
+  return issues;
+}
+
+function validateRepeatedTemplatePhrases(payload: DailyDropPayload, strict: boolean): ValidationIssue[] {
+  const seen = new Map<string, { path: string; topic: TopicId | null }>();
+  const issues: ValidationIssue[] = [];
+
+  payload.items.forEach((item, index) => {
+    const sentences = extractSentences(templateTextForItem(item));
+
+    for (const sentence of sentences) {
+      if (
+        ALLOWED_REPEATED_TEMPLATE_SENTENCES.has(sentence) ||
+        sentence.length < 55 ||
+        sentence.includes("source:") ||
+        sentence.includes("published ") ||
+        sentence.includes("retrieved ")
+      ) {
+        continue;
+      }
+
+      const previous = seen.get(sentence);
+      if (previous && previous.topic !== item.topic) {
+        issues.push(qualityIssue({
+          path: `items.${index}`,
+          code: "repeated_template_phrase",
+          message: `Repeated generic sentence also appears at ${previous.path}: "${sentence.slice(0, 100)}".`,
+          strict
+        }));
+        continue;
+      }
+
+      seen.set(sentence, { path: `items.${index}`, topic: item.topic });
+    }
+  });
+
+  return issues;
+}
+
+function knownSourcesForItem(item: GeneratedContentItem, sourceByUrl: Map<string, RankedArticle>): RankedArticle[] {
+  return Array.from(
+    new Map(
+      (Array.isArray(item.source_urls) ? item.source_urls : [])
+        .map((url) => sourceByUrl.get(normalizeUrlKey(url)))
+        .filter((source): source is RankedArticle => Boolean(source))
+        .map((source) => [source.url, source])
+    ).values()
+  );
+}
+
+function qualityIssue(input: { path: string; code: string; message: string; strict: boolean }): ValidationIssue {
+  return {
+    path: input.path,
+    code: input.code,
+    message: input.message,
+    severity: input.strict ? "error" : "warning"
+  };
+}
+
+function summarizeQualityChecks(issues: ValidationIssue[]): ContentQualityDiagnostics["checks"] {
+  const checkCodes = [
+    "sample_url_blocked",
+    "source_url_not_cited",
+    "source_date_not_cited",
+    "retrieved_date_missing",
+    "published_unknown_with_known_date",
+    "published_unknown_without_retrieved_date",
+    "source_topic_mismatch",
+    "concept_missing_topic_anchor",
+    "concept_example_source_mismatch",
+    "repeated_template_phrase"
+  ];
+
+  return checkCodes.map((code) => {
+    const codeIssues = issues.filter((issue) => issue.code === code);
+    const hasError = codeIssues.some((issue) => issue.severity === "error");
+    return {
+      code,
+      status: hasError ? "failed" : codeIssues.length > 0 ? "warning" : "passed",
+      issue_count: codeIssues.length
+    };
+  });
+}
+
+function bodyIncludesUrl(body: string, sourceUrl: string): boolean {
+  if (body.includes(sourceUrl)) {
+    return true;
+  }
+
+  try {
+    return body.includes(decodeURI(sourceUrl));
+  } catch {
+    return false;
+  }
+}
+
+function containsSampleUrl(value: string): boolean {
+  if (value.includes("example.com")) {
+    return true;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.hostname === "example.com" || url.hostname.endsWith(".example.com");
+  } catch {
+    return false;
+  }
+}
+
+function normalizeUrlKey(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return value.trim().replace(/\/$/, "");
+  }
+}
+
+function keywordOverlap(left: string, right: string): number {
+  if (!left || !right) {
+    return 0;
+  }
+
+  const rightTerms = new Set(contentTerms(right));
+  return contentTerms(left).filter((term) => rightTerms.has(term)).length;
+}
+
+function contentTerms(value: string): string[] {
+  return Array.from(
+    new Set(
+      value
+        .replace(/https?:\/\/\S+/g, " ")
+        .replace(/[^a-z0-9\u00C0-\u017F]+/gi, " ")
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((term) => term.length >= 5)
+        .filter((term) => !["source", "published", "retrieved", "their", "there", "about", "would"].includes(term))
+    )
+  );
+}
+
+function extractSentences(value: string): string[] {
+  return normalizeForPhraseCheck(value)
+    .replace(/https?:\/\/\S+/g, " ")
+    .split(/[.!?]+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+function templateTextForItem(item: GeneratedContentItem): string {
+  if (item.content_type === "newsletter_article") {
+    return [item.summary, item.body_md, item.why_it_matters].join(" ");
+  }
+
+  if (item.content_type === "business_story") {
+    return [item.setup, item.tension, item.decision, item.outcome, item.lesson, item.body_md].join(" ");
+  }
+
+  if (item.content_type === "mini_case") {
+    return [item.context, item.challenge, item.question, item.sample_answer, item.body_md].join(" ");
+  }
+
+  return [
+    item.definition,
+    item.plain_english,
+    item.example,
+    item.why_it_matters,
+    item.how_to_use_it,
+    item.common_mistake,
+    item.body_md
+  ].join(" ");
 }
 
 function hasTextField(item: GeneratedContentItem, field: string): boolean {

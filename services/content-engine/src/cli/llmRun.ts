@@ -1,7 +1,12 @@
 import type { DailyDropPayload, Language, TopicId } from "../domain.js";
 import { LlmContentGenerator } from "../generation/llmGenerator.js";
 import { OpenAiJsonProvider } from "../generation/openAiProvider.js";
-import { assertValidDailyDropPayload } from "../generation/validation.js";
+import {
+  assertValidDailyDropPayload,
+  readProductionContentStrict,
+  validateDailyDropQuality,
+  type ContentQualityDiagnostics
+} from "../generation/validation.js";
 import { processArticles } from "../processing/pipeline.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { CURATED_SOURCES } from "../sources/curatedSources.js";
@@ -24,6 +29,7 @@ export type LlmRunOutput = {
     fetched_articles: number;
     processed_articles: number;
     generated_items: number;
+    validation: ContentQualityDiagnostics;
     top_ranked_sources: Array<{
       title: string;
       topic: TopicId;
@@ -148,7 +154,17 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
       generated_items: payload.items.length
     });
 
-    assertValidDailyDropPayload(payload);
+    const validation = validateDailyDropQuality(payload, {
+      articles: rankedArticles,
+      rssOnly: runOptions.liveRssOnly,
+      productionStrict: readProductionContentStrict()
+    });
+
+    assertValidDailyDropPayload(payload, {
+      articles: rankedArticles,
+      rssOnly: runOptions.liveRssOnly,
+      productionStrict: readProductionContentStrict()
+    });
 
     logProgress("validation completed", {
       language,
@@ -160,6 +176,7 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
       fetched_articles: rawArticles.length,
       processed_articles: rankedArticles.length,
       generated_items: payload.items.length,
+      validation,
       top_ranked_sources: rankedArticles.slice(0, 5).map((article) => ({
         title: article.title,
         topic: article.topic,

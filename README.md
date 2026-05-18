@@ -18,7 +18,7 @@ The current repo contains:
 | LLM generation | not release-validated | `llm-run` exists and validates structure, but this release pass did not validate prompt quality or production editorial safety. |
 | Mobile live data | implemented, proof required per tester wave | Auth, onboarding, assigned daily-drop reads, Library reads, and interaction writes exist; each tester Supabase project still needs a live proof run. |
 | TestFlight | not ready | Signing, App Store Connect, privacy text, tester support, and a device proof run are still required. |
-| Production | not ready | Editorial review, source licensing, scheduler/monitoring, incident response, and cleanup ownership are not complete. |
+| Production | not ready | Daily-job metrics and health CLI exist, but editorial review, source licensing, scheduler ownership, incident response, and cleanup ownership are not complete. |
 
 ## Start Here
 
@@ -27,9 +27,10 @@ For a small tester handoff, read these in order:
 1. [MVP_STATUS.md](MVP_STATUS.md) - what works, what is real, what is mocked, and what is unsafe for production.
 2. [TESTING.md](TESTING.md) - local setup, Supabase setup, daily-drop generation, manual QA, and troubleshooting.
 3. [SUPABASE_CHECKLIST.md](SUPABASE_CHECKLIST.md) - schema/RLS verification before testers use the mobile app.
-4. [TESTFLIGHT_READINESS.md](TESTFLIGHT_READINESS.md) - checklist for moving from local QA to TestFlight.
-5. [TESTER_SCRIPT_15_MIN.md](TESTER_SCRIPT_15_MIN.md) - step-by-step script for a short tester session.
-6. [KNOWN_ISSUES.md](KNOWN_ISSUES.md) - current limitations and tester risks.
+4. [BACKEND_OPERATIONS.md](BACKEND_OPERATIONS.md) - daily backend operator check, job health, and stored metrics.
+5. [TESTFLIGHT_READINESS.md](TESTFLIGHT_READINESS.md) - checklist for moving from local QA to TestFlight.
+6. [TESTER_SCRIPT_15_MIN.md](TESTER_SCRIPT_15_MIN.md) - step-by-step script for a short tester session.
+7. [KNOWN_ISSUES.md](KNOWN_ISSUES.md) - current limitations and tester risks.
 
 Product and editorial context:
 
@@ -96,6 +97,15 @@ CONFIRM_DAILY_JOB_TEST=true \
 LANGUAGES=fr,en \
 USER_LIMIT=5 \
 npm run content:daily-job-test
+```
+
+Daily backend health check:
+
+```sh
+cd ~/personewsap
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npm run content:job-health -- --date "$(date +%F)"
 ```
 
 Live RSS no-write test:
@@ -172,7 +182,7 @@ Production-shaped command:
 DRY_RUN=true npm run content:daily-job
 ```
 
-Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow.
+Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow. Non-dry production writes require `PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true`, plus `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY`.
 
 Read-only diagnostic commands:
 
@@ -203,7 +213,7 @@ Dangerous write commands require explicit confirmation flags and server-side env
 - `backend:e2e:live-rss`
 - `backend:e2e:llm`
 
-Use [TESTING.md](TESTING.md) before running them. `content:daily-job` is production-shaped but is not wired to unattended scheduling or monitoring yet.
+Use [TESTING.md](TESTING.md) before running them. `content:daily-job` is production-shaped and stores non-dry run summaries for `content:job-health`, but unattended scheduling and operational ownership still need a production owner.
 
 ## Supabase
 
@@ -244,6 +254,6 @@ PersoNewsAP is not production-ready until TestFlight setup, privacy review, edit
 | Backend persistence safety | done | Write commands fail closed behind confirmation flags and service-role env vars. |
 | Mobile live-data path | implemented, wave proof required | Supported through marked test persistence and assignment; still needs a selected tester Supabase project and manual proof run. |
 | TestFlight | not ready | Build/signing/privacy/tester operations are not complete. |
-| Production scheduler | partial | `content:daily-job` exists, but unattended scheduling, monitoring, and operational ownership are not wired. |
+| Production scheduler | partial | `content:daily-job` exists and writes `job_runs` monitoring summaries; unattended scheduling and operational ownership are not wired. |
 | Editorial production workflow | missing | LLM output still needs human review before production publication. |
 | Source licensing | missing | RSS/source terms need review before production use. |

@@ -29,6 +29,11 @@ if [[ -z "${SUPABASE_VERIFY_PUBLISHED_CONTENT_ID:-}" ]]; then
 fi
 
 PROOF_DATE="${SUPABASE_VERIFY_PROOF_DATE:-2099-01-01}"
+RLS_EXTRA_ARGS=()
+
+if [[ -n "${SUPABASE_VERIFY_UNASSIGNED_CONTENT_ID:-}" ]]; then
+  RLS_EXTRA_ARGS+=(--set=unassigned_content_id="$SUPABASE_VERIFY_UNASSIGNED_CONTENT_ID")
+fi
 
 echo "Running read-only schema doctor SQL..."
 psql "$DATABASE_URL" \
@@ -47,6 +52,7 @@ psql "$DATABASE_URL" \
   --set=user_a_email="$SUPABASE_VERIFY_USER_A_EMAIL" \
   --set=user_b="$SUPABASE_VERIFY_USER_B" \
   --set=published_content_id="$SUPABASE_VERIFY_PUBLISHED_CONTENT_ID" \
+  "${RLS_EXTRA_ARGS[@]}" \
   --set=proof_date="$PROOF_DATE" \
   --file="$ROOT_DIR/supabase/verification/rls_access_matrix.sql"
 

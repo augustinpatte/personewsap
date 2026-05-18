@@ -2,6 +2,7 @@ import { LANGUAGES, TOPIC_IDS, type Language, type TopicId, isLanguage, isTopicI
 import { processArticles } from "../processing/pipeline.js";
 import { CURATED_SOURCE_COVERAGE, CURATED_SOURCES } from "../sources/curatedSources.js";
 import { RssFeedConnector, type RssFetchDiagnostics } from "../sources/rssFetcher.js";
+import { toDateOnly } from "../utils/date.js";
 
 export type RssCheckOptions = {
   languages: Language[];
@@ -30,6 +31,16 @@ export type RssCheckOutput = {
     rss_url: string;
   }>;
   diagnostics: RssFetchDiagnostics;
+  articlesByTopic: Record<TopicId, number>;
+  sourcesByTopic: Record<TopicId, number>;
+  staleFallbackUsedByTopic: RssFetchDiagnostics["staleFallbackUsedByTopic"];
+  articlesBySource: Array<{
+    source_id: string | null;
+    publisher: string;
+    topic: TopicId;
+    language: Language;
+    article_count: number;
+  }>;
   fetchedArticles: number;
   processedArticles: number;
   topRankedSources: Array<{
@@ -68,6 +79,11 @@ export async function runRssCheck(options: RssCheckOptions): Promise<RssCheckOut
   }
 
   const rankedArticles = processArticles(articles);
+  const articlesByTopic = countArticlesByTopic(rankedArticles);
+  const articlesBySource = countArticlesBySource(
+    articles,
+    new Map(activeSources.map((source) => [source.id, source.publisher]))
+  );
 
   return {
     mode: "rss-check",
@@ -89,6 +105,10 @@ export async function runRssCheck(options: RssCheckOptions): Promise<RssCheckOut
       rss_url: source.rssUrl ?? ""
     })),
     diagnostics: connector.getLastDiagnostics(),
+    articlesByTopic,
+    sourcesByTopic: connector.getLastDiagnostics().sourcesByTopic,
+    staleFallbackUsedByTopic: connector.getLastDiagnostics().staleFallbackUsedByTopic,
+    articlesBySource,
     fetchedArticles: articles.length,
     processedArticles: rankedArticles.length,
     topRankedSources: rankedArticles.slice(0, 10).map((article) => ({
@@ -102,6 +122,59 @@ export async function runRssCheck(options: RssCheckOptions): Promise<RssCheckOut
   };
 }
 
+function countArticlesByTopic(articles: Array<{ topic: TopicId }>): Record<TopicId, number> {
+  const counts = Object.fromEntries(TOPIC_IDS.map((topic) => [topic, 0])) as Record<TopicId, number>;
+
+  for (const article of articles) {
+    counts[article.topic] += 1;
+  }
+
+  return counts;
+}
+
+function countArticlesBySource(
+  articles: Array<{
+    publisher: string;
+    language: Language;
+    sourceTopic?: TopicId;
+    source_id?: string;
+  }>,
+  publisherBySourceId: Map<string, string>
+): RssCheckOutput["articlesBySource"] {
+  const counts = new Map<string, RssCheckOutput["articlesBySource"][number]>();
+
+  for (const article of articles) {
+    const topic = article.sourceTopic;
+    if (!topic) {
+      continue;
+    }
+
+    const sourceId = article.source_id ?? null;
+    const publisher = sourceId ? publisherBySourceId.get(sourceId) ?? article.publisher : article.publisher;
+    const key = `${sourceId ?? "unknown"}:${publisher}:${topic}:${article.language}`;
+    const current =
+      counts.get(key) ??
+      ({
+        source_id: sourceId,
+        publisher,
+        topic,
+        language: article.language,
+        article_count: 0
+      } satisfies RssCheckOutput["articlesBySource"][number]);
+
+    current.article_count += 1;
+    counts.set(key, current);
+  }
+
+  return Array.from(counts.values()).sort((left, right) => {
+    if (left.topic !== right.topic) {
+      return left.topic.localeCompare(right.topic);
+    }
+
+    return left.publisher.localeCompare(right.publisher);
+  });
+}
+
 export function parseRssCheckOptions(args: string[]): RssCheckOptions {
   const values = readFlags(args);
   const limitPerSource = readPositiveInteger(values.get("limit-per-source"), "--limit-per-source");
@@ -109,7 +182,7 @@ export function parseRssCheckOptions(args: string[]): RssCheckOptions {
   return {
     languages: parseLanguages(values.get("languages") ?? values.get("language") ?? LANGUAGES.join(",")),
     topics: parseTopics(values.get("topics") ?? values.get("topic") ?? TOPIC_IDS.join(",")),
-    since: values.get("since") ?? values.get("date"),
+    since: values.get("since") ?? values.get("date") ?? toDateOnly(new Date()),
     limitPerSource
   };
 }

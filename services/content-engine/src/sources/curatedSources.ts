@@ -655,11 +655,24 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     language: "fr",
     publisher: "Ministere de l'Economie et des Finances",
     url: "https://www.economie.gouv.fr/tous-les-fils-d-infos",
+    rssUrl: "https://www.economie.gouv.fr/rss/toutesactualites",
     credibility_score: 0.92,
     credibility_tier: "tier_1",
     source_type: "institutional_site",
     description: "Primary-source French economy, finance, public policy, and ministry updates.",
-    usage_notes: "RSS catalogue is public, but the direct portal feed endpoint is unstable; keep as curated reference until a current feed URL is verified."
+    usage_notes: "Official RSS catalogue says feeds are free to use with visible economie.gouv.fr attribution."
+  },
+  {
+    id: "franceinfo-fr-economie",
+    topic: "finance",
+    language: "fr",
+    publisher: "Franceinfo",
+    url: "https://www.franceinfo.fr/economie/",
+    rssUrl: "https://www.franceinfo.fr/economie.rss",
+    credibility_score: 0.78,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French public-media economy, markets, household finance, and consumer coverage."
   },
   {
     id: "le-monde-pixels",
@@ -686,6 +699,18 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "French-language technology coverage useful for AI and platform trend monitoring."
   },
   {
+    id: "franceinfo-fr-internet",
+    topic: "tech_ai",
+    language: "fr",
+    publisher: "Franceinfo",
+    url: "https://www.franceinfo.fr/internet/",
+    rssUrl: "https://www.franceinfo.fr/internet.rss",
+    credibility_score: 0.76,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French public-media internet, platforms, cybersecurity, and technology coverage."
+  },
+  {
     id: "conseil-constitutionnel",
     topic: "law",
     language: "fr",
@@ -695,6 +720,31 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     credibility_tier: "tier_1",
     source_type: "institutional_site",
     description: "Primary-source French constitutional law decisions and institutional updates."
+  },
+  {
+    id: "economie-gouv-daj",
+    topic: "law",
+    language: "fr",
+    publisher: "Direction des affaires juridiques",
+    url: "https://www.economie.gouv.fr/daj/flux-rss",
+    rssUrl: "https://www.economie.gouv.fr/daj/rss",
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source French public procurement and public law updates from the ministry legal affairs directorate.",
+    usage_notes: "Official economie.gouv.fr RSS feed; keep source attribution visible when reusing metadata."
+  },
+  {
+    id: "cnil-actualites",
+    topic: "law",
+    language: "fr",
+    publisher: "CNIL",
+    url: "https://www.cnil.fr/fr/actualites",
+    rssUrl: "https://www.cnil.fr/fr/rss.xml",
+    credibility_score: 0.91,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source French data protection, AI governance, privacy, and regulatory enforcement updates."
   },
   {
     id: "vie-publique-lois",
@@ -721,6 +771,18 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "Primary-source French biomedical research news."
   },
   {
+    id: "franceinfo-fr-sante",
+    topic: "medicine",
+    language: "fr",
+    publisher: "Franceinfo",
+    url: "https://www.franceinfo.fr/sante/",
+    rssUrl: "https://www.franceinfo.fr/sante.rss",
+    credibility_score: 0.76,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French public-media health, public health, healthcare, and medicine coverage."
+  },
+  {
     id: "cnrs-ingenierie",
     topic: "engineering",
     language: "fr",
@@ -730,6 +792,30 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     credibility_tier: "tier_1",
     source_type: "institutional_site",
     description: "French scientific research updates; filter for engineering and applied science."
+  },
+  {
+    id: "inria-fr-actualites",
+    topic: "engineering",
+    language: "fr",
+    publisher: "Inria",
+    url: "https://www.inria.fr/fr/actualites-recherche-savoir-numerique",
+    rssUrl: "https://www.inria.fr/fr/rss/recherche/actualites",
+    credibility_score: 0.9,
+    credibility_tier: "tier_1",
+    source_type: "institutional_site",
+    description: "Primary-source French computer science, applied AI, simulation, software, and engineering research updates."
+  },
+  {
+    id: "franceinfo-fr-sciences",
+    topic: "engineering",
+    language: "fr",
+    publisher: "Franceinfo",
+    url: "https://www.franceinfo.fr/sciences/",
+    rssUrl: "https://www.franceinfo.fr/sciences.rss",
+    credibility_score: 0.76,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French public-media science and engineering coverage."
   },
   {
     id: "cnrs-news",
@@ -768,6 +854,18 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     description: "French sports coverage; use mainly for league, governance, event, and commercial signals."
   },
   {
+    id: "franceinfo-fr-sports",
+    topic: "sport_business",
+    language: "fr",
+    publisher: "Franceinfo",
+    url: "https://www.franceinfo.fr/sports/",
+    rssUrl: "https://www.franceinfo.fr/sports.rss",
+    credibility_score: 0.72,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French public-media sports coverage; use for event, governance, league, and commercial signals."
+  },
+  {
     id: "ina-medias",
     topic: "culture_media",
     language: "fr",
@@ -789,6 +887,30 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     credibility_tier: "tier_2",
     source_type: "rss",
     description: "French-language culture and media-industry coverage."
+  },
+  {
+    id: "franceinfo-fr-culture",
+    topic: "culture_media",
+    language: "fr",
+    publisher: "Franceinfo",
+    url: "https://www.franceinfo.fr/culture/",
+    rssUrl: "https://www.franceinfo.fr/culture.rss",
+    credibility_score: 0.74,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French public-media culture, entertainment, and cultural industry coverage."
+  },
+  {
+    id: "franceinfo-fr-medias",
+    topic: "culture_media",
+    language: "fr",
+    publisher: "Franceinfo",
+    url: "https://www.franceinfo.fr/economie/medias/",
+    rssUrl: "https://www.franceinfo.fr/economie/medias.rss",
+    credibility_score: 0.74,
+    credibility_tier: "tier_2",
+    source_type: "rss",
+    description: "French public-media coverage of media companies, audiovisual policy, journalism, and platforms."
   }
 ];
 

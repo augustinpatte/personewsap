@@ -14,6 +14,7 @@ import {
 } from "../../components";
 import { TOPICS } from "../../constants/product";
 import { tokens } from "../../design/tokens";
+import { useAuth } from "../auth";
 import type { DataFallbackReason, DataFetchSource } from "../../lib/dataState";
 import { getAuthSession, type NormalizedSupabaseError } from "../../lib/supabase";
 import { flattenDailyDropItems, getMockSourcesForItem, mockTodayDailyDropsByLanguage } from "../../mocks";
@@ -56,8 +57,6 @@ type InteractionAction = {
   message?: string;
 };
 
-const activeLanguage: ContentLanguage = "en";
-
 const topicLabels = TOPICS.reduce(
   (labels, topic) => ({
     ...labels,
@@ -81,6 +80,8 @@ const moduleDescriptions: Record<ModuleId, string> = {
 };
 
 export function TodayDailyDropScreen() {
+  const { profileLanguage } = useAuth();
+  const activeLanguage = profileLanguage ?? "en";
   const fallbackDrop = mockTodayDailyDropsByLanguage[activeLanguage];
   const [loadState, setLoadState] = useState<TodayLoadState>({
     drop: fallbackDrop,
@@ -137,7 +138,9 @@ export function TodayDailyDropScreen() {
         return;
       }
 
-      const result = await fetchTodayDrop(userId, getLocalDropDate(new Date()));
+      const result = await fetchTodayDrop(userId, getLocalDropDate(new Date()), {
+        language: activeLanguage
+      });
 
       if (isActive()) {
         setLoadState({
@@ -167,7 +170,7 @@ export function TodayDailyDropScreen() {
         setInteractionState(createEmptyContentInteractionSnapshot());
       }
     },
-    [fallbackDrop]
+    [activeLanguage, fallbackDrop]
   );
 
   useEffect(() => {

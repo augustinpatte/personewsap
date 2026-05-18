@@ -16,6 +16,7 @@ These are the release blockers after the current cleanup pass:
 | Editorial review gate missing | open | LLM output can be structurally valid but still needs human review before production publication. |
 | Source licensing review missing | open | RSS/source metadata should remain internal-test-only until reuse rights are approved. |
 | TestFlight operations incomplete | open | Signing, App Store Connect, privacy review, support channel, and invite process still need an owner. |
+| Mobile build metadata incomplete | open | `app.json` lacks iOS build number, icon/splash config, and an EAS/local archive workflow. |
 
 ## Active Issues
 
@@ -103,7 +104,7 @@ Workaround: avoid promising full account lifecycle support in the first small te
 
 Status: release operations gap.
 
-The repo has readiness criteria, but signing, App Store Connect setup, EAS/build choice, and final TestFlight upload steps still need owner decisions.
+The repo has readiness criteria, but signing, App Store Connect setup, EAS/build choice, app icon/splash assets, iOS build number, and final TestFlight upload steps still need owner decisions.
 
 Workaround: complete [TESTFLIGHT_READINESS.md](TESTFLIGHT_READINESS.md) before inviting external testers.
 

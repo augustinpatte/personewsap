@@ -12,7 +12,7 @@ PersoNewsAP is close to a small controlled tester build, not production launch. 
 | Backend real RSS mode | validated for internal testing | Live RSS dry-run completes with source-level health reporting; source licensing and production editorial policy are not approved. |
 | LLM generation | not validated for release | Commands exist and validate structure, but prompt quality, cost controls, and editorial review remain next-phase work. |
 | Mobile live data | implemented, not wave-validated yet | Supabase read/write paths exist; each tester project still needs signup, onboarding, assignment, Today, Library, and interaction proof. |
-| TestFlight | not ready | App Store Connect, signing, privacy review, tester support, and device proof are outstanding. |
+| TestFlight | not ready | App Store Connect, signing, iOS build number, icon/splash assets, privacy review, tester support, and device proof are outstanding. |
 | Production | not ready | Scheduler ownership, monitoring, incident response, editorial workflow, source rights, and cleanup policy are incomplete. |
 
 ## What Works
@@ -51,7 +51,7 @@ PersoNewsAP is close to a small controlled tester build, not production launch. 
 - Small tester daily drops can still be created through marked test commands; production-shaped daily drops now use `daily-job`, but unattended scheduling and monitoring are not wired in this repo.
 - Editorial review is manual. There is no review dashboard yet.
 - Push notifications are not validated for testers.
-- App Store/TestFlight distribution has not been completed in this repo.
+- App Store/TestFlight distribution has not been completed in this repo; `apps/mobile/app.json` still needs TestFlight build metadata such as iOS build number plus icon/splash assets.
 
 ## Unsafe For Production
 
@@ -105,8 +105,9 @@ These are the remaining blockers before beta can be treated as production-like:
 ## Next Non-Backend Blockers
 
 1. Prepare TestFlight credentials, bundle identifiers, signing, privacy text, and App Store Connect metadata.
-2. Add a tester feedback collection path outside the app if in-app feedback is not enough.
-3. Complete broader account lifecycle, offline, flaky network, and device coverage QA.
+2. Add iOS build number, app icon/splash config, and an EAS or local archive/upload workflow.
+3. Add a tester feedback collection path outside the app if in-app feedback is not enough.
+4. Complete broader account lifecycle, offline, flaky network, and device coverage QA.
 
 ## Manual Verification Snapshot
 

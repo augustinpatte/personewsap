@@ -131,7 +131,10 @@ export async function runPersistTest(options: PersistTestOptions): Promise<Persi
     generated_items: testPayload.items.length
   });
 
-  assertValidDailyDropPayload(testPayload);
+  assertValidDailyDropPayload(testPayload, {
+    articles: rankedArticles,
+    rssOnly: runOptions.liveRssOnly
+  });
 
   logProgress("validation completed", {
     test_run_id: testRunId,

@@ -19,6 +19,7 @@ const REQUIRED_TABLES = [
 
 const SUPPORTING_TABLES = [
   "generation_runs",
+  "job_runs",
   "content_item_sources",
   "mini_case_responses"
 ];
@@ -52,14 +53,22 @@ const EXPECTED_POLICIES = {
     "Users can delete their own topic preferences"
   ],
   topics: ["Anyone can read active topics"],
-  content_items: ["Authenticated users can read published content"],
-  sources: ["Authenticated users can read sources for published content"],
-  content_item_sources: ["Authenticated users can read source links for published content"],
+  content_items: ["Users can read assigned published content"],
+  sources: ["Users can read sources for assigned content"],
+  content_item_sources: ["Users can read source links for assigned content"],
   daily_drops: ["Users can read their own published daily drops"],
   daily_drop_items: ["Users can read items for their own published daily drops"],
   content_interactions: [
-    "Users can read their own interactions",
-    "Users can insert their own interactions"
+    "Users can read own interactions for assigned content",
+    "Users can insert own interactions for assigned content"
+  ],
+  mini_case_responses: [
+    "Users can read own mini-case responses for assigned content",
+    "Users can insert own mini-case responses for assigned content",
+    "Users can update own mini-case responses for assigned content"
+  ],
+  pending_registrations: [
+    "Users can update their pending registration"
   ]
 };
 
@@ -186,6 +195,36 @@ async function runStaticMigrationAudit() {
       `migration defines idempotency index ${indexName}`
     );
   }
+
+  assertRegex(
+    sql,
+    /create\s+or\s+replace\s+function\s+public\.user_has_assigned_content\s*\(\s*target_content_item_id\s+uuid\s*\)/i,
+    "migration defines assigned content RLS helper"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+or\s+replace\s+function\s+public\.public_archive_enabled\s*\(\s*\)/i,
+    "migration defines public archive feature flag helper"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+or\s+replace\s+function\s+public\.is_published_content\s*\(/i,
+    "migration defines published content RLS helper"
+  );
+
+  assertRegex(
+    sql,
+    /drop\s+policy\s+if\s+exists\s+"Authenticated users can read published content"\s+on\s+public\.content_items/i,
+    "migration removes broad published content read policy"
+  );
+
+  assertRegex(
+    sql,
+    /drop\s+policy\s+if\s+exists\s+"Anyone can update pending registrations"\s+on\s+public\.pending_registrations/i,
+    "migration removes broad pending registration update policy"
+  );
 }
 
 async function runLiveReadOnlyChecks() {
@@ -266,18 +305,18 @@ async function runLiveReadOnlyChecks() {
       }
     });
 
-    const { data: publishedContent, error: contentError } = await userClient
+    const { data: assignedContent, error: contentError } = await userClient
       .from("content_items")
       .select("id,status")
       .eq("status", "published")
       .limit(1);
 
     if (contentError) {
-      addCheck("fail", "authenticated users can read published content", sanitizeError(contentError));
-    } else if ((publishedContent ?? []).length > 0) {
-      addCheck("pass", "authenticated users can read published content", "At least one published content item is visible.");
+      addCheck("fail", "authenticated users can query assigned published content", sanitizeError(contentError));
+    } else if ((assignedContent ?? []).length > 0) {
+      addCheck("pass", "authenticated users can query assigned published content", "At least one assigned published content item is visible.");
     } else {
-      addCheck("warn", "authenticated users can read published content", "No published content exists, so the policy could not be proven with data.");
+      addCheck("warn", "authenticated users can query assigned published content", "No assigned published content is visible for TEST_USER_ACCESS_TOKEN.");
     }
 
     const { data: ownDrops, error: ownDropsError } = await userClient

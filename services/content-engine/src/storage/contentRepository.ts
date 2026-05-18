@@ -31,6 +31,28 @@ type GenerationRunRow = {
   id: string;
 };
 
+export type JobRunStatus = "running" | "completed" | "partial_failed" | "failed";
+
+export type JobRunRow = {
+  id: string;
+  run_id: string;
+  job_type: "daily-job" | "daily-job-test";
+  run_date: string;
+  status: JobRunStatus;
+  dry_run: boolean;
+  generator: string;
+  source_mode: string;
+  languages: string[];
+  topics: string[];
+  metrics: Record<string, unknown>;
+  operator_summary: Record<string, unknown>;
+  error: string | null;
+  started_at: string;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type SourceRow = {
   id: string;
   url: string;
@@ -485,6 +507,105 @@ export class ContentRepository {
     inputHash: string;
   }): Promise<string> {
     return this.insertGenerationRun(input);
+  }
+
+  async startJobRun(input: {
+    runId: string;
+    jobType: "daily-job" | "daily-job-test";
+    runDate: string;
+    dryRun: boolean;
+    generator: "dry-run" | "llm";
+    sourceMode: "sample" | "rss" | "mixed";
+    languages: Language[];
+    topics: TopicId[];
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await this.supabase.from("job_runs").upsert(
+      {
+        run_id: input.runId,
+        job_type: input.jobType,
+        run_date: input.runDate,
+        status: "running",
+        dry_run: input.dryRun,
+        generator: input.generator,
+        source_mode: input.sourceMode,
+        languages: input.languages,
+        topics: input.topics,
+        metrics: {},
+        operator_summary: {},
+        error: null,
+        started_at: now,
+        completed_at: null,
+        updated_at: now
+      },
+      { onConflict: "run_id" }
+    );
+
+    if (error) {
+      throwPersistenceError({
+        table: "job_runs",
+        action: "upsert job run start",
+        error
+      });
+    }
+  }
+
+  async completeJobRun(input: {
+    runId: string;
+    status: Exclude<JobRunStatus, "running">;
+    metrics: Record<string, unknown>;
+    operatorSummary: Record<string, unknown>;
+    error?: string | null;
+  }): Promise<void> {
+    const { error } = await this.supabase
+      .from("job_runs")
+      .update({
+        status: input.status,
+        metrics: input.metrics,
+        operator_summary: input.operatorSummary,
+        error: input.error ?? null,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("run_id", input.runId);
+
+    if (error) {
+      throwPersistenceError({
+        table: "job_runs",
+        action: "complete job run",
+        error
+      });
+    }
+  }
+
+  async listJobRuns(input: {
+    runDate?: string;
+    limit: number;
+  }): Promise<JobRunRow[]> {
+    let query = this.supabase
+      .from("job_runs")
+      .select(
+        "id,run_id,job_type,run_date,status,dry_run,generator,source_mode,languages,topics,metrics,operator_summary,error,started_at,completed_at,created_at,updated_at"
+      )
+      .order("run_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(input.limit);
+
+    if (input.runDate) {
+      query = query.eq("run_date", input.runDate);
+    }
+
+    const { data, error } = await query.returns<JobRunRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "job_runs",
+        action: "select job runs",
+        error
+      });
+    }
+
+    return data ?? [];
   }
 
   async completeGenerationRun(id: string, outputHash: string, status: "generated" | "published" = "generated"): Promise<void> {

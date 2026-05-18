@@ -19,6 +19,7 @@ export default function AccountScreen() {
     error,
     isConfigured,
     profileCompleted,
+    profileLanguage,
     refreshAuthState,
     session,
     signOut,
@@ -91,6 +92,7 @@ export default function AccountScreen() {
               ? "Your onboarding is complete. Today will show a live assigned drop when one is available."
               : "Finish onboarding to unlock your daily drop."}
           </AppText>
+          <InfoRow label="Daily drop language" value={formatLanguage(profileLanguage)} />
         </Card>
 
         <PreferencesEditor
@@ -163,6 +165,18 @@ function onboardingLabel(status: string) {
   }
 
   return "Not complete";
+}
+
+function formatLanguage(language: string | null) {
+  if (language === "fr") {
+    return "French";
+  }
+
+  if (language === "en") {
+    return "English";
+  }
+
+  return "Not set";
 }
 
 function InfoRow({

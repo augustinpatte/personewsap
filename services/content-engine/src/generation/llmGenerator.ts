@@ -7,7 +7,9 @@ import type {
 } from "../domain.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { DAILY_DROP_JSON_SCHEMA } from "./dailyDropSchema.js";
+import { LlmGenerationError, serializeLlmFailure, toLlmGenerationError } from "./llmErrors.js";
 import type { LlmProvider } from "./llmProvider.js";
+import { sanitizeLlmDailyDropPayload } from "./llmSanitizer.js";
 import {
   CONTENT_TYPE_PROMPTS,
   EDITORIAL_PROMPT,
@@ -16,12 +18,20 @@ import {
   STRONG_WRITING_EXAMPLES
 } from "./prompts.js";
 import type { ContentGenerator, GenerationRequest } from "./types.js";
-import { BANNED_EDITORIAL_PHRASES, validateDailyDropPayload, type ValidationIssue } from "./validation.js";
+import {
+  BANNED_EDITORIAL_PHRASES,
+  readProductionContentStrict,
+  validateDailyDropPayload,
+  validateDailyDropQuality,
+  type ValidationIssue
+} from "./validation.js";
 
 const LLM_GENERATOR_VERSION = `${GENERATOR_VERSION}_llm`;
 const MAX_ATTEMPTS = 3;
 const MAX_SOURCE_ARTICLES = 12;
 const MAX_SOURCE_BODY_CHARS = 1200;
+const RETRY_BASE_DELAY_MS = 1_000;
+const RETRY_MAX_DELAY_MS = 8_000;
 
 type LlmContentGeneratorOptions = {
   provider: LlmProvider;
@@ -62,7 +72,7 @@ export class LlmContentGenerator implements ContentGenerator {
   async generateDailyDrop(request: GenerationRequest): Promise<DailyDropPayload> {
     const sources = sourcePackets(request);
     if (sources.length === 0) {
-      throw new Error(`No source articles available for ${request.language} LLM generation.`);
+      throw new LlmGenerationError("validation_error", `No source articles available for ${request.language} LLM generation.`);
     }
 
     let feedback: string | undefined;
@@ -91,9 +101,17 @@ export class LlmContentGenerator implements ContentGenerator {
           provider: this.provider.name
         });
 
-        const payload = assembleDailyDropPayload(normalizePayload(rawPayload, request));
+        const payload = assembleDailyDropPayload(
+          sanitizeLlmDailyDropPayload(normalizePayload(rawPayload, request), sources)
+        );
+        const quality = validateDailyDropQuality(payload, {
+          articles: request.articles,
+          productionStrict: request.productionStrict ?? readProductionContentStrict(),
+          rssOnly: request.articles.every((article) => !isSampleUrl(article.url))
+        });
         const issues = [
           ...validateDailyDropPayload(payload),
+          ...quality.issues.filter((issue) => issue.severity === "error"),
           ...validateComposition(payload, request),
           ...validateSourceUse(payload, sources)
         ];
@@ -103,22 +121,36 @@ export class LlmContentGenerator implements ContentGenerator {
         }
 
         feedback = formatIssues(issues);
-        lastError = new Error(`LLM generation failed validation on attempt ${attempt}: ${feedback}`);
+        lastError = new LlmGenerationError("validation_error", `LLM generation failed validation on attempt ${attempt}: ${feedback}`);
         this.reportProgress("LLM validation failed", {
           language: request.language,
           attempt,
           max_attempts: this.maxAttempts,
+          failure_reason: "validation_error",
           issue_count: issues.length
         });
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
+        lastError = toLlmGenerationError(error);
         feedback = lastError.message;
         this.reportProgress("LLM generation attempt failed", {
           language: request.language,
           attempt,
           max_attempts: this.maxAttempts,
+          failure: serializeLlmFailure(lastError),
           error: lastError.message
         });
+      }
+
+      if (attempt < this.maxAttempts) {
+        const retryDelayMs = retryDelay(attempt);
+        this.reportProgress("LLM generation retry scheduled", {
+          language: request.language,
+          next_attempt: attempt + 1,
+          max_attempts: this.maxAttempts,
+          retry_delay_ms: retryDelayMs,
+          failure: serializeLlmFailure(lastError)
+        });
+        await sleep(retryDelayMs);
       }
     }
 
@@ -153,6 +185,7 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
           "Use content_type and slot values exactly.",
           "Use source_urls only from allowed_source_urls.",
           "Every body_md must include a concise source line with a YYYY-MM-DD date.",
+          "Every body_md source line must include the exact source URL string from source_urls.",
           "Return JSON only."
         ]
       },
@@ -217,7 +250,7 @@ function sourcePackets(request: GenerationRequest): SourcePacket[] {
 
 function normalizePayload(payload: unknown, request: GenerationRequest): DailyDropPayload {
   if (!isRecord(payload) || !Array.isArray(payload.items)) {
-    throw new Error("LLM response must be a daily drop object with an items array.");
+    throw new LlmGenerationError("validation_error", "LLM response must be a daily drop object with an items array.");
   }
 
   return {
@@ -298,4 +331,25 @@ function compactText(value: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isSampleUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.hostname === "example.com" || url.hostname.endsWith(".example.com");
+  } catch {
+    return value.includes("example.com");
+  }
+}
+
+function retryDelay(attempt: number): number {
+  const exponentialDelay = Math.min(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), RETRY_MAX_DELAY_MS);
+  const jitter = Math.floor(Math.random() * 250);
+  return exponentialDelay + jitter;
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

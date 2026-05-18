@@ -52,9 +52,9 @@ This proof writes marked test content through `daily-job-test`. Use a local, sta
 | Category | Commands | Writes data? | Intended use |
 | --- | --- | --- | --- |
 | Test commands | `npm run smoke`, `npm run mobile:typecheck`, `npm run content:build`, `npm run content:dry-run` | No | Routine local validation before handoff. |
-| Local no-write commands | `npm run content:llm-run`, `npm run content:llm-proof`, `npm run content:rss-check`, `npm run supabase:doctor`, `npm run content:debug-users` | No | LLM/RSS inspection, static/live read-only schema checks, and user eligibility diagnostics. |
+| Local no-write commands | `npm run content:llm-run`, `npm run content:llm-proof`, `npm run content:rss-check`, `npm run supabase:doctor`, `npm run content:debug-users`, `npm run content:job-health` | No | LLM/RSS inspection, static/live read-only schema checks, user eligibility diagnostics, and job health checks. |
 | Local-only dangerous write commands | `npm run backend:e2e`, `npm run backend:e2e:live-rss`, `npm run backend:e2e:llm`, `npm run content:persist-test`, `npm run content:assign-test-users`, `npm run content:personalize-test`, `npm run content:daily-job-test`, `npm run content:cleanup-test` | Yes | Disposable or staging Supabase testing with explicit confirmation flags. |
-| Production commands | `npm run content:daily-job` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. It is not wired to unattended scheduling or monitoring yet. |
+| Production commands | `npm run content:daily-job` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. Production runs write a `job_runs` summary for `content:job-health`. |
 
 Dangerous write commands require `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the command-specific `CONFIRM_*` flag. Treat them as staging/test tools unless a production owner intentionally accepts test rows in production. `content:daily-job` does not use a test confirmation flag, so run it with `DRY_RUN=true` until the production environment, scheduler, monitoring, source rights, and editorial review workflow are explicitly approved.
 
@@ -188,7 +188,7 @@ OPENAI_API_KEY=... ALLOW_SAMPLE_CONTENT=true npm run content:llm-run -- --langua
 First safe live RSS + LLM proof, still without Supabase writes:
 
 ```sh
-OPENAI_API_KEY="sk-..." \
+OPENAI_API_KEY="..." \
 LIVE_RSS=true \
 LIVE_RSS_ONLY=true \
 USE_LLM=true \
@@ -198,7 +198,42 @@ RSS_ARTICLES_PER_SOURCE=1 \
 npm run content:llm-proof -- --topics business,finance --source-article-limit 6 --max-attempts 1 --max-output-tokens 4500
 ```
 
-This command uses live RSS only, no sample articles, no mobile app, no Supabase, and no persistence. It fails if generated source URLs include `example.com`, if generated item language does not match the requested language, or if required item fields are missing.
+Production proof examples:
+
+```sh
+OPENAI_API_KEY="..." \
+OPENAI_REQUEST_TIMEOUT_MS=120000 \
+LIVE_RSS=true \
+LIVE_RSS_ONLY=true \
+USE_LLM=true \
+DRY_RUN=true \
+LANGUAGES=en \
+RSS_ARTICLES_PER_SOURCE=1 \
+npm run content:llm-proof -- --languages en --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media --source-article-limit 6 --max-attempts 2 --max-output-tokens 4500
+
+OPENAI_API_KEY="..." \
+OPENAI_REQUEST_TIMEOUT_MS=120000 \
+LIVE_RSS=true \
+LIVE_RSS_ONLY=true \
+USE_LLM=true \
+DRY_RUN=true \
+LANGUAGES=fr \
+RSS_ARTICLES_PER_SOURCE=1 \
+npm run content:llm-proof -- --languages fr --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media --source-article-limit 6 --max-attempts 2 --max-output-tokens 4500
+
+OPENAI_API_KEY="..." \
+OPENAI_REQUEST_TIMEOUT_MS=120000 \
+OPENAI_FALLBACK_MODEL="gpt-4.1-mini" \
+LIVE_RSS=true \
+LIVE_RSS_ONLY=true \
+USE_LLM=true \
+DRY_RUN=true \
+LANGUAGES=fr,en \
+RSS_ARTICLES_PER_SOURCE=1 \
+npm run content:llm-proof -- --languages fr,en --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media --source-article-limit 6 --max-attempts 2 --max-output-tokens 4500
+```
+
+These commands use live RSS only, no sample articles, no mobile app, no Supabase, and no persistence. They fail if generated source URLs include `example.com`, if generated item language does not match the requested language, or if required item fields are missing. Multi-language proof continues after one language failure and reports `timeout`, `validation_error`, `api_error`, `empty_output`, or `malformed_json`; set `STRICT_LLM_PROOF=true` when a partial proof should fail the whole command.
 
 Read-only live schema/RLS check against a selected Supabase project:
 
@@ -413,21 +448,23 @@ DRY_RUN=true LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=false RSS_ARTICLES_PER_SOU
 
 The RSS-only run should log `source_mode: "rss"`, `sample_content_enabled: false`, and `connectors: ["rss"]`. Generated content should not contain `example.com` sample URLs.
 
-Cron or GitHub Actions should later use the same `npm run daily-job` command without `DRY_RUN=true`, with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and, when `USE_LLM=true`, `OPENAI_API_KEY` supplied as server-side secrets.
+Cron or GitHub Actions should later use the same `npm run daily-job` command without `DRY_RUN=true`, with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY` supplied as server-side secrets.
 
-Production-like writes are RSS-only by default:
-
-```sh
-SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... LANGUAGES=fr,en CONTENT_STATUS=published USE_LLM=true OPENAI_API_KEY=... LIVE_RSS=true npm run daily-job
-```
-
-Sample articles can still be used in `dry-run`, `daily-job-test`, `persist-test`, smoke, and backend E2E. A non-dry `daily-job` write using samples now requires an explicit override:
+Production writes are fail-closed and RSS-only:
 
 ```sh
-SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... ALLOW_SAMPLE_CONTENT=true USER_LIMIT=1 npm run daily-job
+PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... LANGUAGES=fr,en CONTENT_STATUS=published npm run daily-job
 ```
 
-Do not set `ALLOW_SAMPLE_CONTENT=true` in the production scheduler.
+Sample articles can still be used in `dry-run`, `daily-job-test`, `persist-test`, smoke, and backend E2E. Non-dry `daily-job` refuses sample content and should not be used for sample-content write rehearsals.
+
+After a non-dry run, check the stored production summary:
+
+```sh
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run content:job-health -- --date "$(date +%F)" --limit 5
+```
+
+Use [BACKEND_OPERATIONS.md](BACKEND_OPERATIONS.md) for the daily operator checklist and health output interpretation.
 
 ## 8. App Manual Test Flow
 

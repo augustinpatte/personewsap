@@ -1,6 +1,11 @@
 import { TOPIC_IDS, type DailyDropPayload, type Language, type TopicId, isLanguage, isTopicId } from "../domain.js";
 import { StructuredContentGenerator } from "../generation/structuredGenerator.js";
-import { assertValidDailyDropPayload } from "../generation/validation.js";
+import {
+  assertValidDailyDropPayload,
+  readProductionContentStrict,
+  validateDailyDropQuality,
+  type ContentQualityDiagnostics
+} from "../generation/validation.js";
 import { processArticles } from "../processing/pipeline.js";
 import { RssFeedConnector } from "../sources/rssFetcher.js";
 import { SampleArticleConnector } from "../sources/sampleArticles.js";
@@ -27,6 +32,7 @@ export type DryRunOutput = {
     fetched_articles: number;
     processed_articles: number;
     generated_items: number;
+    validation: ContentQualityDiagnostics;
     top_ranked_sources: Array<{
       title: string;
       topic: TopicId;
@@ -81,13 +87,24 @@ export async function runDryRun(options: DryRunOptions): Promise<DryRunOutput> {
       })
     );
 
-    assertValidDailyDropPayload(payload);
+    const validation = validateDailyDropQuality(payload, {
+      articles: rankedArticles,
+      rssOnly: options.liveRssOnly,
+      productionStrict: readProductionContentStrict()
+    });
+
+    assertValidDailyDropPayload(payload, {
+      articles: rankedArticles,
+      rssOnly: options.liveRssOnly,
+      productionStrict: readProductionContentStrict()
+    });
 
     diagnostics.push({
       language,
       fetched_articles: rawArticles.length,
       processed_articles: rankedArticles.length,
       generated_items: payload.items.length,
+      validation,
       top_ranked_sources: rankedArticles.slice(0, 5).map((article) => ({
         title: article.title,
         topic: article.topic,

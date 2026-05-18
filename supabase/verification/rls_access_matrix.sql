@@ -4,8 +4,9 @@
 --   user_a: auth/profile UUID for tester A
 --   user_a_email: email claim for tester A
 --   user_b: auth/profile UUID for tester B
---   published_content_id: UUID of a published content_items row
+--   published_content_id: UUID of a published content_items row assigned to user_a
 -- Optional psql variables:
+--   unassigned_content_id: UUID of a published content_items row not assigned to user_a
 --   proof_date: date for rollbacked daily_drop client-write probes, defaults to 2099-01-02
 
 \set ON_ERROR_STOP on
@@ -67,6 +68,30 @@ BEGIN
     WHEN OTHERS THEN
       INSERT INTO verification_results
         VALUES ('authenticated user cannot insert another user interaction', 'PASS', SQLSTATE);
+  END;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.record_blocked_unassigned_interaction(
+  actor_user_id uuid,
+  unassigned_content_id uuid
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  BEGIN
+    INSERT INTO public.content_interactions (user_id, content_item_id, interaction_type)
+    VALUES (actor_user_id, unassigned_content_id, 'view');
+
+    INSERT INTO verification_results
+      VALUES ('authenticated user cannot insert interaction for unassigned content', 'FAIL', 'insert unexpectedly succeeded');
+  EXCEPTION
+    WHEN insufficient_privilege OR check_violation OR with_check_option_violation THEN
+      INSERT INTO verification_results
+        VALUES ('authenticated user cannot insert interaction for unassigned content', 'PASS', SQLSTATE);
+    WHEN OTHERS THEN
+      INSERT INTO verification_results
+        VALUES ('authenticated user cannot insert interaction for unassigned content', 'PASS', SQLSTATE);
   END;
 END;
 $$;
@@ -233,12 +258,23 @@ WITH inserted AS (
 )
 INSERT INTO verification_results
 SELECT
-  'authenticated user can insert own interaction for published content',
+  'authenticated user can insert own interaction for assigned content',
   CASE WHEN count(*) = 1 THEN 'PASS' ELSE 'FAIL' END,
   count(*)::text || ' row(s)'
 FROM inserted;
 
 SELECT pg_temp.record_blocked_other_interaction(:'user_b'::uuid, :'published_content_id'::uuid);
+
+\if :{?unassigned_content_id}
+SELECT pg_temp.record_blocked_unassigned_interaction(:'user_a'::uuid, :'unassigned_content_id'::uuid);
+\else
+INSERT INTO verification_results
+VALUES (
+  'authenticated user cannot insert interaction for unassigned content',
+  'SKIP',
+  'Set unassigned_content_id to prove assigned-content interaction RLS.'
+);
+\endif
 
 SELECT pg_temp.record_blocked_daily_drop_insert(
   :'user_a'::uuid,
@@ -254,12 +290,55 @@ SELECT pg_temp.record_blocked_daily_drop_insert(
 
 INSERT INTO verification_results
 SELECT
-  'authenticated users can read published content_items',
+  'authenticated user can read assigned published content_item',
   CASE WHEN count(*) = 1 THEN 'PASS' ELSE 'FAIL' END,
   count(*)::text || ' row(s)'
 FROM public.content_items
 WHERE id = :'published_content_id'::uuid
   AND status = 'published';
+
+\if :{?unassigned_content_id}
+INSERT INTO verification_results
+SELECT
+  'authenticated user cannot read unassigned published content_item',
+  CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+  count(*)::text || ' row(s)'
+FROM public.content_items
+WHERE id = :'unassigned_content_id'::uuid
+  AND status = 'published';
+\else
+INSERT INTO verification_results
+VALUES (
+  'authenticated user cannot read unassigned published content_item',
+  'SKIP',
+  'Set unassigned_content_id to prove assigned-content content_items RLS.'
+);
+\endif
+
+INSERT INTO verification_results
+SELECT
+  'authenticated user can read source links for assigned content',
+  CASE WHEN count(*) >= 0 THEN 'PASS' ELSE 'FAIL' END,
+  count(*)::text || ' visible row(s)'
+FROM public.content_item_sources
+WHERE content_item_id = :'published_content_id'::uuid;
+
+\if :{?unassigned_content_id}
+INSERT INTO verification_results
+SELECT
+  'authenticated user cannot read source links for unassigned content',
+  CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+  count(*)::text || ' row(s)'
+FROM public.content_item_sources
+WHERE content_item_id = :'unassigned_content_id'::uuid;
+\else
+INSERT INTO verification_results
+VALUES (
+  'authenticated user cannot read source links for unassigned content',
+  'SKIP',
+  'Set unassigned_content_id to prove assigned-content content_item_sources RLS.'
+);
+\endif
 
 INSERT INTO verification_results
 SELECT

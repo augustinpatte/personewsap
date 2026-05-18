@@ -21,6 +21,7 @@ import {
   supabaseConfigDiagnostics,
   type NormalizedSupabaseError
 } from "../../lib/supabase";
+import type { Language } from "../../types/domain";
 
 type AuthStatus = "loading" | "signedOut" | "needsOnboarding" | "ready";
 
@@ -45,6 +46,7 @@ type AuthContextValue = {
   user: User | null;
   error: NormalizedSupabaseError | null;
   profileCompleted: boolean;
+  profileLanguage: Language | null;
   isConfigured: boolean;
   refreshAuthState: () => Promise<void>;
   signInWithEmail: (params: SignInParams) => Promise<AuthActionResult>;
@@ -91,7 +93,7 @@ async function createProfileIfMissing(user: User) {
         user_id: redactIdentifier(user.id)
       });
 
-      return { error: null };
+      return { error: null, language: existingProfile.language };
     }
 
     const { error: insertError } = await supabase.from("profiles").insert({
@@ -107,7 +109,7 @@ async function createProfileIfMissing(user: User) {
         user_id: redactIdentifier(user.id)
       });
 
-      return { error: null };
+      return { error: null, language: "en" as const };
     }
 
     if (insertError) {
@@ -124,7 +126,7 @@ async function createProfileIfMissing(user: User) {
       user_id: redactIdentifier(user.id)
     });
 
-    return { error: null };
+    return { error: null, language: "en" as const };
   } catch (error) {
     logProfileProof("profile_save_failed", {
       reason: "exception",
@@ -141,6 +143,7 @@ async function getProfileCompleted(userId: string) {
   if (!supabase) {
     return {
       completed: false,
+      language: null,
       error: {
         code: "missing_supabase_config",
         message: "Live account data is not configured for this build.",
@@ -153,12 +156,12 @@ async function getProfileCompleted(userId: string) {
   try {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, language")
       .eq("id", userId)
       .maybeSingle();
 
     if (profileError) {
-      return { completed: false, error: normalizeSupabaseError(profileError) };
+      return { completed: false, language: null, error: normalizeSupabaseError(profileError) };
     }
 
     const { data: preferences, error: preferencesError } = await supabase
@@ -168,7 +171,7 @@ async function getProfileCompleted(userId: string) {
       .maybeSingle();
 
     if (preferencesError) {
-      return { completed: false, error: normalizeSupabaseError(preferencesError) };
+      return { completed: false, language: profile?.language ?? null, error: normalizeSupabaseError(preferencesError) };
     }
 
     const { data: topicPreference, error: topicPreferenceError } = await supabase
@@ -180,11 +183,12 @@ async function getProfileCompleted(userId: string) {
       .maybeSingle();
 
     if (topicPreferenceError) {
-      return { completed: false, error: normalizeSupabaseError(topicPreferenceError) };
+      return { completed: false, language: profile?.language ?? null, error: normalizeSupabaseError(topicPreferenceError) };
     }
 
     return {
       completed: Boolean(profile && preferences && topicPreference),
+      language: profile?.language ?? null,
       error: null
     };
   } catch (error) {
@@ -193,6 +197,7 @@ async function getProfileCompleted(userId: string) {
 
     return {
       completed: false,
+      language: null,
       error: normalizedError
     };
   }
@@ -202,6 +207,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [profileCompleted, setProfileCompleted] = useState(false);
+  const [profileLanguage, setProfileLanguage] = useState<Language | null>(null);
   const [error, setError] = useState<NormalizedSupabaseError | null>(null);
 
   const applySession = useCallback(async (nextSession: Session | null) => {
@@ -209,6 +215,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     if (!nextSession?.user) {
       setProfileCompleted(false);
+      setProfileLanguage(null);
       setStatus("signedOut");
       return;
     }
@@ -217,6 +224,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (profileResult.error) {
       setError(profileResult.error);
       setProfileCompleted(false);
+      setProfileLanguage(null);
       setStatus("needsOnboarding");
       return;
     }
@@ -224,6 +232,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const profileStatus = await getProfileCompleted(nextSession.user.id);
     setError(profileStatus.error);
     setProfileCompleted(profileStatus.completed);
+    setProfileLanguage(profileStatus.language ?? profileResult.language ?? null);
     setStatus(profileStatus.completed ? "ready" : "needsOnboarding");
   }, []);
 
@@ -236,6 +245,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setError(sessionError);
       setSession(null);
       setProfileCompleted(false);
+      setProfileLanguage(null);
       setStatus("signedOut");
       return;
     }
@@ -402,6 +412,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       user: session?.user ?? null,
       error,
       profileCompleted,
+      profileLanguage,
       isConfigured: hasSupabaseConfig,
       refreshAuthState,
       signInWithEmail,
@@ -411,6 +422,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [
       error,
       profileCompleted,
+      profileLanguage,
       refreshAuthState,
       session,
       signInWithEmail,

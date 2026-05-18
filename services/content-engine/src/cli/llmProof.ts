@@ -9,8 +9,19 @@ import {
   isTopicId
 } from "../domain.js";
 import { LlmContentGenerator } from "../generation/llmGenerator.js";
-import { OpenAiJsonProvider } from "../generation/openAiProvider.js";
-import { validateDailyDropPayload, type ValidationIssue } from "../generation/validation.js";
+import { classifyLlmFailure, serializeLlmFailure, LlmGenerationError, type LlmFailureReason } from "../generation/llmErrors.js";
+import {
+  DEFAULT_OPENAI_ENDPOINT,
+  DEFAULT_OPENAI_MODEL,
+  DEFAULT_OPENAI_REQUEST_TIMEOUT_MS,
+  OpenAiJsonProvider
+} from "../generation/openAiProvider.js";
+import {
+  validateDailyDropPayload,
+  validateDailyDropQuality,
+  type ContentQualityDiagnostics,
+  type ValidationIssue
+} from "../generation/validation.js";
 import { processArticles } from "../processing/pipeline.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { CURATED_SOURCE_COVERAGE, CURATED_SOURCES } from "../sources/curatedSources.js";
@@ -22,10 +33,6 @@ const DEFAULT_LIMIT_PER_SOURCE = 1;
 const DEFAULT_SOURCE_ARTICLE_LIMIT = 6;
 const DEFAULT_MAX_ATTEMPTS = 1;
 const DEFAULT_MAX_OUTPUT_TOKENS = 4500;
-const DEFAULT_MODEL = "gpt-4.1-mini";
-const DEFAULT_ENDPOINT = "https://api.openai.com/v1/responses";
-const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
-
 export type LlmProofOptions = {
   dropDate: string;
   languages: Language[];
@@ -46,6 +53,7 @@ export type LlmProofOutput = {
   llmConfig: {
     provider: "openai";
     model: string;
+    fallback_model: string | null;
     endpoint_host: string;
     request_timeout_ms: number;
     max_attempts: number;
@@ -64,15 +72,19 @@ export type LlmProofOutput = {
   sourceCoverage: typeof CURATED_SOURCE_COVERAGE;
   languages: Array<{
     language: Language;
+    status: "passed" | "failed";
     fetched_articles: number;
     processed_articles: number;
     source_articles_sent_to_llm: number;
     generated_items: number;
     rss: RssFetchDiagnostics;
     validation: {
-      status: "passed";
-      issues: [];
+      status: "passed" | "failed";
+      issues: ValidationIssue[];
     };
+    quality: ContentQualityDiagnostics | null;
+    failure_reason: LlmFailureReason | null;
+    error: string | null;
     top_ranked_sources: Array<{
       title: string;
       publisher: string;
@@ -98,6 +110,9 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
     max_attempts: options.maxAttempts,
     max_output_tokens: options.maxOutputTokens,
     model: readOpenAiModel(),
+    fallback_model: readOpenAiFallbackModel(),
+    request_timeout_ms: readRequestTimeoutMs(),
+    strict_llm_proof: isStrictLlmProof(),
     api_key_configured: Boolean(process.env.OPENAI_API_KEY)
   });
 
@@ -112,84 +127,144 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
 
   for (const language of options.languages) {
     const rssConnector = new RssFeedConnector(CURATED_SOURCES);
+    let rawArticles: Awaited<ReturnType<RssFeedConnector["fetchArticles"]>> = [];
+    let rankedArticles: ReturnType<typeof processArticles> = [];
 
-    logProgress("RSS-only source fetch started", {
-      language,
-      topics: options.topics,
-      limit_per_source: options.limitPerSource
-    });
-
-    const rawArticles = await rssConnector.fetchArticles({
-      topics: options.topics,
-      languages: [language],
-      since: options.dropDate,
-      limitPerSource: options.limitPerSource
-    });
-
-    assertNoSampleUrls(rawArticles.map((article) => article.url), "source articles");
-
-    const rankedArticles = processArticles(rawArticles)
-      .filter((article) => article.language === language)
-      .slice(0, options.sourceArticleLimit);
-
-    if (rankedArticles.length === 0) {
-      throw new Error(`LLM proof has zero ranked ${language} RSS articles. Check topic/language coverage and rss_source_health logs.`);
-    }
-
-    logProgress("LLM proof generation started", {
-      language,
-      fetched_articles: rawArticles.length,
-      ranked_articles: rankedArticles.length,
-      source_articles_sent_to_llm: rankedArticles.length
-    });
-
-    const payload = assembleDailyDropPayload(
-      await generator.generateDailyDrop({
-        dropDate: options.dropDate,
+    try {
+      logProgress("RSS-only source fetch started", {
         language,
-        articles: rankedArticles,
-        newsletterTopics: options.topics,
-        newsletterArticleCount: 1
-      })
-    );
+        topics: options.topics,
+        limit_per_source: options.limitPerSource
+      });
 
-    const validationIssues = validateLlmProofPayload(payload, language);
-    if (validationIssues.length > 0) {
-      throw new Error(
-        `LLM proof validation failed for ${language}: ${validationIssues
-          .map((issue) => `${issue.path}: ${issue.message}`)
-          .join("; ")}`
+      rawArticles = await rssConnector.fetchArticles({
+        topics: options.topics,
+        languages: [language],
+        since: options.dropDate,
+        limitPerSource: options.limitPerSource
+      });
+
+      assertNoSampleUrls(rawArticles.map((article) => article.url), "source articles");
+
+      rankedArticles = processArticles(rawArticles)
+        .filter((article) => article.language === language)
+        .slice(0, options.sourceArticleLimit);
+
+      if (rankedArticles.length === 0) {
+        throw new LlmGenerationError(
+          "validation_error",
+          `LLM proof has zero ranked ${language} RSS articles. Check topic/language coverage and rss_source_health logs.`
+        );
+      }
+
+      logProgress("LLM proof generation started", {
+        language,
+        fetched_articles: rawArticles.length,
+        ranked_articles: rankedArticles.length,
+        source_articles_sent_to_llm: rankedArticles.length
+      });
+
+      const payload = assembleDailyDropPayload(
+        await generator.generateDailyDrop({
+          dropDate: options.dropDate,
+          language,
+          articles: rankedArticles,
+          newsletterTopics: options.topics,
+          newsletterArticleCount: 1,
+          productionStrict: true
+        })
       );
-    }
 
-    assertNoSampleUrls(payload.items.flatMap((item) => item.source_urls), "generated source_urls");
+      const quality = validateDailyDropQuality(payload, {
+        articles: rankedArticles,
+        rssOnly: true,
+        productionStrict: true
+      });
+      const validationIssues = validateLlmProofPayload(payload, language, quality);
+      if (validationIssues.length > 0) {
+        throw new LlmGenerationError(
+          "validation_error",
+          `LLM proof validation failed for ${language}: ${validationIssues
+            .map((issue) => `${issue.path}: ${issue.message}`)
+            .join("; ")}`
+        );
+      }
 
-    logProgress("LLM proof validation passed", {
-      language,
-      generated_items: payload.items.length
-    });
+      assertNoSampleUrls(payload.items.flatMap((item) => item.source_urls), "generated source_urls");
 
-    languages.push({
-      language,
-      fetched_articles: rawArticles.length,
-      processed_articles: rankedArticles.length,
-      source_articles_sent_to_llm: rankedArticles.length,
-      generated_items: payload.items.length,
-      rss: rssConnector.getLastDiagnostics(),
-      validation: {
+      logProgress("LLM proof validation passed", {
+        language,
+        generated_items: payload.items.length
+      });
+
+      languages.push({
+        language,
         status: "passed",
-        issues: []
-      },
-      top_ranked_sources: rankedArticles.slice(0, 5).map((article) => ({
-        title: article.title,
-        publisher: article.publisher,
-        topic: article.topic,
-        importance_score: article.importance_score,
-        url: article.url,
-        published_at: article.published_at ?? null
-      }))
-    });
-    drops.push(payload);
+        fetched_articles: rawArticles.length,
+        processed_articles: rankedArticles.length,
+        source_articles_sent_to_llm: rankedArticles.length,
+        generated_items: payload.items.length,
+        rss: rssConnector.getLastDiagnostics(),
+        validation: {
+          status: "passed",
+          issues: []
+        },
+        quality,
+        failure_reason: null,
+        error: null,
+        top_ranked_sources: rankedArticles.slice(0, 5).map((article) => ({
+          title: article.title,
+          publisher: article.publisher,
+          topic: article.topic,
+          importance_score: article.importance_score,
+          url: article.url,
+          published_at: article.published_at ?? null
+        }))
+      });
+      drops.push(payload);
+    } catch (error) {
+      const failure = serializeLlmFailure(error);
+      logProgress("LLM proof language failed", {
+        language,
+        failure,
+        error: error instanceof Error ? error.message : String(error)
+      });
+
+      languages.push({
+        language,
+        status: "failed",
+        fetched_articles: rawArticles.length,
+        processed_articles: rankedArticles.length,
+        source_articles_sent_to_llm: rankedArticles.length,
+        generated_items: 0,
+        rss: rssConnector.getLastDiagnostics(),
+        validation: {
+          status: "failed",
+          issues: []
+        },
+        quality: null,
+        failure_reason: failure?.reason ?? classifyLlmFailure(error) ?? "api_error",
+        error: error instanceof Error ? error.message : String(error),
+        top_ranked_sources: rankedArticles.slice(0, 5).map((article) => ({
+          title: article.title,
+          publisher: article.publisher,
+          topic: article.topic,
+          importance_score: article.importance_score,
+          url: article.url,
+          published_at: article.published_at ?? null
+        }))
+      });
+
+      if (isStrictLlmProof()) {
+        break;
+      }
+    }
+  }
+
+  const succeeded = languages.filter((result) => result.status === "passed").length;
+  const failed = languages.length - succeeded;
+  if (failed > 0 && (succeeded === 0 || isStrictLlmProof())) {
+    process.exitCode = 1;
   }
 
   return {
@@ -235,8 +310,13 @@ export function parseLlmProofOptions(args: string[]): LlmProofOptions {
   };
 }
 
-function validateLlmProofPayload(payload: DailyDropPayload, requestedLanguage: Language): ValidationIssue[] {
+function validateLlmProofPayload(
+  payload: DailyDropPayload,
+  requestedLanguage: Language,
+  quality: ContentQualityDiagnostics
+): ValidationIssue[] {
   const issues = validateDailyDropPayload(payload);
+  issues.push(...quality.issues.filter((issue) => issue.severity === "error"));
 
   if (payload.language !== requestedLanguage) {
     issues.push({ path: "language", message: `Daily drop language must match requested language ${requestedLanguage}.` });
@@ -289,8 +369,9 @@ function readSafeLlmConfig(options: LlmProofOptions): LlmProofOutput["llmConfig"
   return {
     provider: "openai",
     model: readOpenAiModel(),
+    fallback_model: readOpenAiFallbackModel(),
     endpoint_host: readEndpointHost(),
-    request_timeout_ms: readOptionalPositiveInteger(process.env.OPENAI_REQUEST_TIMEOUT_MS) ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    request_timeout_ms: readRequestTimeoutMs(),
     max_attempts: options.maxAttempts,
     max_output_tokens: options.maxOutputTokens,
     api_key_configured: Boolean(process.env.OPENAI_API_KEY),
@@ -300,16 +381,28 @@ function readSafeLlmConfig(options: LlmProofOptions): LlmProofOutput["llmConfig"
 }
 
 function readOpenAiModel(): string {
-  return process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL;
+  return process.env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
+}
+
+function readOpenAiFallbackModel(): string | null {
+  return process.env.OPENAI_FALLBACK_MODEL?.trim() || null;
 }
 
 function readEndpointHost(): string {
-  const endpoint = process.env.OPENAI_RESPONSES_ENDPOINT?.trim() || DEFAULT_ENDPOINT;
+  const endpoint = process.env.OPENAI_RESPONSES_ENDPOINT?.trim() || DEFAULT_OPENAI_ENDPOINT;
   try {
     return new URL(endpoint).host;
   } catch {
     return "invalid_endpoint";
   }
+}
+
+function readRequestTimeoutMs(): number {
+  return readOptionalPositiveInteger(process.env.OPENAI_REQUEST_TIMEOUT_MS) ?? DEFAULT_OPENAI_REQUEST_TIMEOUT_MS;
+}
+
+function isStrictLlmProof(): boolean {
+  return process.env.STRICT_LLM_PROOF?.toLowerCase() === "true";
 }
 
 function readFlags(args: string[]): Map<string, string> {

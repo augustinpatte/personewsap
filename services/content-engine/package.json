@@ -20,8 +20,10 @@
     "personalize-test": "npm run build && node dist/cli.js personalize-test",
     "daily-job": "npm run build && node dist/cli.js daily-job",
     "daily-job-test": "npm run build && node dist/cli.js daily-job-test",
+    "job-health": "npm run build && node dist/cli.js job-health",
     "debug-users": "npm run build && node dist/cli.js debug-users",
-    "rss-check": "npm run build && node dist/cli.js rss-check"
+    "rss-check": "npm run build && node dist/cli.js rss-check",
+    "quality-proof": "npm run build && node dist/cli.js quality-proof"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3"

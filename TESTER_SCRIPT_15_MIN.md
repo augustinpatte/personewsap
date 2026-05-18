@@ -7,9 +7,11 @@ Use this script with a small tester group. The goal is not polish feedback yet; 
 The test coordinator should:
 
 - Confirm the tester has the app installed or can open the Expo build.
+- For TestFlight rehearsal, confirm the build installs and opens on a physical iPhone before the timed session starts.
 - Confirm the tester Supabase project is configured.
 - Run `npm run smoke` and, when server env is available, `npm run backend:e2e` before the tester session.
 - Have a way to assign the tester a daily drop after onboarding.
+- Confirm whether email confirmation is enabled and who can approve the tester account if needed.
 - Have a feedback channel ready: form, shared doc, or direct message.
 - For internal QA, set `EXPO_PUBLIC_LIVE_DATA_PROOF_MODE=true` before launching the app and watch the Metro logs.
 
@@ -127,6 +129,15 @@ Ask the tester:
 - Did the app feel finite, or did it feel like a feed?
 - Which content module was most useful?
 - What would stop you from using this tomorrow?
+
+## Stop The Session If
+
+- The app cannot install or launch.
+- The tester cannot sign up or get through email confirmation.
+- Onboarding cannot be completed.
+- Today does not show `Live daily drop` after the coordinator assigns content.
+- Complete, Save, or rating actions fail for live content.
+- The app crashes, hangs, or shows an unreadable error.
 
 ## Coordinator Notes To Capture
 

@@ -18,9 +18,22 @@ This is the checklist for moving from local/simulator tester prep to an installa
 
 Current TestFlight status: not ready. This repo is ready for local/staging backend proof and controlled live-data rehearsal, but not for external TestFlight invites until the checklist below is complete.
 
+## Current Mobile Build Config Audit
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Expo app config | partial | `apps/mobile/app.json` has name, slug, scheme, version, bundle identifier, Android package, portrait orientation, and Expo Router. |
+| iOS build number | missing | Add and increment `expo.ios.buildNumber` before TestFlight uploads. |
+| EAS build profile | missing | No `eas.json` is present, so the build/upload path still needs an owner decision. |
+| App icon and splash assets | missing | No icon/splash assets are configured in `app.json`; add before showing TestFlight to external testers. |
+| TestFlight signing/upload workflow | missing | Apple Developer account, certificates/profiles, App Store Connect app, and upload steps are not represented in repo config. |
+| Mobile env boundary | partial | `.env.example` uses only public `EXPO_PUBLIC_*` keys; final build env values still need to be configured in the chosen build system. |
+
 ## Must Be Done Before TestFlight
 
 - Confirm the Apple Developer account, App Store Connect app record, bundle identifier, signing certificates, and provisioning are ready.
+- Decide EAS vs local Xcode/archive workflow and document the exact upload command.
+- Add `expo.ios.buildNumber`, app icon, and splash screen config.
 - Decide the tester Supabase project and apply all migrations.
 - Configure only public mobile env vars in the build:
   - `EXPO_PUBLIC_SUPABASE_URL`
@@ -119,10 +132,27 @@ Current TestFlight status: not ready. This repo is ready for local/staging backe
 
 ### Device Pass
 
-- iPhone small viewport.
-- iPhone large viewport.
+- Physical iPhone install, first launch, and cold restart from the TestFlight build.
+- iPhone small viewport and large viewport.
+- Real keyboard, password manager/autofill, and email confirmation flow.
+- Cellular network, Wi-Fi, slow network, and airplane-mode spot check.
+- Background/foreground resume after login and while Today is loading.
+- Logout/login after app restart.
+- Push notification permission behavior if push prompts are added later.
 - Dark/light mode if supported by the simulator/device.
-- Slow network or airplane-mode spot check.
+
+## First 15-Minute Beta Failure Modes
+
+The first tester session is likely to fail if any of these happen:
+
+- The TestFlight build cannot install or opens with missing public Supabase env vars.
+- Email confirmation blocks signup and the coordinator cannot confirm the account quickly.
+- The tester completes onboarding but no assigned live daily drop exists for that user/date.
+- Today falls back to preview mode during a live-data proof and the coordinator misses the proof-mode error.
+- Complete/save/rating writes fail because migrations, RLS, or beta hardening were not applied.
+- Library is empty after assignment because the drop/items were not published or linked.
+- The tester cannot find the Account user id, logout, or login path.
+- The app crashes or shows unreadable errors on a physical iPhone network transition.
 
 ## TestFlight Stop Conditions
 

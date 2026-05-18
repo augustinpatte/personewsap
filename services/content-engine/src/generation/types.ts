@@ -6,6 +6,7 @@ export type GenerationRequest = {
   articles: RankedArticle[];
   newsletterTopics: TopicId[];
   newsletterArticleCount: number;
+  productionStrict?: boolean;
 };
 
 export type ContentGenerator = {

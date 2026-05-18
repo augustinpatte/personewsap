@@ -5,10 +5,12 @@ import { parseDailyJobOptions, runDailyJob } from "./cli/dailyJob.js";
 import { parseDailyJobTestOptions, runDailyJobTest } from "./cli/dailyJobTest.js";
 import { parseDebugUsersOptions, runDebugUsers } from "./cli/debugUsers.js";
 import { parseDryRunOptions, runDryRun } from "./cli/dryRun.js";
+import { parseJobHealthOptions, runJobHealth } from "./cli/jobHealth.js";
 import { parseLlmRunOptions, runLlmRun } from "./cli/llmRun.js";
 import { parseLlmProofOptions, runLlmProof } from "./cli/llmProof.js";
 import { parsePersonalizeTestOptions, runPersonalizeTest } from "./cli/personalizeTest.js";
 import { parsePersistTestOptions, runPersistTest } from "./cli/persistTest.js";
+import { runQualityProof } from "./cli/qualityProof.js";
 import { parseRssCheckOptions, runRssCheck } from "./cli/rssCheck.js";
 import { formatPersistenceError } from "./storage/persistenceError.js";
 
@@ -69,6 +71,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "job-health") {
+    const output = await runJobHealth(parseJobHealthOptions(args));
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+
   if (command === "debug-users") {
     const output = await runDebugUsers(parseDebugUsersOptions(args));
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
@@ -77,6 +85,12 @@ async function main(): Promise<void> {
 
   if (command === "rss-check") {
     const output = await runRssCheck(parseRssCheckOptions(args));
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+
+  if (command === "quality-proof") {
+    const output = runQualityProof();
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
     return;
   }
@@ -99,11 +113,13 @@ Commands:
   persist-test            Persist one limited test drop after explicit env confirmation.
   cleanup-test            Delete draft persist-test content for one test_run_id.
   assign-test-users       Assign existing published test content to app users.
-  daily-job               Production daily scheduler command. Supports DRY_RUN=true.
+  daily-job               Production daily scheduler command. Writes require explicit production env confirmation.
   daily-job-test          Generate, publish, and assign a limited marked test daily drop.
+  job-health              Read production job_runs health summary with service-role credentials.
   debug-users             Read-only daily-job-test user eligibility diagnostic.
   personalize-test        Assign already-published content from app user preferences.
   rss-check               Fetch live RSS only, without LLM or Supabase persistence.
+  quality-proof           Prove production-strict editorial validation rejects bad generated content.
 
 Options:
   --date YYYY-MM-DD       Drop date. Defaults to today.
@@ -114,19 +130,26 @@ Options:
   --live-rss              Also try live RSS feeds. No API key required.
   --since YYYY-MM-DD      For rss-check, reject older dated feed items.
   --limit-per-source 5    For rss-check/RSS, cap items kept from each feed.
+  --limit 5               For job-health, max recent job_runs rows to read.
   --source-article-limit 6 For llm-proof, cap ranked articles sent to the LLM.
   --max-attempts 1        For llm-proof, cap LLM validation retry attempts.
   --max-output-tokens 4500 For llm-proof, cap OpenAI response tokens.
 
 Daily job env:
   DRY_RUN=true            Generate and validate without Supabase writes.
+  PRODUCTION_DAILY_JOB=true Required for non-dry daily-job writes.
+  DRY_RUN=false           Required explicitly for non-dry production writes.
   USER_LIMIT=5            Max app users assigned per language. Omit for all users in daily-job.
   LANGUAGES=fr,en         Languages for daily-job and daily-job-test.
   TOPIC_LIMIT=3           Limit approved topics after --topics/env defaults.
+  RUN_ID=...              Optional stable operator run id. Defaults to a deterministic run id.
+  STRICT_ALL_LANGUAGES=true Fail the full job if any requested language fails.
   USE_LLM=true            Use OpenAI generation for daily-job and daily-job-test.
+  OPENAI_REQUEST_TIMEOUT_MS=120000 Override OpenAI request timeout.
+  OPENAI_FALLBACK_MODEL=... Try fallback model after primary request failures.
   LIVE_RSS=true           Enable live RSS sources.
   LIVE_RSS_ONLY=true      Enable live RSS and disable sample_articles.
-  ALLOW_SAMPLE_CONTENT=true Allow sample_articles outside dry-run/test commands.
+  ALLOW_SAMPLE_CONTENT=true Allow sample_articles only in dry-run/test-shaped commands.
   CONTENT_STATUS=published Store draft, review, or published test content.
 
 Examples:
@@ -140,14 +163,16 @@ Examples:
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_ASSIGN_TEST=true npm run assign-test-users -- --limit 5
   DRY_RUN=true LANGUAGES=fr,en npm run daily-job
   DRY_RUN=true LIVE_RSS_ONLY=true RSS_ARTICLES_PER_SOURCE=1 npm run daily-job
-  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... USE_LLM=true OPENAI_API_KEY=... LIVE_RSS=true npm run daily-job
-  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... ALLOW_SAMPLE_CONTENT=true npm run daily-job
+  PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... npm run daily-job
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true npm run daily-job-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true LANGUAGES=fr,en USER_LIMIT=5 CONTENT_STATUS=published npm run daily-job-test
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run job-health -- --date 2026-04-26
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run debug-users -- --language en --date 2026-04-26
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSONALIZE_TEST=true npm run personalize-test
   npm run rss-check -- --languages en --topics business,finance --limit-per-source 3
+  npm run quality-proof
   OPENAI_API_KEY=... npm run llm-proof -- --languages en --topics business,finance
+  OPENAI_API_KEY=... OPENAI_REQUEST_TIMEOUT_MS=120000 npm run llm-proof -- --languages fr,en --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media --max-attempts 2
 `);
 }
 

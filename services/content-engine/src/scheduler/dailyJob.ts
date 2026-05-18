@@ -69,7 +69,9 @@ export class DailyContentJob {
         })
       );
 
-      assertValidDailyDropPayload(payload);
+      assertValidDailyDropPayload(payload, {
+        articles: rankedArticles
+      });
 
       let storedItems = 0;
       let userDropsCreated = 0;

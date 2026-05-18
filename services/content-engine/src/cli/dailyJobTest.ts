@@ -8,10 +8,21 @@ import {
   isTopicId
 } from "../domain.js";
 import { LlmContentGenerator } from "../generation/llmGenerator.js";
+import { classifyLlmFailure, serializeLlmFailure, type LlmFailureReason } from "../generation/llmErrors.js";
 import { OpenAiJsonProvider } from "../generation/openAiProvider.js";
 import { StructuredContentGenerator } from "../generation/structuredGenerator.js";
 import type { ContentGenerator } from "../generation/types.js";
 import { assertValidDailyDropPayload } from "../generation/validation.js";
+import {
+  aggregateJobRunMetrics,
+  buildFailedLanguageJobMetrics,
+  buildLanguageJobMetrics,
+  readPricingConfig,
+  type JobRunMetrics,
+  type LanguageJobMetrics,
+  type PricingConfig,
+  type RssMetricDiagnostics
+} from "../ops/jobMetrics.js";
 import { processArticles } from "../processing/pipeline.js";
 import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "../scheduler/dailyDropBuilder.js";
 import { CURATED_SOURCES } from "../sources/curatedSources.js";
@@ -31,12 +42,36 @@ const DEFAULT_LANGUAGES = "fr,en";
 const DRY_RUN_NEWSLETTER_ARTICLE_COUNT = 4;
 const LLM_NEWSLETTER_ARTICLE_COUNT = 1;
 const RETRYABLE_STAGE_ATTEMPTS = 2;
+const RETRY_BASE_DELAY_MS = 1_000;
+const RETRY_MAX_DELAY_MS = 8_000;
 const REQUIRED_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
 const CONTENT_STATUSES = ["draft", "review", "published"] as const;
 
 type DailyJobContentStatus = (typeof CONTENT_STATUSES)[number];
 type DailyJobMode = "daily-job" | "daily-job-test";
 type SourceMode = "sample" | "rss" | "mixed";
+type DailyJobStatus = "completed" | "partial_failed" | "failed";
+
+type OperatorSummary = {
+  runId: string;
+  status: DailyJobStatus;
+  generated: number;
+  stored: number;
+  assigned: number;
+  failedLanguages: Language[];
+  failedTopics: TopicId[];
+  costEstimate: {
+    available: boolean;
+    estimatedUsd: number | null;
+    reason: string;
+  };
+  idempotency: {
+    stableRunId: boolean;
+    dailyDropsUpsertByUserDate: boolean;
+    dailyDropItemsReplaceBySlotPosition: boolean;
+    contentItemsDeduplicated: boolean;
+  };
+};
 
 export type DailyJobRunOptions = {
   mode: DailyJobMode;
@@ -52,6 +87,9 @@ export type DailyJobRunOptions = {
   dryRun: boolean;
   testMode: boolean;
   logPrefix: string;
+  productionConfirmed: boolean;
+  strictAllLanguages: boolean;
+  runId?: string;
 };
 
 export type DailyJobTestOptions = {
@@ -73,7 +111,8 @@ export type DailyJobOutput = {
   confirmation?: "CONFIRM_DAILY_JOB_TEST=true";
   persisted: boolean;
   dryRun: boolean;
-  status: "completed" | "completed_with_failures" | "failed";
+  status: DailyJobStatus;
+  runId: string;
   generator: "dry-run" | "llm";
   liveRss: boolean;
   liveRssOnly: boolean;
@@ -99,6 +138,8 @@ export type DailyJobOutput = {
     totalStaleDailyDropItemsRemoved: number;
     totalDuplicateDailyDropItemsSkipped: number;
   };
+  operatorSummary: OperatorSummary;
+  metrics: JobRunMetrics;
   languages: Array<{
     language: Language;
     status: "completed" | "failed";
@@ -117,7 +158,9 @@ export type DailyJobOutput = {
     staleDailyDropItemsRemoved: number;
     duplicateDailyDropItemsSkipped: number;
     assignmentSkippedReason: string | null;
+    errorReason: LlmFailureReason | null;
     error: string | null;
+    metrics: LanguageJobMetrics;
   }>;
 };
 
@@ -136,7 +179,9 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
     mode: "daily-job-test",
     dryRun: false,
     testMode: true,
-    logPrefix: "daily-job-test"
+    logPrefix: "daily-job-test",
+    productionConfirmed: false,
+    strictAllLanguages: false
   });
 
   return {
@@ -151,8 +196,11 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
 export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJobOutput> {
   assertDailyJobEnvironment(options);
   const sourcePolicy = resolveSourcePolicy(options);
+  const runId = options.runId ?? buildJobRunId(options);
+  const pricing = readPricingConfig();
 
   logProgress("job started", {
+    run_id: runId,
     drop_date: options.dropDate,
     languages: options.languages,
     topics: options.topics,
@@ -178,8 +226,21 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
       );
   const languageResults: DailyJobLanguageResult[] = [];
 
+  if (repository) {
+    await repository.startJobRun({
+      runId,
+      jobType: options.mode,
+      runDate: options.dropDate,
+      dryRun: options.dryRun,
+      generator: options.useLlm ? "llm" : "dry-run",
+      sourceMode: sourcePolicy.sourceMode,
+      languages: options.languages,
+      topics: options.topics
+    });
+  }
+
   for (const language of options.languages) {
-    const testRunId = buildRunId(options, language);
+    const testRunId = buildLanguageRunId(runId, language);
 
     try {
       languageResults.push(
@@ -187,36 +248,61 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
           generator,
           language,
           options,
+          pricing,
           repository,
           sourceFetcher,
+          sourceConnectors: sourcePolicy.connectors,
+          runId,
           testRunId
         })
       );
     } catch (error) {
       const serializedError = serializePersistenceError(error);
-      languageResults.push(emptyFailedLanguageResult(language, testRunId, serializedError.message));
+      const errorReason = classifyLlmFailure(error);
+      languageResults.push(emptyFailedLanguageResult(language, testRunId, errorReason, serializedError.message, options.useLlm));
       logProgress("language failed", {
+        run_id: runId,
         test_run_id: testRunId,
         language,
+        failure: serializeLlmFailure(error),
         error: serializedError
       }, options.logPrefix);
     }
   }
 
   const summary = summarizeLanguageResults(languageResults);
-  const status =
-    summary.languagesFailed === 0
-      ? "completed"
-      : summary.languagesSucceeded === 0
-        ? "failed"
-        : "completed_with_failures";
+  const status = resolveJobStatus(summary, options);
+  const metrics = aggregateJobRunMetrics(
+    languageResults.map((result) => ({
+      language: result.language,
+      metrics: result.metrics
+    })),
+    pricing
+  );
+  const operatorSummary = buildOperatorSummary(runId, status, options, summary, languageResults, metrics);
+
+  if (repository) {
+    await repository.completeJobRun({
+      runId,
+      status,
+      metrics: metrics as unknown as Record<string, unknown>,
+      operatorSummary: operatorSummary as unknown as Record<string, unknown>,
+      error:
+        languageResults
+          .filter((result) => result.status === "failed")
+          .map((result) => `${result.language}: ${result.error}`)
+          .join("\n") || null
+    });
+  }
 
   logProgress("job completed", {
+    run_id: runId,
     status,
+    operator_summary: operatorSummary,
     ...toLogSummary(summary)
   }, options.logPrefix);
 
-  if (status !== "completed") {
+  if (status === "failed") {
     process.exitCode = 1;
   }
 
@@ -226,6 +312,7 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
     persisted: !options.dryRun,
     dryRun: options.dryRun,
     status,
+    runId,
     generator: options.useLlm ? "llm" : "dry-run",
     liveRss: options.liveRss,
     liveRssOnly: options.liveRssOnly,
@@ -234,6 +321,8 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
     userLimit: options.userLimit,
     contentStatus: options.contentStatus,
     summary,
+    operatorSummary,
+    metrics,
     languages: languageResults
   };
 }
@@ -282,7 +371,10 @@ export function parseDailyJobOptions(args: string[]): DailyJobRunOptions {
     contentStatus: parseContentStatus(process.env.CONTENT_STATUS ?? "published"),
     dryRun: envFlag("DRY_RUN") || flags.has("dry-run"),
     testMode: false,
-    logPrefix: "daily-job"
+    logPrefix: "daily-job",
+    productionConfirmed: envFlag("PRODUCTION_DAILY_JOB"),
+    strictAllLanguages: envFlag("STRICT_ALL_LANGUAGES"),
+    runId: process.env.RUN_ID || flags.get("run-id")
   };
 }
 
@@ -290,13 +382,17 @@ async function runDailyJobLanguage(input: {
   generator: ContentGenerator;
   language: Language;
   options: DailyJobRunOptions;
+  pricing: PricingConfig;
   repository: ContentRepository | undefined;
+  runId: string;
   sourceFetcher: SourceFetcher;
+  sourceConnectors: SourceConnector[];
   testRunId: string;
 }): Promise<DailyJobLanguageResult> {
-  const { generator, language, options, repository, sourceFetcher, testRunId } = input;
+  const { generator, language, options, pricing, repository, runId, sourceFetcher, sourceConnectors, testRunId } = input;
 
   logProgress("language started", {
+    run_id: runId,
     test_run_id: testRunId,
     language,
     content_status: options.contentStatus,
@@ -306,6 +402,7 @@ async function runDailyJobLanguage(input: {
   const rawArticles = await runStage(
     "source fetch",
     {
+      run_id: runId,
       test_run_id: testRunId,
       language,
       topics: options.topics,
@@ -333,10 +430,12 @@ async function runDailyJobLanguage(input: {
     },
     { logPrefix: options.logPrefix }
   );
+  const rssDiagnostics = collectRssDiagnostics(sourceConnectors);
 
   const rankedArticles = await runStage(
     "processing",
     {
+      run_id: runId,
       test_run_id: testRunId,
       language,
       candidate_articles: rawArticles.length
@@ -349,9 +448,11 @@ async function runDailyJobLanguage(input: {
     throw new Error(`Processing produced zero ranked ${language} articles. Check source language coverage and topic filters.`);
   }
 
+  const generationStartedAt = Date.now();
   const payload = await runStage(
     "generation",
     {
+      run_id: runId,
       test_run_id: testRunId,
       language,
       generator: options.useLlm ? "llm" : "dry-run",
@@ -366,21 +467,27 @@ async function runDailyJobLanguage(input: {
           newsletterTopics: options.topics,
           newsletterArticleCount: options.newsletterArticleCount
         })
-      ),
+    ),
     { logPrefix: options.logPrefix }
   );
+  const llmLatencyMs = options.useLlm ? Date.now() - generationStartedAt : null;
 
   const jobPayload = options.testMode ? markPayloadAsTestData(payload, testRunId) : payload;
 
   await runStage(
     "validation",
     {
+      run_id: runId,
       test_run_id: testRunId,
       language,
       generated_items: jobPayload.items.length
     },
     async () => {
-      assertValidDailyDropPayload(jobPayload);
+      assertValidDailyDropPayload(jobPayload, {
+        articles: rankedArticles,
+        rssOnly: options.liveRssOnly
+      });
+      assertStrictProductionPayload(jobPayload, options);
     },
     { logPrefix: options.logPrefix }
   );
@@ -389,6 +496,7 @@ async function runDailyJobLanguage(input: {
 
   if (options.dryRun) {
     logProgress("persistence skipped", {
+      run_id: runId,
       test_run_id: testRunId,
       language,
       reason: "dry_run"
@@ -401,6 +509,7 @@ async function runDailyJobLanguage(input: {
     await runStage(
       "persistence preflight",
       {
+        run_id: runId,
         test_run_id: testRunId,
         language,
         tables: ["generation_runs", "sources", "content_items", "content_item_sources", "topics"]
@@ -414,6 +523,7 @@ async function runDailyJobLanguage(input: {
     storedItems = await runStage(
       "persistence",
       {
+        run_id: runId,
         test_run_id: testRunId,
         language,
         generated_items: jobPayload.items.length,
@@ -424,12 +534,13 @@ async function runDailyJobLanguage(input: {
           payload: jobPayload,
           articles: rankedArticles,
           contentStatus: options.contentStatus,
-          metadata: buildContentMetadata(options, testRunId)
+          metadata: buildContentMetadata(options, runId, testRunId)
         }),
       { maxAttempts: 1, logPrefix: options.logPrefix }
     );
 
     logProgress("content stored", {
+      run_id: runId,
       test_run_id: testRunId,
       language,
       content_status: options.contentStatus,
@@ -444,6 +555,7 @@ async function runDailyJobLanguage(input: {
       ? await runStage(
           "assignment",
           {
+            run_id: runId,
             test_run_id: testRunId,
             language,
             user_limit: options.userLimit ?? "all",
@@ -462,8 +574,21 @@ async function runDailyJobLanguage(input: {
         )
       : skippedAssignment(`content_status_${options.contentStatus}`);
 
+  const metrics = buildLanguageJobMetrics({
+    rssDiagnostics,
+    rankedArticles,
+    useLlm: options.useLlm,
+    llmLatencyMs,
+    llmTimedOut: false,
+    payload: jobPayload,
+    storedItems: storedItems.length,
+    assignedUsers: assignment.usersAssigned,
+    pricing
+  });
+
   if (assignment.assignmentSkippedReason) {
     logProgress("assignment skipped", {
+      run_id: runId,
       test_run_id: testRunId,
       language,
       reason: assignment.assignmentSkippedReason
@@ -488,10 +613,13 @@ async function runDailyJobLanguage(input: {
     staleDailyDropItemsRemoved: assignment.staleDailyDropItemsRemoved,
     duplicateDailyDropItemsSkipped: assignment.duplicateDailyDropItemsSkipped,
     assignmentSkippedReason: assignment.assignmentSkippedReason,
-    error: null
+    errorReason: null,
+    error: null,
+    metrics
   };
 
   logProgress("language completed", {
+    run_id: runId,
     test_run_id: testRunId,
     language,
     fetched_articles: result.fetchedArticles,
@@ -677,7 +805,13 @@ function skippedAssignment(reason: string): {
   };
 }
 
-function emptyFailedLanguageResult(language: Language, testRunId: string, error: string): DailyJobLanguageResult {
+function emptyFailedLanguageResult(
+  language: Language,
+  testRunId: string,
+  errorReason: LlmFailureReason | null,
+  error: string,
+  useLlm: boolean
+): DailyJobLanguageResult {
   return {
     language,
     status: "failed",
@@ -696,7 +830,13 @@ function emptyFailedLanguageResult(language: Language, testRunId: string, error:
     staleDailyDropItemsRemoved: 0,
     duplicateDailyDropItemsSkipped: 0,
     assignmentSkippedReason: null,
-    error
+    errorReason,
+    error,
+    metrics: buildFailedLanguageJobMetrics({
+      errorReason,
+      error,
+      useLlm
+    })
   };
 }
 
@@ -857,15 +997,19 @@ async function runStage<T>(
         ...details,
         attempt,
         max_attempts: maxAttempts,
+        failure: serializeLlmFailure(error),
         error: serializePersistenceError(error)
       }, logPrefix);
 
       if (attempt < maxAttempts) {
+        const retryDelayMs = retryDelay(attempt);
         logProgress(`${stage} retrying`, {
           ...details,
           next_attempt: attempt + 1,
-          max_attempts: maxAttempts
+          max_attempts: maxAttempts,
+          retry_delay_ms: retryDelayMs
         }, logPrefix);
+        await sleep(retryDelayMs);
       }
     }
   }
@@ -882,6 +1026,12 @@ function createGenerator(useLlm: boolean, logPrefix: string): ContentGenerator {
     provider: new OpenAiJsonProvider(),
     onProgress: (message, details) => logProgress(message, details, logPrefix)
   });
+}
+
+function collectRssDiagnostics(connectors: SourceConnector[]): RssMetricDiagnostics[] {
+  return connectors
+    .filter((connector): connector is RssFeedConnector => connector instanceof RssFeedConnector)
+    .map((connector) => connector.getLastDiagnostics());
 }
 
 function buildSourceConnectors(options: DailyJobRunOptions): SourceConnector[] {
@@ -910,8 +1060,8 @@ function resolveSourcePolicy(options: DailyJobRunOptions): {
     throw new Error(
       [
         "daily-job refused to run because no source connector is enabled.",
-        "Production-like writes do not use sample_articles unless ALLOW_SAMPLE_CONTENT=true.",
-        "Set LIVE_RSS=true for live sources, DRY_RUN=true for local sample dry-runs, or ALLOW_SAMPLE_CONTENT=true for an intentional sample write."
+        "Production writes require LIVE_RSS=true and LIVE_RSS_ONLY=true.",
+        "Use DRY_RUN=true for local sample dry-runs, or daily-job-test/persist-test for marked sample persistence."
       ].join(" ")
     );
   }
@@ -960,18 +1110,69 @@ function markPayloadAsTestData(payload: DailyDropPayload, testRunId: string): Da
   };
 }
 
-function buildRunId(options: DailyJobRunOptions, language: Language): string {
+function buildJobRunId(options: DailyJobRunOptions): string {
   const { sourceMode } = resolveSourcePolicySummary(options);
   return `${options.mode}-${sha256(
-    [options.dropDate, language, options.useLlm ? "llm" : "dry-run", sourceMode, ...options.topics].join("|")
+    [options.dropDate, options.useLlm ? "llm" : "dry-run", sourceMode, options.contentStatus, ...options.languages, ...options.topics].join("|")
   ).slice(0, 12)}`;
 }
 
-function buildContentMetadata(options: DailyJobRunOptions, testRunId: string): Record<string, unknown> {
+function buildLanguageRunId(runId: string, language: Language): string {
+  return `${runId}-${language}`;
+}
+
+function resolveJobStatus(summary: DailyJobOutput["summary"], options: DailyJobRunOptions): DailyJobStatus {
+  if (summary.languagesFailed === 0) {
+    return "completed";
+  }
+
+  if (summary.languagesSucceeded === 0 || options.strictAllLanguages) {
+    return "failed";
+  }
+
+  return "partial_failed";
+}
+
+function buildOperatorSummary(
+  runId: string,
+  status: DailyJobStatus,
+  options: DailyJobRunOptions,
+  summary: DailyJobOutput["summary"],
+  languageResults: DailyJobLanguageResult[],
+  metrics: JobRunMetrics
+): OperatorSummary {
+  const failedLanguages = languageResults
+    .filter((result) => result.status === "failed")
+    .map((result) => result.language);
+
+  return {
+    runId,
+    status,
+    generated: summary.totalGeneratedItems,
+    stored: summary.totalStoredItems,
+    assigned: summary.totalUsersAssigned,
+    failedLanguages,
+    failedTopics: failedLanguages.length > 0 ? options.topics : [],
+    costEstimate: {
+      available: metrics.estimated_cost_available,
+      estimatedUsd: metrics.estimated_cost_usd,
+      reason: metrics.estimated_cost_reason
+    },
+    idempotency: {
+      stableRunId: true,
+      dailyDropsUpsertByUserDate: true,
+      dailyDropItemsReplaceBySlotPosition: true,
+      contentItemsDeduplicated: false
+    }
+  };
+}
+
+function buildContentMetadata(options: DailyJobRunOptions, runId: string, testRunId: string): Record<string, unknown> {
   if (options.testMode) {
     return {
       is_test_data: true,
       test_mode: "daily-job-test",
+      run_id: runId,
       test_run_id: testRunId,
       test_label: "TEST DAILY JOB CONTENT - safe to inspect and delete manually",
       persisted_by: "services/content-engine npm run daily-job-test",
@@ -988,7 +1189,8 @@ function buildContentMetadata(options: DailyJobRunOptions, testRunId: string): R
   return {
     is_test_data: false,
     scheduler_mode: "daily-job",
-    scheduler_run_id: testRunId,
+    scheduler_run_id: runId,
+    language_run_id: testRunId,
     persisted_by: "services/content-engine npm run daily-job",
     content_status: options.contentStatus,
     use_llm: options.useLlm,
@@ -1000,15 +1202,71 @@ function buildContentMetadata(options: DailyJobRunOptions, testRunId: string): R
   };
 }
 
+function assertStrictProductionPayload(payload: DailyDropPayload, options: DailyJobRunOptions): void {
+  if (!isProductionWrite(options)) {
+    return;
+  }
+
+  const issues: string[] = [];
+  const slots = new Set(payload.items.map((item) => item.slot));
+
+  for (const slot of REQUIRED_SLOTS) {
+    if (!slots.has(slot)) {
+      issues.push(`missing required slot ${slot}`);
+    }
+  }
+
+  payload.items.forEach((item, index) => {
+    if (item.title.startsWith("[TEST")) {
+      issues.push(`items.${index}.title is test-marked`);
+    }
+
+    if (item.language !== payload.language) {
+      issues.push(`items.${index}.language must match payload language`);
+    }
+
+    if (item.topic && !options.topics.includes(item.topic)) {
+      issues.push(`items.${index}.topic ${item.topic} is outside requested topics`);
+    }
+
+    for (const sourceUrl of item.source_urls) {
+      if (isSampleUrl(sourceUrl)) {
+        issues.push(`items.${index}.source_urls contains sample URL ${sourceUrl}`);
+      }
+    }
+  });
+
+  if (issues.length > 0) {
+    throw new Error(`Production daily job strict validation failed: ${issues.join("; ")}.`);
+  }
+}
+
+function isProductionWrite(options: DailyJobRunOptions): boolean {
+  return options.mode === "daily-job" && !options.testMode && !options.dryRun;
+}
+
+function isSampleUrl(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "example.com" || hostname.endsWith(".example.com");
+  } catch {
+    return value.includes("example.com");
+  }
+}
+
 function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
+  const productionWrite = isProductionWrite(options);
   const missing = [
+    productionWrite && !options.productionConfirmed ? "PRODUCTION_DAILY_JOB=true" : null,
+    productionWrite && process.env.DRY_RUN !== "false" ? "DRY_RUN=false" : null,
+    productionWrite && !options.liveRss ? "LIVE_RSS=true" : null,
+    productionWrite && !options.liveRssOnly ? "LIVE_RSS_ONLY=true" : null,
+    productionWrite && !options.useLlm ? "USE_LLM=true" : null,
+    productionWrite && envFlag("ALLOW_SAMPLE_CONTENT") ? "ALLOW_SAMPLE_CONTENT must be unset or false" : null,
     !options.dryRun && !process.env.SUPABASE_URL ? "SUPABASE_URL" : null,
     !options.dryRun && !process.env.SUPABASE_SERVICE_ROLE_KEY ? "SUPABASE_SERVICE_ROLE_KEY" : null,
-    !options.dryRun && !options.testMode && !options.liveRss && !envFlag("ALLOW_SAMPLE_CONTENT")
-      ? "LIVE_RSS=true or ALLOW_SAMPLE_CONTENT=true"
-      : null,
     options.testMode && process.env.CONFIRM_DAILY_JOB_TEST !== "true" ? "CONFIRM_DAILY_JOB_TEST=true" : null,
-    options.useLlm && !process.env.OPENAI_API_KEY ? "OPENAI_API_KEY when USE_LLM=true" : null
+    (options.useLlm || productionWrite) && !process.env.OPENAI_API_KEY ? "OPENAI_API_KEY when USE_LLM=true" : null
   ].filter((value): value is string => value !== null);
 
   if (missing.length === 0) {
@@ -1028,8 +1286,8 @@ function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
           options.dryRun
             ? "DRY_RUN=true prevents Supabase writes. USE_LLM=true still requires OPENAI_API_KEY."
             : [
-                "Production writes require SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in a server-side environment.",
-                "Production-like writes use RSS sources by default; sample_articles require ALLOW_SAMPLE_CONTENT=true."
+                "Production writes require PRODUCTION_DAILY_JOB=true, DRY_RUN=false, LIVE_RSS=true, LIVE_RSS_ONLY=true, USE_LLM=true.",
+                "Production writes never use sample_articles and require server-side Supabase service-role and OpenAI credentials."
               ].join(" ")
         ].join(" ")
   );
@@ -1119,6 +1377,18 @@ function readFlags(args: string[]): Map<string, string> {
   }
 
   return values;
+}
+
+function retryDelay(attempt: number): number {
+  const exponentialDelay = Math.min(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), RETRY_MAX_DELAY_MS);
+  const jitter = Math.floor(Math.random() * 250);
+  return exponentialDelay + jitter;
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function envFlag(name: string): boolean {

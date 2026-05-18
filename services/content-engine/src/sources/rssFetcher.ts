@@ -1,4 +1,4 @@
-import type { Language, RawArticle } from "../domain.js";
+import { TOPIC_IDS, type Language, type RawArticle, type TopicId } from "../domain.js";
 import { parseXmlFeed } from "./rssParser.js";
 import type { CuratedSource, SourceArticleMetadata, SourceConnector, SourceFetchRequest } from "./types.js";
 import { sourceLog, sourceWarning } from "./sourceLogger.js";
@@ -6,6 +6,35 @@ import { sourceLog, sourceWarning } from "./sourceLogger.js";
 const DEFAULT_RSS_TIMEOUT_MS = 8_000;
 const DEFAULT_RSS_LIMIT_PER_SOURCE = 5;
 const DEFAULT_RSS_MAX_AGE_DAYS = 21;
+const FR_RECENCY_LADDER_DAYS = [0, 1, 2] as const;
+
+type RecencyFallbackLabel = "none" | "J-1" | "J-2";
+
+type TopicThreshold = {
+  minArticles: number;
+  minSources: number;
+};
+
+type TopicFallbackDiagnostic = {
+  threshold: TopicThreshold;
+  selectedArticles: number;
+  selectedSources: number;
+  fallback: RecencyFallbackLabel;
+  baseDate: string | null;
+  cutoffDate: string | null;
+  underThreshold: boolean;
+};
+
+const FR_TOPIC_THRESHOLDS: Record<TopicId, TopicThreshold> = {
+  business: { minArticles: 1, minSources: 1 },
+  finance: { minArticles: 1, minSources: 1 },
+  tech_ai: { minArticles: 1, minSources: 1 },
+  law: { minArticles: 1, minSources: 1 },
+  medicine: { minArticles: 1, minSources: 1 },
+  engineering: { minArticles: 1, minSources: 1 },
+  sport_business: { minArticles: 1, minSources: 1 },
+  culture_media: { minArticles: 1, minSources: 1 }
+};
 
 export type RssFetchDiagnostics = {
   attempted: number;
@@ -15,26 +44,17 @@ export type RssFetchDiagnostics = {
   fetchedArticles: number;
   returnedArticles: number;
   duplicateArticlesSkipped: number;
+  articlesByTopic: Record<TopicId, number>;
+  sourcesByTopic: Record<TopicId, number>;
+  staleFallbackUsedByTopic: Record<TopicId, RecencyFallbackLabel>;
+  topicThresholds: Record<TopicId, TopicThreshold>;
+  topicRecencyDiagnostics: Record<TopicId, TopicFallbackDiagnostic>;
   errors: Array<{
     source_id: string;
     publisher: string;
     error: string;
   }>;
 };
-
-function isAfterSince(article: RawArticle, since?: string): boolean {
-  if (!since || !article.published_at) {
-    return true;
-  }
-
-  const publishedAt = new Date(article.published_at);
-  const sinceDate = new Date(since);
-  if (Number.isNaN(publishedAt.getTime()) || Number.isNaN(sinceDate.getTime())) {
-    return true;
-  }
-
-  return publishedAt >= sinceDate;
-}
 
 function isFreshEnough(article: RawArticle, maxAgeDays: number, now = new Date()): boolean {
   if (!article.published_at) {
@@ -99,7 +119,7 @@ export class RssFeedConnector implements SourceConnector {
       });
     }
 
-    const batches = await Promise.allSettled(selected.map((source) => this.fetchSource(source, limitPerSource, request.since)));
+    const batches = await Promise.allSettled(selected.map((source) => this.fetchSource(source, limitPerSource)));
     const failures = batches
       .map((batch, index) => ({
         batch,
@@ -118,6 +138,7 @@ export class RssFeedConnector implements SourceConnector {
 
     const articles = batches.flatMap((batch) => (batch.status === "fulfilled" ? batch.value : []));
     const deduped = deduplicateRssArticles(articles);
+    const recencySelection = selectArticlesByRecencyLadder(deduped.articles, request);
     const succeededSources = batches.filter((batch) => batch.status === "fulfilled").length;
     const errors = failures.slice(0, 10).map((failure) => ({
       source_id: failure.source.id,
@@ -140,7 +161,7 @@ export class RssFeedConnector implements SourceConnector {
       failed: failures.length,
       skipped_no_rss_count: skippedNoRss.length,
       failed_sources: failures.length,
-      article_count: deduped.articles.length,
+      article_count: recencySelection.articles.length,
       fetched_article_count: articles.length,
       duplicate_articles_skipped: deduped.duplicatesSkipped
     });
@@ -151,8 +172,13 @@ export class RssFeedConnector implements SourceConnector {
       failed: failures.length,
       skippedNoRss: skippedNoRss.length,
       fetchedArticles: articles.length,
-      returnedArticles: deduped.articles.length,
+      returnedArticles: recencySelection.articles.length,
       duplicateArticlesSkipped: deduped.duplicatesSkipped,
+      articlesByTopic: recencySelection.articlesByTopic,
+      sourcesByTopic: recencySelection.sourcesByTopic,
+      staleFallbackUsedByTopic: recencySelection.staleFallbackUsedByTopic,
+      topicThresholds: FR_TOPIC_THRESHOLDS,
+      topicRecencyDiagnostics: recencySelection.topicRecencyDiagnostics,
       errors
     };
 
@@ -161,10 +187,13 @@ export class RssFeedConnector implements SourceConnector {
       attempted: selected.length,
       succeeded: succeededSources,
       failed: failures.length,
-      article_count: deduped.articles.length,
+      article_count: recencySelection.articles.length,
       fetched_article_count: articles.length,
       duplicate_articles_skipped: deduped.duplicatesSkipped,
       skipped_no_rss_count: skippedNoRss.length,
+      articles_by_topic: recencySelection.articlesByTopic,
+      sources_by_topic: recencySelection.sourcesByTopic,
+      stale_fallback_used_by_topic: recencySelection.staleFallbackUsedByTopic,
       errors
     });
 
@@ -172,14 +201,14 @@ export class RssFeedConnector implements SourceConnector {
       throw new Error(`All RSS sources failed. Attempted ${selected.length} feed(s); see rss_source_failed logs.`);
     }
 
-    return deduped.articles;
+    return recencySelection.articles;
   }
 
   getLastDiagnostics(): RssFetchDiagnostics {
     return this.lastDiagnostics;
   }
 
-  private async fetchSource(source: CuratedSource, limit: number, since?: string): Promise<RawArticle[]> {
+  private async fetchSource(source: CuratedSource, limit: number): Promise<RawArticle[]> {
     if (!source.rssUrl) {
       return [];
     }
@@ -270,7 +299,6 @@ export class RssFeedConnector implements SourceConnector {
 
     let skippedMissingFields = 0;
     let skippedStale = 0;
-    let skippedBeforeSince = 0;
     let skippedInvalidUrl = 0;
     let missingDateCount = 0;
     let invalidDateCount = 0;
@@ -322,11 +350,6 @@ export class RssFeedConnector implements SourceConnector {
       })
       .filter((article): article is RawArticle & SourceArticleMetadata => article !== null)
       .filter((article) => {
-        if (!isAfterSince(article, since)) {
-          skippedBeforeSince += 1;
-          return false;
-        }
-
         if (!allowStale && !isFreshEnough(article, maxAgeDays)) {
           skippedStale += 1;
           return false;
@@ -374,16 +397,6 @@ export class RssFeedConnector implements SourceConnector {
       });
     }
 
-    if (skippedBeforeSince > 0) {
-      sourceWarning("rss_items_skipped_before_since", {
-        source_id: source.id,
-        publisher: source.publisher,
-        rss_url: source.rssUrl,
-        since,
-        skipped_count: skippedBeforeSince
-      });
-    }
-
     if (skippedStale > 0) {
       sourceWarning("rss_items_skipped_stale", {
         source_id: source.id,
@@ -405,7 +418,6 @@ export class RssFeedConnector implements SourceConnector {
         skipped_invalid_url: skippedInvalidUrl,
         missing_date_count: missingDateCount,
         invalid_date_count: invalidDateCount,
-        skipped_before_since: skippedBeforeSince,
         skipped_stale: skippedStale
       });
     }
@@ -413,9 +425,8 @@ export class RssFeedConnector implements SourceConnector {
     const skippedCount =
       skippedMissingFields +
       skippedInvalidUrl +
-      skippedBeforeSince +
       skippedStale +
-      Math.max(0, items.length - skippedMissingFields - skippedInvalidUrl - skippedBeforeSince - skippedStale - articles.length);
+      Math.max(0, items.length - skippedMissingFields - skippedInvalidUrl - skippedStale - articles.length);
 
     sourceLog("rss_source_succeeded", {
       source_id: source.id,
@@ -431,7 +442,6 @@ export class RssFeedConnector implements SourceConnector {
       skipped_invalid_url: skippedInvalidUrl,
       missing_date_count: missingDateCount,
       invalid_date_count: invalidDateCount,
-      skipped_before_since: skippedBeforeSince,
       skipped_stale: skippedStale,
       max_age_days: maxAgeDays,
       allow_stale: allowStale,
@@ -448,7 +458,6 @@ export class RssFeedConnector implements SourceConnector {
       rss_items: items.length,
       kept_count: articles.length,
       skipped_count: skippedCount,
-      skipped_before_since: skippedBeforeSince,
       skipped_stale: skippedStale,
       missing_date_count: missingDateCount,
       invalid_date_count: invalidDateCount,
@@ -510,8 +519,313 @@ function emptyDiagnostics(): RssFetchDiagnostics {
     fetchedArticles: 0,
     returnedArticles: 0,
     duplicateArticlesSkipped: 0,
+    articlesByTopic: emptyTopicCounts(),
+    sourcesByTopic: emptyTopicCounts(),
+    staleFallbackUsedByTopic: emptyFallbackLabels(),
+    topicThresholds: FR_TOPIC_THRESHOLDS,
+    topicRecencyDiagnostics: emptyTopicRecencyDiagnostics(),
     errors: []
   };
+}
+
+function selectArticlesByRecencyLadder<T extends RawArticle>(
+  articles: T[],
+  request: SourceFetchRequest
+): {
+  articles: T[];
+  articlesByTopic: Record<TopicId, number>;
+  sourcesByTopic: Record<TopicId, number>;
+  staleFallbackUsedByTopic: Record<TopicId, RecencyFallbackLabel>;
+  topicRecencyDiagnostics: Record<TopicId, TopicFallbackDiagnostic>;
+} {
+  if (!request.since || !request.languages.includes("fr")) {
+    const selected = request.since ? filterArticlesSince(articles, request.since) : articles;
+    return {
+      articles: selected,
+      articlesByTopic: countArticlesByTopic(selected),
+      sourcesByTopic: countSourcesByTopic(selected),
+      staleFallbackUsedByTopic: emptyFallbackLabels(),
+      topicRecencyDiagnostics: emptyTopicRecencyDiagnostics()
+    };
+  }
+
+  const baseDate = normalizeDateOnly(request.since);
+  if (!baseDate) {
+    sourceWarning("rss_recency_ladder_skipped", {
+      reason: "invalid_since_date",
+      since: request.since
+    });
+    const selected = filterArticlesSince(articles, request.since);
+    return {
+      articles: selected,
+      articlesByTopic: countArticlesByTopic(selected),
+      sourcesByTopic: countSourcesByTopic(selected),
+      staleFallbackUsedByTopic: emptyFallbackLabels(),
+      topicRecencyDiagnostics: emptyTopicRecencyDiagnostics()
+    };
+  }
+
+  const selected: T[] = filterArticlesSince(
+    articles.filter((article) => article.language !== "fr"),
+    request.since
+  );
+  const staleFallbackUsedByTopic = emptyFallbackLabels();
+  const topicRecencyDiagnostics = emptyTopicRecencyDiagnostics(baseDate);
+
+  for (const topic of request.topics) {
+    const topicArticles = articles.filter((article) => article.language === "fr" && article.sourceTopic === topic);
+    if (topicArticles.length === 0) {
+      sourceWarning("rss_topic_under_threshold", {
+        topic,
+        language: "fr",
+        reason: "no_candidate_articles_after_source_fetch",
+        threshold: FR_TOPIC_THRESHOLDS[topic],
+        base_date: baseDate
+      });
+      continue;
+    }
+
+    const datedArticles = topicArticles.filter((article) => normalizeArticleDate(article) !== null);
+    const undatedCount = topicArticles.length - datedArticles.length;
+    if (undatedCount > 0) {
+      sourceWarning("rss_topic_articles_without_dates_excluded", {
+        topic,
+        language: "fr",
+        base_date: baseDate,
+        excluded_count: undatedCount,
+        reason: "production_recency_ladder_requires_source_dates"
+      });
+    }
+
+    const threshold = FR_TOPIC_THRESHOLDS[topic];
+    let selectedForTopic: T[] = [];
+    let fallbackDays: (typeof FR_RECENCY_LADDER_DAYS)[number] = 0;
+
+    for (const days of FR_RECENCY_LADDER_DAYS) {
+      const cutoffDate = addDays(baseDate, -days);
+      const candidates = datedArticles.filter((article) => {
+        const articleDate = normalizeArticleDate(article);
+        return articleDate !== null && articleDate >= cutoffDate;
+      });
+
+      selectedForTopic = candidates;
+      fallbackDays = days;
+
+      if (meetsTopicThreshold(candidates, threshold)) {
+        break;
+      }
+
+      if (days === 0) {
+        sourceWarning("rss_topic_recency_fallback_needed", {
+          topic,
+          language: "fr",
+          base_date: baseDate,
+          selected_articles: candidates.length,
+          selected_sources: countUniqueSources(candidates),
+          threshold,
+          next_window: "J-1"
+        });
+      } else if (days === 1) {
+        sourceWarning("rss_topic_j2_fallback_needed", {
+          topic,
+          language: "fr",
+          base_date: baseDate,
+          selected_articles: candidates.length,
+          selected_sources: countUniqueSources(candidates),
+          threshold,
+          next_window: "J-2",
+          reason: "J_and_J-1_under_threshold"
+        });
+      }
+    }
+
+    const fallback = fallbackLabel(fallbackDays);
+    const cutoffDate = addDays(baseDate, -fallbackDays);
+    const selectedSources = countUniqueSources(selectedForTopic);
+    const underThreshold = !meetsTopicThreshold(selectedForTopic, threshold);
+
+    staleFallbackUsedByTopic[topic] = fallback;
+    topicRecencyDiagnostics[topic] = {
+      threshold,
+      selectedArticles: selectedForTopic.length,
+      selectedSources,
+      fallback,
+      baseDate,
+      cutoffDate,
+      underThreshold
+    };
+
+    if (fallback !== "none") {
+      sourceWarning("rss_topic_stale_fallback_used", {
+        topic,
+        language: "fr",
+        fallback,
+        base_date: baseDate,
+        cutoff_date: cutoffDate,
+        selected_articles: selectedForTopic.length,
+        selected_sources: selectedSources,
+        threshold
+      });
+    }
+
+    if (fallback === "J-2") {
+      sourceWarning("rss_topic_j2_fallback_used", {
+        topic,
+        language: "fr",
+        base_date: baseDate,
+        cutoff_date: cutoffDate,
+        selected_articles: selectedForTopic.length,
+        selected_sources: selectedSources,
+        threshold,
+        reason: "topic_remained_under_threshold_after_J-1"
+      });
+    }
+
+    if (underThreshold) {
+      sourceWarning("rss_topic_under_threshold", {
+        topic,
+        language: "fr",
+        base_date: baseDate,
+        cutoff_date: cutoffDate,
+        selected_articles: selectedForTopic.length,
+        selected_sources: selectedSources,
+        threshold,
+        fallback
+      });
+    }
+
+    sourceLog("rss_topic_recency_selected", {
+      topic,
+      language: "fr",
+      base_date: baseDate,
+      cutoff_date: cutoffDate,
+      selected_articles: selectedForTopic.length,
+      selected_sources: selectedSources,
+      fallback,
+      under_threshold: underThreshold
+    });
+
+    selected.push(...selectedForTopic);
+  }
+
+  const dedupedSelection = deduplicateRssArticles(selected);
+  return {
+    articles: dedupedSelection.articles,
+    articlesByTopic: countArticlesByTopic(dedupedSelection.articles),
+    sourcesByTopic: countSourcesByTopic(dedupedSelection.articles),
+    staleFallbackUsedByTopic,
+    topicRecencyDiagnostics
+  };
+}
+
+function meetsTopicThreshold(articles: RawArticle[], threshold: TopicThreshold): boolean {
+  return articles.length >= threshold.minArticles && countUniqueSources(articles) >= threshold.minSources;
+}
+
+function filterArticlesSince<T extends RawArticle>(articles: T[], since: string): T[] {
+  const sinceDate = normalizeDateOnly(since);
+  if (!sinceDate) {
+    return articles;
+  }
+
+  return articles.filter((article) => {
+    const articleDate = normalizeArticleDate(article);
+    return articleDate === null || articleDate >= sinceDate;
+  });
+}
+
+function countArticlesByTopic(articles: RawArticle[]): Record<TopicId, number> {
+  const counts = emptyTopicCounts();
+  for (const article of articles) {
+    const topic = article.sourceTopic;
+    if (topic) {
+      counts[topic] += 1;
+    }
+  }
+  return counts;
+}
+
+function countSourcesByTopic(articles: RawArticle[]): Record<TopicId, number> {
+  const sourcesByTopic = new Map<TopicId, Set<string>>();
+  for (const topic of TOPIC_IDS) {
+    sourcesByTopic.set(topic, new Set());
+  }
+
+  for (const article of articles) {
+    if (!article.sourceTopic) {
+      continue;
+    }
+    sourcesByTopic.get(article.sourceTopic)?.add(sourceKey(article));
+  }
+
+  return Object.fromEntries(TOPIC_IDS.map((topic) => [topic, sourcesByTopic.get(topic)?.size ?? 0])) as Record<TopicId, number>;
+}
+
+function countUniqueSources(articles: RawArticle[]): number {
+  return new Set(articles.map(sourceKey)).size;
+}
+
+function sourceKey(article: RawArticle): string {
+  const maybeSourceId = (article as RawArticle & { source_id?: string }).source_id;
+  return maybeSourceId ?? article.publisher;
+}
+
+function emptyTopicCounts(): Record<TopicId, number> {
+  return Object.fromEntries(TOPIC_IDS.map((topic) => [topic, 0])) as Record<TopicId, number>;
+}
+
+function emptyFallbackLabels(): Record<TopicId, RecencyFallbackLabel> {
+  return Object.fromEntries(TOPIC_IDS.map((topic) => [topic, "none"])) as Record<TopicId, RecencyFallbackLabel>;
+}
+
+function emptyTopicRecencyDiagnostics(baseDate: string | null = null): Record<TopicId, TopicFallbackDiagnostic> {
+  return Object.fromEntries(
+    TOPIC_IDS.map((topic) => [
+      topic,
+      {
+        threshold: FR_TOPIC_THRESHOLDS[topic],
+        selectedArticles: 0,
+        selectedSources: 0,
+        fallback: "none",
+        baseDate,
+        cutoffDate: baseDate,
+        underThreshold: false
+      }
+    ])
+  ) as Record<TopicId, TopicFallbackDiagnostic>;
+}
+
+function fallbackLabel(days: number): RecencyFallbackLabel {
+  if (days === 1) {
+    return "J-1";
+  }
+  if (days === 2) {
+    return "J-2";
+  }
+  return "none";
+}
+
+function normalizeArticleDate(article: RawArticle): string | null {
+  return normalizeDateOnly(article.published_at);
+}
+
+function normalizeDateOnly(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
+function addDays(dateOnly: string, days: number): string {
+  const date = new Date(`${dateOnly}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function deduplicateRssArticles<T extends RawArticle>(articles: T[]): { articles: T[]; duplicatesSkipped: number } {

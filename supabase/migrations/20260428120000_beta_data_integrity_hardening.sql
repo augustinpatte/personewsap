@@ -14,7 +14,7 @@ BEGIN
         JOIN pg_attribute a
           ON a.attrelid = c.conrelid
          AND a.attnum = cols.attnum
-      ) = ARRAY['user_id', 'drop_date']
+      ) = ARRAY['user_id', 'drop_date']::name[]
   ) THEN
     IF NOT EXISTS (
       SELECT 1
@@ -43,7 +43,7 @@ BEGIN
         JOIN pg_attribute a
           ON a.attrelid = c.conrelid
          AND a.attnum = cols.attnum
-      ) = ARRAY['daily_drop_id', 'content_item_id']
+      ) = ARRAY['daily_drop_id', 'content_item_id']::name[]
   ) THEN
     IF NOT EXISTS (
       SELECT 1
@@ -72,7 +72,7 @@ BEGIN
         JOIN pg_attribute a
           ON a.attrelid = c.conrelid
          AND a.attnum = cols.attnum
-      ) = ARRAY['daily_drop_id', 'slot', 'position']
+      ) = ARRAY['daily_drop_id', 'slot', 'position']::name[]
   ) THEN
     IF NOT EXISTS (
       SELECT 1
