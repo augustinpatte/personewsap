@@ -14,7 +14,8 @@
       "package": "com.personewsap.mobile"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

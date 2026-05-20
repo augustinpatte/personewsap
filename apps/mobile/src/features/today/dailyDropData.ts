@@ -31,7 +31,13 @@ type FetchTodayDropOptions = {
   language?: ContentLanguage;
 };
 
-type SourceIdsByContentItemId = Record<string, string[]>;
+type SourcesByContentItemId = Record<
+  string,
+  {
+    sourceIds: string[];
+    sources: SourceMetadata[];
+  }
+>;
 
 const publishedDropStatuses = ["published", "read", "archived"] as const;
 const todayDropCacheTtlMs = 60_000;
@@ -312,13 +318,13 @@ async function fetchAndMapDailyDrop(
   const availableContentItems = orderedDropItems
     .map((dropItem) => contentItemsById.get(dropItem.content_item_id))
     .filter(isContentItem);
-  const sourceIdsByContentItemId = await fetchSourceIdsByContentItemIds(contentItemIds);
+  const sourcesByContentItemId = await fetchSourcesByContentItemIds(contentItemIds);
   const mappedItems = orderedDropItems
     .map((dropItem) => {
       const contentItem = contentItemsById.get(dropItem.content_item_id);
 
       return contentItem
-        ? mapDailyDropContentItem(contentItem, dropItem, sourceIdsByContentItemId)
+        ? mapDailyDropContentItem(contentItem, dropItem, sourcesByContentItemId)
         : null;
     })
     .filter(isDailyDropContentItem);
@@ -326,9 +332,9 @@ async function fetchAndMapDailyDrop(
   return assembleTodayDrop(drop, mappedItems, availableContentItems);
 }
 
-async function fetchSourceIdsByContentItemIds(
+async function fetchSourcesByContentItemIds(
   contentItemIds: string[]
-): Promise<SourceIdsByContentItemId> {
+): Promise<SourcesByContentItemId> {
   if (!supabase || contentItemIds.length === 0) {
     return {};
   }
@@ -343,12 +349,37 @@ async function fetchSourceIdsByContentItemIds(
     throw error;
   }
 
-  return (sourceLinks ?? []).reduce<SourceIdsByContentItemId>((sourceIds, link) => {
-    const currentSourceIds = sourceIds[link.content_item_id] ?? [];
+  const links = sourceLinks ?? [];
+  const sourceIds = [...new Set(links.map((link) => link.source_id))];
+
+  if (sourceIds.length === 0) {
+    return {};
+  }
+
+  const { data: sources, error: sourcesError } = await supabase
+    .from("sources")
+    .select("*")
+    .in("id", sourceIds);
+
+  if (sourcesError) {
+    throw sourcesError;
+  }
+
+  const sourcesById = new Map((sources ?? []).map((source) => [source.id, source]));
+
+  return links.reduce<SourcesByContentItemId>((sourcesByContentItem, link) => {
+    const current = sourcesByContentItem[link.content_item_id] ?? {
+      sourceIds: [],
+      sources: []
+    };
+    const source = sourcesById.get(link.source_id);
 
     return {
-      ...sourceIds,
-      [link.content_item_id]: [...currentSourceIds, link.source_id]
+      ...sourcesByContentItem,
+      [link.content_item_id]: {
+        sourceIds: [...current.sourceIds, link.source_id],
+        sources: source ? [...current.sources, mapSource(source)] : current.sources
+      }
     };
   }, {});
 }
@@ -395,13 +426,18 @@ function assembleTodayDrop(
 function mapDailyDropContentItem(
   contentItem: ContentItem,
   dropItem: DailyDropItem,
-  sourceIdsByContentItemId: SourceIdsByContentItemId
+  sourcesByContentItemId: SourcesByContentItemId
 ): DailyDropContentItem | null {
   const metadata = getMetadata(contentItem);
+  const sourceDetails = sourcesByContentItemId[contentItem.id] ?? {
+    sourceIds: [],
+    sources: []
+  };
   const base = {
     id: contentItem.id,
     language: contentItem.language,
-    source_ids: sourceIdsByContentItemId[contentItem.id] ?? [],
+    source_ids: sourceDetails.sourceIds,
+    sources: sourceDetails.sources,
     title: contentItem.title,
     version: contentItem.version
   };

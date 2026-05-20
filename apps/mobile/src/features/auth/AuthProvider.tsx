@@ -21,6 +21,7 @@ import {
   supabaseConfigDiagnostics,
   type NormalizedSupabaseError
 } from "../../lib/supabase";
+import { trackAnalyticsEvent } from "../../lib/analytics";
 import type { Language } from "../../types/domain";
 
 type AuthStatus = "loading" | "signedOut" | "needsOnboarding" | "ready";
@@ -280,6 +281,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         setError(null);
         await applySession(data.session);
+        trackAnalyticsEvent("auth_signed_in");
         logAuthDebug("login_success");
 
         return { error: null };
@@ -319,6 +321,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         setError(null);
         await applySession(data.session);
+        if (data.session) {
+          trackAnalyticsEvent("auth_signed_in");
+        }
         logAuthDebug(data.session ? "signup_success" : "signup_email_confirmation_required");
 
         return {
@@ -345,9 +350,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     setError(null);
     await applySession(null);
+    trackAnalyticsEvent("auth_signed_out", {
+      language: profileLanguage ?? undefined
+    });
 
     return { error: null };
-  }, [applySession]);
+  }, [applySession, profileLanguage]);
 
   useEffect(() => {
     void refreshAuthState();

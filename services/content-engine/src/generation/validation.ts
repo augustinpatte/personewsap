@@ -80,6 +80,27 @@ const GENERIC_AI_PHRASES = [
   "it goes without saying"
 ];
 
+const EMPTY_GENERIC_FILLER_PATTERNS = [
+  /\blorem ipsum\b/i,
+  /\bplaceholder\b/i,
+  /\bsample content\b/i,
+  /\bgeneric update\b/i,
+  /\bsource unavailable\b/i,
+  /\bcontenu generique\b/i,
+  /\bcontenu d'exemple\b/i,
+  /\bsource indisponible\b/i
+];
+
+const GENERIC_TITLE_PATTERNS = [
+  /\bdaily update\b/i,
+  /\bmarket update\b/i,
+  /\bnews update\b/i,
+  /\bkey concept\b/i,
+  /\bbriefing du jour\b/i,
+  /\bactualite du jour\b/i,
+  /\bconcept cle\b/i
+];
+
 export const BANNED_EDITORIAL_PHRASES = [
   "this shift means",
   "it is important",
@@ -114,14 +135,38 @@ const HIGH_STAKES_ADVICE_PATTERNS = [
 ];
 
 const CONCEPT_ANCHORS: Record<TopicId, string[]> = {
-  business: ["customer", "pricing", "price", "revenue", "margin", "retention", "distribution", "demand", "churn"],
-  finance: ["rate", "risk", "asset", "credit", "loan", "funding", "yield", "market", "capital", "default"],
-  tech_ai: ["ai", "model", "data", "compute", "chip", "platform", "software", "security", "automation"],
-  law: ["rule", "regulation", "legal", "court", "compliance", "enforcement", "privacy", "rights", "law"],
-  medicine: ["clinical", "patient", "trial", "treatment", "health", "safety", "endpoint", "care", "medical"],
-  engineering: ["system", "design", "failure", "reliability", "capacity", "maintenance", "deployment", "infrastructure"],
-  sport_business: ["rights", "sponsorship", "league", "audience", "fans", "tickets", "media", "attendance", "broadcast"],
-  culture_media: ["attention", "audience", "subscriber", "platform", "licensing", "content", "media", "format", "loyalty"]
+  business: [
+    "customer", "pricing", "price", "revenue", "margin", "retention", "distribution", "demand", "churn",
+    "client", "prix", "revenu", "marge", "demande", "fidelisation", "retention"
+  ],
+  finance: [
+    "rate", "risk", "asset", "credit", "loan", "funding", "yield", "market", "capital", "default",
+    "taux", "risque", "actif", "pret", "financement", "rendement", "marche", "capital", "defaut"
+  ],
+  tech_ai: [
+    "ai", "model", "data", "compute", "chip", "platform", "software", "security", "automation",
+    "ia", "modele", "donnees", "calcul", "puce", "plateforme", "logiciel", "securite", "automatisation"
+  ],
+  law: [
+    "rule", "regulation", "legal", "court", "compliance", "enforcement", "privacy", "rights", "law",
+    "regle", "droit", "juridique", "tribunal", "conformite", "application", "confidentialite", "droits", "loi"
+  ],
+  medicine: [
+    "clinical", "patient", "trial", "treatment", "health", "safety", "endpoint", "care", "medical",
+    "clinique", "patient", "essai", "traitement", "sante", "securite", "soin", "medical"
+  ],
+  engineering: [
+    "system", "design", "failure", "reliability", "capacity", "maintenance", "deployment", "infrastructure",
+    "systeme", "conception", "panne", "fiabilite", "capacite", "maintenance", "deploiement"
+  ],
+  sport_business: [
+    "rights", "sponsorship", "league", "audience", "fans", "tickets", "media", "attendance", "broadcast",
+    "droits", "sponsoring", "ligue", "audience", "supporters", "billets", "medias", "affluence", "diffusion"
+  ],
+  culture_media: [
+    "attention", "audience", "subscriber", "platform", "licensing", "content", "media", "format", "loyalty",
+    "abonne", "plateforme", "licence", "contenu", "medias", "format", "fidelite"
+  ]
 };
 
 const ALLOWED_REPEATED_TEMPLATE_SENTENCES = new Set(["source"]);
@@ -179,9 +224,13 @@ export function validateDailyDropQuality(
   payload.items.forEach((item, index) => {
     const path = `items.${index}`;
     issues.push(...validateSampleUrls(item, path, strict || Boolean(options.rssOnly)));
+    issues.push(...validateSourceUrlsComeFromSuppliedMaterial(item, path, sourceByUrl, strict));
+    issues.push(...validateNoSampleSourceMaterial(item, path, sourceByUrl, strict || Boolean(options.rssOnly)));
     issues.push(...validateBodySourceCitations(item, path, sourceByUrl, strict));
     issues.push(...validateItemSourceTopicMatch(item, path, sourceByUrl, strict));
     issues.push(...validateConceptRelevance(item, path, sourceByUrl, strict));
+    issues.push(...validateGenericFiller(item, path, strict));
+    issues.push(...validateTitleReflectsTopic(item, path, sourceByUrl, strict));
   });
 
   issues.push(...validateRepeatedTemplatePhrases(payload, strict));
@@ -381,15 +430,16 @@ function validateDatePresence(item: GeneratedContentItem, path: string): Validat
 
 function validateSampleUrls(item: GeneratedContentItem, path: string, blockSampleUrls: boolean): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
+  const sourceUrls = Array.isArray(item.source_urls) ? item.source_urls : [];
   const urls = [
-    ...(Array.isArray(item.source_urls) ? item.source_urls : []),
+    ...sourceUrls,
     typeof item.body_md === "string" ? item.body_md : ""
   ];
 
   urls.forEach((value, index) => {
     if (containsSampleUrl(value)) {
       issues.push(qualityIssue({
-        path: index < item.source_urls.length ? `${path}.source_urls.${index}` : `${path}.body_md`,
+        path: index < sourceUrls.length ? `${path}.source_urls.${index}` : `${path}.body_md`,
         code: "sample_url_blocked",
         message: "Sample/example.com URLs are not allowed in production-strict or RSS-only mode.",
         strict: blockSampleUrls
@@ -398,6 +448,57 @@ function validateSampleUrls(item: GeneratedContentItem, path: string, blockSampl
   });
 
   return issues;
+}
+
+function validateSourceUrlsComeFromSuppliedMaterial(
+  item: GeneratedContentItem,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  if (sourceByUrl.size === 0 || !Array.isArray(item.source_urls)) {
+    return [];
+  }
+
+  return item.source_urls.flatMap((sourceUrl, index) => {
+    if (sourceByUrl.has(normalizeUrlKey(sourceUrl))) {
+      return [];
+    }
+
+    return [
+      qualityIssue({
+        path: `${path}.source_urls.${index}`,
+        code: "unsupported_source_url",
+        message: "Source URL must come from the supplied ranked article material.",
+        strict
+      })
+    ];
+  });
+}
+
+function validateNoSampleSourceMaterial(
+  item: GeneratedContentItem,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  return knownSourcesForItem(item, sourceByUrl).flatMap((source, index) => {
+    const sourceText = normalizeForPhraseCheck(`${source.publisher} ${source.title} ${source.url}`);
+    const isSampleSource = sourceText.includes("personewsap sample") || sourceText.includes("dry-run");
+
+    if (!isSampleSource) {
+      return [];
+    }
+
+    return [
+      qualityIssue({
+        path: `${path}.source_urls.${index}`,
+        code: "sample_source_material",
+        message: "Sample source material is not allowed in production-strict or RSS-only mode.",
+        strict
+      })
+    ];
+  });
 }
 
 function validateBodySourceCitations(
@@ -540,6 +641,70 @@ function validateConceptRelevance(
   return issues;
 }
 
+function validateGenericFiller(item: GeneratedContentItem, path: string, strict: boolean): ValidationIssue[] {
+  const title = typeof item.title === "string" ? item.title.trim() : "";
+  const body = typeof item.body_md === "string" ? item.body_md.trim() : "";
+  const requiredText = templateTextForItem(item);
+  const normalizedRequiredText = normalizeForPhraseCheck(requiredText);
+  const issues: ValidationIssue[] = [];
+
+  for (const pattern of EMPTY_GENERIC_FILLER_PATTERNS) {
+    if (pattern.test(requiredText)) {
+      issues.push(qualityIssue({
+        path,
+        code: "generic_filler",
+        message: "Generated item contains placeholder or empty generic filler text.",
+        strict
+      }));
+      break;
+    }
+  }
+
+  if (title.length < 8 || body.length < 140 || contentTerms(normalizedRequiredText).length < 8) {
+    issues.push(qualityIssue({
+      path,
+      code: "generic_filler",
+      message: "Generated item is too thin to be production content.",
+      strict
+    }));
+  }
+
+  return issues;
+}
+
+function validateTitleReflectsTopic(
+  item: GeneratedContentItem,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  if (!item.topic || typeof item.title !== "string") {
+    return [];
+  }
+
+  const normalizedTitle = normalizeForTopicMatch(item.title);
+  const anchors = CONCEPT_ANCHORS[item.topic] ?? [];
+  const titleHasTopicAnchor = anchors.some((anchor) => normalizedTitle.includes(normalizeForTopicMatch(anchor)));
+  const titleLooksGeneric = GENERIC_TITLE_PATTERNS.some((pattern) => pattern.test(item.title));
+  const sourceTitleText = knownSourcesForItem(item, sourceByUrl).map((source) => source.title).join(" ");
+  const titleOverlapsSource = keywordOverlap(normalizedTitle, normalizeForPhraseCheck(sourceTitleText)) >= 1;
+
+  if (titleHasTopicAnchor || titleOverlapsSource) {
+    return [];
+  }
+
+  return [
+    qualityIssue({
+      path: `${path}.title`,
+      code: "title_topic_mismatch",
+      message: titleLooksGeneric
+        ? "Title is generic and does not reflect the item topic or supplied source."
+        : "Title should reflect the item topic or supplied source material.",
+      strict
+    })
+  ];
+}
+
 function validateRepeatedTemplatePhrases(payload: DailyDropPayload, strict: boolean): ValidationIssue[] {
   const seen = new Map<string, { path: string; topic: TopicId | null }>();
   const issues: ValidationIssue[] = [];
@@ -599,14 +764,18 @@ function qualityIssue(input: { path: string; code: string; message: string; stri
 function summarizeQualityChecks(issues: ValidationIssue[]): ContentQualityDiagnostics["checks"] {
   const checkCodes = [
     "sample_url_blocked",
+    "sample_source_material",
     "source_url_not_cited",
     "source_date_not_cited",
     "retrieved_date_missing",
     "published_unknown_with_known_date",
     "published_unknown_without_retrieved_date",
+    "unsupported_source_url",
     "source_topic_mismatch",
     "concept_missing_topic_anchor",
     "concept_example_source_mismatch",
+    "generic_filler",
+    "title_topic_mismatch",
     "repeated_template_phrase"
   ];
 
@@ -627,10 +796,16 @@ function bodyIncludesUrl(body: string, sourceUrl: string): boolean {
   }
 
   try {
-    return body.includes(decodeURI(sourceUrl));
+    if (body.includes(decodeURI(sourceUrl))) {
+      return true;
+    }
   } catch {
-    return false;
+    // Fall through to normalized URL matching.
   }
+
+  const normalizedSource = normalizeUrlKey(sourceUrl);
+  const bodyUrls = Array.from(body.matchAll(/https?:\/\/[^\s)\]]+/gi)).map((match) => normalizeUrlKey(match[0]));
+  return bodyUrls.includes(normalizedSource);
 }
 
 function containsSampleUrl(value: string): boolean {
@@ -650,10 +825,22 @@ function normalizeUrlKey(value: string): string {
   try {
     const url = new URL(value);
     url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    for (const param of Array.from(url.searchParams.keys())) {
+      if (isTrackingParam(param)) {
+        url.searchParams.delete(param);
+      }
+    }
+    url.searchParams.sort();
     return url.toString().replace(/\/$/, "");
   } catch {
     return value.trim().replace(/\/$/, "");
   }
+}
+
+function isTrackingParam(param: string): boolean {
+  const normalized = param.toLowerCase();
+  return normalized.startsWith("utm_") || ["fbclid", "gclid", "mc_cid", "mc_eid", "igshid"].includes(normalized);
 }
 
 function keywordOverlap(left: string, right: string): number {
@@ -677,6 +864,12 @@ function contentTerms(value: string): string[] {
         .filter((term) => !["source", "published", "retrieved", "their", "there", "about", "would"].includes(term))
     )
   );
+}
+
+function normalizeForTopicMatch(value: string): string {
+  return normalizeForPhraseCheck(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function extractSentences(value: string): string[] {

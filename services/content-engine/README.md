@@ -36,6 +36,7 @@ Test/no-write commands:
 npm run check
 npm run build
 npm run dry-run
+npm run quality-proof
 LIVE_RSS=true OPENAI_API_KEY=... npm run llm-run
 ALLOW_SAMPLE_CONTENT=true OPENAI_API_KEY=... npm run llm-run
 ```
@@ -44,6 +45,7 @@ Read-only diagnostic:
 
 ```sh
 npm run debug-users
+npm run health
 ```
 
 Dangerous write commands for local/disposable/staging projects:
@@ -60,6 +62,8 @@ Production scheduler command:
 
 ```sh
 npm run daily-job
+npm run prod-dry-run
+npm run prod-run
 npm run job-health
 ```
 
@@ -68,6 +72,10 @@ npm run job-health
 `daily-job` is the production scheduler entrypoint. Use `DRY_RUN=true` for a no-write rehearsal; write mode requires server-side Supabase service-role credentials.
 
 `job-health` is the read-only operator check for rows stored in `public.job_runs`. It requires server-side Supabase credentials and prints RSS, LLM, validation, storage, assignment, and cost-estimate health.
+
+`prod-dry-run` sets the production RSS/LLM source controls with `DRY_RUN=true`. It still requires `OPENAI_API_KEY`, but it never writes to Supabase.
+
+`prod-run` sets the required production write controls (`PRODUCTION_DAILY_JOB=true`, `DRY_RUN=false`, `LIVE_RSS=true`, `LIVE_RSS_ONLY=true`, `USE_LLM=true`, `CONTENT_STATUS=published`). It still refuses to run unless server-side Supabase service-role credentials and `OPENAI_API_KEY` are present.
 
 The default dry run uses bundled sample articles, including a duplicate URL variant, then runs the normal pipeline:
 
@@ -454,6 +462,14 @@ RSS_ARTICLES_PER_SOURCE=1 \
 npm run daily-job
 ```
 
+Production-shaped no-write proof:
+
+```sh
+OPENAI_API_KEY=... \
+LANGUAGES=fr,en \
+npm run prod-dry-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
+```
+
 Production-like write run:
 
 ```sh
@@ -468,6 +484,16 @@ OPENAI_API_KEY=... \
 LIVE_RSS=true \
 LIVE_RSS_ONLY=true \
 npm run daily-job
+```
+
+Equivalent guarded wrapper:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+OPENAI_API_KEY=... \
+LANGUAGES=fr,en \
+npm run prod-run
 ```
 
 Non-dry `daily-job` refuses to run unless all production gates are present: `PRODUCTION_DAILY_JOB=true`, `DRY_RUN=false`, `LIVE_RSS=true`, `LIVE_RSS_ONLY=true`, `USE_LLM=true`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY`. It also refuses sample content and strict validation failures before persistence.
@@ -496,7 +522,9 @@ Safety behavior:
 - assignment uses only app `profiles`, `user_preferences`, and enabled `user_topic_preferences`; newsletter-only users are not selected.
 - assignment uses the generated drop matching the user's profile language.
 
-The JSON summary reports `runId`, `operatorSummary`, fetched, processed, generated, stored, users considered, users assigned, failures, skipped users before assignment, incomplete selections, stale item links removed, and duplicate input links skipped. Daily-drop assignment is idempotent by user/date: reruns update existing `daily_drops` and replace `daily_drop_items` by slot/position. Content item rows are currently inserted per generation run, so operators should use `runId` metadata to inspect reruns.
+The JSON summary reports `runId`, `operatorSummary`, `metrics`, fetched, processed, generated, stored, users considered, users assigned, failures, skipped users before assignment, incomplete selections, stale item links removed, duplicate input links skipped, validation failures by rule, and cost-estimate availability. Daily-drop assignment is idempotent by user/date: reruns update existing `daily_drops` and replace `daily_drop_items` by slot/position. Content item rows are currently inserted per generation run, so operators should use `runId` metadata to inspect reruns.
+
+Use [../../BACKEND_OPERATIONS.md](../../BACKEND_OPERATIONS.md) for the production runbook, rollback plan, partial-language playbook, and SQL verification queries.
 
 ## Daily Job Test
 

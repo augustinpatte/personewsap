@@ -22,8 +22,10 @@ import {
 import { tokens } from "../../src/design/tokens";
 import { fetchLibraryDrops, type LibraryDropSummary, type LibraryItemSummary } from "../../src/features/library";
 import type { ContentType } from "../../src/features/today";
+import { trackAnalyticsEvent } from "../../src/lib/analytics";
 import type { DataFallbackReason, DataFetchSource } from "../../src/lib/dataState";
 import { getAuthSession, type NormalizedSupabaseError } from "../../src/lib/supabase";
+import { getUserFacingError } from "../../src/lib/userFacingErrors";
 import { mockLibraryDrops, mockLibraryItems } from "../../src/mocks";
 
 type ContentFilterId = "all" | "newsletter" | "business_story" | "mini_case" | "concept";
@@ -145,6 +147,12 @@ export default function LibraryScreen() {
       isMounted = false;
     };
   }, [loadLibraryDrops]);
+
+  useEffect(() => {
+    if (loadState.status === "ready" && loadState.error) {
+      trackAnalyticsEvent("error_viewed");
+    }
+  }, [loadState.error, loadState.status]);
 
   const libraryDrops = loadState.drops;
   const libraryItems = useMemo(() => getItemsForDrops(libraryDrops), [libraryDrops]);
@@ -353,37 +361,55 @@ function LibraryDataStateBanner({
   }
 
   if (loadState.fallbackReason === "network_unavailable") {
+    const userFacingError = getUserFacingError(
+      loadState.error,
+      loadState.drops[0]?.language ?? "en",
+      "library"
+    );
+
     return (
       <DataModeBanner
         actionLabel="Retry live archive"
-        description="The network is unavailable, so the app is showing clearly labeled preview archive content."
+        description={`${userFacingError.message} The app is showing preview archive content for now.`}
         mode="preview"
         onActionPress={onRetry}
-        title="You appear to be offline"
+        title={userFacingError.title}
       />
     );
   }
 
   if (loadState.fallbackReason === "supabase_error") {
+    const userFacingError = getUserFacingError(
+      loadState.error,
+      loadState.drops[0]?.language ?? "en",
+      "library"
+    );
+
     return (
       <DataModeBanner
         actionLabel="Retry live archive"
-        description={`Live archive could not be reached, so the app is showing a built-in preview archive. ${loadState.error?.message ?? ""}`.trim()}
+        description={`${userFacingError.message} The app is showing preview archive content for now.`}
         mode="preview"
         onActionPress={onRetry}
-        title="Preview archive"
+        title={userFacingError.title}
       />
     );
   }
 
   if (loadState.fallbackReason === "missing_supabase_config") {
+    const userFacingError = getUserFacingError(
+      loadState.error,
+      loadState.drops[0]?.language ?? "en",
+      "library"
+    );
+
     return (
       <DataModeBanner
         actionLabel="Retry live archive"
-        description="Preview archive content is shown for tester walkthroughs. Developer/Test info: configure the public live-data env vars to load assigned archived drops."
+        description={`${userFacingError.message} The app is showing preview archive content for now.`}
         mode="preview"
         onActionPress={onRetry}
-        title="Live Library data is not configured"
+        title={userFacingError.title}
       />
     );
   }

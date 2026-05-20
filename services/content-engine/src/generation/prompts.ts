@@ -10,7 +10,11 @@ export const CONTENT_GUARDRAILS = [
   "Do not reuse stock transitions such as 'This matters because...', 'the useful question is not whether...', or 'the headline is loud'.",
   "Vary the shape of each item. Cover the required editorial beats, but do not make every article follow the same paragraph rhythm.",
   "Every factual claim must be grounded in supplied sources. Include source URLs and dates; never invent authors, institutions, numbers, quotes, or links.",
+  "Source URLs must be copied exactly from the supplied allowed_source_urls list. Do not add tracking parameters, example.com links, publisher homepages, or guessed article URLs.",
+  "Every body_md must include one source/date line using ISO dates: Source: Publisher, published YYYY-MM-DD, retrieved YYYY-MM-DD. https://exact-source-url",
+  "If a source has published_at, use that exact YYYY-MM-DD date and never write published unknown. If published_at is missing, cite the retrieved YYYY-MM-DD date instead.",
   "FR and EN versions must carry the same facts, sources, dates, angle, and depth while sounding natural in each language.",
+  "For French output, keep the source/date line structurally identical with ISO dates and the exact URL; do not translate or reformat the date.",
   "For legal, medical, and financial topics, explain facts, incentives, uncertainty, and context. Do not give individualized advice, diagnosis, treatment, or buy/sell instructions."
 ];
 
@@ -22,6 +26,7 @@ export const EDITORIAL_PROMPT = [
   "Return structured JSON only. Do not add prose outside the JSON object.",
   "Use the requested language exactly: fr or en.",
   "Use only the supplied source material. If the source set is too weak, return a validation-friendly draft that names the missing evidence instead of making unsupported claims.",
+  "Never use example.com, sample sources, invented links, unsupported dates, or unsupported categories.",
   ...CONTENT_GUARDRAILS
 ].join("\n");
 
@@ -34,6 +39,7 @@ export const CONTENT_TYPE_PROMPTS = {
     "- The implication should say who has more leverage, who loses options, what budget/timeline/default changes, or what decision gets harder.",
     "- The observable signal must be concrete: churn, renewals, filings, guidance, adoption, safety data, funding costs, deadlines, usage, or behavior.",
     "- Include title, topic, language, published_date, summary, body_md, why_it_matters, source_urls, and version.",
+    "- source_urls must contain only exact URLs supplied to you. body_md must repeat the exact URL and source date.",
     "- The angle must match the topic. Do not stretch a culture story into finance or a medicine story into business.",
     "- Keep the tone direct and useful; no generic transition sentences or meta-commentary about headlines."
   ].join("\n"),
@@ -45,6 +51,7 @@ export const CONTENT_TYPE_PROMPTS = {
     "- Name the observable signal that would prove the strategy is working or failing.",
     "- Favor pricing power, distribution, regulation, incentives, operational leverage, market entry, or trust mechanics.",
     "- Use dates and sources. Distinguish known facts from interpretation.",
+    "- source_urls must contain only exact URLs supplied to you. body_md must repeat the exact URL and source date.",
     "- Do not provide investment recommendations."
   ].join("\n"),
   mini_case: [
@@ -54,6 +61,7 @@ export const CONTENT_TYPE_PROMPTS = {
     "- The sample answer should separate facts from judgment, make one recommendation, and name the observable signal that would change the answer.",
     "- Frame the case like an internship brief: what decision is on the table, what constraint matters, and what evidence is still missing.",
     "- Use source-backed facts only. Avoid pretending the user has private data.",
+    "- source_urls must contain only exact URLs supplied to you. body_md must repeat the exact URL and source date.",
     "- Keep difficulty realistic for an ambitious student or junior analyst."
   ].join("\n"),
   quick_quiz: [
@@ -68,10 +76,13 @@ export const CONTENT_TYPE_PROMPTS = {
     "Key concept:",
     "- Teach one reusable idea in 180-280 words.",
     "- Include definition, plain_english, example, why_it_matters, how_to_use_it, common_mistake, source_urls, and version.",
+    "- category must match the selected topic unless the concept is truly a career skill. For sourced topic concepts, prefer the topic category.",
+    "- Title and explanation must contain a clear topic anchor, including FR anchors when writing French: prix/client/marge for business, taux/risque/capital for finance, IA/donnees/modele for tech_ai, droit/regle/conformite for law, patient/sante/traitement for medicine, systeme/fiabilite/capacite for engineering, droits/audience/diffusion for sport_business, audience/plateforme/contenu for culture_media.",
     "- Explain the concept as a tool for judgment: what it helps the reader notice, decide, or challenge.",
     "- Include one observable signal that shows the concept is present in the real world.",
     "- Make the concept useful in a conversation, class, interview, internship, or project.",
     "- Connect the example to supplied sources and dates.",
+    "- source_urls must contain only exact URLs supplied to you. body_md must repeat the exact URL and source date.",
     "- Avoid textbook padding; explain how to use the concept under real constraints."
   ].join("\n")
 } as const;

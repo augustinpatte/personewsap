@@ -104,6 +104,24 @@ export function runQualityProof(): QualityProofOutput {
       withNewsletterSourceUrl("https://example.com/sample-source"),
       ["sample_url_blocked"],
       [FINANCE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "source URL was not supplied to the model",
+      withNewsletterSourceUrl("https://www.other-publisher.test/markets/oil-price-risk"),
+      ["unsupported_source_url"],
+      [FINANCE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "generic title does not reflect topic or source",
+      withNewsletterTitle("Generic update"),
+      ["title_topic_mismatch"],
+      [FINANCE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "placeholder filler is not production content",
+      withNewsletterGenericFiller(),
+      ["generic_filler"],
+      [FINANCE_SOURCE, TECH_SOURCE]
     )
   ];
 
@@ -122,7 +140,7 @@ function expectSanitizedAccepted(): QualityProofOutput["sanitized_examples"][num
     ...unsanitized.items[0],
     body_md:
       "Oil prices rose after a supply disruption changed inflation and market risk expectations. The finance implication is market risk, funding cost pressure, and capital allocation discipline for operators deciding whether this is a temporary shock or a budget constraint.",
-    source_urls: ["https://not-supplied.test/source"]
+    source_urls: [`${FINANCE_SOURCE_URL}/?utm_source=llm#summary`]
   } as GeneratedContentItem;
   unsanitized.items[1] = {
     ...unsanitized.items[1],
@@ -349,6 +367,28 @@ function withNewsletterBody(body: string): DailyDropPayload {
 function withNewsletterSourceUrl(sourceUrl: string): DailyDropPayload {
   const payload = basePayload();
   payload.items[0] = newsletterItem(sourceUrl);
+  return payload;
+}
+
+function withNewsletterTitle(title: string): DailyDropPayload {
+  const payload = basePayload();
+  payload.items[0] = {
+    ...payload.items[0],
+    title
+  } as GeneratedContentItem;
+  return payload;
+}
+
+function withNewsletterGenericFiller(): DailyDropPayload {
+  const payload = basePayload();
+  payload.items[0] = {
+    ...payload.items[0],
+    summary: "Placeholder content for a finance article.",
+    body_md: [
+      "Placeholder content says very little about the actual finance mechanism, market risk, source fact, or decision owner.",
+      `Source: Reputable Markets Desk, published ${SOURCE_DATE}, retrieved ${RETRIEVED_DATE}. ${FINANCE_SOURCE_URL}`
+    ].join("\n\n")
+  } as GeneratedContentItem;
   return payload;
 }
 

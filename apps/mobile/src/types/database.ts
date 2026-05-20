@@ -96,6 +96,7 @@ export type Database = {
           frequency: PreferenceFrequency;
           newsletter_article_count: number;
           notifications_enabled: boolean;
+          preferred_notification_time: string;
           email_enabled: boolean;
           created_at: string;
           updated_at: string;
@@ -106,6 +107,7 @@ export type Database = {
           frequency?: PreferenceFrequency;
           newsletter_article_count?: number;
           notifications_enabled?: boolean;
+          preferred_notification_time?: string;
           email_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -116,7 +118,40 @@ export type Database = {
           frequency?: PreferenceFrequency;
           newsletter_article_count?: number;
           notifications_enabled?: boolean;
+          preferred_notification_time?: string;
           email_enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+      push_tokens: TableDefinition<
+        {
+          id: string;
+          user_id: string;
+          expo_push_token: string;
+          platform: "ios" | "android" | "web" | "unknown";
+          enabled: boolean;
+          last_registered_at: string;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          user_id: string;
+          expo_push_token: string;
+          platform?: "ios" | "android" | "web" | "unknown";
+          enabled?: boolean;
+          last_registered_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          user_id?: string;
+          expo_push_token?: string;
+          platform?: "ios" | "android" | "web" | "unknown";
+          enabled?: boolean;
+          last_registered_at?: string;
           created_at?: string;
           updated_at?: string;
         }

@@ -1,4 +1,5 @@
 export { AppScreen, AppScreenBody, AppScreenFooter, AppScreenHeader } from "./AppScreen";
+export { AppErrorBoundary } from "./AppErrorBoundary";
 export { AppText } from "./AppText";
 export { Card } from "./Card";
 export { DataModeBanner } from "./DataModeBanner";

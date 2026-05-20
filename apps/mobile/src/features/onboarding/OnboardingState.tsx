@@ -7,41 +7,34 @@ import {
   type PropsWithChildren
 } from "react";
 
-import type { GoalId, Language, PreferenceFrequency, TopicId } from "../../types/domain";
+import type { Language, TopicId } from "../../types/domain";
+import { clampNewsletterArticleCount, isNewsletterTopicId } from "./options";
 
 export type OnboardingState = {
   language: Language | null;
-  goal: GoalId | null;
   selectedTopics: TopicId[];
   articlesPerTopic: Partial<Record<TopicId, number>>;
-  frequency: PreferenceFrequency;
   placeholderSaved: boolean;
 };
 
 type OnboardingContextValue = {
   state: OnboardingState;
   setLanguage: (language: Language) => void;
-  setGoal: (goal: GoalId) => void;
   toggleTopic: (topicId: TopicId) => void;
   setArticleCount: (topicId: TopicId, count: number) => void;
-  setFrequency: (frequency: PreferenceFrequency) => void;
   savePlaceholder: () => void;
 };
 
 type OnboardingAction =
   | { type: "setLanguage"; language: Language }
-  | { type: "setGoal"; goal: GoalId }
   | { type: "toggleTopic"; topicId: TopicId }
   | { type: "setArticleCount"; topicId: TopicId; count: number }
-  | { type: "setFrequency"; frequency: PreferenceFrequency }
   | { type: "savePlaceholder" };
 
 const initialState: OnboardingState = {
   language: null,
-  goal: null,
   selectedTopics: [],
   articlesPerTopic: {},
-  frequency: "daily",
   placeholderSaved: false
 };
 
@@ -54,9 +47,11 @@ function onboardingReducer(
   switch (action.type) {
     case "setLanguage":
       return { ...state, language: action.language };
-    case "setGoal":
-      return { ...state, goal: action.goal };
     case "toggleTopic": {
+      if (!isNewsletterTopicId(action.topicId)) {
+        return state;
+      }
+
       const isSelected = state.selectedTopics.includes(action.topicId);
 
       if (isSelected) {
@@ -80,15 +75,17 @@ function onboardingReducer(
       };
     }
     case "setArticleCount":
+      if (!isNewsletterTopicId(action.topicId)) {
+        return state;
+      }
+
       return {
         ...state,
         articlesPerTopic: {
           ...state.articlesPerTopic,
-          [action.topicId]: Math.min(Math.max(action.count, 1), 3)
+          [action.topicId]: clampNewsletterArticleCount(action.count)
         }
       };
-    case "setFrequency":
-      return { ...state, frequency: action.frequency };
     case "savePlaceholder":
       return { ...state, placeholderSaved: true };
     default:
@@ -103,20 +100,12 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
     dispatch({ type: "setLanguage", language });
   }, []);
 
-  const setGoal = useCallback((goal: GoalId) => {
-    dispatch({ type: "setGoal", goal });
-  }, []);
-
   const toggleTopic = useCallback((topicId: TopicId) => {
     dispatch({ type: "toggleTopic", topicId });
   }, []);
 
   const setArticleCount = useCallback((topicId: TopicId, count: number) => {
     dispatch({ type: "setArticleCount", topicId, count });
-  }, []);
-
-  const setFrequency = useCallback((frequency: PreferenceFrequency) => {
-    dispatch({ type: "setFrequency", frequency });
   }, []);
 
   const savePlaceholder = useCallback(() => {
@@ -127,13 +116,11 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
     () => ({
       state,
       setLanguage,
-      setGoal,
       toggleTopic,
       setArticleCount,
-      setFrequency,
       savePlaceholder
     }),
-    [savePlaceholder, setArticleCount, setFrequency, setGoal, setLanguage, state, toggleTopic]
+    [savePlaceholder, setArticleCount, setLanguage, state, toggleTopic]
   );
 
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;

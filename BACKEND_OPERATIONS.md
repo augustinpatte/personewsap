@@ -2,6 +2,81 @@
 
 Daily operator guide for the PersoNewsAP content backend.
 
+## Production Env Contract
+
+Non-dry production writes must have all of these set:
+
+- `PRODUCTION_DAILY_JOB=true`
+- `DRY_RUN=false`
+- `LIVE_RSS=true`
+- `LIVE_RSS_ONLY=true`
+- `USE_LLM=true`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `OPENAI_API_KEY`
+
+Recommended operator env:
+
+- `LANGUAGES=fr,en`
+- `CONTENT_STATUS=published`
+- `OPENAI_REQUEST_TIMEOUT_MS=120000`
+- `OPENAI_INPUT_COST_PER_1M_TOKENS`
+- `OPENAI_OUTPUT_COST_PER_1M_TOKENS`
+
+Optional controls:
+
+- `RUN_ID=...` to make an operator-selected id visible in `job_runs`.
+- `STRICT_ALL_LANGUAGES=true` to fail the whole command if either FR or EN fails.
+- `USER_LIMIT=...` only for staging or controlled rollout.
+
+Never put service-role or OpenAI keys in Expo, Vite, or mobile env files.
+
+## Operator Workflow
+
+1. Prove schema and RLS before touching content:
+
+```sh
+npm run supabase:doctor -- --live
+```
+
+2. Prove production-shaped generation without writes:
+
+```sh
+OPENAI_API_KEY="..." \
+LANGUAGES=fr,en \
+npm run content:prod-dry-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
+```
+
+3. Confirm the dry-run JSON has:
+
+- `dryRun: true`
+- `sourceMode: "rss"`
+- `sampleContentEnabled: false`
+- `status: "completed"` or an understood `partial_failed`
+- nonzero `operatorSummary.generated`
+- zero `operatorSummary.stored`
+- zero `operatorSummary.assigned`
+
+4. Run the production write only from a server-side terminal:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+OPENAI_API_KEY="<openai-key>" \
+LANGUAGES=fr,en \
+npm run content:prod-run
+```
+
+5. Check health without reading the full job logs:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npm run content:health -- --date "$(date +%F)" --limit 3
+```
+
+6. Treat the run as complete only when `content:health` reports `status: "ok"` or a reviewed `status: "warning"` with an accepted reason.
+
 ## Stored Metrics
 
 Production-shaped `daily-job` and `daily-job-test` runs write one row to `public.job_runs`.
@@ -50,6 +125,7 @@ npm run content:job-health -- --date "$(date +%F)" --limit 5
 3. Treat `status: "ok"` as healthy.
 4. Treat `status: "warning"` as requiring review before the next run.
 5. Treat `status: "critical"` as a page/manual intervention.
+6. If `latestRun.status` is `partial_failed`, read `latestRun.operator_summary.failed_languages` and follow the language failure playbook below.
 
 ## Example Health Output
 
@@ -88,6 +164,36 @@ Check these first:
 - Validation failures: inspect `job_runs.metrics.validation_failures_by_rule` and the failed language entry in command output.
 - Assignment warnings: inspect `assigned_users`, skipped users, and whether users have completed onboarding preferences.
 
+## FR/EN Failure Playbook
+
+If FR fails and EN succeeds, or EN fails and FR succeeds:
+
+1. Do not rerun both languages immediately.
+2. Check `content:health` for `operator_summary.failed_languages`, `operator_summary.failed_topics`, `metrics.rss_failed`, and `metrics.validation_failures_by_rule`.
+3. If RSS coverage failed for one language, run a no-write proof for that language and fewer topics:
+
+```sh
+OPENAI_API_KEY="..." \
+LANGUAGES=fr \
+npm run content:prod-dry-run -- --topics business,finance --newsletter-count 1
+```
+
+4. If the proof passes and the successful language already assigned users, rerun only the failed language with a new run id:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+OPENAI_API_KEY="<openai-key>" \
+RUN_ID="daily-job-$(date +%F)-fr-rerun-1" \
+LANGUAGES=fr \
+npm run content:prod-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
+```
+
+5. If the failure is validation quality, do not publish a workaround. Fix prompts/validation or hold that language's daily drop.
+6. If `STRICT_ALL_LANGUAGES=true` is set, any language failure exits as `failed`; use it when operations prefer no partial daily drop.
+
+`partial_failed` is a warning state. It means at least one language completed and at least one language failed. The command may still exit successfully, so monitoring must check `job_runs.status` or `content:health`, not only process exit code.
+
 ## Production Run Command
 
 Production writes require explicit flags and server-side secrets:
@@ -114,6 +220,105 @@ OPENAI_OUTPUT_COST_PER_1M_TOKENS=1.60
 ```
 
 The token counts are character-based estimates, not provider billing truth. If the provider later exposes token usage, replace the estimate with actual usage.
+
+## Verify Job Runs
+
+Preferred command:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npm run content:health -- --date "$(date +%F)" --limit 5
+```
+
+Read the compact fields first:
+
+- `latestRun.run_id`
+- `latestRun.status`
+- `latestRun.operator_summary.generated`
+- `latestRun.operator_summary.stored`
+- `latestRun.operator_summary.assigned`
+- `latestRun.operator_summary.failed_languages`
+- `latestRun.operator_summary.failed_topics`
+- `latestRun.metrics.validation_failures_by_rule`
+- `latestRun.metrics.estimated_cost_reason`
+
+If SQL access is needed, use a read-only select:
+
+```sql
+select
+  run_id,
+  status,
+  run_date,
+  languages,
+  topics,
+  operator_summary,
+  metrics,
+  completed_at
+from public.job_runs
+where run_date = current_date
+order by created_at desc
+limit 5;
+```
+
+## Verify Assigned Daily Drops
+
+Use a read-only count after a production run:
+
+```sql
+select
+  language,
+  status,
+  count(*) as drops
+from public.daily_drops
+where drop_date = current_date
+group by language, status
+order by language, status;
+```
+
+Then verify every assigned drop has the required slots:
+
+```sql
+select
+  d.language,
+  d.status,
+  count(distinct d.id) as drops,
+  count(i.*) filter (where i.slot = 'newsletter') as newsletter_links,
+  count(i.*) filter (where i.slot = 'business_story') as business_story_links,
+  count(i.*) filter (where i.slot = 'mini_case') as mini_case_links,
+  count(i.*) filter (where i.slot = 'concept') as concept_links
+from public.daily_drops d
+left join public.daily_drop_items i on i.daily_drop_id = d.id
+where d.drop_date = current_date
+group by d.language, d.status
+order by d.language, d.status;
+```
+
+## Rollback Plan
+
+If a production run is bad:
+
+1. Pause the scheduler or remove the cron trigger.
+2. Save the bad `run_id` from `content:health`.
+3. Do not delete rows first. Deletion makes diagnosis harder.
+4. Mark affected `daily_drops` as `archived` for the run date/language, or restore the previous known-good drop if one exists.
+5. Mark affected `content_items` as `archived` only after confirming they came from the bad `scheduler_run_id`.
+6. Re-run `content:health` and the assigned-drop SQL checks.
+7. Re-enable the scheduler only after a no-write `content:prod-dry-run` passes.
+
+Example archive shape, to adapt manually in Supabase SQL editor:
+
+```sql
+-- Review ids first.
+select id, user_id, language, status
+from public.daily_drops
+where drop_date = current_date and language = 'fr';
+
+-- Only after review.
+update public.daily_drops
+set status = 'archived'
+where drop_date = current_date and language = 'fr';
+```
 
 ## Stop Conditions
 

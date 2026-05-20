@@ -1,14 +1,17 @@
 import { normalizeSupabaseError, supabase } from "../../lib/supabase";
 import type { NormalizedSupabaseError } from "../../lib/supabase";
-import type { GoalId, Language, PreferenceFrequency, TopicId } from "../../types/domain";
-import { TOPIC_OPTIONS } from "../onboarding/options";
+import { localized } from "../../lib/i18n";
+import type { Language, TopicId } from "../../types/domain";
+import {
+  clampNewsletterArticleCount,
+  normalizeNewsletterTopics,
+  TOPIC_OPTIONS
+} from "../onboarding/options";
 
 export type EditablePreferences = {
   language: Language;
-  goal: GoalId;
   selectedTopics: TopicId[];
   articlesPerTopic: Partial<Record<TopicId, number>>;
-  frequency: PreferenceFrequency;
 };
 
 type PreferencesResult =
@@ -21,19 +24,34 @@ type SavePreferencesResult =
 
 const DEFAULT_PREFERENCES: EditablePreferences = {
   language: "en",
-  goal: "understand_world",
   selectedTopics: [],
-  articlesPerTopic: {},
-  frequency: "daily"
+  articlesPerTopic: {}
 };
 
-export async function loadEditablePreferences(userId: string): Promise<PreferencesResult> {
+export async function loadEditablePreferences(
+  userId: string,
+  uiLanguage: Language | null = null
+): Promise<PreferencesResult> {
+  const loadErrorMessage = localized(
+    {
+      en: "Could not load your preferences.",
+      fr: "Impossible de charger tes préférences."
+    },
+    uiLanguage
+  );
+
   if (!supabase) {
     return {
       ok: false,
       error: {
         code: "missing_supabase_config",
-        message: "Live account preferences are not configured for this build."
+        message: localized(
+          {
+            en: "Live account preferences are not configured for this build.",
+            fr: "Les préférences de compte live ne sont pas configurées pour cette version."
+          },
+          uiLanguage
+        )
       }
     };
   }
@@ -46,17 +64,7 @@ export async function loadEditablePreferences(userId: string): Promise<Preferenc
       .maybeSingle();
 
     if (profileError) {
-      return { ok: false, error: normalizeSupabaseError(profileError) };
-    }
-
-    const { data: userPreferences, error: preferencesError } = await supabase
-      .from("user_preferences")
-      .select("goal, frequency, newsletter_article_count")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (preferencesError) {
-      return { ok: false, error: normalizeSupabaseError(preferencesError) };
+      return { ok: false, error: normalizeSupabaseError(profileError, loadErrorMessage) };
     }
 
     const { data: topicPreferences, error: topicPreferencesError } = await supabase
@@ -66,7 +74,7 @@ export async function loadEditablePreferences(userId: string): Promise<Preferenc
       .order("position", { ascending: true, nullsFirst: false });
 
     if (topicPreferencesError) {
-      return { ok: false, error: normalizeSupabaseError(topicPreferencesError) };
+      return { ok: false, error: normalizeSupabaseError(topicPreferencesError, loadErrorMessage) };
     }
 
     const selectedTopics =
@@ -76,7 +84,7 @@ export async function loadEditablePreferences(userId: string): Promise<Preferenc
     const articlesPerTopic = Object.fromEntries(
       topicPreferences?.map((preference) => [
         preference.topic_id,
-        clampArticleCount(preference.articles_count)
+        clampNewsletterArticleCount(preference.articles_count)
       ]) ?? []
     ) as Partial<Record<TopicId, number>>;
 
@@ -84,8 +92,6 @@ export async function loadEditablePreferences(userId: string): Promise<Preferenc
       ok: true,
       preferences: normalizeEditablePreferences({
         language: profile?.language ?? DEFAULT_PREFERENCES.language,
-        goal: userPreferences?.goal ?? DEFAULT_PREFERENCES.goal,
-        frequency: userPreferences?.frequency ?? DEFAULT_PREFERENCES.frequency,
         selectedTopics,
         articlesPerTopic
       })
@@ -93,7 +99,7 @@ export async function loadEditablePreferences(userId: string): Promise<Preferenc
   } catch (error) {
     return {
       ok: false,
-      error: normalizeSupabaseError(error, "Could not load your preferences.")
+      error: normalizeSupabaseError(error, loadErrorMessage)
     };
   }
 }
@@ -107,7 +113,13 @@ export async function saveEditablePreferences(
       ok: false,
       error: {
         code: "missing_supabase_config",
-        message: "Live account preferences are not configured for this build."
+        message: localized(
+          {
+            en: "Live account preferences are not configured for this build.",
+            fr: "Les préférences de compte live ne sont pas configurées pour cette version."
+          },
+          preferences.language
+        )
       }
     };
   }
@@ -119,7 +131,13 @@ export async function saveEditablePreferences(
       ok: false,
       error: {
         code: "missing_topics",
-        message: "Choose at least one topic before saving preferences."
+        message: localized(
+          {
+            en: "Choose at least one practical-case category before saving preferences.",
+            fr: "Choisis au moins une catégorie mini-cas avant d'enregistrer les préférences."
+          },
+          normalized.language
+        )
       }
     };
   }
@@ -131,23 +149,46 @@ export async function saveEditablePreferences(
       .eq("id", userId);
 
     if (profileResult.error) {
-      return { ok: false, error: normalizeSupabaseError(profileResult.error) };
+      return {
+        ok: false,
+        error: normalizeSupabaseError(
+          profileResult.error,
+          localized(
+            {
+              en: "Could not save your profile.",
+              fr: "Impossible d'enregistrer ton profil."
+            },
+            normalized.language
+          )
+        )
+      };
     }
 
     const newsletterArticleCount = normalized.selectedTopics.reduce(
-      (total, topicId) => total + (normalized.articlesPerTopic[topicId] ?? 1),
+      (total, topicId) =>
+        total + clampNewsletterArticleCount(normalized.articlesPerTopic[topicId] ?? 1),
       0
     );
 
     const userPreferencesResult = await supabase.from("user_preferences").upsert({
       user_id: userId,
-      goal: normalized.goal,
-      frequency: normalized.frequency,
       newsletter_article_count: newsletterArticleCount
     });
 
     if (userPreferencesResult.error) {
-      return { ok: false, error: normalizeSupabaseError(userPreferencesResult.error) };
+      return {
+        ok: false,
+        error: normalizeSupabaseError(
+          userPreferencesResult.error,
+          localized(
+            {
+              en: "Could not save your preferences.",
+              fr: "Impossible d'enregistrer tes préférences."
+            },
+            normalized.language
+          )
+        )
+      };
     }
 
     const selectedTopicIds = new Set(normalized.selectedTopics);
@@ -157,7 +198,9 @@ export async function saveEditablePreferences(
       return {
         user_id: userId,
         topic_id: topic.id,
-        articles_count: enabled ? normalized.articlesPerTopic[topic.id] ?? 1 : 1,
+        articles_count: enabled
+          ? clampNewsletterArticleCount(normalized.articlesPerTopic[topic.id] ?? 1)
+          : 1,
         enabled,
         position: enabled ? normalized.selectedTopics.indexOf(topic.id) + 1 : index + 1
       };
@@ -168,22 +211,41 @@ export async function saveEditablePreferences(
       .upsert(topicPreferenceRows, { onConflict: "user_id,topic_id" });
 
     if (topicPreferencesResult.error) {
-      return { ok: false, error: normalizeSupabaseError(topicPreferencesResult.error) };
+      return {
+        ok: false,
+        error: normalizeSupabaseError(
+          topicPreferencesResult.error,
+          localized(
+            {
+              en: "Could not save your practical-case interests.",
+              fr: "Impossible d'enregistrer tes intérêts mini-cas."
+            },
+            normalized.language
+          )
+        )
+      };
     }
 
     return { ok: true };
   } catch (error) {
     return {
       ok: false,
-      error: normalizeSupabaseError(error, "Could not save your preferences.")
+      error: normalizeSupabaseError(
+        error,
+        localized(
+          {
+            en: "Could not save your preferences.",
+            fr: "Impossible d'enregistrer tes préférences."
+          },
+          normalized.language
+        )
+      )
     };
   }
 }
 
 export function normalizeEditablePreferences(preferences: EditablePreferences): EditablePreferences {
-  const selectedTopics = preferences.selectedTopics.filter(
-    (topicId, index, topics) => topics.indexOf(topicId) === index
-  );
+  const selectedTopics = normalizeNewsletterTopics(preferences.selectedTopics);
 
   return {
     ...preferences,
@@ -191,12 +253,8 @@ export function normalizeEditablePreferences(preferences: EditablePreferences): 
     articlesPerTopic: Object.fromEntries(
       selectedTopics.map((topicId) => [
         topicId,
-        clampArticleCount(preferences.articlesPerTopic[topicId] ?? 1)
+        clampNewsletterArticleCount(preferences.articlesPerTopic[topicId] ?? 1)
       ])
     ) as Partial<Record<TopicId, number>>
   };
-}
-
-function clampArticleCount(count: number) {
-  return Math.min(Math.max(count, 1), 3);
 }

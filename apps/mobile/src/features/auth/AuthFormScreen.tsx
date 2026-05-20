@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +16,11 @@ import {
   PrimaryButton,
   SecondaryButton
 } from "../../components";
+import { trackAnalyticsEvent } from "../../lib/analytics";
+import { localized } from "../../lib/i18n";
 import type { NormalizedSupabaseError } from "../../lib/supabase";
+import { getUserFacingError } from "../../lib/userFacingErrors";
+import type { Language } from "../../types/domain";
 import { tokens } from "../../design/tokens";
 import { useAuth } from "./AuthProvider";
 
@@ -28,7 +32,13 @@ type AuthFormScreenProps = {
 
 export function AuthFormScreen({ mode }: AuthFormScreenProps) {
   const router = useRouter();
-  const { error: authError, isConfigured, signInWithEmail, signUpWithEmail } = useAuth();
+  const {
+    error: authError,
+    isConfigured,
+    profileLanguage,
+    signInWithEmail,
+    signUpWithEmail
+  } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -37,14 +47,14 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
   const [formError, setFormError] = useState<NormalizedSupabaseError | null>(null);
 
   const isSignup = mode === "signup";
-  const title = isSignup ? "Create your account" : "Welcome back";
-  const description = isSignup
-    ? "Create an account, then set up the daily drop you want to receive."
-    : "Log in to continue your five-minute daily briefing.";
-  const primaryLabel = isSignup ? "Create account" : "Log in";
-  const secondaryLabel = isSignup ? "I already have an account" : "Create an account";
+  const copy = getAuthFormCopy(profileLanguage);
+  const title = isSignup ? copy.signupTitle : copy.loginTitle;
+  const description = isSignup ? copy.signupDescription : copy.loginDescription;
+  const primaryLabel = isSignup ? copy.createAccount : copy.logIn;
+  const secondaryLabel = isSignup ? copy.alreadyHaveAccount : copy.createAccount;
   const formHint = getFormHint({
     confirmPassword,
+    copy,
     email,
     isSignup,
     password
@@ -56,6 +66,18 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
       : hasRequiredFields;
   }, [confirmPassword, email, isSignup, password]);
 
+  useEffect(() => {
+    if (formError) {
+      trackAnalyticsEvent("error_viewed");
+    }
+  }, [formError]);
+
+  useEffect(() => {
+    if (!isConfigured) {
+      trackAnalyticsEvent("error_viewed");
+    }
+  }, [isConfigured]);
+
   const submit = async () => {
     setMessage(null);
     setFormError(null);
@@ -64,8 +86,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
       setFormError(
         authError ?? {
           code: "missing_supabase_config",
-          message:
-            "Sign-in is not set up for this build."
+          message: copy.signInNotSetup
         }
       );
       return;
@@ -90,7 +111,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
     }
 
     if (result.needsEmailConfirmation) {
-      setMessage("Check your email to confirm the account, then log in.");
+      setMessage(copy.emailConfirmationSent);
       return;
     }
 
@@ -115,9 +136,9 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
           <View style={styles.fields}>
             {!isConfigured ? (
               <EmptyState
-                description="Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
-                eyebrow="Developer/Test setup"
-                title="Sign-in setup needed"
+                description={copy.accountUnavailableDescription}
+                eyebrow={copy.accountEyebrow}
+                title={copy.signInUnavailable}
                 style={styles.inlineState}
               />
             ) : null}
@@ -125,7 +146,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
               autoCapitalize="none"
               autoComplete="email"
               inputMode="email"
-              label="Email"
+              label={copy.email}
               onChangeText={setEmail}
               placeholder="you@example.com"
               textContentType="emailAddress"
@@ -134,9 +155,9 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             <LabeledInput
               autoCapitalize="none"
               autoComplete={isSignup ? "new-password" : "current-password"}
-              label="Password"
+              label={copy.password}
               onChangeText={setPassword}
-              placeholder="Minimum 8 characters"
+              placeholder={copy.passwordPlaceholder}
               secureTextEntry
               textContentType={isSignup ? "newPassword" : "password"}
               value={password}
@@ -145,9 +166,9 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
               <LabeledInput
                 autoCapitalize="none"
                 autoComplete="new-password"
-                label="Confirm password"
+                label={copy.confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="Repeat password"
+                placeholder={copy.repeatPassword}
                 secureTextEntry
                 textContentType="newPassword"
                 value={confirmPassword}
@@ -161,7 +182,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
           </View>
 
           {formError ? (
-            <AuthErrorMessage error={formError} />
+            <AuthErrorMessage error={formError} language={profileLanguage} />
           ) : null}
           {message ? (
             <AppText color="success" variant="caption">
@@ -184,7 +205,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             />
             {!isSignup ? (
               <SecondaryButton
-                label="Reset password"
+                label={copy.resetPassword}
                 onPress={() => router.replace("/(auth)/reset-password")}
               />
             ) : null}
@@ -197,47 +218,108 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
 
 function getFormHint({
   confirmPassword,
+  copy,
   email,
   isSignup,
   password
 }: {
   confirmPassword: string;
+  copy: ReturnType<typeof getAuthFormCopy>;
   email: string;
   isSignup: boolean;
   password: string;
 }) {
   if (!email.trim().includes("@")) {
-    return "Enter the email you want to use for PersoNewsAP.";
+    return copy.emailHint;
   }
 
   if (password.length > 0 && password.length < 8) {
-    return "Password must be at least 8 characters.";
+    return copy.passwordHint;
   }
 
   if (isSignup && confirmPassword.length > 0 && password !== confirmPassword) {
-    return "Passwords need to match before you can continue.";
+    return copy.passwordsNeedMatch;
   }
 
   return null;
 }
 
-function AuthErrorMessage({ error }: { error: NormalizedSupabaseError }) {
+function AuthErrorMessage({
+  error,
+  language
+}: {
+  error: NormalizedSupabaseError;
+  language: Language | null | undefined;
+}) {
+  const userFacingError = getUserFacingError(error, language, "auth");
+
   return (
     <View style={styles.errorBox}>
       <AppText color="danger" variant="label">
-        {error.message}
+        {userFacingError.title}
       </AppText>
-      {error.hint ? (
-        <AppText color="muted" variant="caption">
-          {error.hint}
-        </AppText>
-      ) : null}
-      {error.code ? (
-        <AppText color="muted" variant="caption">
-          Developer/Test code: {error.code}
-        </AppText>
-      ) : null}
+      <AppText color="muted" variant="caption">
+        {userFacingError.message}
+      </AppText>
     </View>
+  );
+}
+
+function getAuthFormCopy(language: Language | null | undefined) {
+  return localized(
+    {
+      en: {
+        accountEyebrow: "Account",
+        accountUnavailableDescription:
+          "Account features are unavailable right now. Please try again later.",
+        alreadyHaveAccount: "I already have an account",
+        confirmPassword: "Confirm password",
+        createAccount: "Create account",
+        email: "Email",
+        emailConfirmationSent: "Check your email to confirm the account, then log in.",
+        emailHint: "Enter the email you want to use for PersoNewsAP.",
+        logIn: "Log in",
+        loginDescription: "Log in to continue your five-minute daily briefing.",
+        loginTitle: "Welcome back",
+        password: "Password",
+        passwordHint: "Password must be at least 8 characters.",
+        passwordPlaceholder: "Minimum 8 characters",
+        passwordsNeedMatch: "Passwords need to match before you can continue.",
+        repeatPassword: "Repeat password",
+        resetPassword: "Reset password",
+        signInNotSetup: "Sign-in is not set up for this build.",
+        signInUnavailable: "Sign-in unavailable",
+        signupDescription:
+          "Create an account, then set up the daily drop you want to receive.",
+        signupTitle: "Create your account"
+      },
+      fr: {
+        accountEyebrow: "Compte",
+        accountUnavailableDescription:
+          "Les fonctions de compte sont indisponibles pour le moment. Réessaie plus tard.",
+        alreadyHaveAccount: "J'ai déjà un compte",
+        confirmPassword: "Confirmer le mot de passe",
+        createAccount: "Créer un compte",
+        email: "Email",
+        emailConfirmationSent: "Vérifie ton email pour confirmer le compte, puis connecte-toi.",
+        emailHint: "Entre l'email que tu veux utiliser pour PersoNewsAP.",
+        logIn: "Se connecter",
+        loginDescription: "Connecte-toi pour continuer ton briefing quotidien de cinq minutes.",
+        loginTitle: "Bon retour",
+        password: "Mot de passe",
+        passwordHint: "Le mot de passe doit contenir au moins 8 caractères.",
+        passwordPlaceholder: "Minimum 8 caractères",
+        passwordsNeedMatch: "Les mots de passe doivent correspondre pour continuer.",
+        repeatPassword: "Répète le mot de passe",
+        resetPassword: "Réinitialiser le mot de passe",
+        signInNotSetup: "La connexion n'est pas configurée pour cette version.",
+        signInUnavailable: "Connexion indisponible",
+        signupDescription:
+          "Crée un compte, puis configure la mise à jour quotidienne que tu veux recevoir.",
+        signupTitle: "Crée ton compte"
+      }
+    },
+    language
   );
 }
 

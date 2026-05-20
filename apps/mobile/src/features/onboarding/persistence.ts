@@ -1,8 +1,13 @@
 import { getAuthSession, normalizeSupabaseError, supabase } from "../../lib/supabase";
+import { localized } from "../../lib/i18n";
 import type { MobileSupabaseClient, NormalizedSupabaseError } from "../../lib/supabase";
-import type { GoalId, Language } from "../../types/domain";
+import type { Language } from "../../types/domain";
 import type { OnboardingState } from "./OnboardingState";
-import { TOPIC_OPTIONS } from "./options";
+import {
+  clampNewsletterArticleCount,
+  normalizeNewsletterTopics,
+  TOPIC_OPTIONS
+} from "./options";
 
 type SaveOnboardingPreferencesResult =
   | { ok: true }
@@ -15,7 +20,7 @@ export async function saveOnboardingPreferences(
 ): Promise<SaveOnboardingPreferencesResult> {
   const client = supabase;
   const language = state.language;
-  const goal = state.goal;
+  const selectedTopics = normalizeNewsletterTopics(state.selectedTopics);
 
   if (!client) {
     logOnboardingProof("onboarding_save_failed", {
@@ -26,14 +31,20 @@ export async function saveOnboardingPreferences(
       ok: false,
       error: {
         code: "missing_supabase_config",
-        message: "Live account setup is not configured for this build.",
+        message: localized(
+          {
+            en: "Live account setup is not configured for this build.",
+            fr: "La configuration du compte live n'est pas prête pour cette version."
+          },
+          language
+        ),
         hint:
           "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
       }
     };
   }
 
-  if (!language || !goal || state.selectedTopics.length === 0) {
+  if (!language || selectedTopics.length === 0) {
     logOnboardingProof("onboarding_save_failed", {
       reason: "incomplete_onboarding"
     });
@@ -42,19 +53,42 @@ export async function saveOnboardingPreferences(
       ok: false,
       error: {
         code: "incomplete_onboarding",
-        message: "Choose a language, goal, and at least one topic before saving."
+        message: localized(
+          {
+            en: "Choose a language and at least one practical-case category before saving.",
+            fr: "Choisis une langue et au moins une catégorie mini-cas avant d'enregistrer."
+          },
+          language
+        )
       }
     };
   }
 
   try {
-    return await saveValidatedOnboardingPreferences(client, state, language, goal);
+    return await saveValidatedOnboardingPreferences(
+      client,
+      state,
+      language,
+      selectedTopics
+    );
   } catch (error) {
     logOnboardingProof("onboarding_save_failed", {
       reason: "exception"
     });
 
-    return { ok: false, error: normalizeSupabaseError(error) };
+    return {
+      ok: false,
+      error: normalizeSupabaseError(
+        error,
+        localized(
+          {
+            en: "Could not save onboarding preferences.",
+            fr: "Impossible d'enregistrer tes préférences de configuration."
+          },
+          language
+        )
+      )
+    };
   }
 }
 
@@ -62,7 +96,7 @@ async function saveValidatedOnboardingPreferences(
   client: MobileSupabaseClient,
   state: OnboardingState,
   language: Language,
-  goal: GoalId
+  selectedTopics: ReturnType<typeof normalizeNewsletterTopics>
 ): Promise<SaveOnboardingPreferencesResult> {
   const sessionResult = await getAuthSession();
 
@@ -77,7 +111,13 @@ async function saveValidatedOnboardingPreferences(
         sessionResult.error ??
         ({
           code: "missing_auth_session",
-          message: "Sign in before saving onboarding preferences."
+          message: localized(
+            {
+              en: "Sign in before saving onboarding preferences.",
+              fr: "Connecte-toi avant d'enregistrer tes préférences de configuration."
+            },
+            language
+          )
         } satisfies NormalizedSupabaseError)
     };
   }
@@ -94,14 +134,21 @@ async function saveValidatedOnboardingPreferences(
       ok: false,
       error: {
         code: "missing_user_email",
-        message: "The authenticated user does not have an email address."
+        message: localized(
+          {
+            en: "The authenticated user does not have an email address.",
+            fr: "L'utilisateur connecté n'a pas d'adresse email."
+          },
+          language
+        )
       }
     };
   }
 
-  const selectedTopicIds = new Set(state.selectedTopics);
-  const totalArticleCount = state.selectedTopics.reduce(
-    (total, topicId) => total + (state.articlesPerTopic[topicId] ?? 1),
+  const selectedTopicIds = new Set(selectedTopics);
+  const totalArticleCount = selectedTopics.reduce(
+    (total, topicId) =>
+      total + clampNewsletterArticleCount(state.articlesPerTopic[topicId] ?? 1),
     0
   );
 
@@ -118,7 +165,19 @@ async function saveValidatedOnboardingPreferences(
       user_id: redactIdentifier(user.id)
     });
 
-    return { ok: false, error: normalizeSupabaseError(profileResult.error) };
+    return {
+      ok: false,
+      error: normalizeSupabaseError(
+        profileResult.error,
+        localized(
+          {
+            en: "Could not save your profile.",
+            fr: "Impossible d'enregistrer ton profil."
+          },
+          language
+        )
+      )
+    };
   }
 
   logOnboardingProof("profile_saved", {
@@ -128,8 +187,6 @@ async function saveValidatedOnboardingPreferences(
 
   const preferencesResult = await client.from("user_preferences").upsert({
     user_id: user.id,
-    goal,
-    frequency: state.frequency,
     newsletter_article_count: totalArticleCount
   });
 
@@ -139,12 +196,22 @@ async function saveValidatedOnboardingPreferences(
       user_id: redactIdentifier(user.id)
     });
 
-    return { ok: false, error: normalizeSupabaseError(preferencesResult.error) };
+    return {
+      ok: false,
+      error: normalizeSupabaseError(
+        preferencesResult.error,
+        localized(
+          {
+            en: "Could not save your preferences.",
+            fr: "Impossible d'enregistrer tes préférences."
+          },
+          language
+        )
+      )
+    };
   }
 
   logOnboardingProof("user_preferences_saved", {
-    frequency: state.frequency,
-    goal,
     newsletter_article_count: totalArticleCount,
     user_id: redactIdentifier(user.id)
   });
@@ -155,9 +222,11 @@ async function saveValidatedOnboardingPreferences(
     return {
       user_id: user.id,
       topic_id: topic.id,
-      articles_count: enabled ? state.articlesPerTopic[topic.id] ?? 1 : 1,
+      articles_count: enabled
+        ? clampNewsletterArticleCount(state.articlesPerTopic[topic.id] ?? 1)
+        : 1,
       enabled,
-      position: enabled ? state.selectedTopics.indexOf(topic.id) + 1 : index + 1
+      position: enabled ? selectedTopics.indexOf(topic.id) + 1 : index + 1
     };
   });
 
@@ -171,22 +240,34 @@ async function saveValidatedOnboardingPreferences(
   if (topicsResult.error) {
     logOnboardingProof("user_topic_preferences_save_failed", {
       reason: "supabase_error",
-      selected_topic_count: state.selectedTopics.length,
+      selected_topic_count: selectedTopics.length,
       user_id: redactIdentifier(user.id)
     });
 
-    return { ok: false, error: normalizeSupabaseError(topicsResult.error) };
+    return {
+      ok: false,
+      error: normalizeSupabaseError(
+        topicsResult.error,
+        localized(
+          {
+            en: "Could not save your practical-case interests.",
+            fr: "Impossible d'enregistrer tes intérêts mini-cas."
+          },
+          language
+        )
+      )
+    };
   }
 
   logOnboardingProof("onboarding_saved", {
-    enabled_topic_count: state.selectedTopics.length,
+    enabled_topic_count: selectedTopics.length,
     language,
     total_topic_rows: topicPreferenceRows.length,
     user_id: redactIdentifier(user.id)
   });
 
   logOnboardingProof("daily_job_test_eligible", {
-    enabled_topic_count: state.selectedTopics.length,
+    enabled_topic_count: selectedTopics.length,
     has_profile: true,
     has_user_preferences: true,
     has_user_topic_preferences: true,

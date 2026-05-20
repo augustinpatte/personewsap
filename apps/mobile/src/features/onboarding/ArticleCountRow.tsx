@@ -2,20 +2,32 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText, Card } from "../../components";
 import { tokens } from "../../design/tokens";
+import {
+  MAX_NEWSLETTER_ARTICLES_PER_TOPIC,
+  MIN_NEWSLETTER_ARTICLES_PER_TOPIC
+} from "./options";
 
 type ArticleCountRowProps = {
   label: string;
   description: string;
   count: number;
+  countLabel?: string;
   onChange: (count: number) => void;
 };
 
-const ARTICLE_COUNTS = [1, 2, 3] as const;
+const ARTICLE_COUNTS = Array.from(
+  {
+    length:
+      MAX_NEWSLETTER_ARTICLES_PER_TOPIC - MIN_NEWSLETTER_ARTICLES_PER_TOPIC + 1
+  },
+  (_value, index) => MIN_NEWSLETTER_ARTICLES_PER_TOPIC + index
+);
 
 export function ArticleCountRow({
   label,
   description,
   count,
+  countLabel,
   onChange
 }: ArticleCountRowProps) {
   return (
@@ -28,7 +40,7 @@ export function ArticleCountRow({
           </AppText>
         </View>
         <AppText color="accent" variant="label">
-          {count}/topic
+          {countLabel ?? `${count} per drop`}
         </AppText>
       </View>
 

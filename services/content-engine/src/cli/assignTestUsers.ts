@@ -338,7 +338,7 @@ function selectTestContentForPreference(
   }
 
   addFirstSlot(selected, contentItems, "business_story");
-  addFirstSlot(selected, contentItems, "mini_case");
+  addFirstSlot(selected, contentItems, "mini_case", sortedTopics.map((topic) => topic.topic_id));
   addFirstSlot(selected, contentItems, "concept");
 
   return selected;
@@ -351,9 +351,16 @@ function addFirstSlot(
     position: number;
   }>,
   contentItems: AssignableTestContentItem[],
-  slot: Exclude<DailyDropSlot, "newsletter">
+  slot: Exclude<DailyDropSlot, "newsletter">,
+  preferredTopicIds: UserDailyDropPreference["topics"][number]["topic_id"][] = []
 ): void {
-  const match = contentItems.find((item) => item.slot === slot);
+  const preferredTopics = new Set(preferredTopicIds);
+  const preferredMatch =
+    slot === "mini_case"
+      ? contentItems.find((item) => item.slot === slot && item.topic && preferredTopics.has(item.topic))
+      : null;
+  const fallbackMatch = contentItems.find((item) => item.slot === slot);
+  const match = preferredMatch ?? fallbackMatch;
 
   if (!match) {
     return;

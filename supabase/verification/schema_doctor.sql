@@ -14,7 +14,8 @@ with expected_tables(table_name) as (
     ('daily_drop_items'),
     ('content_interactions'),
     ('generation_runs'),
-    ('job_runs')
+    ('job_runs'),
+    ('push_tokens')
 )
 select
   'required table exists' as check_name,
@@ -59,7 +60,8 @@ with expected_rls(table_name) as (
     ('daily_drop_items'),
     ('content_interactions'),
     ('generation_runs'),
-    ('job_runs')
+    ('job_runs'),
+    ('push_tokens')
 )
 select
   'RLS enabled' as check_name,
@@ -94,7 +96,11 @@ with expected_policies(table_name, policy_name) as (
     ('mini_case_responses', 'Users can read own mini-case responses for assigned content'),
     ('mini_case_responses', 'Users can insert own mini-case responses for assigned content'),
     ('mini_case_responses', 'Users can update own mini-case responses for assigned content'),
-    ('pending_registrations', 'Users can update their pending registration')
+    ('pending_registrations', 'Users can update their pending registration'),
+    ('push_tokens', 'Users can read their own push tokens'),
+    ('push_tokens', 'Users can insert their own push tokens'),
+    ('push_tokens', 'Users can update their own push tokens'),
+    ('push_tokens', 'Users can delete their own push tokens')
 )
 select
   'expected policy exists' as check_name,
@@ -131,6 +137,24 @@ left join pg_policies
  and pg_policies.tablename = removed_policies.table_name
  and pg_policies.policyname = removed_policies.policy_name
 order by removed_policies.table_name, removed_policies.policy_name;
+
+select
+  'preferred notification time column exists' as check_name,
+  case when columns.column_name is null then 'FAIL' else 'PASS' end as status
+from (select 'preferred_notification_time'::text as column_name) expected
+left join information_schema.columns columns
+  on columns.table_schema = 'public'
+ and columns.table_name = 'user_preferences'
+ and columns.column_name = expected.column_name;
+
+select
+  'push token uniqueness exists' as check_name,
+  case when constraints.constraint_name is null then 'FAIL' else 'PASS' end as status
+from (select 'push_tokens_user_id_expo_push_token_key'::text as constraint_name) expected
+left join information_schema.table_constraints constraints
+  on constraints.table_schema = 'public'
+ and constraints.table_name = 'push_tokens'
+ and constraints.constraint_name = expected.constraint_name;
 
 with expected_functions(function_name) as (
   values

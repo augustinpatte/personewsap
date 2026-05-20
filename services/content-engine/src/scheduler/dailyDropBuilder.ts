@@ -40,9 +40,10 @@ export function selectDailyDropItemsForUser(
 ): UserDailyDropSelection {
   const selected: UserDailyDropSelection["items"] = [];
   const topicPlan = preference.topics.length > 0 ? preference.topics : defaultTopicPlan();
+  const sortedTopicPlan = [...topicPlan].sort((left, right) => (left.position ?? 99) - (right.position ?? 99));
   let newsletterPosition = 0;
 
-  for (const topic of topicPlan.sort((left, right) => (left.position ?? 99) - (right.position ?? 99))) {
+  for (const topic of sortedTopicPlan) {
     const matches = storedItems.filter(
       (stored) => stored.item.content_type === "newsletter_article" && stored.item.topic === topic.topic_id
     );
@@ -62,7 +63,7 @@ export function selectDailyDropItemsForUser(
   }
 
   addFirstSlot(selected, storedItems, "business_story");
-  addFirstSlot(selected, storedItems, "mini_case");
+  addFirstSlot(selected, storedItems, "mini_case", sortedTopicPlan.map((topic) => topic.topic_id));
   addFirstSlot(selected, storedItems, "concept");
 
   return {
@@ -74,9 +75,22 @@ export function selectDailyDropItemsForUser(
 function addFirstSlot(
   selected: UserDailyDropSelection["items"],
   storedItems: StoredContentSelection[],
-  slot: Exclude<DailyDropSlot, "newsletter">
+  slot: Exclude<DailyDropSlot, "newsletter">,
+  preferredTopicIds: TopicId[] = []
 ): void {
-  const match = storedItems.find((stored) => stored.item.slot === slot);
+  const preferredTopics = new Set(preferredTopicIds);
+  const preferredMatch =
+    slot === "mini_case"
+      ? storedItems.find(
+          (stored) =>
+            stored.item.slot === slot &&
+            stored.item.topic !== null &&
+            preferredTopics.has(stored.item.topic)
+        )
+      : null;
+  const fallbackMatch = storedItems.find((stored) => stored.item.slot === slot);
+  const match = preferredMatch ?? fallbackMatch;
+
   if (!match) {
     return;
   }

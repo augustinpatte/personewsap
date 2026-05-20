@@ -3,12 +3,14 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { AppText, PrimaryButton, ProgressPill, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
-import type { PreferenceFrequency, TopicId } from "../../types/domain";
+import { trackAnalyticsEvent } from "../../lib/analytics";
+import { formatLanguageName, localized } from "../../lib/i18n";
+import { getUserFacingErrorMessage } from "../../lib/userFacingErrors";
+import type { Language, TopicId } from "../../types/domain";
 import {
   ArticleCountRow,
-  FREQUENCY_OPTIONS,
-  GOAL_OPTIONS,
   LANGUAGE_OPTIONS,
+  localizeOptions,
   SelectableCard,
   TOPIC_OPTIONS
 } from "../onboarding";
@@ -22,16 +24,32 @@ import {
 type PreferencesEditorProps = {
   userId: string | null;
   refreshKey: number;
+  uiLanguage?: Language | null;
   onSaved?: () => Promise<void> | void;
 };
 
-export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEditorProps) {
+export function PreferencesEditor({
+  userId,
+  refreshKey,
+  uiLanguage: preferredUiLanguage,
+  onSaved
+}: PreferencesEditorProps) {
   const [draft, setDraft] = useState<EditablePreferences | null>(null);
   const [saved, setSaved] = useState<EditablePreferences | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const uiLanguage = draft?.language ?? saved?.language ?? preferredUiLanguage ?? "en";
+  const copy = getPreferencesCopy(uiLanguage);
+  const languageOptions = useMemo(
+    () => localizeOptions(LANGUAGE_OPTIONS, uiLanguage),
+    [uiLanguage]
+  );
+  const topicOptions = useMemo(
+    () => localizeOptions(TOPIC_OPTIONS, uiLanguage),
+    [uiLanguage]
+  );
 
   const loadPreferences = useCallback(async () => {
     if (!userId) {
@@ -44,29 +62,39 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
     setErrorMessage(null);
     setStatusMessage(null);
 
-    const result = await loadEditablePreferences(userId);
+    const result = await loadEditablePreferences(userId, preferredUiLanguage ?? null);
 
     setLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(result.error.message);
+      setErrorMessage(
+        getUserFacingErrorMessage(result.error, preferredUiLanguage, "preferences")
+      );
       return;
     }
 
     setDraft(result.preferences);
     setSaved(result.preferences);
-  }, [userId]);
+  }, [preferredUiLanguage, userId]);
 
   useEffect(() => {
     void loadPreferences();
   }, [loadPreferences, refreshKey]);
 
+  useEffect(() => {
+    if (errorMessage) {
+      trackAnalyticsEvent("error_viewed", {
+        language: draft?.language ?? saved?.language ?? undefined
+      });
+    }
+  }, [draft?.language, errorMessage, saved?.language]);
+
   const selectedTopicOptions = useMemo(
     () =>
       draft?.selectedTopics
-        .map((topicId) => TOPIC_OPTIONS.find((option) => option.id === topicId))
+        .map((topicId) => topicOptions.find((option) => option.id === topicId))
         .filter((topic): topic is (typeof TOPIC_OPTIONS)[number] => Boolean(topic)) ?? [],
-    [draft?.selectedTopics]
+    [draft?.selectedTopics, topicOptions]
   );
 
   const totalArticleCount = useMemo(
@@ -151,22 +179,23 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
     setSaving(false);
 
     if (!result.ok) {
-      setErrorMessage(result.error.message);
+      setErrorMessage(getUserFacingErrorMessage(result.error, normalized.language, "preferences"));
       return;
     }
 
+    trackSavedPreferenceUpdates(saved, normalized);
     setDraft(normalized);
     setSaved(normalized);
-    setStatusMessage("Saved. Future daily drops will use these preferences.");
+    setStatusMessage(getPreferencesCopy(normalized.language).saved);
     await onSaved?.();
-  }, [draft, onSaved, userId]);
+  }, [draft, onSaved, saved, userId]);
 
   if (!userId) {
     return (
       <View style={styles.section}>
-        <AppText variant="subtitle">Preferences</AppText>
+        <AppText variant="subtitle">{copy.title}</AppText>
         <AppText color="muted" variant="body">
-          Sign in to edit your daily drop preferences.
+          {copy.signIn}
         </AppText>
       </View>
     );
@@ -177,7 +206,7 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
       <View style={[styles.section, styles.loadingSection]}>
         <ActivityIndicator color={tokens.color.accent} />
         <AppText color="muted" variant="body">
-          Loading preferences...
+          {copy.loading}
         </AppText>
       </View>
     );
@@ -186,9 +215,9 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
   if (!draft) {
     return (
       <View style={styles.section}>
-        <AppText variant="subtitle">Preferences</AppText>
+        <AppText variant="subtitle">{copy.title}</AppText>
         {errorMessage ? <AppText color="danger" variant="body">{errorMessage}</AppText> : null}
-        <SecondaryButton disabled={loading} label="Try again" onPress={loadPreferences} />
+        <SecondaryButton disabled={loading} label={copy.tryAgain} onPress={loadPreferences} />
       </View>
     );
   }
@@ -197,25 +226,32 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
     <View style={styles.section}>
       <View style={styles.sectionTopline}>
         <View style={styles.sectionCopy}>
-          <AppText variant="subtitle">Preferences</AppText>
+          <AppText variant="subtitle">{copy.title}</AppText>
           <AppText color="muted" variant="body">
-            Changes apply to future daily drops. Today's drop may already be generated.
+            {copy.description}
           </AppText>
         </View>
         <ProgressPill
-          label={loading ? "Refreshing" : `${totalArticleCount} article${totalArticleCount === 1 ? "" : "s"}`}
+          label={loading ? copy.refreshing : copy.articlePill(totalArticleCount)}
           tone={loading ? "warning" : "neutral"}
         />
       </View>
 
       {loading ? (
         <AppText color="muted" variant="caption">
-          Refreshing settings. Last loaded choices stay editable while the app checks live data.
+          {copy.refreshingDetail}
         </AppText>
       ) : null}
 
-      <PreferenceGroup title="Language">
-        {LANGUAGE_OPTIONS.map((option) => (
+      <PreferenceSummary
+        copy={copy}
+        preferences={draft}
+        topicOptions={topicOptions}
+        totalArticleCount={totalArticleCount}
+      />
+
+      <PreferenceGroup title={copy.language}>
+        {languageOptions.map((option) => (
           <SelectableCard
             description={option.description}
             key={option.id}
@@ -226,23 +262,11 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
         ))}
       </PreferenceGroup>
 
-      <PreferenceGroup title="Goal">
-        {GOAL_OPTIONS.map((option) => (
-          <SelectableCard
-            description={option.description}
-            key={option.id}
-            label={option.label}
-            onPress={() => patchDraft({ goal: option.id })}
-            selected={draft.goal === option.id}
-          />
-        ))}
-      </PreferenceGroup>
-
-      <PreferenceGroup title="Topics">
+      <PreferenceGroup title={copy.topics}>
         <AppText color="muted" variant="caption">
-          Choose at least one. Topic order follows the sequence you select.
+          {copy.topicsHelp}
         </AppText>
-        {TOPIC_OPTIONS.map((option) => (
+        {topicOptions.map((option) => (
           <SelectableCard
             description={option.description}
             key={option.id}
@@ -253,11 +277,12 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
         ))}
       </PreferenceGroup>
 
-      <PreferenceGroup title="Article Counts">
+      <PreferenceGroup title={copy.articleCounts}>
         {selectedTopicOptions.length > 0 ? (
           selectedTopicOptions.map((topic) => (
             <ArticleCountRow
               count={draft.articlesPerTopic[topic.id] ?? 1}
+              countLabel={copy.countLabel(draft.articlesPerTopic[topic.id] ?? 1)}
               description={topic.description}
               key={topic.id}
               label={topic.label}
@@ -266,23 +291,9 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
           ))
         ) : (
           <AppText color="danger" variant="body">
-            Select at least one topic to save preferences.
+            {copy.missingTopic}
           </AppText>
         )}
-      </PreferenceGroup>
-
-      <PreferenceGroup title="Frequency">
-        {FREQUENCY_OPTIONS.map((option) => (
-          <SelectableCard
-            badge={option.badge}
-            description={option.description}
-            disabled={option.disabled}
-            key={option.id}
-            label={option.label}
-            onPress={() => patchDraft({ frequency: option.id as PreferenceFrequency })}
-            selected={draft.frequency === option.id}
-          />
-        ))}
       </PreferenceGroup>
 
       {errorMessage ? <AppText color="danger" variant="body">{errorMessage}</AppText> : null}
@@ -291,7 +302,7 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
       <View style={styles.actions}>
         <SecondaryButton
           disabled={saving || loading || !hasChanges}
-          label="Reset"
+          label={copy.reset}
           onPress={() => {
             if (saved) {
               setDraft(saved);
@@ -302,11 +313,54 @@ export function PreferencesEditor({ userId, refreshKey, onSaved }: PreferencesEd
         />
         <PrimaryButton
           disabled={saving || loading || !hasChanges || draft.selectedTopics.length === 0}
-          label={saving ? "Saving..." : "Save changes"}
+          label={saving ? copy.saving : copy.saveChanges}
           loading={saving}
           onPress={savePreferences}
           testID="preferences-save-button"
         />
+      </View>
+    </View>
+  );
+}
+
+function PreferenceSummary({
+  copy,
+  preferences,
+  topicOptions,
+  totalArticleCount
+}: {
+  copy: ReturnType<typeof getPreferencesCopy>;
+  preferences: EditablePreferences;
+  topicOptions: Array<(typeof TOPIC_OPTIONS)[number]>;
+  totalArticleCount: number;
+}) {
+  const topicLabels = preferences.selectedTopics
+    .map((topicId) => topicOptions.find((topic) => topic.id === topicId)?.label)
+    .filter((label): label is string => Boolean(label));
+
+  return (
+    <View style={styles.summaryPanel}>
+      <View style={styles.summaryRow}>
+        <AppText color="muted" variant="caption">
+          {copy.language}
+        </AppText>
+        <AppText variant="bodyStrong">
+          {formatLanguageName(preferences.language, preferences.language)}
+        </AppText>
+      </View>
+      <View style={styles.summaryRow}>
+        <AppText color="muted" variant="caption">
+          {copy.topics}
+        </AppText>
+        <AppText style={styles.summaryValue} variant="bodyStrong">
+          {topicLabels.length > 0 ? topicLabels.join(", ") : copy.missingTopic}
+        </AppText>
+      </View>
+      <View style={styles.summaryRow}>
+        <AppText color="muted" variant="caption">
+          {copy.articleCounts}
+        </AppText>
+        <AppText variant="bodyStrong">{copy.summaryArticles(totalArticleCount)}</AppText>
       </View>
     </View>
   );
@@ -328,11 +382,117 @@ function serializePreferences(preferences: EditablePreferences) {
 
   return JSON.stringify({
     language: normalized.language,
-    goal: normalized.goal,
     selectedTopics: normalized.selectedTopics,
-    articlesPerTopic: normalized.articlesPerTopic,
-    frequency: normalized.frequency
+    articlesPerTopic: normalized.articlesPerTopic
   });
+}
+
+function getPreferencesCopy(language: EditablePreferences["language"]) {
+  return localized(
+    {
+      en: {
+        title: "Preferences",
+        description:
+          "Changes apply to future daily drops. Today's drop may already be generated.",
+        signIn: "Sign in to edit your daily drop preferences.",
+        loading: "Loading preferences...",
+        tryAgain: "Try again",
+        refreshing: "Refreshing",
+        refreshingDetail:
+          "Refreshing settings. Last loaded choices stay editable while the app checks live data.",
+        saved:
+          "Saved. Future daily drops will use these newsletter and practical-case preferences.",
+        language: "Language",
+        topics: "Practical-case interests",
+        topicsHelp:
+          "Choose at least one category. These choices guide practical mini-cases and newsletter depth.",
+        articleCounts: "Newsletter depth",
+        missingTopic: "Select at least one practical-case category to save preferences.",
+        reset: "Reset",
+        saving: "Saving...",
+        saveChanges: "Save changes",
+        articlePill: (count: number) => `${count} article${count === 1 ? "" : "s"}`,
+        countLabel: (count: number) => `${count} per drop`,
+        summaryArticles: (count: number) =>
+          `${count} article${count === 1 ? "" : "s"} · daily`
+      },
+      fr: {
+        title: "Préférences",
+        description:
+          "Les changements s'appliquent aux prochaines mises à jour quotidiennes. Celle d'aujourd'hui peut déjà être générée.",
+        signIn: "Connecte-toi pour modifier tes préférences de mise à jour quotidienne.",
+        loading: "Chargement des préférences...",
+        tryAgain: "Réessayer",
+        refreshing: "Actualisation",
+        refreshingDetail:
+          "Actualisation des réglages. Les derniers choix chargés restent modifiables pendant la vérification.",
+        saved:
+          "Enregistré. Les prochaines mises à jour utiliseront ces préférences d'articles et de mini-cas.",
+        language: "Langue",
+        topics: "Intérêts mini-cas",
+        topicsHelp:
+          "Choisis au moins une catégorie. Ces choix guident les mini-cas pratiques et la profondeur newsletter.",
+        articleCounts: "Profondeur newsletter",
+        missingTopic: "Sélectionne au moins une catégorie mini-cas pour enregistrer les préférences.",
+        reset: "Réinitialiser",
+        saving: "Enregistrement...",
+        saveChanges: "Enregistrer",
+        articlePill: (count: number) => `${count} article${count > 1 ? "s" : ""}`,
+        countLabel: (count: number) => `${count} par jour`,
+        summaryArticles: (count: number) =>
+          `${count} article${count > 1 ? "s" : ""} · quotidien`
+      }
+    },
+    language
+  );
+}
+
+function trackSavedPreferenceUpdates(
+  previous: EditablePreferences | null,
+  next: EditablePreferences
+) {
+  if (previous?.language !== next.language) {
+    trackAnalyticsEvent("language_updated", {
+      language: next.language
+    });
+  }
+
+  const changedTopics = getChangedTopics(previous, next);
+
+  for (const topic of changedTopics) {
+    trackAnalyticsEvent("topic_preference_updated", {
+      language: next.language,
+      topic
+    });
+  }
+}
+
+function getChangedTopics(
+  previous: EditablePreferences | null,
+  next: EditablePreferences
+) {
+  const changedTopics = new Set<TopicId>();
+  const previousTopics = new Set(previous?.selectedTopics ?? []);
+  const nextTopics = new Set(next.selectedTopics);
+
+  for (const topic of previousTopics) {
+    if (!nextTopics.has(topic)) {
+      changedTopics.add(topic);
+    }
+  }
+
+  for (const topic of nextTopics) {
+    if (!previousTopics.has(topic)) {
+      changedTopics.add(topic);
+      continue;
+    }
+
+    if ((previous?.articlesPerTopic[topic] ?? 1) !== (next.articlesPerTopic[topic] ?? 1)) {
+      changedTopics.add(topic);
+    }
+  }
+
+  return changedTopics;
 }
 
 const styles = StyleSheet.create({
@@ -348,6 +508,20 @@ const styles = StyleSheet.create({
   loadingSection: {
     alignItems: "center",
     paddingVertical: tokens.space.xl
+  },
+  summaryPanel: {
+    backgroundColor: tokens.color.backgroundRaised,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    gap: tokens.space.md,
+    padding: tokens.space.md
+  },
+  summaryRow: {
+    gap: tokens.space.xs
+  },
+  summaryValue: {
+    flexShrink: 1
   },
   section: {
     gap: tokens.space.lg

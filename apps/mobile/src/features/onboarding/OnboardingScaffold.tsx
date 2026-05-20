@@ -28,6 +28,7 @@ type OnboardingScaffoldProps = PropsWithChildren<{
   secondaryLabel?: string;
   onSecondaryPress?: () => void;
   footerNote?: string;
+  progressLabel: string;
   contentStyle?: StyleProp<ViewStyle>;
 }>;
 
@@ -43,6 +44,7 @@ export function OnboardingScaffold({
   secondaryLabel,
   onSecondaryPress,
   footerNote,
+  progressLabel,
   contentStyle,
   children
 }: OnboardingScaffoldProps) {
@@ -54,7 +56,7 @@ export function OnboardingScaffold({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <ProgressPill label={`Step ${step} of ${totalSteps}`} value={step / totalSteps} />
+          <ProgressPill label={progressLabel} value={step / totalSteps} />
           <View style={styles.copy}>
             <AppText variant="title">{title}</AppText>
             <AppText color="muted" variant="body">

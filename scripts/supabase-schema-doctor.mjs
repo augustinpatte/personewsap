@@ -21,7 +21,8 @@ const SUPPORTING_TABLES = [
   "generation_runs",
   "job_runs",
   "content_item_sources",
-  "mini_case_responses"
+  "mini_case_responses",
+  "push_tokens"
 ];
 
 const EXPECTED_TOPICS = [
@@ -69,6 +70,12 @@ const EXPECTED_POLICIES = {
   ],
   pending_registrations: [
     "Users can update their pending registration"
+  ],
+  push_tokens: [
+    "Users can read their own push tokens",
+    "Users can insert their own push tokens",
+    "Users can update their own push tokens",
+    "Users can delete their own push tokens"
   ]
 };
 
@@ -224,6 +231,18 @@ async function runStaticMigrationAudit() {
     sql,
     /drop\s+policy\s+if\s+exists\s+"Anyone can update pending registrations"\s+on\s+public\.pending_registrations/i,
     "migration removes broad pending registration update policy"
+  );
+
+  assertRegex(
+    sql,
+    /preferred_notification_time\s+text\s+not\s+null\s+default\s+'08:00'/i,
+    "migration adds preferred notification time"
+  );
+
+  assertRegex(
+    sql,
+    /unique\s*\(\s*user_id\s*,\s*expo_push_token\s*\)/i,
+    "migration prevents duplicate push token rows per user"
   );
 }
 

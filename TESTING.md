@@ -52,7 +52,7 @@ This proof writes marked test content through `daily-job-test`. Use a local, sta
 | Category | Commands | Writes data? | Intended use |
 | --- | --- | --- | --- |
 | Test commands | `npm run smoke`, `npm run mobile:typecheck`, `npm run content:build`, `npm run content:dry-run` | No | Routine local validation before handoff. |
-| Local no-write commands | `npm run content:llm-run`, `npm run content:llm-proof`, `npm run content:rss-check`, `npm run supabase:doctor`, `npm run content:debug-users`, `npm run content:job-health` | No | LLM/RSS inspection, static/live read-only schema checks, user eligibility diagnostics, and job health checks. |
+| Local no-write commands | `npm run content:llm-run`, `npm run content:llm-proof`, `npm run content:quality-proof`, `npm run content:prod-dry-run`, `npm run content:rss-check`, `npm run supabase:doctor`, `npm run content:debug-users`, `npm run content:health` | No | LLM/RSS inspection, static/live read-only schema checks, user eligibility diagnostics, production-shaped dry runs, and job health checks. |
 | Local-only dangerous write commands | `npm run backend:e2e`, `npm run backend:e2e:live-rss`, `npm run backend:e2e:llm`, `npm run content:persist-test`, `npm run content:assign-test-users`, `npm run content:personalize-test`, `npm run content:daily-job-test`, `npm run content:cleanup-test` | Yes | Disposable or staging Supabase testing with explicit confirmation flags. |
 | Production commands | `npm run content:daily-job` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. Production runs write a `job_runs` summary for `content:job-health`. |
 
@@ -454,6 +454,12 @@ Production writes are fail-closed and RSS-only:
 
 ```sh
 PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... LANGUAGES=fr,en CONTENT_STATUS=published npm run daily-job
+```
+
+Root wrapper equivalent:
+
+```sh
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... LANGUAGES=fr,en npm run content:prod-run
 ```
 
 Sample articles can still be used in `dry-run`, `daily-job-test`, `persist-test`, smoke, and backend E2E. Non-dry `daily-job` refuses sample content and should not be used for sample-content write rehearsals.

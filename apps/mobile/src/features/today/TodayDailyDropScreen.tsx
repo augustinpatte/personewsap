@@ -12,11 +12,13 @@ import {
   SecondaryButton,
   SectionHeader
 } from "../../components";
-import { TOPICS } from "../../constants/product";
+import { TOPICS, type TopicId } from "../../constants/product";
 import { tokens } from "../../design/tokens";
 import { useAuth } from "../auth";
 import type { DataFallbackReason, DataFetchSource } from "../../lib/dataState";
+import { trackAnalyticsEvent } from "../../lib/analytics";
 import { getAuthSession, type NormalizedSupabaseError } from "../../lib/supabase";
+import { getUserFacingError } from "../../lib/userFacingErrors";
 import { flattenDailyDropItems, getMockSourcesForItem, mockTodayDailyDropsByLanguage } from "../../mocks";
 import type { ContentRating, InteractionType } from "../../types/domain";
 import type {
@@ -95,6 +97,7 @@ export function TodayDailyDropScreen() {
   );
   const [interactionError, setInteractionError] = useState<NormalizedSupabaseError | null>(null);
   const [interactionMessage, setInteractionMessage] = useState<string | null>(null);
+  const [openedItemIds, setOpenedItemIds] = useState<Set<string>>(new Set());
   const [pendingInteractionIds, setPendingInteractionIds] = useState<Set<string>>(new Set());
   const [showSampleAnswer, setShowSampleAnswer] = useState(false);
 
@@ -102,6 +105,7 @@ export function TodayDailyDropScreen() {
   const formattedDate = useMemo(() => formatDropDate(drop.drop_date), [drop.drop_date]);
   const allItems = useMemo(() => flattenDailyDropItems(drop), [drop]);
   const totalItemCount = allItems.length;
+  const isEmptyDrop = totalItemCount === 0;
   const completedItemCount = useMemo(
     () =>
       allItems.filter((item) => interactionState.completedItemIds.has(item.id)).length,
@@ -150,6 +154,11 @@ export function TodayDailyDropScreen() {
           source: result.source,
           status: "ready"
         });
+        trackAnalyticsEvent("daily_drop_loaded", getDropAnalyticsProperties(result.data));
+
+        if (result.fallbackReason === "no_supabase_data") {
+          trackAnalyticsEvent("daily_drop_empty", getDropAnalyticsProperties(result.data));
+        }
       }
 
       if (result.source === "supabase" || result.source === "cache") {
@@ -183,14 +192,30 @@ export function TodayDailyDropScreen() {
     };
   }, [loadTodayDrop]);
 
+  useEffect(() => {
+    if (loadState.status === "ready" && loadState.error) {
+      trackAnalyticsEvent("error_viewed", getDropAnalyticsProperties(drop));
+    }
+  }, [drop, loadState.error, loadState.status]);
+
+  useEffect(() => {
+    if (interactionError) {
+      trackAnalyticsEvent("error_viewed", getDropAnalyticsProperties(drop));
+    }
+  }, [drop, interactionError]);
+
   async function handleInteraction(action: InteractionAction) {
     const pendingId = getPendingInteractionId(action);
+    const item = allItems.find((candidate) => candidate.id === action.contentItemId);
+
+    trackContentItemOpened(item);
     setPendingInteractionIds((currentIds) => new Set(currentIds).add(pendingId));
     setInteractionError(null);
     setInteractionMessage(null);
 
     if (loadState.source === "mock") {
       applyLocalInteraction(action);
+      trackContentInteractionEvent(action, item);
       setInteractionMessage("Preview action marked for this session.");
       setPendingInteractionIds((currentIds) => removeSetValue(currentIds, pendingId));
       return;
@@ -202,12 +227,14 @@ export function TodayDailyDropScreen() {
 
     if (!result.ok) {
       applyLocalInteraction(action);
+      trackContentInteractionEvent(action, item);
       setInteractionError(result.error);
       setInteractionMessage("Saved on this device for this session. Live sync did not complete.");
       return;
     }
 
     applyLocalInteraction(action);
+    trackContentInteractionEvent(action, item);
     setInteractionMessage("Saved to your account.");
   }
 
@@ -258,7 +285,35 @@ export function TodayDailyDropScreen() {
     setInteractionState(createEmptyContentInteractionSnapshot());
     setInteractionError(null);
     setInteractionMessage(null);
+    setOpenedItemIds(new Set());
     setShowSampleAnswer(false);
+  }
+
+  function trackContentItemOpened(item: DailyDropContentItem | undefined) {
+    if (!item || openedItemIds.has(item.id)) {
+      return;
+    }
+
+    setOpenedItemIds((currentIds) => new Set(currentIds).add(item.id));
+    trackAnalyticsEvent("content_item_opened", getItemAnalyticsProperties(item, drop));
+  }
+
+  function trackContentInteractionEvent(
+    action: InteractionAction,
+    item: DailyDropContentItem | undefined
+  ) {
+    if (!item) {
+      return;
+    }
+
+    if (action.interactionType === "complete") {
+      trackAnalyticsEvent("content_item_completed", getItemAnalyticsProperties(item, drop));
+      return;
+    }
+
+    if (action.interactionType === "save") {
+      trackAnalyticsEvent("content_item_saved", getItemAnalyticsProperties(item, drop));
+    }
   }
 
   return (
@@ -309,6 +364,7 @@ export function TodayDailyDropScreen() {
           </AppText>
         </Card>
         <TodayDataStateBanner
+          language={activeLanguage}
           loadState={loadState}
           onRetry={() => {
             void loadTodayDrop();
@@ -323,55 +379,75 @@ export function TodayDailyDropScreen() {
       </AppScreen.Header>
 
       <AppScreen.Body style={styles.body}>
-        <InteractionStatus error={interactionError} message={interactionMessage} />
-        <NewsletterSection
-          articles={drop.items.newsletter}
-          completed={completedModules.has("newsletter")}
-          interactionState={interactionState}
-          onComplete={() => completeModule(drop.items.newsletter)}
-          onInteraction={handleInteraction}
-          pendingInteractionIds={pendingInteractionIds}
+        <InteractionStatus
+          error={interactionError}
+          language={drop.language}
+          message={interactionMessage}
         />
-        <BusinessStorySection
-          story={drop.items.business_story}
-          completed={completedModules.has("business_story")}
-          interactionState={interactionState}
-          onComplete={() => completeModule([drop.items.business_story])}
-          onInteraction={handleInteraction}
-          pendingInteractionIds={pendingInteractionIds}
-        />
-        <MiniCaseSection
-          challenge={drop.items.mini_case}
-          completed={completedModules.has("mini_case")}
-          interactionState={interactionState}
-          showSampleAnswer={showSampleAnswer}
-          onComplete={() => completeModule([drop.items.mini_case])}
-          onInteraction={handleInteraction}
-          onToggleSampleAnswer={() => setShowSampleAnswer((isVisible) => !isVisible)}
-          pendingInteractionIds={pendingInteractionIds}
-        />
-        <ConceptSection
-          concept={drop.items.concept}
-          completed={completedModules.has("concept")}
-          interactionState={interactionState}
-          onComplete={() => completeModule([drop.items.concept])}
-          onInteraction={handleInteraction}
-          pendingInteractionIds={pendingInteractionIds}
-        />
-        <CompletionState
-          allItems={allItems}
-          isComplete={isComplete}
-          onReset={resetDrop}
-        />
+        {isEmptyDrop ? (
+          <EmptyState
+            actionLabel="Check again"
+            description="No readable modules are attached to this drop yet. Try again after the daily job assigns content, or continue with preview mode if shown above."
+            eyebrow="Empty drop"
+            onActionPress={() => {
+              void loadTodayDrop();
+            }}
+            title="Today's content is not ready"
+          />
+        ) : (
+          <>
+            <NewsletterSection
+              articles={drop.items.newsletter}
+              completed={completedModules.has("newsletter")}
+              interactionState={interactionState}
+              onComplete={() => completeModule(drop.items.newsletter)}
+              onInteraction={handleInteraction}
+              pendingInteractionIds={pendingInteractionIds}
+            />
+            <BusinessStorySection
+              story={drop.items.business_story}
+              completed={completedModules.has("business_story")}
+              interactionState={interactionState}
+              onComplete={() => completeModule([drop.items.business_story])}
+              onInteraction={handleInteraction}
+              pendingInteractionIds={pendingInteractionIds}
+            />
+            <MiniCaseSection
+              challenge={drop.items.mini_case}
+              completed={completedModules.has("mini_case")}
+              interactionState={interactionState}
+              showSampleAnswer={showSampleAnswer}
+              onComplete={() => completeModule([drop.items.mini_case])}
+              onInteraction={handleInteraction}
+              onToggleSampleAnswer={() => setShowSampleAnswer((isVisible) => !isVisible)}
+              pendingInteractionIds={pendingInteractionIds}
+            />
+            <ConceptSection
+              concept={drop.items.concept}
+              completed={completedModules.has("concept")}
+              interactionState={interactionState}
+              onComplete={() => completeModule([drop.items.concept])}
+              onInteraction={handleInteraction}
+              pendingInteractionIds={pendingInteractionIds}
+            />
+            <CompletionState
+              allItems={allItems}
+              isComplete={isComplete}
+              onReset={resetDrop}
+            />
+          </>
+        )}
       </AppScreen.Body>
     </AppScreen>
   );
 }
 
 function TodayDataStateBanner({
+  language,
   loadState,
   onRetry
 }: {
+  language: ContentLanguage;
   loadState: TodayLoadState;
   onRetry: () => void;
 }) {
@@ -410,37 +486,43 @@ function TodayDataStateBanner({
   }
 
   if (loadState.fallbackReason === "network_unavailable") {
+    const userFacingError = getUserFacingError(loadState.error, language, "today");
+
     return (
       <DataModeBanner
         actionLabel="Retry live data"
-        description="The network is unavailable, so the app is showing clearly labeled preview content instead of a blank screen."
+        description={`${userFacingError.message} The app is showing preview content for now.`}
         mode="preview"
         onActionPress={onRetry}
-        title="You appear to be offline"
+        title={userFacingError.title}
       />
     );
   }
 
   if (loadState.fallbackReason === "supabase_error") {
+    const userFacingError = getUserFacingError(loadState.error, language, "today");
+
     return (
       <DataModeBanner
         actionLabel="Retry live data"
-        description={`Live content could not be reached, so the app is showing a built-in preview. ${loadState.error?.message ?? ""}`.trim()}
+        description={`${userFacingError.message} The app is showing preview content for now.`}
         mode="preview"
         onActionPress={onRetry}
-        title="Preview daily drop"
+        title={userFacingError.title}
       />
     );
   }
 
   if (loadState.fallbackReason === "missing_supabase_config") {
+    const userFacingError = getUserFacingError(loadState.error, language, "today");
+
     return (
       <DataModeBanner
         actionLabel="Retry live data"
-        description="Preview content is shown below so testers can still walk through the experience. Developer/Test info: configure the public live-data env vars to load assigned drops."
+        description={`${userFacingError.message} The app is showing preview content for now.`}
         mode="preview"
         onActionPress={onRetry}
-        title="Live Today data is not configured"
+        title={userFacingError.title}
       />
     );
   }
@@ -449,7 +531,8 @@ function TodayDataStateBanner({
     return (
       <DataModeBanner
         actionLabel="Check again"
-        description="No daily drop is assigned to this account for today. Preview content is shown below so the app can still be tested."
+        description={`No ${formatLanguageName(language)} daily drop is assigned to this account for today. Preview content is shown below so the app can still be tested without confusing it for live data.`}
+        detail={formatLanguageName(language)}
         mode="preview"
         onActionPress={onRetry}
         title="No live daily drop yet"
@@ -470,6 +553,10 @@ function TodayDataStateBanner({
   }
 
   return null;
+}
+
+function formatLanguageName(language: ContentLanguage) {
+  return language === "fr" ? "French" : "English";
 }
 
 function DailyRitualCard() {
@@ -503,25 +590,24 @@ function RitualStep({ number, text }: { number: string; text: string }) {
 
 function InteractionStatus({
   error,
+  language,
   message
 }: {
   error: NormalizedSupabaseError | null;
+  language: ContentLanguage;
   message: string | null;
 }) {
   if (error) {
+    const userFacingError = getUserFacingError(error, language, "today");
+
     return (
       <Card padding="md" style={styles.interactionError}>
         <AppText color="danger" variant="label">
-          Could not save interaction
+          {userFacingError.title}
         </AppText>
         <AppText color="muted" variant="caption">
-          {error.message}
+          {userFacingError.message}
         </AppText>
-        {error.hint ? (
-          <AppText color="muted" variant="caption">
-            {error.hint}
-          </AppText>
-        ) : null}
       </Card>
     );
   }
@@ -684,8 +770,6 @@ function NewsletterArticlePreview({
   onInteraction: (action: InteractionAction) => Promise<void>;
   pendingInteractionIds: Set<string>;
 }) {
-  const sources = getDisplaySourceLabels(article);
-
   return (
     <Card padding="md" style={styles.articleCard}>
       <View style={styles.cardHeaderRow}>
@@ -702,7 +786,7 @@ function NewsletterArticlePreview({
         </AppText>
         <AppText variant="body">{article.why_it_matters}</AppText>
       </View>
-      <SourceLine sources={sources} />
+      <SourceLine item={article} />
       <ContentInteractionControls
         item={article}
         interactionState={interactionState}
@@ -756,7 +840,7 @@ function BusinessStorySection({
           </AppText>
           <AppText variant="bodyStrong">{story.lesson}</AppText>
         </View>
-        <SourceLine sources={getDisplaySourceLabels(story)} />
+        <SourceLine item={story} />
         <ContentInteractionControls
           item={story}
           interactionState={interactionState}
@@ -848,6 +932,7 @@ function MiniCaseSection({
           onInteraction={onInteraction}
           pendingInteractionIds={pendingInteractionIds}
         />
+        <SourceLine item={challenge} />
         <View style={styles.buttonRow}>
           <SecondaryButton
             label={showSampleAnswer ? "Hide sample" : "Show sample"}
@@ -903,7 +988,7 @@ function ConceptSection({
           <ConceptNote label="Use it like this" text={concept.how_to_use_it} />
           <ConceptNote label="Common mistake" text={concept.common_mistake} />
         </View>
-        <SourceLine sources={getDisplaySourceLabels(concept)} />
+        <SourceLine item={concept} />
         <ContentInteractionControls
           item={concept}
           interactionState={interactionState}
@@ -1103,12 +1188,37 @@ function BulletText({ children }: { children: string }) {
   );
 }
 
-function SourceLine({ sources }: { sources: string[] }) {
+function SourceLine({ item }: { item: DailyDropContentItem }) {
+  const sources = getDisplaySources(item);
+  const fallbackLabel = getSourceFallbackLabel(item);
+
   return (
     <View style={styles.sourceLine}>
-      <AppText color="muted" style={styles.sourceCopy} variant="caption">
-        Sources: {sources.join(", ")}
-      </AppText>
+      <View style={styles.sourceHeader}>
+        <AppText color="muted" variant="caption">
+          Sources
+        </AppText>
+        <ProgressPill label={`${getSourceCount(item)} linked`} tone="neutral" />
+      </View>
+      {sources.length > 0 ? (
+        <View style={styles.sourceList}>
+          {sources.slice(0, 3).map((source) => (
+            <View key={source.id} style={styles.sourceItem}>
+              <AppText variant="label">{source.publisher}</AppText>
+              <AppText color="muted" style={styles.sourceCopy} variant="caption">
+                {source.title}
+              </AppText>
+              <AppText color="muted" variant="caption">
+                {formatSourceDate(source.published_at ?? source.retrieved_at)} · {getUrlHost(source.url)}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <AppText color="muted" style={styles.sourceCopy} variant="caption">
+          {fallbackLabel}
+        </AppText>
+      )}
     </View>
   );
 }
@@ -1169,21 +1279,58 @@ function getModuleItems(
 }
 
 function getSourceCount(item: DailyDropContentItem) {
-  return Math.max(item.source_ids.length, getMockSourcesForItem(item).length);
+  return Math.max(item.sources?.length ?? 0, item.source_ids.length, getMockSourcesForItem(item).length);
 }
 
-function getDisplaySourceLabels(item: DailyDropContentItem) {
+function getDisplaySources(item: DailyDropContentItem) {
+  if (item.sources && item.sources.length > 0) {
+    return item.sources;
+  }
+
   const mockSources = getMockSourcesForItem(item);
 
   if (mockSources.length > 0) {
-    return mockSources.map((source) => source.publisher);
+    return mockSources;
   }
 
+  return [];
+}
+
+function getSourceFallbackLabel(item: DailyDropContentItem) {
   if (item.source_ids.length > 0) {
-    return [`${item.source_ids.length} linked source${item.source_ids.length === 1 ? "" : "s"}`];
+    return `${item.source_ids.length} source link${item.source_ids.length === 1 ? "" : "s"} attached. Full source metadata is still loading.`;
   }
 
-  return ["Source metadata pending"];
+  return "Source metadata pending.";
+}
+
+function getDropAnalyticsProperties(drop: TodayDailyDrop) {
+  return {
+    drop_date: drop.drop_date,
+    language: drop.language
+  };
+}
+
+function getItemAnalyticsProperties(item: DailyDropContentItem, drop: TodayDailyDrop) {
+  return {
+    content_type: item.content_type,
+    drop_date: drop.drop_date,
+    item_id: item.id,
+    language: item.language,
+    topic: getItemTopic(item)
+  };
+}
+
+function getItemTopic(item: DailyDropContentItem): TopicId | undefined {
+  if ("topic" in item) {
+    return item.topic;
+  }
+
+  if ("category" in item && item.category !== "career") {
+    return item.category;
+  }
+
+  return undefined;
 }
 
 function getConceptTopicLabel(concept: KeyConcept) {
@@ -1273,6 +1420,22 @@ function formatShortDate(date: string) {
     day: "numeric",
     year: "numeric"
   }).format(new Date(`${date}T12:00:00Z`));
+}
+
+function formatSourceDate(date: string | null) {
+  if (!date) {
+    return "Date pending";
+  }
+
+  return formatShortDate(date.slice(0, 10));
+}
+
+function getUrlHost(value: string) {
+  try {
+    return new URL(value).host.replace(/^www\./, "");
+  } catch {
+    return "source link";
+  }
 }
 
 function getLocalDropDate(date: Date) {
@@ -1436,7 +1599,25 @@ const styles = StyleSheet.create({
   sourceLine: {
     borderTopColor: tokens.color.border,
     borderTopWidth: 1,
+    gap: tokens.space.sm,
     paddingTop: tokens.space.md
+  },
+  sourceHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.space.sm,
+    justifyContent: "space-between"
+  },
+  sourceList: {
+    gap: tokens.space.sm
+  },
+  sourceItem: {
+    backgroundColor: tokens.color.backgroundRaised,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    gap: tokens.space.xs,
+    padding: tokens.space.md
   },
   sourceCopy: {
     flexShrink: 1

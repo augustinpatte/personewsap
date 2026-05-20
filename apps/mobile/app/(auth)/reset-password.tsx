@@ -18,6 +18,7 @@ import {
 } from "../../src/components";
 import { tokens } from "../../src/design/tokens";
 import { useAuth } from "../../src/features/auth";
+import { localized } from "../../src/lib/i18n";
 import {
   getSupabaseConfigError,
   hasSupabaseConfig,
@@ -25,10 +26,12 @@ import {
   updatePassword,
   type NormalizedSupabaseError
 } from "../../src/lib/supabase";
+import { getUserFacingError } from "../../src/lib/userFacingErrors";
+import type { Language } from "../../src/types/domain";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const { refreshAuthState, session } = useAuth();
+  const { profileLanguage, refreshAuthState, session } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -36,6 +39,7 @@ export default function ResetPasswordScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isRecoverySession = Boolean(session);
+  const copy = getResetPasswordCopy(profileLanguage);
   const canRequestReset = useMemo(() => email.trim().includes("@"), [email]);
   const canUpdatePassword = useMemo(
     () => password.length >= 8 && password === confirmPassword,
@@ -50,8 +54,7 @@ export default function ResetPasswordScreen() {
       setError(
         getSupabaseConfigError() ?? {
           code: "missing_supabase_config",
-          message:
-            "Sign-in is not set up for this build."
+          message: copy.signInNotSetup
         }
       );
       return;
@@ -66,7 +69,7 @@ export default function ResetPasswordScreen() {
       return;
     }
 
-    setMessage("If this email has an account, a secure reset link will be sent.");
+    setMessage(copy.resetLinkSent);
   };
 
   const saveNewPassword = async () => {
@@ -99,22 +102,22 @@ export default function ResetPasswordScreen() {
       <AppScreen centered>
         <Card elevated padding="lg" style={styles.card}>
           <View style={styles.copy}>
-            <AppText variant="eyebrow">Auth</AppText>
+            <AppText variant="eyebrow">{copy.eyebrow}</AppText>
             <AppText variant="title">
-              {isRecoverySession ? "Set a new password" : "Reset your password"}
+              {isRecoverySession ? copy.newPasswordTitle : copy.resetPasswordTitle}
             </AppText>
             <AppText color="muted" variant="body">
               {isRecoverySession
-                ? "Choose a new password for your PersoNewsAP account."
-                : "Enter your email and we will send a secure reset link."}
+                ? copy.newPasswordDescription
+                : copy.resetPasswordDescription}
             </AppText>
           </View>
 
           {!hasSupabaseConfig ? (
             <EmptyState
-              description="Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
-              eyebrow="Developer/Test setup"
-              title="Sign-in setup needed"
+              description={copy.accountUnavailableDescription}
+              eyebrow={copy.accountEyebrow}
+              title={copy.passwordResetUnavailable}
               style={styles.inlineState}
             />
           ) : null}
@@ -122,12 +125,12 @@ export default function ResetPasswordScreen() {
           {isRecoverySession ? (
             <View style={styles.fields}>
               <View style={styles.field}>
-                <AppText variant="label">New password</AppText>
+                <AppText variant="label">{copy.newPassword}</AppText>
                 <TextInput
                   autoCapitalize="none"
                   autoComplete="new-password"
                   onChangeText={setPassword}
-                  placeholder="Minimum 8 characters"
+                  placeholder={copy.passwordPlaceholder}
                   placeholderTextColor={tokens.color.mutedSoft}
                   secureTextEntry
                   style={styles.input}
@@ -136,12 +139,12 @@ export default function ResetPasswordScreen() {
                 />
               </View>
               <View style={styles.field}>
-                <AppText variant="label">Confirm new password</AppText>
+                <AppText variant="label">{copy.confirmNewPassword}</AppText>
                 <TextInput
                   autoCapitalize="none"
                   autoComplete="new-password"
                   onChangeText={setConfirmPassword}
-                  placeholder="Repeat password"
+                  placeholder={copy.repeatPassword}
                   placeholderTextColor={tokens.color.mutedSoft}
                   returnKeyType="done"
                   secureTextEntry
@@ -156,7 +159,7 @@ export default function ResetPasswordScreen() {
             </View>
           ) : (
             <View style={styles.field}>
-              <AppText variant="label">Email</AppText>
+              <AppText variant="label">{copy.email}</AppText>
               <TextInput
                 autoCapitalize="none"
                 autoComplete="email"
@@ -173,11 +176,11 @@ export default function ResetPasswordScreen() {
             </View>
           )}
 
-          {error ? <AuthResetMessage error={error} /> : null}
+          {error ? <AuthResetMessage error={error} language={profileLanguage} /> : null}
           {message ? (
             <View style={styles.successBox}>
               <AppText color="success" variant="label">
-                Reset email requested
+                {copy.resetEmailRequested}
               </AppText>
               <AppText color="muted" variant="caption">
                 {message}
@@ -189,20 +192,20 @@ export default function ResetPasswordScreen() {
             {isRecoverySession ? (
               <PrimaryButton
                 disabled={!canUpdatePassword || isSubmitting}
-                label={isSubmitting ? "Saving..." : "Save new password"}
+                label={isSubmitting ? copy.saving : copy.saveNewPassword}
                 loading={isSubmitting}
                 onPress={saveNewPassword}
               />
             ) : (
               <PrimaryButton
                 disabled={!canRequestReset || isSubmitting}
-                label={isSubmitting ? "Sending..." : "Send reset link"}
+                label={isSubmitting ? copy.sending : copy.sendResetLink}
                 loading={isSubmitting}
                 onPress={requestReset}
               />
             )}
             <SecondaryButton
-              label={isRecoverySession ? "Skip for now" : "Back to login"}
+              label={isRecoverySession ? copy.skipForNow : copy.backToLogin}
               onPress={() => router.replace(isRecoverySession ? "/" : "/(auth)/login")}
             />
           </View>
@@ -212,23 +215,84 @@ export default function ResetPasswordScreen() {
   );
 }
 
-function AuthResetMessage({ error }: { error: NormalizedSupabaseError }) {
+function AuthResetMessage({
+  error,
+  language
+}: {
+  error: NormalizedSupabaseError;
+  language: Language | null | undefined;
+}) {
+  const userFacingError = getUserFacingError(error, language, "password");
+
   return (
     <View style={styles.errorBox}>
       <AppText color="danger" variant="label">
-        {error.message}
+        {userFacingError.title}
       </AppText>
-      {error.hint ? (
-        <AppText color="muted" variant="caption">
-          {error.hint}
-        </AppText>
-      ) : null}
-      {error.code ? (
-        <AppText color="muted" variant="caption">
-          Developer/Test code: {error.code}
-        </AppText>
-      ) : null}
+      <AppText color="muted" variant="caption">
+        {userFacingError.message}
+      </AppText>
     </View>
+  );
+}
+
+function getResetPasswordCopy(language: Language | null | undefined) {
+  return localized(
+    {
+      en: {
+        accountEyebrow: "Account",
+        accountUnavailableDescription:
+          "Account features are unavailable right now. Please try again later.",
+        backToLogin: "Back to login",
+        confirmNewPassword: "Confirm new password",
+        email: "Email",
+        eyebrow: "Compte",
+        newPassword: "New password",
+        newPasswordDescription: "Choose a new password for your PersoNewsAP account.",
+        newPasswordTitle: "Set a new password",
+        passwordPlaceholder: "Minimum 8 characters",
+        passwordResetUnavailable: "Password reset unavailable",
+        repeatPassword: "Repeat password",
+        resetEmailRequested: "Reset email requested",
+        resetLinkSent: "If this email has an account, a secure reset link will be sent.",
+        resetPasswordDescription: "Enter your email and we will send a secure reset link.",
+        resetPasswordTitle: "Reset your password",
+        saveNewPassword: "Save new password",
+        saving: "Saving...",
+        sendResetLink: "Send reset link",
+        sending: "Sending...",
+        signInNotSetup: "Sign-in is not set up for this build.",
+        skipForNow: "Skip for now"
+      },
+      fr: {
+        accountEyebrow: "Compte",
+        accountUnavailableDescription:
+          "Les fonctions de compte sont indisponibles pour le moment. Réessaie plus tard.",
+        backToLogin: "Retour à la connexion",
+        confirmNewPassword: "Confirmer le nouveau mot de passe",
+        email: "Email",
+        eyebrow: "Compte",
+        newPassword: "Nouveau mot de passe",
+        newPasswordDescription: "Choisis un nouveau mot de passe pour ton compte PersoNewsAP.",
+        newPasswordTitle: "Définis un nouveau mot de passe",
+        passwordPlaceholder: "Minimum 8 caractères",
+        passwordResetUnavailable: "Réinitialisation indisponible",
+        repeatPassword: "Répète le mot de passe",
+        resetEmailRequested: "Email de réinitialisation demandé",
+        resetLinkSent:
+          "Si cet email correspond à un compte, un lien sécurisé de réinitialisation sera envoyé.",
+        resetPasswordDescription:
+          "Entre ton email et nous t'enverrons un lien sécurisé de réinitialisation.",
+        resetPasswordTitle: "Réinitialise ton mot de passe",
+        saveNewPassword: "Enregistrer le nouveau mot de passe",
+        saving: "Enregistrement...",
+        sendResetLink: "Envoyer le lien",
+        sending: "Envoi...",
+        signInNotSetup: "La connexion n'est pas configurée pour cette version.",
+        skipForNow: "Passer pour l'instant"
+      }
+    },
+    language
   );
 }
 

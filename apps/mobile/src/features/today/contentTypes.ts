@@ -35,6 +35,7 @@ type BaseContentItem = {
   title: string;
   slot: DailyDropSlot;
   source_ids: string[];
+  sources?: SourceMetadata[];
   version: number;
 };
 

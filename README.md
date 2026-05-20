@@ -158,6 +158,7 @@ Safe no-write test commands:
 
 ```sh
 npm run content:dry-run
+npm run content:quality-proof
 LIVE_RSS=true OPENAI_API_KEY=... npm run content:llm-run
 npm run supabase:doctor
 ```
@@ -180,14 +181,16 @@ Production-shaped command:
 
 ```sh
 DRY_RUN=true npm run content:daily-job
+OPENAI_API_KEY=... npm run content:prod-dry-run
 ```
 
-Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow. Non-dry production writes require `PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true`, plus `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY`.
+Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow. Non-dry production writes require `PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true`, plus `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY`. The guarded wrapper is `npm run content:prod-run`.
 
 Read-only diagnostic commands:
 
 ```sh
 npm run supabase:doctor -- --live
+npm run content:health
 npm run content:debug-users
 ```
 
@@ -213,7 +216,7 @@ Dangerous write commands require explicit confirmation flags and server-side env
 - `backend:e2e:live-rss`
 - `backend:e2e:llm`
 
-Use [TESTING.md](TESTING.md) before running them. `content:daily-job` is production-shaped and stores non-dry run summaries for `content:job-health`, but unattended scheduling and operational ownership still need a production owner.
+Use [TESTING.md](TESTING.md) before running them. `content:daily-job` is production-shaped and stores non-dry run summaries for `content:health` / `content:job-health`; use [BACKEND_OPERATIONS.md](BACKEND_OPERATIONS.md) for the production runbook, rollback plan, and partial-language playbook.
 
 ## Supabase
 

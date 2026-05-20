@@ -14,7 +14,7 @@ This is the checklist for moving from local/simulator tester prep to an installa
 | Live daily-drop backend path | implemented, proof required | Implemented, but each tester wave still needs an assigned marked drop and live proof. |
 | LLM generation | not release-validated | LLM commands exist; prompt quality and editorial safety are next-phase work. |
 | Production content generation | partial | Deterministic test paths exist; production editorial approval is not automated. |
-| Production scheduler/ops | partial | `content:daily-job` exists; unattended scheduler, monitoring, incident response, and cleanup owner are not defined. |
+| Production scheduler/ops | partial | `content:daily-job`, `content:prod-dry-run`, `content:prod-run`, and `content:health` exist; [BACKEND_OPERATIONS.md](BACKEND_OPERATIONS.md) covers manual operations, but unattended scheduler ownership is still not defined. |
 
 Current TestFlight status: not ready. This repo is ready for local/staging backend proof and controlled live-data rehearsal, but not for external TestFlight invites until the checklist below is complete.
 

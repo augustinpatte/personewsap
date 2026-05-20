@@ -2,5 +2,10 @@ export { ArticleCountRow } from "./ArticleCountRow";
 export { OnboardingProvider, useOnboarding } from "./OnboardingState";
 export { OnboardingScaffold } from "./OnboardingScaffold";
 export { SelectableCard } from "./SelectableCard";
-export { FREQUENCY_OPTIONS, GOAL_OPTIONS, LANGUAGE_OPTIONS, TOPIC_OPTIONS } from "./options";
+export { getOnboardingCopy } from "./copy";
+export {
+  LANGUAGE_OPTIONS,
+  TOPIC_OPTIONS,
+  localizeOptions
+} from "./options";
 export { saveOnboardingPreferences } from "./persistence";

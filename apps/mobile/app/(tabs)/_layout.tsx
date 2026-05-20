@@ -3,11 +3,27 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { tokens } from "../../src/design/tokens";
 import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
+import { localized } from "../../src/lib/i18n";
 
 export default function TabsLayout() {
-  const { status } = useAuth();
+  const { profileLanguage, status } = useAuth();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 16);
+  const copy = localized(
+    {
+      en: {
+        account: "Account",
+        library: "Library",
+        today: "Today"
+      },
+      fr: {
+        account: "Compte",
+        library: "Bibliothèque",
+        today: "Aujourd'hui"
+      }
+    },
+    profileLanguage
+  );
 
   if (status === "loading") {
     return <AuthLoadingScreen />;
@@ -40,9 +56,9 @@ export default function TabsLayout() {
         }
       }}
     >
-      <Tabs.Screen name="today" options={{ title: "Today" }} />
-      <Tabs.Screen name="library" options={{ title: "Library" }} />
-      <Tabs.Screen name="account" options={{ title: "Account" }} />
+      <Tabs.Screen name="today" options={{ title: copy.today }} />
+      <Tabs.Screen name="library" options={{ title: copy.library }} />
+      <Tabs.Screen name="account" options={{ title: copy.account }} />
     </Tabs>
   );
 }

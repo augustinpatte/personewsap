@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppScreen } from "../../src/components/AppScreen";
@@ -10,8 +10,12 @@ import { ProgressPill } from "../../src/components/ProgressPill";
 import { SecondaryButton } from "../../src/components/SecondaryButton";
 import { tokens } from "../../src/design/tokens";
 import { useAuth } from "../../src/features/auth";
+import { NotificationPreferencesCard } from "../../src/features/notifications";
 import { PreferencesEditor } from "../../src/features/preferences";
-import { supabaseConfigDiagnostics } from "../../src/lib/supabase";
+import { trackAnalyticsEvent } from "../../src/lib/analytics";
+import { formatLanguageName, localized } from "../../src/lib/i18n";
+import { type NormalizedSupabaseError } from "../../src/lib/supabase";
+import { getUserFacingError } from "../../src/lib/userFacingErrors";
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -29,8 +33,20 @@ export default function AccountScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [preferencesRefreshKey, setPreferencesRefreshKey] = useState(0);
-  const [showDeveloperInfo, setShowDeveloperInfo] = useState(false);
-  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [signOutError, setSignOutError] = useState<NormalizedSupabaseError | null>(null);
+  const copy = getAccountCopy(profileLanguage);
+  const visibleAccountError = signOutError ?? error;
+  const userFacingAccountError = visibleAccountError
+    ? getUserFacingError(visibleAccountError, profileLanguage, "account")
+    : null;
+
+  useEffect(() => {
+    if (visibleAccountError) {
+      trackAnalyticsEvent("error_viewed", {
+        language: profileLanguage ?? undefined
+      });
+    }
+  }, [profileLanguage, visibleAccountError]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -51,7 +67,7 @@ export default function AccountScreen() {
     const result = await signOut();
 
     if (result.error) {
-      setSignOutError(result.error.message);
+      setSignOutError(result.error);
       setIsSigningOut(false);
       return;
     }
@@ -64,16 +80,16 @@ export default function AccountScreen() {
     <AppScreen>
       <AppScreen.Header>
         <View style={styles.headerTopline}>
-          <AppText variant="eyebrow">Account</AppText>
+          <AppText variant="eyebrow">{copy.eyebrow}</AppText>
           <ProgressPill
-            label={session ? "Signed in" : "Signed out"}
+            label={session ? copy.signedIn : copy.signedOut}
             tone={session ? "success" : "neutral"}
           />
         </View>
         <View style={styles.headerCopy}>
-          <AppText variant="title">Settings</AppText>
+          <AppText variant="title">{copy.title}</AppText>
           <AppText variant="body">
-            Manage your PersoNewsAP account and check that your daily learning setup is ready.
+            {copy.description}
           </AppText>
         </View>
       </AppScreen.Header>
@@ -81,70 +97,60 @@ export default function AccountScreen() {
       <AppScreen.Body>
         <Card elevated padding="lg" style={styles.heroCard}>
           <View style={styles.cardTopline}>
-            <AppText variant="subtitle">{user?.email ?? "No active user"}</AppText>
+            <AppText variant="subtitle">{user?.email ?? copy.noActiveUser}</AppText>
             <ProgressPill
-              label={profileCompleted ? "Ready" : onboardingLabel(status)}
+              label={profileCompleted ? copy.ready : onboardingLabel(status, profileLanguage)}
               tone={profileCompleted ? "success" : "warning"}
             />
           </View>
           <AppText color="muted" variant="body">
             {profileCompleted
-              ? "Your onboarding is complete. Today will show a live assigned drop when one is available."
-              : "Finish onboarding to unlock your daily drop."}
+              ? copy.complete
+              : copy.finishOnboarding}
           </AppText>
-          <InfoRow label="Daily drop language" value={formatLanguage(profileLanguage)} />
+          <InfoRow
+            label={copy.dailyDropLanguage}
+            value={formatLanguageName(profileLanguage, profileLanguage)}
+          />
         </Card>
 
         <PreferencesEditor
           onSaved={refreshAuthState}
           refreshKey={preferencesRefreshKey}
+          uiLanguage={profileLanguage}
+          userId={user?.id ?? null}
+        />
+
+        <NotificationPreferencesCard
+          language={profileLanguage}
+          refreshKey={preferencesRefreshKey}
           userId={user?.id ?? null}
         />
 
         <Card tone="muted">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showDeveloperInfo }}
-            onPress={() => setShowDeveloperInfo((isVisible) => !isVisible)}
-            style={styles.developerToggle}
-          >
-            <View style={styles.developerToggleCopy}>
-              <AppText variant="subtitle">Developer/Test info</AppText>
-              <AppText color="muted" variant="caption">
-                User id and live-data diagnostics for test setup.
-              </AppText>
-            </View>
+          <View style={styles.connectionCard}>
+            <AppText variant="subtitle">{copy.connectionTitle}</AppText>
+            <AppText color="muted" variant="body">
+              {isConfigured ? copy.connectionReady : copy.connectionUnavailable}
+            </AppText>
             <ProgressPill
-              label={showDeveloperInfo ? "Hide" : "Show"}
-              tone={isConfigured ? "neutral" : "warning"}
+              label={isConfigured ? copy.configured : copy.unavailable}
+              tone={isConfigured ? "success" : "warning"}
             />
-          </Pressable>
-
-          {showDeveloperInfo ? (
-            <View style={styles.developerDetails}>
-              <View style={styles.idBox}>
-                <AppText color="muted" variant="caption">
-                  User id for TEST_USER_ID
-                </AppText>
-                <AppText selectable style={styles.idValue} variant="bodyStrong">
-                  {user?.id ?? "Unavailable"}
-                </AppText>
-              </View>
-              <InfoRow label="Live data host" value={supabaseConfigDiagnostics.urlHost ?? "Unavailable"} />
-              <InfoRow label="Live data connection" value={isConfigured ? "Configured" : "Needs env"} />
-              <InfoRow label="Current session" value={session ? "Active" : "Not signed in"} />
-              {error ? <AppText color="danger" variant="caption">{error.message}</AppText> : null}
-            </View>
-          ) : null}
+          </View>
         </Card>
 
-        {signOutError ? <AppText color="danger" variant="body">{signOutError}</AppText> : null}
+        {userFacingAccountError ? (
+          <AppText color="danger" variant="body">
+            {userFacingAccountError.message}
+          </AppText>
+        ) : null}
 
         <View style={styles.actions}>
-          <SecondaryButton disabled={isRefreshing || isSigningOut} label="Refresh" onPress={handleRefresh} />
+          <SecondaryButton disabled={isRefreshing || isSigningOut} label={copy.refresh} onPress={handleRefresh} />
           <PrimaryButton
             disabled={isRefreshing}
-            label="Log out"
+            label={copy.logOut}
             loading={isSigningOut}
             onPress={handleSignOut}
             testID="account-logout-button"
@@ -155,28 +161,16 @@ export default function AccountScreen() {
   );
 }
 
-function onboardingLabel(status: string) {
+function onboardingLabel(status: string, language: string | null) {
   if (status === "needsOnboarding") {
-    return "Needs onboarding";
+    return localized({ en: "Needs onboarding", fr: "Onboarding requis" }, language === "fr" ? "fr" : "en");
   }
 
   if (status === "loading") {
-    return "Checking";
+    return localized({ en: "Checking", fr: "Vérification" }, language === "fr" ? "fr" : "en");
   }
 
-  return "Not complete";
-}
-
-function formatLanguage(language: string | null) {
-  if (language === "fr") {
-    return "French";
-  }
-
-  if (language === "en") {
-    return "English";
-  }
-
-  return "Not set";
+  return localized({ en: "Not complete", fr: "Incomplet" }, language === "fr" ? "fr" : "en");
 }
 
 function InfoRow({
@@ -206,6 +200,58 @@ function InfoRow({
   );
 }
 
+function getAccountCopy(language: string | null) {
+  const uiLanguage = language === "fr" ? "fr" : "en";
+
+  return localized(
+    {
+      en: {
+        eyebrow: "Account",
+        title: "Settings",
+        description:
+          "Manage your PersoNewsAP account and check that your daily learning setup is ready.",
+        signedIn: "Signed in",
+        signedOut: "Signed out",
+        noActiveUser: "No active user",
+        ready: "Ready",
+        complete:
+          "Your onboarding is complete. Today will show a live assigned drop when one is available.",
+        finishOnboarding: "Finish onboarding to unlock your daily drop.",
+        dailyDropLanguage: "Daily drop language",
+        connectionTitle: "Live account connection",
+        connectionReady: "Live account features are available.",
+        connectionUnavailable: "Live account features are unavailable right now.",
+        unavailable: "Unavailable",
+        configured: "Configured",
+        refresh: "Refresh",
+        logOut: "Log out"
+      },
+      fr: {
+        eyebrow: "Compte",
+        title: "Réglages",
+        description:
+          "Gère ton compte PersoNewsAP et vérifie que ta mise à jour quotidienne est prête.",
+        signedIn: "Connecté",
+        signedOut: "Déconnecté",
+        noActiveUser: "Aucun utilisateur actif",
+        ready: "Prêt",
+        complete:
+          "Ta configuration est terminée. L'écran Aujourd'hui affichera une mise à jour assignée dès qu'elle sera disponible.",
+        finishOnboarding: "Termine la configuration pour débloquer ta mise à jour quotidienne.",
+        dailyDropLanguage: "Langue de la mise à jour",
+        connectionTitle: "Connexion du compte",
+        connectionReady: "Les fonctions de compte en direct sont disponibles.",
+        connectionUnavailable: "Les fonctions de compte en direct sont indisponibles pour le moment.",
+        unavailable: "Indisponible",
+        configured: "Configuré",
+        refresh: "Actualiser",
+        logOut: "Se déconnecter"
+      }
+    },
+    uiLanguage
+  );
+}
+
 const styles = StyleSheet.create({
   actions: {
     gap: tokens.space.md
@@ -228,31 +274,8 @@ const styles = StyleSheet.create({
     gap: tokens.space.md,
     justifyContent: "space-between"
   },
-  idBox: {
-    backgroundColor: tokens.color.backgroundRaised,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    gap: tokens.space.xs,
-    padding: tokens.space.md
-  },
-  developerToggle: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
-  },
-  developerToggleCopy: {
-    flex: 1,
-    gap: tokens.space.xs
-  },
-  developerDetails: {
-    gap: tokens.space.md
-  },
-  idValue: {
-    fontFamily: "Courier",
-    fontSize: 13,
-    lineHeight: 19
+  connectionCard: {
+    gap: tokens.space.sm
   },
   monospace: {
     fontFamily: "Courier",
