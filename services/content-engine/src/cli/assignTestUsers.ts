@@ -338,7 +338,12 @@ function selectTestContentForPreference(
   }
 
   addFirstSlot(selected, contentItems, "business_story");
-  addFirstSlot(selected, contentItems, "mini_case", sortedTopics.map((topic) => topic.topic_id));
+  addFirstSlot(
+    selected,
+    contentItems,
+    "mini_case",
+    buildMiniCaseTopicOrder(preference.mini_case_topic_id, sortedTopics.map((topic) => topic.topic_id))
+  );
   addFirstSlot(selected, contentItems, "concept");
 
   return selected;
@@ -354,12 +359,13 @@ function addFirstSlot(
   slot: Exclude<DailyDropSlot, "newsletter">,
   preferredTopicIds: UserDailyDropPreference["topics"][number]["topic_id"][] = []
 ): void {
-  const preferredTopics = new Set(preferredTopicIds);
   const preferredMatch =
     slot === "mini_case"
-      ? contentItems.find((item) => item.slot === slot && item.topic && preferredTopics.has(item.topic))
+      ? preferredTopicIds
+          .map((topicId) => contentItems.find((item) => item.slot === slot && item.topic === topicId))
+          .find((item): item is AssignableTestContentItem => Boolean(item))
       : null;
-  const fallbackMatch = contentItems.find((item) => item.slot === slot);
+  const fallbackMatch = slot === "mini_case" ? null : contentItems.find((item) => item.slot === slot);
   const match = preferredMatch ?? fallbackMatch;
 
   if (!match) {
@@ -371,6 +377,20 @@ function addFirstSlot(
     slot,
     position: 0
   });
+}
+
+function buildMiniCaseTopicOrder(
+  miniCaseTopicId: UserDailyDropPreference["mini_case_topic_id"],
+  enabledTopicIds: UserDailyDropPreference["topics"][number]["topic_id"][]
+) {
+  if (miniCaseTopicId && enabledTopicIds.includes(miniCaseTopicId)) {
+    return [
+      miniCaseTopicId,
+      ...enabledTopicIds.filter((topicId) => topicId !== miniCaseTopicId)
+    ];
+  }
+
+  return enabledTopicIds;
 }
 
 function hasRequiredSlots(

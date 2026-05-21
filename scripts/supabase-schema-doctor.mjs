@@ -235,14 +235,14 @@ async function runStaticMigrationAudit() {
 
   assertRegex(
     sql,
-    /preferred_notification_time\s+text\s+not\s+null\s+default\s+'08:00'/i,
-    "migration adds preferred notification time"
+    /unique\s*\(\s*user_id\s*,\s*expo_push_token\s*\)/i,
+    "migration prevents duplicate push token rows per user"
   );
 
   assertRegex(
     sql,
-    /unique\s*\(\s*user_id\s*,\s*expo_push_token\s*\)/i,
-    "migration prevents duplicate push token rows per user"
+    /alter\s+table\s+public\.user_preferences[\s\S]+add\s+column\s+(if\s+not\s+exists\s+)?mini_case_topic_id\s+text\s+references\s+public\.topics\s*\(\s*id\s*\)/i,
+    "migration stores explicit mini-case topic preference"
   );
 }
 

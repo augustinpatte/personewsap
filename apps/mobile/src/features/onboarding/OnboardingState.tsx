@@ -7,33 +7,42 @@ import {
   type PropsWithChildren
 } from "react";
 
-import type { Language, TopicId } from "../../types/domain";
-import { clampNewsletterArticleCount, isNewsletterTopicId } from "./options";
+import type { Language } from "../../types/domain";
+import {
+  clampNewsletterArticleCount,
+  isNewsletterTopicId,
+  normalizeMiniCaseTopicId,
+  type NewsletterTopicId
+} from "./options";
 
 export type OnboardingState = {
   language: Language | null;
-  selectedTopics: TopicId[];
-  articlesPerTopic: Partial<Record<TopicId, number>>;
+  selectedTopics: NewsletterTopicId[];
+  miniCaseTopicId: NewsletterTopicId | null;
+  articlesPerTopic: Partial<Record<NewsletterTopicId, number>>;
   placeholderSaved: boolean;
 };
 
 type OnboardingContextValue = {
   state: OnboardingState;
   setLanguage: (language: Language) => void;
-  toggleTopic: (topicId: TopicId) => void;
-  setArticleCount: (topicId: TopicId, count: number) => void;
+  toggleTopic: (topicId: NewsletterTopicId) => void;
+  setMiniCaseTopic: (topicId: NewsletterTopicId) => void;
+  setArticleCount: (topicId: NewsletterTopicId, count: number) => void;
   savePlaceholder: () => void;
 };
 
 type OnboardingAction =
   | { type: "setLanguage"; language: Language }
-  | { type: "toggleTopic"; topicId: TopicId }
-  | { type: "setArticleCount"; topicId: TopicId; count: number }
+  | { type: "toggleTopic"; topicId: NewsletterTopicId }
+  | { type: "setMiniCaseTopic"; topicId: NewsletterTopicId }
+  | { type: "setArticleCount"; topicId: NewsletterTopicId; count: number }
   | { type: "savePlaceholder" };
 
 const initialState: OnboardingState = {
   language: null,
   selectedTopics: [],
+  miniCaseTopicId: null,
   articlesPerTopic: {},
   placeholderSaved: false
 };
@@ -56,24 +65,38 @@ function onboardingReducer(
 
       if (isSelected) {
         const remainingCounts = { ...state.articlesPerTopic };
+        const selectedTopics = state.selectedTopics.filter((topicId) => topicId !== action.topicId);
         delete remainingCounts[action.topicId];
 
         return {
           ...state,
-          selectedTopics: state.selectedTopics.filter((topicId) => topicId !== action.topicId),
+          selectedTopics,
+          miniCaseTopicId: normalizeMiniCaseTopicId(selectedTopics, state.miniCaseTopicId),
           articlesPerTopic: remainingCounts
         };
       }
 
+      const selectedTopics = [...state.selectedTopics, action.topicId];
+
       return {
         ...state,
-        selectedTopics: [...state.selectedTopics, action.topicId],
+        selectedTopics,
+        miniCaseTopicId: normalizeMiniCaseTopicId(selectedTopics, state.miniCaseTopicId),
         articlesPerTopic: {
           ...state.articlesPerTopic,
           [action.topicId]: state.articlesPerTopic[action.topicId] ?? 1
         }
       };
     }
+    case "setMiniCaseTopic":
+      if (!isNewsletterTopicId(action.topicId) || !state.selectedTopics.includes(action.topicId)) {
+        return state;
+      }
+
+      return {
+        ...state,
+        miniCaseTopicId: action.topicId
+      };
     case "setArticleCount":
       if (!isNewsletterTopicId(action.topicId)) {
         return state;
@@ -100,11 +123,15 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
     dispatch({ type: "setLanguage", language });
   }, []);
 
-  const toggleTopic = useCallback((topicId: TopicId) => {
+  const toggleTopic = useCallback((topicId: NewsletterTopicId) => {
     dispatch({ type: "toggleTopic", topicId });
   }, []);
 
-  const setArticleCount = useCallback((topicId: TopicId, count: number) => {
+  const setMiniCaseTopic = useCallback((topicId: NewsletterTopicId) => {
+    dispatch({ type: "setMiniCaseTopic", topicId });
+  }, []);
+
+  const setArticleCount = useCallback((topicId: NewsletterTopicId, count: number) => {
     dispatch({ type: "setArticleCount", topicId, count });
   }, []);
 
@@ -117,10 +144,11 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
       state,
       setLanguage,
       toggleTopic,
+      setMiniCaseTopic,
       setArticleCount,
       savePlaceholder
     }),
-    [savePlaceholder, setArticleCount, setLanguage, state, toggleTopic]
+    [savePlaceholder, setArticleCount, setLanguage, setMiniCaseTopic, state, toggleTopic]
   );
 
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;

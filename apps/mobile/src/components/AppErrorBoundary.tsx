@@ -2,6 +2,8 @@ import { Component, type ErrorInfo, type PropsWithChildren, type ReactNode } fro
 import { StyleSheet, View } from "react-native";
 
 import { tokens } from "../design/tokens";
+import { localized } from "../lib/i18n";
+import type { Language } from "../types/domain";
 import { AppText } from "./AppText";
 import { PrimaryButton } from "./PrimaryButton";
 
@@ -9,7 +11,11 @@ type AppErrorBoundaryState = {
   error: Error | null;
 };
 
-export class AppErrorBoundary extends Component<PropsWithChildren, AppErrorBoundaryState> {
+type AppErrorBoundaryProps = PropsWithChildren<{
+  language?: Language | null;
+}>;
+
+export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
   state: AppErrorBoundaryState = {
     error: null
   };
@@ -34,21 +40,43 @@ export class AppErrorBoundary extends Component<PropsWithChildren, AppErrorBound
       return this.props.children;
     }
 
+    const copy = localized(
+      {
+        en: {
+          eyebrow: "App recovery",
+          title: "Something did not load cleanly.",
+          description: "Your account is still safe. Reset this screen and try again.",
+          reset: "Reset screen"
+        },
+        fr: {
+          eyebrow: "Récupération",
+          title: "Quelque chose ne s'est pas chargé correctement.",
+          description: "Ton compte est toujours protégé. Réinitialise cet écran et réessaie.",
+          reset: "Réinitialiser l'écran"
+        }
+      },
+      getBoundaryLanguage(this.props)
+    );
+
     return (
       <View style={styles.container}>
         <View style={styles.copy}>
-          <AppText variant="eyebrow">App recovery</AppText>
+          <AppText variant="eyebrow">{copy.eyebrow}</AppText>
           <AppText align="center" variant="title">
-            Something did not load cleanly.
+            {copy.title}
           </AppText>
           <AppText align="center" color="muted" variant="body">
-            Your account is still safe. Reset this screen and try again.
+            {copy.description}
           </AppText>
         </View>
-        <PrimaryButton label="Reset screen" onPress={this.reset} />
+        <PrimaryButton label={copy.reset} onPress={this.reset} />
       </View>
     );
   }
+}
+
+function getBoundaryLanguage(props: AppErrorBoundaryProps): Language | null {
+  return props.language === "fr" || props.language === "en" ? props.language : null;
 }
 
 const styles = StyleSheet.create({

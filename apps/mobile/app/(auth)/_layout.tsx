@@ -3,12 +3,12 @@ import { Redirect, Stack, useSegments } from "expo-router";
 import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
 
 export default function AuthLayout() {
-  const { status } = useAuth();
+  const { profileLanguage, status } = useAuth();
   const segments = useSegments();
   const isResetPasswordRoute = segments[segments.length - 1] === "reset-password";
 
   if (status === "loading") {
-    return <AuthLoadingScreen />;
+    return <AuthLoadingScreen language={profileLanguage} />;
   }
 
   if (status === "needsOnboarding" && !isResetPasswordRoute) {

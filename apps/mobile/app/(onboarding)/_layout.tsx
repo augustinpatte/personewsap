@@ -4,10 +4,10 @@ import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
 import { OnboardingProvider } from "../../src/features/onboarding";
 
 export default function OnboardingLayout() {
-  const { status } = useAuth();
+  const { profileLanguage, status } = useAuth();
 
   if (status === "loading") {
-    return <AuthLoadingScreen />;
+    return <AuthLoadingScreen language={profileLanguage} />;
   }
 
   if (status === "signedOut") {

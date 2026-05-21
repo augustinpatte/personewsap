@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Switch, View } from "react-native";
 
 import { AppText, Card, ProgressPill } from "../../components";
 import { tokens } from "../../design/tokens";
@@ -8,7 +8,6 @@ import { getUserFacingErrorMessage } from "../../lib/userFacingErrors";
 import type { Language } from "../../types/domain";
 import {
   loadNotificationPreferences,
-  normalizeNotificationTime,
   saveNotificationPreferences,
   type NotificationPreferences,
   type NotificationRegistrationState
@@ -19,8 +18,6 @@ type NotificationPreferencesCardProps = {
   refreshKey: number;
   userId: string | null;
 };
-
-const TIME_OPTIONS = ["07:30", "08:00", "12:00", "18:00"];
 
 export function NotificationPreferencesCard({
   language,
@@ -64,15 +61,8 @@ export function NotificationPreferencesCard({
   }, [loadPreferences, refreshKey]);
 
   const savePreferences = useCallback(
-    async (nextEnabled: boolean, nextTime: string) => {
+    async (nextEnabled: boolean) => {
       if (!userId) {
-        return;
-      }
-
-      const normalizedTime = normalizeNotificationTime(nextTime);
-
-      if (!normalizedTime) {
-        setErrorMessage(copy.invalidTime);
         return;
       }
 
@@ -83,7 +73,6 @@ export function NotificationPreferencesCard({
       const result = await saveNotificationPreferences({
         enabled: nextEnabled,
         language: uiLanguage,
-        preferredNotificationTime: normalizedTime,
         userId
       });
 
@@ -96,7 +85,6 @@ export function NotificationPreferencesCard({
             ? {
                 ...current,
                 notificationsEnabled: false,
-                preferredNotificationTime: normalizedTime,
                 tokenStored: false
               }
             : current
@@ -111,7 +99,6 @@ export function NotificationPreferencesCard({
           ? {
               ...current,
               notificationsEnabled: nextEnabled,
-              preferredNotificationTime: normalizedTime,
               tokenStored: nextEnabled && result.registrationState === "granted"
             }
           : current
@@ -119,7 +106,7 @@ export function NotificationPreferencesCard({
       setStatusMessage(result.warning ?? statusMessageFor(nextEnabled, result.registrationState, uiLanguage));
       await loadPreferences();
     },
-    [copy.invalidTime, loadPreferences, uiLanguage, userId]
+    [loadPreferences, uiLanguage, userId]
   );
 
   if (!userId) {
@@ -145,7 +132,6 @@ export function NotificationPreferencesCard({
   }
 
   const enabled = preferences?.notificationsEnabled ?? false;
-  const preferredTime = preferences?.preferredNotificationTime ?? "08:00";
 
   return (
     <Card tone="muted">
@@ -160,7 +146,7 @@ export function NotificationPreferencesCard({
           disabled={saving || loading || !preferences?.tokenStorageReady}
           ios_backgroundColor={tokens.color.borderStrong}
           onValueChange={(nextValue) => {
-            void savePreferences(nextValue, preferredTime);
+            void savePreferences(nextValue);
           }}
           thumbColor={tokens.color.white}
           trackColor={{
@@ -173,7 +159,6 @@ export function NotificationPreferencesCard({
 
       <View style={styles.metaRows}>
         <InfoRow label={copy.language} value={formatLanguageName(preferences?.language ?? null, uiLanguage)} />
-        <InfoRow label={copy.timezone} value={preferences?.timezone ?? copy.notSet} />
         <InfoRow
           label={copy.pushToken}
           value={
@@ -184,36 +169,6 @@ export function NotificationPreferencesCard({
               : copy.tableNotReady
           }
         />
-      </View>
-
-      <View style={styles.group}>
-        <AppText color="muted" style={styles.groupTitle} variant="caption">
-          {copy.preferredTime}
-        </AppText>
-        <View style={styles.timeGrid}>
-          {TIME_OPTIONS.map((time) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: preferredTime === time }}
-              disabled={saving || loading}
-              key={time}
-              onPress={() => {
-                void savePreferences(enabled, time);
-              }}
-              style={[
-                styles.timeButton,
-                preferredTime === time ? styles.timeButtonSelected : null
-              ]}
-            >
-              <AppText
-                color={preferredTime === time ? "accentInk" : "inkSoft"}
-                variant="bodyStrong"
-              >
-                {time}
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
       </View>
 
       <ProgressPill label={registrationLabel(registrationState, enabled, uiLanguage)} tone={enabled ? "success" : "neutral"} />
@@ -298,15 +253,11 @@ function getNotificationCopy(language: Language) {
         description: "Optional push reminder after account setup.",
         signIn: "Sign in to manage push reminder preferences.",
         loading: "Loading reminder settings...",
-        invalidTime: "Choose a reminder time in HH:MM format.",
         language: "Language",
-        timezone: "Timezone",
-        notSet: "Not set",
         pushToken: "Reminder status",
         tokenStored: "Ready for this account",
         tokenNotStored: "Not enabled",
         tableNotReady: "Unavailable",
-        preferredTime: "Preferred time",
         saving: "Saving reminder settings...",
         ready: "Ready",
         denied: "Denied",
@@ -324,15 +275,11 @@ function getNotificationCopy(language: Language) {
         description: "Notification optionnelle après la configuration du compte.",
         signIn: "Connecte-toi pour gérer les notifications de rappel.",
         loading: "Chargement des réglages de rappel...",
-        invalidTime: "Choisis une heure de rappel au format HH:MM.",
         language: "Langue",
-        timezone: "Fuseau horaire",
-        notSet: "Non défini",
         pushToken: "État du rappel",
         tokenStored: "Prêt pour ce compte",
         tokenNotStored: "Non activé",
         tableNotReady: "Indisponible",
-        preferredTime: "Heure préférée",
         saving: "Enregistrement des réglages de rappel...",
         ready: "Prêt",
         denied: "Refusé",
@@ -355,12 +302,6 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: tokens.space.xs
   },
-  group: {
-    gap: tokens.space.sm
-  },
-  groupTitle: {
-    textTransform: "uppercase"
-  },
   loadingCard: {
     alignItems: "center",
     paddingVertical: tokens.space.xl
@@ -376,26 +317,6 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     flexShrink: 1
-  },
-  timeButton: {
-    alignItems: "center",
-    backgroundColor: tokens.color.backgroundRaised,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm
-  },
-  timeButtonSelected: {
-    backgroundColor: tokens.color.accentSoft,
-    borderColor: tokens.color.accent
-  },
-  timeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: tokens.space.sm
   },
   topline: {
     alignItems: "center",

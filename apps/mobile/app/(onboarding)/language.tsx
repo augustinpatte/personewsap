@@ -35,12 +35,12 @@ export default function LanguageScreen() {
       primaryDisabled={!state.language}
       primaryLabel={copy.common.continue}
       onPrimaryPress={() => router.push("/(onboarding)/topics")}
-      progressLabel={copy.step(1, 3)}
+      progressLabel={copy.step(1, 4)}
       secondaryLabel={copy.language.backToLogin}
       onSecondaryPress={returnToLogin}
       step={1}
       title={copy.language.title}
-      totalSteps={3}
+      totalSteps={4}
     >
       {languageOptions.map((option) => (
         <SelectableCard

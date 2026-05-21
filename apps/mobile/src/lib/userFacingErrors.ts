@@ -155,7 +155,7 @@ function copy(language: Language | null | undefined) {
         },
         missingPreferences: {
           title: "Preferences incomplete",
-          message: "Choose at least one practical-case category before saving."
+          message: "Choose at least one newsletter category before saving."
         },
         network: {
           title: "Connection problem",
@@ -217,7 +217,7 @@ function copy(language: Language | null | undefined) {
         },
         missingPreferences: {
           title: "Préférences incomplètes",
-          message: "Choisis au moins une catégorie mini-cas avant d'enregistrer."
+          message: "Choisis au moins une catégorie newsletter avant d'enregistrer."
         },
         network: {
           title: "Problème de connexion",

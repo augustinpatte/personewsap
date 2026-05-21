@@ -17,6 +17,7 @@ import { tokens } from "../../design/tokens";
 import { useAuth } from "../auth";
 import type { DataFallbackReason, DataFetchSource } from "../../lib/dataState";
 import { trackAnalyticsEvent } from "../../lib/analytics";
+import { localized } from "../../lib/i18n";
 import { getAuthSession, type NormalizedSupabaseError } from "../../lib/supabase";
 import { getUserFacingError } from "../../lib/userFacingErrors";
 import { flattenDailyDropItems, getMockSourcesForItem, mockTodayDailyDropsByLanguage } from "../../mocks";
@@ -59,31 +60,10 @@ type InteractionAction = {
   message?: string;
 };
 
-const topicLabels = TOPICS.reduce(
-  (labels, topic) => ({
-    ...labels,
-    [topic.id]: topic.label
-  }),
-  {} as Record<(typeof TOPICS)[number]["id"], string>
-);
-
-const moduleLabels: Record<ModuleId, string> = {
-  newsletter: "Newsletter",
-  business_story: "Business story",
-  mini_case: "Mini-case",
-  concept: "Concept"
-};
-
-const moduleDescriptions: Record<ModuleId, string> = {
-  newsletter: "Sourced news signal",
-  business_story: "Business mechanism",
-  mini_case: "Decision exercise",
-  concept: "Reusable idea"
-};
-
 export function TodayDailyDropScreen() {
   const { profileLanguage } = useAuth();
   const activeLanguage = profileLanguage ?? "en";
+  const copy = getTodayCopy(activeLanguage);
   const fallbackDrop = mockTodayDailyDropsByLanguage[activeLanguage];
   const [loadState, setLoadState] = useState<TodayLoadState>({
     drop: fallbackDrop,
@@ -102,7 +82,10 @@ export function TodayDailyDropScreen() {
   const [showSampleAnswer, setShowSampleAnswer] = useState(false);
 
   const drop = loadState.drop;
-  const formattedDate = useMemo(() => formatDropDate(drop.drop_date), [drop.drop_date]);
+  const formattedDate = useMemo(
+    () => formatDropDate(drop.drop_date, activeLanguage),
+    [activeLanguage, drop.drop_date]
+  );
   const allItems = useMemo(() => flattenDailyDropItems(drop), [drop]);
   const totalItemCount = allItems.length;
   const isEmptyDrop = totalItemCount === 0;
@@ -216,7 +199,7 @@ export function TodayDailyDropScreen() {
     if (loadState.source === "mock") {
       applyLocalInteraction(action);
       trackContentInteractionEvent(action, item);
-      setInteractionMessage("Preview action marked for this session.");
+      setInteractionMessage(copy.previewActionMarked);
       setPendingInteractionIds((currentIds) => removeSetValue(currentIds, pendingId));
       return;
     }
@@ -229,13 +212,13 @@ export function TodayDailyDropScreen() {
       applyLocalInteraction(action);
       trackContentInteractionEvent(action, item);
       setInteractionError(result.error);
-      setInteractionMessage("Saved on this device for this session. Live sync did not complete.");
+      setInteractionMessage(copy.localSaveOnly);
       return;
     }
 
     applyLocalInteraction(action);
     trackContentInteractionEvent(action, item);
-    setInteractionMessage("Saved to your account.");
+    setInteractionMessage(copy.savedToAccount);
   }
 
   async function completeModule(items: DailyDropContentItem[]) {
@@ -320,15 +303,15 @@ export function TodayDailyDropScreen() {
     <AppScreen
       contentStyle={styles.screenContent}
       scrollViewProps={{
-        accessibilityLabel: "Today daily drop"
+        accessibilityLabel: copy.accessibilityLabel
       }}
     >
       <AppScreen.Header style={styles.header}>
         <View style={styles.headerTopline}>
-          <AppText variant="eyebrow">Today</AppText>
+          <AppText variant="eyebrow">{copy.eyebrow}</AppText>
           <View style={styles.headerMeta}>
             <ProgressPill
-              label={getDataModeLabel(loadState.source)}
+              label={getDataModeLabel(loadState.source, activeLanguage)}
               tone={getDataModeTone(loadState.source)}
             />
             <AppText color="muted" variant="caption">
@@ -337,21 +320,20 @@ export function TodayDailyDropScreen() {
           </View>
         </View>
         <View style={styles.headerCopy}>
-          <AppText variant="title">Five minutes. Four sharp moves.</AppText>
+          <AppText variant="title">{copy.title}</AppText>
           <AppText variant="body">
-            Read the signal, understand the mechanism, solve the mini-case, keep the concept.
-            Then stop. This is your daily learning ritual, not a feed.
+            {copy.description}
           </AppText>
         </View>
         <Card padding="md" style={styles.progressCard} tone={isComplete ? "accent" : "default"}>
           <View style={styles.progressTopline}>
             <ProgressPill
-              label={`${completedItemCount}/${totalItemCount} items`}
+              label={copy.itemProgress(completedItemCount, totalItemCount)}
               tone={isComplete ? "success" : "accent"}
               value={progress}
             />
             <AppText color="muted" variant="caption">
-              {drop.estimated_read_minutes} min session
+              {copy.minuteSession(drop.estimated_read_minutes)}
             </AppText>
           </View>
           <View style={styles.progressBarTrack}>
@@ -359,8 +341,8 @@ export function TodayDailyDropScreen() {
           </View>
           <AppText color={isComplete ? "accentInk" : "muted"} variant="caption">
             {isComplete
-              ? "Daily drop complete. Come back tomorrow for the next one."
-              : "Finish the four modules. No feed, no backlog pressure."}
+              ? copy.completeMessage
+              : copy.incompleteMessage}
           </AppText>
         </Card>
         <TodayDataStateBanner
@@ -370,10 +352,11 @@ export function TodayDailyDropScreen() {
             void loadTodayDrop();
           }}
         />
-        <DailyRitualCard />
+        <DailyRitualCard language={activeLanguage} />
         <DropSlotOverview
           completedModules={completedModules}
           drop={drop}
+          language={activeLanguage}
           source={loadState.source}
         />
       </AppScreen.Header>
@@ -386,13 +369,13 @@ export function TodayDailyDropScreen() {
         />
         {isEmptyDrop ? (
           <EmptyState
-            actionLabel="Check again"
-            description="No readable modules are attached to this drop yet. Try again after the daily job assigns content, or continue with preview mode if shown above."
-            eyebrow="Empty drop"
+            actionLabel={copy.checkAgain}
+            description={copy.emptyDropDescription}
+            eyebrow={copy.emptyDropEyebrow}
             onActionPress={() => {
               void loadTodayDrop();
             }}
-            title="Today's content is not ready"
+            title={copy.emptyDropTitle}
           />
         ) : (
           <>
@@ -400,6 +383,7 @@ export function TodayDailyDropScreen() {
               articles={drop.items.newsletter}
               completed={completedModules.has("newsletter")}
               interactionState={interactionState}
+              language={activeLanguage}
               onComplete={() => completeModule(drop.items.newsletter)}
               onInteraction={handleInteraction}
               pendingInteractionIds={pendingInteractionIds}
@@ -408,6 +392,7 @@ export function TodayDailyDropScreen() {
               story={drop.items.business_story}
               completed={completedModules.has("business_story")}
               interactionState={interactionState}
+              language={activeLanguage}
               onComplete={() => completeModule([drop.items.business_story])}
               onInteraction={handleInteraction}
               pendingInteractionIds={pendingInteractionIds}
@@ -416,6 +401,7 @@ export function TodayDailyDropScreen() {
               challenge={drop.items.mini_case}
               completed={completedModules.has("mini_case")}
               interactionState={interactionState}
+              language={activeLanguage}
               showSampleAnswer={showSampleAnswer}
               onComplete={() => completeModule([drop.items.mini_case])}
               onInteraction={handleInteraction}
@@ -426,6 +412,7 @@ export function TodayDailyDropScreen() {
               concept={drop.items.concept}
               completed={completedModules.has("concept")}
               interactionState={interactionState}
+              language={activeLanguage}
               onComplete={() => completeModule([drop.items.concept])}
               onInteraction={handleInteraction}
               pendingInteractionIds={pendingInteractionIds}
@@ -433,6 +420,7 @@ export function TodayDailyDropScreen() {
             <CompletionState
               allItems={allItems}
               isComplete={isComplete}
+              language={activeLanguage}
               onReset={resetDrop}
             />
           </>
@@ -451,12 +439,14 @@ function TodayDataStateBanner({
   loadState: TodayLoadState;
   onRetry: () => void;
 }) {
+  const copy = getTodayCopy(language);
+
   if (loadState.status === "loading") {
     return (
       <DataModeBanner
-        description="Looking for today's assigned drop. Existing content stays visible while the app checks live data."
+        description={copy.loadingDropDescription}
         mode="checking"
-        title="Loading today's drop"
+        title={copy.loadingDropTitle}
       />
     );
   }
@@ -464,10 +454,10 @@ function TodayDataStateBanner({
   if (loadState.source === "supabase") {
     return (
       <DataModeBanner
-        description="This is the assigned daily drop for this account. Saves, completions, and ratings are stored."
-        detail={formatShortDate(loadState.drop.drop_date)}
+        description={copy.liveDropDescription}
+        detail={formatShortDate(loadState.drop.drop_date, language)}
         mode="live"
-        title="Live daily drop"
+        title={copy.liveDropTitle}
       />
     );
   }
@@ -475,12 +465,12 @@ function TodayDataStateBanner({
   if (loadState.source === "cache") {
     return (
       <DataModeBanner
-        actionLabel="Retry live data"
-        description="The latest live check is unavailable, so the app is showing the last daily drop kept in memory."
-        detail={formatShortDate(loadState.drop.drop_date)}
+        actionLabel={copy.retryLiveData}
+        description={copy.cachedDropDescription}
+        detail={formatShortDate(loadState.drop.drop_date, language)}
         mode="cache"
         onActionPress={onRetry}
-        title="Cached daily drop"
+        title={copy.cachedDropTitle}
       />
     );
   }
@@ -490,8 +480,8 @@ function TodayDataStateBanner({
 
     return (
       <DataModeBanner
-        actionLabel="Retry live data"
-        description={`${userFacingError.message} The app is showing preview content for now.`}
+        actionLabel={copy.retryLiveData}
+        description={`${userFacingError.message} ${copy.previewFallback}`}
         mode="preview"
         onActionPress={onRetry}
         title={userFacingError.title}
@@ -504,8 +494,8 @@ function TodayDataStateBanner({
 
     return (
       <DataModeBanner
-        actionLabel="Retry live data"
-        description={`${userFacingError.message} The app is showing preview content for now.`}
+        actionLabel={copy.retryLiveData}
+        description={`${userFacingError.message} ${copy.previewFallback}`}
         mode="preview"
         onActionPress={onRetry}
         title={userFacingError.title}
@@ -518,8 +508,8 @@ function TodayDataStateBanner({
 
     return (
       <DataModeBanner
-        actionLabel="Retry live data"
-        description={`${userFacingError.message} The app is showing preview content for now.`}
+        actionLabel={copy.retryLiveData}
+        description={`${userFacingError.message} ${copy.previewFallback}`}
         mode="preview"
         onActionPress={onRetry}
         title={userFacingError.title}
@@ -530,12 +520,12 @@ function TodayDataStateBanner({
   if (loadState.fallbackReason === "no_supabase_data") {
     return (
       <DataModeBanner
-        actionLabel="Check again"
-        description={`No ${formatLanguageName(language)} daily drop is assigned to this account for today. Preview content is shown below so the app can still be tested without confusing it for live data.`}
-        detail={formatLanguageName(language)}
+        actionLabel={copy.checkAgain}
+        description={copy.noLiveDropDescription}
+        detail={copy.languageName}
         mode="preview"
         onActionPress={onRetry}
-        title="No live daily drop yet"
+        title={copy.noLiveDropTitle}
       />
     );
   }
@@ -543,11 +533,11 @@ function TodayDataStateBanner({
   if (loadState.fallbackReason === "missing_auth_session") {
     return (
       <DataModeBanner
-        actionLabel="Retry session check"
-        description="Sign in to load your assigned daily drop. Preview content is shown below."
+        actionLabel={copy.retrySessionCheck}
+        description={copy.noSessionDescription}
         mode="preview"
         onActionPress={onRetry}
-        title="No active session"
+        title={copy.noSessionTitle}
       />
     );
   }
@@ -555,19 +545,16 @@ function TodayDataStateBanner({
   return null;
 }
 
-function formatLanguageName(language: ContentLanguage) {
-  return language === "fr" ? "French" : "English";
-}
+function DailyRitualCard({ language }: { language: ContentLanguage }) {
+  const copy = getTodayCopy(language);
 
-function DailyRitualCard() {
   return (
     <Card padding="md" style={styles.ritualCard}>
-      <AppText variant="bodyStrong">What to do now</AppText>
+      <AppText variant="bodyStrong">{copy.ritualTitle}</AppText>
       <View style={styles.ritualSteps}>
-        <RitualStep number="1" text="Read the newsletter signals." />
-        <RitualStep number="2" text="Finish the business story and mini-case." />
-        <RitualStep number="3" text="Save one idea you want to reuse." />
-        <RitualStep number="4" text="Mark each item complete when it lands." />
+        {copy.ritualSteps.map((step, index) => (
+          <RitualStep key={step} number={`${index + 1}`} text={step} />
+        ))}
       </View>
     </Card>
   );
@@ -628,18 +615,22 @@ function InteractionStatus({
 function DropSlotOverview({
   completedModules,
   drop,
+  language,
   source
 }: {
   completedModules: Set<ModuleId>;
   drop: TodayDailyDrop;
+  language: ContentLanguage;
   source: DataFetchSource;
 }) {
+  const copy = getTodayCopy(language);
+
   return (
     <Card padding="md" style={styles.slotOverview}>
       <View style={styles.slotOverviewHeader}>
-        <AppText variant="bodyStrong">Four-slot daily drop</AppText>
+        <AppText variant="bodyStrong">{copy.slotOverviewTitle}</AppText>
         <ProgressPill
-          label={source === "supabase" ? "Live content" : source === "cache" ? "Cached content" : "Preview content"}
+          label={getContentModeLabel(source, language)}
           tone={getDataModeTone(source)}
         />
       </View>
@@ -648,6 +639,7 @@ function DropSlotOverview({
           completed={completedModules.has(moduleId)}
           count={getModuleItemCount(drop, moduleId)}
           key={moduleId}
+          language={language}
           moduleId={moduleId}
         />
       ))}
@@ -658,26 +650,30 @@ function DropSlotOverview({
 function SlotOverviewRow({
   completed,
   count,
+  language,
   moduleId
 }: {
   completed: boolean;
   count: number;
+  language: ContentLanguage;
   moduleId: ModuleId;
 }) {
+  const copy = getTodayCopy(language);
+
   return (
     <View style={styles.slotOverviewRow}>
       <View style={styles.slotOverviewCopy}>
-        <AppText variant="label">{moduleLabels[moduleId]}</AppText>
+        <AppText variant="label">{copy.modules[moduleId].label}</AppText>
         <AppText color="muted" variant="caption">
-          {moduleDescriptions[moduleId]}
+          {copy.modules[moduleId].description}
         </AppText>
       </View>
       <View style={styles.slotOverviewMeta}>
         <AppText color="muted" variant="caption">
-          {count} item{count === 1 ? "" : "s"}
+          {copy.itemCount(count)}
         </AppText>
         <ProgressPill
-          label={completed ? "Done" : "Ready"}
+          label={completed ? copy.done : copy.ready}
           tone={completed ? "success" : "neutral"}
         />
       </View>
@@ -687,13 +683,16 @@ function SlotOverviewRow({
 
 type SectionCompleteButtonProps = {
   completed: boolean;
+  language: ContentLanguage;
   label: string;
   onComplete: () => void;
 };
 
-function SectionCompleteButton({ completed, label, onComplete }: SectionCompleteButtonProps) {
+function SectionCompleteButton({ completed, language, label, onComplete }: SectionCompleteButtonProps) {
+  const copy = getTodayCopy(language);
+
   if (completed) {
-    return <ProgressPill label="Completed" tone="success" value={1} />;
+    return <ProgressPill label={copy.completed} tone="success" value={1} />;
   }
 
   return <SecondaryButton label={label} onPress={onComplete} style={styles.sectionButton} />;
@@ -703,6 +702,7 @@ function NewsletterSection({
   articles,
   completed,
   interactionState,
+  language,
   onComplete,
   onInteraction,
   pendingInteractionIds
@@ -710,16 +710,19 @@ function NewsletterSection({
   articles: NewsletterArticle[];
   completed: boolean;
   interactionState: InteractionState;
+  language: ContentLanguage;
   onComplete: () => void;
   onInteraction: (action: InteractionAction) => Promise<void>;
   pendingInteractionIds: Set<string>;
 }) {
+  const copy = getTodayCopy(language);
+
   return (
     <View style={styles.section}>
       <SectionHeader
-        description="A short, sourced scan of the topics selected for today's drop."
-        eyebrow="Newsletter"
-        title="Signals worth knowing"
+        description={copy.newsletterDescription}
+        eyebrow={copy.modules.newsletter.label}
+        title={copy.newsletterTitle}
       />
       {articles.length > 0 ? (
         <>
@@ -727,10 +730,10 @@ function NewsletterSection({
             {articles.map((article) => (
               <View key={article.id} style={styles.topicCard}>
                 <AppText color="accentInk" variant="label">
-                  {topicLabels[article.topic]}
+                  {getTopicLabel(article.topic, language)}
                 </AppText>
                 <AppText color="muted" variant="caption">
-                  {getSourceCount(article)} sources
+                  {copy.sourceCount(getSourceCount(article))}
                 </AppText>
               </View>
             ))}
@@ -741,18 +744,19 @@ function NewsletterSection({
                 article={article}
                 interactionState={interactionState}
                 key={article.id}
+                language={language}
                 onInteraction={onInteraction}
                 pendingInteractionIds={pendingInteractionIds}
               />
             ))}
           </View>
-          <SectionCompleteButton completed={completed} label="Mark newsletter read" onComplete={onComplete} />
+          <SectionCompleteButton completed={completed} language={language} label={copy.markNewsletterRead} onComplete={onComplete} />
         </>
       ) : (
         <EmptyState
-          description="This daily drop has no newsletter items. The other modules are still available."
-          eyebrow="Newsletter"
-          title="Newsletter slot is empty"
+          description={copy.newsletterEmptyDescription}
+          eyebrow={copy.modules.newsletter.label}
+          title={copy.newsletterEmptyTitle}
         />
       )}
     </View>
@@ -762,34 +766,39 @@ function NewsletterSection({
 function NewsletterArticlePreview({
   article,
   interactionState,
+  language,
   onInteraction,
   pendingInteractionIds
 }: {
   article: NewsletterArticle;
   interactionState: InteractionState;
+  language: ContentLanguage;
   onInteraction: (action: InteractionAction) => Promise<void>;
   pendingInteractionIds: Set<string>;
 }) {
+  const copy = getTodayCopy(language);
+
   return (
     <Card padding="md" style={styles.articleCard}>
       <View style={styles.cardHeaderRow}>
         <AppText color="accent" variant="caption">
-          {topicLabels[article.topic]}
+          {getTopicLabel(article.topic, language)}
         </AppText>
       </View>
       <AppText variant="bodyStrong">{article.title}</AppText>
-      <ContentMetaRow item={article} topicLabel={topicLabels[article.topic]} />
+      <ContentMetaRow item={article} language={language} topicLabel={getTopicLabel(article.topic, language)} />
       <AppText variant="body">{article.summary}</AppText>
       <View style={styles.callout}>
         <AppText color="accentInk" variant="caption">
-          Why it matters
+          {copy.whyItMatters}
         </AppText>
         <AppText variant="body">{article.why_it_matters}</AppText>
       </View>
-      <SourceLine item={article} />
+      <SourceLine item={article} language={language} />
       <ContentInteractionControls
         item={article}
         interactionState={interactionState}
+        language={language}
         onInteraction={onInteraction}
         pendingInteractionIds={pendingInteractionIds}
       />
@@ -801,6 +810,7 @@ function BusinessStorySection({
   story,
   completed,
   interactionState,
+  language,
   onComplete,
   onInteraction,
   pendingInteractionIds
@@ -808,15 +818,18 @@ function BusinessStorySection({
   story: BusinessStory;
   completed: boolean;
   interactionState: InteractionState;
+  language: ContentLanguage;
   onComplete: () => void;
   onInteraction: (action: InteractionAction) => Promise<void>;
   pendingInteractionIds: Set<string>;
 }) {
+  const copy = getTodayCopy(language);
+
   return (
     <View style={styles.section}>
       <SectionHeader
-        description="One concrete mechanism from business, pricing, or strategy."
-        eyebrow="Business story"
+        description={copy.businessStoryDescription}
+        eyebrow={copy.modules.business_story.label}
         title={story.title}
       />
       <Card padding="lg">
@@ -825,30 +838,31 @@ function BusinessStorySection({
             {story.company_or_market}
           </AppText>
           <AppText color="muted" variant="caption">
-            {formatShortDate(story.story_date)}
+            {formatShortDate(story.story_date, language)}
           </AppText>
         </View>
         <AppText variant="bodyStrong">{story.title}</AppText>
-        <ContentMetaRow item={story} topicLabel={story.company_or_market} />
-        <StoryBeat label="Setup" text={story.setup} />
-        <StoryBeat label="Tension" text={story.tension} />
-        <StoryBeat label="Decision" text={story.decision} />
-        <StoryBeat label="Outcome" text={story.outcome} />
+        <ContentMetaRow item={story} language={language} topicLabel={story.company_or_market} />
+        <StoryBeat label={copy.storySetup} text={story.setup} />
+        <StoryBeat label={copy.storyTension} text={story.tension} />
+        <StoryBeat label={copy.storyDecision} text={story.decision} />
+        <StoryBeat label={copy.storyOutcome} text={story.outcome} />
         <View style={styles.lessonBox}>
           <AppText color="accentInk" variant="label">
-            Lesson
+            {copy.lesson}
           </AppText>
           <AppText variant="bodyStrong">{story.lesson}</AppText>
         </View>
-        <SourceLine item={story} />
+        <SourceLine item={story} language={language} />
         <ContentInteractionControls
           item={story}
           interactionState={interactionState}
+          language={language}
           onInteraction={onInteraction}
           pendingInteractionIds={pendingInteractionIds}
         />
       </Card>
-      <SectionCompleteButton completed={completed} label="Mark story complete" onComplete={onComplete} />
+      <SectionCompleteButton completed={completed} language={language} label={copy.markStoryComplete} onComplete={onComplete} />
     </View>
   );
 }
@@ -871,6 +885,7 @@ function MiniCaseSection({
   challenge,
   completed,
   interactionState,
+  language,
   showSampleAnswer,
   onComplete,
   onInteraction,
@@ -880,39 +895,42 @@ function MiniCaseSection({
   challenge: MiniCaseChallenge;
   completed: boolean;
   interactionState: InteractionState;
+  language: ContentLanguage;
   showSampleAnswer: boolean;
   onComplete: () => void;
   onInteraction: (action: InteractionAction) => Promise<void>;
   onToggleSampleAnswer: () => void;
   pendingInteractionIds: Set<string>;
 }) {
+  const copy = getTodayCopy(language);
+
   return (
     <View style={styles.section}>
       <SectionHeader
-        description="A short decision exercise. Think before checking the sample answer."
-        eyebrow="Mini-case"
+        description={copy.miniCaseDescription}
+        eyebrow={copy.modules.mini_case.label}
         title={challenge.title}
       />
       <Card padding="lg" tone="muted">
         <View style={styles.cardHeaderRow}>
           <ProgressPill label={challenge.difficulty} tone="warning" />
           <AppText color="muted" variant="caption">
-            {topicLabels[challenge.topic]}
+            {getTopicLabel(challenge.topic, language)}
           </AppText>
         </View>
         <AppText variant="bodyStrong">{challenge.title}</AppText>
-        <ContentMetaRow item={challenge} topicLabel={topicLabels[challenge.topic]} />
+        <ContentMetaRow item={challenge} language={language} topicLabel={getTopicLabel(challenge.topic, language)} />
         <AppText variant="body">{challenge.context}</AppText>
         <View style={styles.challengeBox}>
           <AppText color="accentInk" variant="label">
-            Challenge
+            {copy.challenge}
           </AppText>
           <AppText variant="bodyStrong">{challenge.challenge}</AppText>
           <AppText variant="body">{challenge.question}</AppText>
         </View>
         <View style={styles.bulletGroup}>
           <AppText color="muted" variant="caption">
-            Constraints
+            {copy.constraints}
           </AppText>
           {challenge.constraints.map((constraint) => (
             <BulletText key={constraint}>{constraint}</BulletText>
@@ -921,7 +939,7 @@ function MiniCaseSection({
         {showSampleAnswer ? (
           <View style={styles.sampleAnswer}>
             <AppText color="accentInk" variant="label">
-              Sample answer
+              {copy.sampleAnswer}
             </AppText>
             <AppText variant="body">{challenge.sample_answer}</AppText>
           </View>
@@ -929,19 +947,20 @@ function MiniCaseSection({
         <ContentInteractionControls
           item={challenge}
           interactionState={interactionState}
+          language={language}
           onInteraction={onInteraction}
           pendingInteractionIds={pendingInteractionIds}
         />
-        <SourceLine item={challenge} />
+        <SourceLine item={challenge} language={language} />
         <View style={styles.buttonRow}>
           <SecondaryButton
-            label={showSampleAnswer ? "Hide sample" : "Show sample"}
+            label={showSampleAnswer ? copy.hideSample : copy.showSample}
             onPress={onToggleSampleAnswer}
             style={styles.flexButton}
           />
           <PrimaryButton
             disabled={completed}
-            label={completed ? "Completed" : "Mark done"}
+            label={completed ? copy.completed : copy.markDone}
             onPress={onComplete}
             style={styles.flexButton}
           />
@@ -955,6 +974,7 @@ function ConceptSection({
   concept,
   completed,
   interactionState,
+  language,
   onComplete,
   onInteraction,
   pendingInteractionIds
@@ -962,58 +982,67 @@ function ConceptSection({
   concept: KeyConcept;
   completed: boolean;
   interactionState: InteractionState;
+  language: ContentLanguage;
   onComplete: () => void;
   onInteraction: (action: InteractionAction) => Promise<void>;
   pendingInteractionIds: Set<string>;
 }) {
+  const copy = getTodayCopy(language);
+
   return (
     <View style={styles.section}>
       <SectionHeader
-        description="One reusable idea for class, interviews, or serious conversations."
-        eyebrow="Key concept"
+        description={copy.conceptDescription}
+        eyebrow={copy.modules.concept.label}
         title={concept.title}
       />
       <Card padding="lg">
         <AppText variant="bodyStrong">{concept.title}</AppText>
-        <ContentMetaRow item={concept} topicLabel={getConceptTopicLabel(concept)} />
+        <ContentMetaRow item={concept} language={language} topicLabel={getConceptTopicLabel(concept, language)} />
         <View style={styles.definitionBlock}>
           <AppText color="accentInk" variant="label">
-            Definition
+            {copy.definition}
           </AppText>
           <AppText variant="bodyStrong">{concept.definition}</AppText>
         </View>
         <View style={styles.conceptGrid}>
-          <ConceptNote label="Plain English" text={concept.plain_english} />
-          <ConceptNote label="Example" text={concept.example} />
-          <ConceptNote label="Use it like this" text={concept.how_to_use_it} />
-          <ConceptNote label="Common mistake" text={concept.common_mistake} />
+          <ConceptNote label={copy.plainLanguage} text={concept.plain_english} />
+          <ConceptNote label={copy.example} text={concept.example} />
+          <ConceptNote label={copy.useItLikeThis} text={concept.how_to_use_it} />
+          <ConceptNote label={copy.commonMistake} text={concept.common_mistake} />
         </View>
-        <SourceLine item={concept} />
+        <SourceLine item={concept} language={language} />
         <ContentInteractionControls
           item={concept}
           interactionState={interactionState}
+          language={language}
           onInteraction={onInteraction}
           pendingInteractionIds={pendingInteractionIds}
         />
       </Card>
-      <SectionCompleteButton completed={completed} label="Save concept for today" onComplete={onComplete} />
+      <SectionCompleteButton completed={completed} language={language} label={copy.saveConceptForToday} onComplete={onComplete} />
     </View>
   );
 }
 
 function ContentMetaRow({
   item,
+  language,
   topicLabel
 }: {
   item: DailyDropContentItem;
+  language: ContentLanguage;
   topicLabel: string;
 }) {
+  const copy = getTodayCopy(language);
+  const sourceCount = getSourceCount(item);
+
   return (
     <View style={styles.contentMetaRow}>
       <ProgressPill label={topicLabel} tone="accent" />
-      <ProgressPill label={`${estimateItemReadMinutes(item)} min`} tone="neutral" />
+      <ProgressPill label={copy.minuteCount(estimateItemReadMinutes(item))} tone="neutral" />
       <ProgressPill
-        label={`${getSourceCount(item)} source${getSourceCount(item) === 1 ? "" : "s"}`}
+        label={copy.sourceCount(sourceCount)}
         tone="neutral"
       />
     </View>
@@ -1034,14 +1063,17 @@ function ConceptNote({ label, text }: { label: string; text: string }) {
 function ContentInteractionControls({
   item,
   interactionState,
+  language,
   onInteraction,
   pendingInteractionIds
 }: {
   item: DailyDropContentItem;
   interactionState: InteractionState;
+  language: ContentLanguage;
   onInteraction: (action: InteractionAction) => Promise<void>;
   pendingInteractionIds: Set<string>;
 }) {
+  const copy = getTodayCopy(language);
   const isCompleted = interactionState.completedItemIds.has(item.id);
   const isSaved = interactionState.savedItemIds.has(item.id);
   const activeRating = interactionState.ratingsByItemId[item.id];
@@ -1062,17 +1094,17 @@ function ContentInteractionControls({
     <View style={styles.interactionControls}>
       {isCompleted || isSaved || activeRating ? (
         <View style={styles.interactionStateRow}>
-          {isCompleted ? <ProgressPill label="Completed" tone="success" value={1} /> : null}
-          {isSaved ? <ProgressPill label="Saved" tone="accent" /> : null}
+          {isCompleted ? <ProgressPill label={copy.completed} tone="success" value={1} /> : null}
+          {isSaved ? <ProgressPill label={copy.saved} tone="accent" /> : null}
           {activeRating ? (
-            <ProgressPill label={`Rated ${formatRatingLabel(activeRating)}`} tone="neutral" />
+            <ProgressPill label={copy.rated(formatRatingLabel(activeRating, language))} tone="neutral" />
           ) : null}
         </View>
       ) : null}
       <View style={styles.interactionButtonRow}>
         <SecondaryButton
           disabled={isCompleted || completionPending}
-          label={isCompleted ? "Completed" : completionPending ? "Completing" : "Complete"}
+          label={isCompleted ? copy.completed : completionPending ? copy.completing : copy.complete}
           onPress={() =>
             onInteraction({
               contentItemId: item.id,
@@ -1083,7 +1115,7 @@ function ContentInteractionControls({
         />
         <SecondaryButton
           disabled={isSaved || savePending}
-          label={isSaved ? "Saved" : savePending ? "Saving" : "Save"}
+          label={isSaved ? copy.saved : savePending ? copy.saving : copy.save}
           onPress={() =>
             onInteraction({
               contentItemId: item.id,
@@ -1095,9 +1127,9 @@ function ContentInteractionControls({
       </View>
       <View style={styles.feedbackGroup}>
         <View style={styles.feedbackHeader}>
-          <AppText variant="label">Reflection</AppText>
+          <AppText variant="label">{copy.reflection}</AppText>
           <AppText color="muted" variant="caption">
-            Was this worth your five minutes?
+            {copy.reflectionQuestion}
           </AppText>
         </View>
         <View style={styles.feedbackButtons}>
@@ -1131,7 +1163,7 @@ function ContentInteractionControls({
                 ]}
               >
                 <AppText color={active ? "accentInk" : "inkSoft"} variant="caption">
-                  {formatRatingLabel(rating)}
+                  {formatRatingLabel(rating, language)}
                 </AppText>
               </Pressable>
             );
@@ -1145,31 +1177,35 @@ function ContentInteractionControls({
 function CompletionState({
   allItems,
   isComplete,
+  language,
   onReset
 }: {
   allItems: DailyDropContentItem[];
   isComplete: boolean;
+  language: ContentLanguage;
   onReset: () => void;
 }) {
+  const copy = getTodayCopy(language);
+
   return (
     <Card padding="lg" style={styles.completionCard} tone={isComplete ? "accent" : "muted"}>
       <ProgressPill
-        label={isComplete ? "Drop complete" : "Today's drop only"}
+        label={isComplete ? copy.dropComplete : copy.todayDropOnly}
         tone={isComplete ? "success" : "neutral"}
         value={isComplete ? 1 : undefined}
       />
       <AppText variant="subtitle">
-        {isComplete ? "You finished today's briefing." : "That is the full drop for today."}
+        {isComplete ? copy.finishedBriefing : copy.fullDropToday}
       </AppText>
       <AppText color={isComplete ? "accentInk" : "muted"} variant="body">
         {isComplete
-          ? "The Library can hold past work later. Today stays focused: four modules, then stop."
-          : `${allItems.length} items are available in this session. No endless queue, no next-feed pull.`}
+          ? copy.libraryLater
+          : copy.availableItems(allItems.length)}
       </AppText>
       {isComplete ? (
         <Pressable accessibilityRole="button" onPress={onReset} style={styles.resetLink}>
           <AppText color="accentInk" variant="label">
-            Reset today's progress
+            {copy.resetTodayProgress}
           </AppText>
         </Pressable>
       ) : null}
@@ -1188,17 +1224,18 @@ function BulletText({ children }: { children: string }) {
   );
 }
 
-function SourceLine({ item }: { item: DailyDropContentItem }) {
+function SourceLine({ item, language }: { item: DailyDropContentItem; language: ContentLanguage }) {
+  const copy = getTodayCopy(language);
   const sources = getDisplaySources(item);
-  const fallbackLabel = getSourceFallbackLabel(item);
+  const fallbackLabel = getSourceFallbackLabel(item, language);
 
   return (
     <View style={styles.sourceLine}>
       <View style={styles.sourceHeader}>
         <AppText color="muted" variant="caption">
-          Sources
+          {copy.sources}
         </AppText>
-        <ProgressPill label={`${getSourceCount(item)} linked`} tone="neutral" />
+        <ProgressPill label={copy.linkedSources(getSourceCount(item))} tone="neutral" />
       </View>
       {sources.length > 0 ? (
         <View style={styles.sourceList}>
@@ -1209,7 +1246,7 @@ function SourceLine({ item }: { item: DailyDropContentItem }) {
                 {source.title}
               </AppText>
               <AppText color="muted" variant="caption">
-                {formatSourceDate(source.published_at ?? source.retrieved_at)} · {getUrlHost(source.url)}
+                {formatSourceDate(source.published_at ?? source.retrieved_at, language)} · {getUrlHost(source.url, language)}
               </AppText>
             </View>
           ))}
@@ -1227,16 +1264,32 @@ function getModuleItemCount(drop: TodayDailyDrop, moduleId: ModuleId) {
   return getModuleItems(drop, moduleId).length;
 }
 
-function getDataModeLabel(source: DataFetchSource) {
+function getDataModeLabel(source: DataFetchSource, language: ContentLanguage) {
+  const copy = getTodayCopy(language);
+
   if (source === "supabase") {
-    return "Live daily drop";
+    return copy.liveDropTitle;
   }
 
   if (source === "cache") {
-    return "Cached live drop";
+    return copy.cachedLiveDropLabel;
   }
 
-  return "Preview mode";
+  return copy.previewMode;
+}
+
+function getContentModeLabel(source: DataFetchSource, language: ContentLanguage) {
+  const copy = getTodayCopy(language);
+
+  if (source === "supabase") {
+    return copy.liveContent;
+  }
+
+  if (source === "cache") {
+    return copy.cachedContent;
+  }
+
+  return copy.previewContent;
 }
 
 function getDataModeTone(source: DataFetchSource): "success" | "warning" | "neutral" {
@@ -1296,12 +1349,14 @@ function getDisplaySources(item: DailyDropContentItem) {
   return [];
 }
 
-function getSourceFallbackLabel(item: DailyDropContentItem) {
+function getSourceFallbackLabel(item: DailyDropContentItem, language: ContentLanguage) {
+  const copy = getTodayCopy(language);
+
   if (item.source_ids.length > 0) {
-    return `${item.source_ids.length} source link${item.source_ids.length === 1 ? "" : "s"} attached. Full source metadata is still loading.`;
+    return copy.sourceLinksAttached(item.source_ids.length);
   }
 
-  return "Source metadata pending.";
+  return copy.sourceMetadataPending;
 }
 
 function getDropAnalyticsProperties(drop: TodayDailyDrop) {
@@ -1333,8 +1388,10 @@ function getItemTopic(item: DailyDropContentItem): TopicId | undefined {
   return undefined;
 }
 
-function getConceptTopicLabel(concept: KeyConcept) {
-  return concept.category === "career" ? "Career" : topicLabels[concept.category];
+function getConceptTopicLabel(concept: KeyConcept, language: ContentLanguage) {
+  const copy = getTodayCopy(language);
+
+  return concept.category === "career" ? copy.careerTopic : getTopicLabel(concept.category, language);
 }
 
 function estimateItemReadMinutes(item: DailyDropContentItem) {
@@ -1394,47 +1451,49 @@ function removeSetValue<T>(set: Set<T>, value: T) {
   return nextSet;
 }
 
-function formatRatingLabel(rating: ContentRating) {
+function formatRatingLabel(rating: ContentRating, language: ContentLanguage) {
+  const copy = getTodayCopy(language);
+
   if (rating === "good") {
-    return "Useful";
+    return copy.ratingUseful;
   }
 
   if (rating === "average") {
-    return "Okay";
+    return copy.ratingOkay;
   }
 
-  return "Not useful";
+  return copy.ratingNotUseful;
 }
 
-function formatDropDate(date: string) {
-  return new Intl.DateTimeFormat("en", {
+function formatDropDate(date: string, language: ContentLanguage) {
+  return new Intl.DateTimeFormat(language, {
     weekday: "long",
     month: "long",
     day: "numeric"
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
-function formatShortDate(date: string) {
-  return new Intl.DateTimeFormat("en", {
+function formatShortDate(date: string, language: ContentLanguage) {
+  return new Intl.DateTimeFormat(language, {
     month: "short",
     day: "numeric",
     year: "numeric"
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
-function formatSourceDate(date: string | null) {
+function formatSourceDate(date: string | null, language: ContentLanguage) {
   if (!date) {
-    return "Date pending";
+    return getTodayCopy(language).datePending;
   }
 
-  return formatShortDate(date.slice(0, 10));
+  return formatShortDate(date.slice(0, 10), language);
 }
 
-function getUrlHost(value: string) {
+function getUrlHost(value: string, language: ContentLanguage) {
   try {
     return new URL(value).host.replace(/^www\./, "");
   } catch {
-    return "source link";
+    return getTodayCopy(language).sourceLink;
   }
 }
 
@@ -1444,6 +1503,310 @@ function getLocalDropDate(date: Date) {
   const day = `${date.getDate()}`.padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function getTopicLabel(topic: TopicId, language: ContentLanguage) {
+  return getTodayCopy(language).topics[topic];
+}
+
+function getTodayCopy(language: ContentLanguage) {
+  return localized(
+    {
+      en: {
+        availableItems: (count: number) =>
+          `${count} items are available in this session. No endless queue, no next-feed pull.`,
+        accessibilityLabel: "Today daily drop",
+        businessStoryDescription:
+          "One concrete mechanism from business, pricing, or strategy.",
+        cachedContent: "Cached content",
+        cachedDropDescription:
+          "The latest live check is unavailable, so the app is showing the last daily drop kept in memory.",
+        cachedDropTitle: "Cached daily drop",
+        cachedLiveDropLabel: "Cached live drop",
+        careerTopic: "Career",
+        challenge: "Challenge",
+        checkAgain: "Check again",
+        commonMistake: "Common mistake",
+        complete: "Complete",
+        completeMessage: "Daily drop complete. Come back tomorrow for the next one.",
+        completed: "Completed",
+        completing: "Completing",
+        conceptDescription:
+          "One reusable idea for class, interviews, or serious conversations.",
+        constraints: "Constraints",
+        datePending: "Date pending",
+        definition: "Definition",
+        description:
+          "Read the signal, understand the mechanism, solve the mini-case, keep the concept. Then stop. This is your daily learning ritual, not a feed.",
+        done: "Done",
+        dropComplete: "Drop complete",
+        emptyDropDescription:
+          "No readable modules are attached to this drop yet. Try again after the daily job assigns content, or continue with preview mode if shown above.",
+        emptyDropEyebrow: "Empty drop",
+        emptyDropTitle: "Today's content is not ready",
+        example: "Example",
+        eyebrow: "Today",
+        finishedBriefing: "You finished today's briefing.",
+        fullDropToday: "That is the full drop for today.",
+        hideSample: "Hide sample",
+        incompleteMessage: "Finish the four modules. No feed, no backlog pressure.",
+        itemCount: (count: number) => `${count} item${count === 1 ? "" : "s"}`,
+        itemProgress: (completed: number, total: number) => `${completed}/${total} items`,
+        languageName: "English",
+        lesson: "Lesson",
+        libraryLater:
+          "The Library can hold past work later. Today stays focused: four modules, then stop.",
+        linkedSources: (count: number) => `${count} linked`,
+        liveContent: "Live content",
+        liveDropDescription:
+          "This is the assigned daily drop for this account. Saves, completions, and ratings are stored.",
+        liveDropTitle: "Live daily drop",
+        loadingDropDescription:
+          "Looking for today's assigned drop. Existing content stays visible while the app checks live data.",
+        loadingDropTitle: "Loading today's drop",
+        localSaveOnly:
+          "Saved on this device for this session. Live sync did not complete.",
+        markDone: "Mark done",
+        markNewsletterRead: "Mark newsletter read",
+        markStoryComplete: "Mark story complete",
+        miniCaseDescription:
+          "A short decision exercise. Think before checking the sample answer.",
+        minuteCount: (count: number) => `${count} min`,
+        minuteSession: (count: number) => `${count} min session`,
+        modules: {
+          newsletter: {
+            label: "Newsletter",
+            description: "Sourced news signal"
+          },
+          business_story: {
+            label: "Business story",
+            description: "Business mechanism"
+          },
+          mini_case: {
+            label: "Mini-case",
+            description: "Decision exercise"
+          },
+          concept: {
+            label: "Concept",
+            description: "Reusable idea"
+          }
+        },
+        newsletterDescription:
+          "A short, sourced scan of the topics selected for today's drop.",
+        newsletterEmptyDescription:
+          "This daily drop has no newsletter items. The other modules are still available.",
+        newsletterEmptyTitle: "Newsletter slot is empty",
+        newsletterTitle: "Signals worth knowing",
+        noLiveDropDescription:
+          "No English daily drop is assigned to this account for today. Preview content is shown below so the app can still be tested without confusing it for live data.",
+        noLiveDropTitle: "No live daily drop yet",
+        noSessionDescription:
+          "Sign in to load your assigned daily drop. Preview content is shown below.",
+        noSessionTitle: "No active session",
+        plainLanguage: "Plain English",
+        previewActionMarked: "Preview action marked for this session.",
+        previewContent: "Preview content",
+        previewFallback: "The app is showing preview content for now.",
+        previewMode: "Preview mode",
+        ratingNotUseful: "Not useful",
+        ratingOkay: "Okay",
+        ratingUseful: "Useful",
+        rated: (rating: string) => `Rated ${rating}`,
+        ready: "Ready",
+        reflection: "Reflection",
+        reflectionQuestion: "Was this worth your five minutes?",
+        resetTodayProgress: "Reset today's progress",
+        retryLiveData: "Retry live data",
+        retrySessionCheck: "Retry session check",
+        ritualSteps: [
+          "Read the newsletter signals.",
+          "Finish the business story and mini-case.",
+          "Save one idea you want to reuse.",
+          "Mark each item complete when it lands."
+        ],
+        ritualTitle: "What to do now",
+        sampleAnswer: "Sample answer",
+        save: "Save",
+        saveConceptForToday: "Save concept for today",
+        saved: "Saved",
+        savedToAccount: "Saved to your account.",
+        saving: "Saving",
+        showSample: "Show sample",
+        slotOverviewTitle: "Four-slot daily drop",
+        sourceCount: (count: number) => `${count} source${count === 1 ? "" : "s"}`,
+        sourceLink: "source link",
+        sourceLinksAttached: (count: number) =>
+          `${count} source link${count === 1 ? "" : "s"} attached. Full source metadata is still loading.`,
+        sourceMetadataPending: "Source metadata pending.",
+        sources: "Sources",
+        storyDecision: "Decision",
+        storyOutcome: "Outcome",
+        storySetup: "Setup",
+        storyTension: "Tension",
+        title: "Five minutes. Four sharp moves.",
+        todayDropOnly: "Today's drop only",
+        topics: {
+          business: "Business",
+          finance: "Finance",
+          tech_ai: "Tech / AI",
+          law: "Law",
+          medicine: "Medicine",
+          engineering: "Engineering",
+          sport_business: "Sport Business",
+          culture_media: "Culture / Media"
+        },
+        useItLikeThis: "Use it like this",
+        whyItMatters: "Why it matters"
+      },
+      fr: {
+        availableItems: (count: number) =>
+          `${count} élément${count > 1 ? "s" : ""} disponible${count > 1 ? "s" : ""} dans cette session. Pas de file infinie, pas de flux à poursuivre.`,
+        accessibilityLabel: "Mise à jour du jour",
+        businessStoryDescription:
+          "Un mécanisme concret de business, de prix ou de stratégie.",
+        cachedContent: "Contenu en cache",
+        cachedDropDescription:
+          "La dernière vérification en direct est indisponible, donc l'app affiche la dernière mise à jour gardée en mémoire.",
+        cachedDropTitle: "Mise à jour en cache",
+        cachedLiveDropLabel: "Mise à jour en cache",
+        careerTopic: "Carrière",
+        challenge: "Défi",
+        checkAgain: "Vérifier à nouveau",
+        commonMistake: "Erreur fréquente",
+        complete: "Terminer",
+        completeMessage: "Mise à jour terminée. Reviens demain pour la suivante.",
+        completed: "Terminé",
+        completing: "Finalisation",
+        conceptDescription:
+          "Une idée réutilisable en cours, en entretien ou dans une discussion sérieuse.",
+        constraints: "Contraintes",
+        datePending: "Date en attente",
+        definition: "Définition",
+        description:
+          "Lis le signal, comprends le mécanisme, résous le mini-cas, garde le concept. Puis stop. C'est ton rituel d'apprentissage quotidien, pas un fil.",
+        done: "Fait",
+        dropComplete: "Mise à jour terminée",
+        emptyDropDescription:
+          "Aucun module lisible n'est attaché à cette mise à jour. Réessaie après l'assignation du contenu quotidien, ou continue avec la prévisualisation si elle s'affiche au-dessus.",
+        emptyDropEyebrow: "Mise à jour vide",
+        emptyDropTitle: "Le contenu du jour n'est pas prêt",
+        example: "Exemple",
+        eyebrow: "Aujourd'hui",
+        finishedBriefing: "Tu as terminé le briefing du jour.",
+        fullDropToday: "C'est toute la mise à jour d'aujourd'hui.",
+        hideSample: "Masquer l'exemple",
+        incompleteMessage: "Termine les quatre modules. Pas de fil, pas de retard accumulé.",
+        itemCount: (count: number) => `${count} élément${count > 1 ? "s" : ""}`,
+        itemProgress: (completed: number, total: number) => `${completed}/${total} éléments`,
+        languageName: "Français",
+        lesson: "Leçon",
+        libraryLater:
+          "La Bibliothèque peut garder le travail passé. Aujourd'hui reste concentré : quatre modules, puis stop.",
+        linkedSources: (count: number) => `${count} source${count > 1 ? "s" : ""} liée${count > 1 ? "s" : ""}`,
+        liveContent: "Contenu en direct",
+        liveDropDescription:
+          "Voici la mise à jour quotidienne assignée à ce compte. Sauvegardes, complétions et avis sont enregistrés.",
+        liveDropTitle: "Mise à jour en direct",
+        loadingDropDescription:
+          "Recherche de la mise à jour assignée aujourd'hui. Le contenu existant reste visible pendant la vérification des données en direct.",
+        loadingDropTitle: "Chargement du jour",
+        localSaveOnly:
+          "Enregistré sur cet appareil pour cette session. La synchronisation en direct n'a pas abouti.",
+        markDone: "Marquer comme fait",
+        markNewsletterRead: "Marquer la newsletter comme lue",
+        markStoryComplete: "Marquer l'histoire comme terminée",
+        miniCaseDescription:
+          "Un court exercice de décision. Réfléchis avant de regarder l'exemple de réponse.",
+        minuteCount: (count: number) => `${count} min`,
+        minuteSession: (count: number) => `${count} min de session`,
+        modules: {
+          newsletter: {
+            label: "Newsletter",
+            description: "Signal d'actualité sourcé"
+          },
+          business_story: {
+            label: "Histoire business",
+            description: "Mécanisme business"
+          },
+          mini_case: {
+            label: "Mini-cas",
+            description: "Exercice de décision"
+          },
+          concept: {
+            label: "Concept",
+            description: "Idée réutilisable"
+          }
+        },
+        newsletterDescription:
+          "Un scan court et sourcé des sujets sélectionnés pour la mise à jour du jour.",
+        newsletterEmptyDescription:
+          "Cette mise à jour n'a pas d'articles newsletter. Les autres modules restent disponibles.",
+        newsletterEmptyTitle: "L'emplacement newsletter est vide",
+        newsletterTitle: "Signaux à connaître",
+        noLiveDropDescription:
+          "Aucune mise à jour quotidienne en français n'est assignée à ce compte aujourd'hui. Le contenu de prévisualisation s'affiche ci-dessous pour tester l'app sans le confondre avec du direct.",
+        noLiveDropTitle: "Aucune mise à jour en direct",
+        noSessionDescription:
+          "Connecte-toi pour charger ta mise à jour assignée. Le contenu de prévisualisation s'affiche ci-dessous.",
+        noSessionTitle: "Aucune session active",
+        plainLanguage: "En clair",
+        previewActionMarked: "Action de prévisualisation marquée pour cette session.",
+        previewContent: "Contenu de prévisualisation",
+        previewFallback: "L'app affiche le contenu de prévisualisation pour le moment.",
+        previewMode: "Prévisualisation",
+        ratingNotUseful: "Peu utile",
+        ratingOkay: "Correct",
+        ratingUseful: "Utile",
+        rated: (rating: string) => `Noté ${rating}`,
+        ready: "Prêt",
+        reflection: "Retour",
+        reflectionQuestion: "Est-ce que cela valait tes cinq minutes ?",
+        resetTodayProgress: "Réinitialiser la progression du jour",
+        retryLiveData: "Réessayer les données en direct",
+        retrySessionCheck: "Revérifier la session",
+        ritualSteps: [
+          "Lis les signaux newsletter.",
+          "Termine l'histoire business et le mini-cas.",
+          "Sauvegarde une idée que tu veux réutiliser.",
+          "Marque chaque élément comme terminé quand il est acquis."
+        ],
+        ritualTitle: "Que faire maintenant",
+        sampleAnswer: "Exemple de réponse",
+        save: "Sauvegarder",
+        saveConceptForToday: "Sauvegarder le concept du jour",
+        saved: "Sauvegardé",
+        savedToAccount: "Enregistré sur ton compte.",
+        saving: "Sauvegarde",
+        showSample: "Voir l'exemple",
+        slotOverviewTitle: "Mise à jour en quatre modules",
+        sourceCount: (count: number) => `${count} source${count > 1 ? "s" : ""}`,
+        sourceLink: "lien source",
+        sourceLinksAttached: (count: number) =>
+          `${count} lien${count > 1 ? "s" : ""} source attaché${count > 1 ? "s" : ""}. Les métadonnées complètes se chargent encore.`,
+        sourceMetadataPending: "Métadonnées source en attente.",
+        sources: "Sources",
+        storyDecision: "Décision",
+        storyOutcome: "Résultat",
+        storySetup: "Contexte",
+        storyTension: "Tension",
+        title: "Cinq minutes. Quatre gestes utiles.",
+        todayDropOnly: "Seulement la mise à jour du jour",
+        topics: {
+          business: "Business",
+          finance: "Finance",
+          tech_ai: "Tech / IA",
+          law: "Droit",
+          medicine: "Médecine",
+          engineering: "Ingénierie",
+          sport_business: "Business du sport",
+          culture_media: "Culture / médias"
+        },
+        useItLikeThis: "À utiliser comme ça",
+        whyItMatters: "Pourquoi c'est important"
+      }
+    },
+    language
+  );
 }
 
 const styles = StyleSheet.create({

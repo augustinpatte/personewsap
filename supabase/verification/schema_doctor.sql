@@ -139,15 +139,6 @@ left join pg_policies
 order by removed_policies.table_name, removed_policies.policy_name;
 
 select
-  'preferred notification time column exists' as check_name,
-  case when columns.column_name is null then 'FAIL' else 'PASS' end as status
-from (select 'preferred_notification_time'::text as column_name) expected
-left join information_schema.columns columns
-  on columns.table_schema = 'public'
- and columns.table_name = 'user_preferences'
- and columns.column_name = expected.column_name;
-
-select
   'push token uniqueness exists' as check_name,
   case when constraints.constraint_name is null then 'FAIL' else 'PASS' end as status
 from (select 'push_tokens_user_id_expo_push_token_key'::text as constraint_name) expected
@@ -155,6 +146,15 @@ left join information_schema.table_constraints constraints
   on constraints.table_schema = 'public'
  and constraints.table_name = 'push_tokens'
  and constraints.constraint_name = expected.constraint_name;
+
+select
+  'mini-case topic preference column exists' as check_name,
+  case when columns.column_name is null then 'FAIL' else 'PASS' end as status
+from (select 'mini_case_topic_id'::text as column_name) expected
+left join information_schema.columns columns
+  on columns.table_schema = 'public'
+ and columns.table_name = 'user_preferences'
+ and columns.column_name = expected.column_name;
 
 with expected_functions(function_name) as (
   values

@@ -39,7 +39,9 @@ export default function ArticleCountScreen() {
         .filter(isSelectedTopic),
     [state.selectedTopics, topicOptions]
   );
-  const hasRequiredPreferences = Boolean(state.language) && selectedTopics.length > 0;
+  const hasRequiredPreferences =
+    Boolean(state.language) &&
+    selectedTopics.length > 0;
 
   const savePreferences = async () => {
     setSaving(true);

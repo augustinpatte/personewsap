@@ -26,7 +26,7 @@ export default function TabsLayout() {
   );
 
   if (status === "loading") {
-    return <AuthLoadingScreen />;
+    return <AuthLoadingScreen language={profileLanguage} />;
   }
 
   if (status === "signedOut") {

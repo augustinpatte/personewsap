@@ -28,6 +28,48 @@ Optional:
 - `OPENAI_FALLBACK_MODEL` optional fallback model tried after primary model request failures
 - `OPENAI_REQUEST_TIMEOUT_MS` defaults to `120000`
 
+## Local Env Bootstrap
+
+For local content-engine commands, keep server-side credentials in the ignored file `services/content-engine/.env`.
+
+```sh
+cp services/content-engine/.env.example services/content-engine/.env
+```
+
+Fill only server-side values:
+
+```sh
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...
+CONFIRM_DAILY_JOB_TEST=false
+LANGUAGES=en
+USER_LIMIT=3
+```
+
+Do not put `SUPABASE_SERVICE_ROLE_KEY` in `apps/mobile/.env`, Expo public env vars, Vite env files, or any client bundle.
+
+From the repo root, verify the local server env:
+
+```sh
+npm run content:env:check
+```
+
+Read-only user eligibility check:
+
+```sh
+npm run content:debug-users:local -- --language en
+```
+
+Intentional marked test write:
+
+```sh
+# In services/content-engine/.env, set this only when you mean to write test data:
+# CONFIRM_DAILY_JOB_TEST=true
+npm run content:daily-job-test:local -- --language en --limit 3
+```
+
+The `:local` helpers only load `services/content-engine/.env`, print redacted env status, and then call the existing guarded commands. They do not bypass `SUPABASE_SERVICE_ROLE_KEY` or `CONFIRM_DAILY_JOB_TEST` checks.
+
 ## Commands
 
 Test/no-write commands:
@@ -558,6 +600,16 @@ CONTENT_STATUS=published \
 npm run daily-job-test
 ```
 
+Recommended local wrapper from the repo root, after filling `services/content-engine/.env`:
+
+```sh
+npm run content:env:check
+npm run content:debug-users:local -- --language en
+npm run content:daily-job-test:local -- --language en --limit 3
+```
+
+The wrapper still refuses to run unless `CONFIRM_DAILY_JOB_TEST=true` is present for `daily-job-test`.
+
 If your shell already has the required Supabase safety variables exported, the standard language-coverage run is:
 
 ```sh
@@ -659,6 +711,12 @@ Required:
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
 npm run debug-users
+```
+
+Recommended local wrapper from the repo root, after filling `services/content-engine/.env`:
+
+```sh
+npm run content:debug-users:local -- --language en
 ```
 
 If your shell already has the required Supabase credentials exported, check both app languages with:

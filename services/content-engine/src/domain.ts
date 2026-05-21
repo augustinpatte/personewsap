@@ -146,6 +146,7 @@ export type UserDailyDropPreference = {
   goal: GoalId;
   frequency: PreferenceFrequency;
   newsletter_article_count: number;
+  mini_case_topic_id: TopicId | null;
   topics: Array<{
     topic_id: TopicId;
     articles_count: number;

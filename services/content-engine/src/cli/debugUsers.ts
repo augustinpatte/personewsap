@@ -80,7 +80,9 @@ function assertDebugUsersEnvironment(): void {
     [
       `debug-users refused to run because the following required setting(s) are missing: ${missing.join(", ")}.`,
       "This command is read-only, but it uses service-role access to inspect app profile and preference tables.",
-      "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in a server-side shell."
+      "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in a server-side shell.",
+      "Local helper: copy services/content-engine/.env.example to services/content-engine/.env, fill server-side values, then run npm run content:debug-users:local -- --language en.",
+      "Never put SUPABASE_SERVICE_ROLE_KEY in apps/mobile/.env or any client-side env file."
     ].join(" ")
   );
 }

@@ -1,17 +1,19 @@
 import { normalizeSupabaseError, supabase } from "../../lib/supabase";
 import type { NormalizedSupabaseError } from "../../lib/supabase";
 import { localized } from "../../lib/i18n";
-import type { Language, TopicId } from "../../types/domain";
+import type { Language } from "../../types/domain";
 import {
+  buildNewsletterTopicPreferenceRows,
   clampNewsletterArticleCount,
+  mapBackendTopicToNewsletterTopic,
   normalizeNewsletterTopics,
-  TOPIC_OPTIONS
+  type NewsletterTopicId
 } from "../onboarding/options";
 
 export type EditablePreferences = {
   language: Language;
-  selectedTopics: TopicId[];
-  articlesPerTopic: Partial<Record<TopicId, number>>;
+  selectedTopics: NewsletterTopicId[];
+  articlesPerTopic: Partial<Record<NewsletterTopicId, number>>;
 };
 
 type PreferencesResult =
@@ -80,13 +82,19 @@ export async function loadEditablePreferences(
     const selectedTopics =
       topicPreferences
         ?.filter((preference) => preference.enabled)
-        .map((preference) => preference.topic_id) ?? [];
+        .map((preference) => mapBackendTopicToNewsletterTopic(preference.topic_id))
+        .filter((topicId): topicId is NewsletterTopicId => Boolean(topicId)) ?? [];
     const articlesPerTopic = Object.fromEntries(
-      topicPreferences?.map((preference) => [
-        preference.topic_id,
-        clampNewsletterArticleCount(preference.articles_count)
-      ]) ?? []
-    ) as Partial<Record<TopicId, number>>;
+      topicPreferences
+        ?.map((preference) => {
+          const topicId = mapBackendTopicToNewsletterTopic(preference.topic_id);
+
+          return topicId
+            ? [topicId, clampNewsletterArticleCount(preference.articles_count)]
+            : null;
+        })
+        .filter((entry): entry is [NewsletterTopicId, number] => Boolean(entry)) ?? []
+    ) as Partial<Record<NewsletterTopicId, number>>;
 
     return {
       ok: true,
@@ -133,8 +141,8 @@ export async function saveEditablePreferences(
         code: "missing_topics",
         message: localized(
           {
-            en: "Choose at least one practical-case category before saving preferences.",
-            fr: "Choisis au moins une catégorie mini-cas avant d'enregistrer les préférences."
+            en: "Choose at least one newsletter category before saving preferences.",
+            fr: "Choisis au moins une catégorie newsletter avant d'enregistrer les préférences."
           },
           normalized.language
         )
@@ -191,19 +199,10 @@ export async function saveEditablePreferences(
       };
     }
 
-    const selectedTopicIds = new Set(normalized.selectedTopics);
-    const topicPreferenceRows = TOPIC_OPTIONS.map((topic, index) => {
-      const enabled = selectedTopicIds.has(topic.id);
-
-      return {
-        user_id: userId,
-        topic_id: topic.id,
-        articles_count: enabled
-          ? clampNewsletterArticleCount(normalized.articlesPerTopic[topic.id] ?? 1)
-          : 1,
-        enabled,
-        position: enabled ? normalized.selectedTopics.indexOf(topic.id) + 1 : index + 1
-      };
+    const topicPreferenceRows = buildNewsletterTopicPreferenceRows({
+      articlesPerTopic: normalized.articlesPerTopic,
+      selectedTopics: normalized.selectedTopics,
+      userId
     });
 
     const topicPreferencesResult = await supabase
@@ -217,8 +216,8 @@ export async function saveEditablePreferences(
           topicPreferencesResult.error,
           localized(
             {
-              en: "Could not save your practical-case interests.",
-              fr: "Impossible d'enregistrer tes intérêts mini-cas."
+              en: "Could not save your newsletter topics.",
+              fr: "Impossible d'enregistrer tes sujets newsletter."
             },
             normalized.language
           )
@@ -255,6 +254,6 @@ export function normalizeEditablePreferences(preferences: EditablePreferences): 
         topicId,
         clampNewsletterArticleCount(preferences.articlesPerTopic[topicId] ?? 1)
       ])
-    ) as Partial<Record<TopicId, number>>
+    ) as Partial<Record<NewsletterTopicId, number>>
   };
 }

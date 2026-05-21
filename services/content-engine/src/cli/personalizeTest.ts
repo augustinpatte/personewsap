@@ -258,9 +258,14 @@ function selectPublishedContentForPreference(
     }
   }
 
-  addFirstSlot(selected, matchingLanguageItems, "business_story", sortedTopics);
-  addFirstSlot(selected, matchingLanguageItems, "mini_case", sortedTopics);
-  addFirstSlot(selected, matchingLanguageItems, "concept", sortedTopics);
+  addFirstSlot(selected, matchingLanguageItems, "business_story", sortedTopics.map((topic) => topic.topic_id));
+  addFirstSlot(
+    selected,
+    matchingLanguageItems,
+    "mini_case",
+    buildMiniCaseTopicOrder(preference.mini_case_topic_id, sortedTopics.map((topic) => topic.topic_id))
+  );
+  addFirstSlot(selected, matchingLanguageItems, "concept", sortedTopics.map((topic) => topic.topic_id));
 
   return selected;
 }
@@ -273,11 +278,15 @@ function addFirstSlot(
   }>,
   contentItems: AssignablePublishedContentItem[],
   slot: Exclude<DailyDropSlot, "newsletter">,
-  topicPreferences: UserDailyDropPreference["topics"]
+  preferredTopicIds: UserDailyDropPreference["topics"][number]["topic_id"][]
 ): void {
-  const preferredTopics = new Set(topicPreferences.map((topic) => topic.topic_id));
-  const preferredMatch = contentItems.find((item) => item.slot === slot && item.topic && preferredTopics.has(item.topic));
-  const fallbackMatch = contentItems.find((item) => item.slot === slot);
+  const preferredMatch =
+    slot === "mini_case"
+      ? preferredTopicIds
+          .map((topicId) => contentItems.find((item) => item.slot === slot && item.topic === topicId))
+          .find((item): item is AssignablePublishedContentItem => Boolean(item))
+      : null;
+  const fallbackMatch = slot === "mini_case" ? null : contentItems.find((item) => item.slot === slot);
   const match = preferredMatch ?? fallbackMatch;
 
   if (!match) {
@@ -289,6 +298,20 @@ function addFirstSlot(
     slot,
     position: 0
   });
+}
+
+function buildMiniCaseTopicOrder(
+  miniCaseTopicId: UserDailyDropPreference["mini_case_topic_id"],
+  enabledTopicIds: UserDailyDropPreference["topics"][number]["topic_id"][]
+) {
+  if (miniCaseTopicId && enabledTopicIds.includes(miniCaseTopicId)) {
+    return [
+      miniCaseTopicId,
+      ...enabledTopicIds.filter((topicId) => topicId !== miniCaseTopicId)
+    ];
+  }
+
+  return enabledTopicIds;
 }
 
 function hasRequiredSlots(

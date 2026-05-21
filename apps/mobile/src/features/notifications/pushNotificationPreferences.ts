@@ -10,8 +10,6 @@ import type { Language } from "../../types/domain";
 export type NotificationPreferences = {
   language: Language | null;
   notificationsEnabled: boolean;
-  preferredNotificationTime: string;
-  timezone: string | null;
   tokenStorageReady: boolean;
   tokenStored: boolean;
 };
@@ -37,15 +35,12 @@ type RegisterPushTokenResult =
   | { ok: true; token: string; registrationState: "granted" }
   | { ok: false; error: NormalizedSupabaseError; registrationState: Exclude<NotificationRegistrationState, "granted"> };
 
-const DEFAULT_NOTIFICATION_TIME = "08:00";
-
 function getNotificationPreferenceCopy(language: Language | null | undefined) {
   return localized(
     {
       en: {
         missingConfig: "Live notification preferences are not configured for this build.",
         loadFailed: "Could not load notification preferences.",
-        invalidTime: "Choose a reminder time in HH:MM format.",
         cleanupWarning:
           "Reminder disabled. Some old reminder data may clear later.",
         platformUnsupported: "Push reminders are available on iOS and Android builds.",
@@ -61,7 +56,6 @@ function getNotificationPreferenceCopy(language: Language | null | undefined) {
         missingConfig:
           "Les préférences de notification live ne sont pas configurées pour cette version.",
         loadFailed: "Impossible de charger les préférences de notification.",
-        invalidTime: "Choisis une heure de rappel au format HH:MM.",
         cleanupWarning:
           "Rappel désactivé. Certaines anciennes données de rappel pourront être effacées plus tard.",
         platformUnsupported:
@@ -101,7 +95,7 @@ export async function loadNotificationPreferences(
   try {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("language, timezone")
+      .select("language")
       .eq("id", userId)
       .maybeSingle();
 
@@ -111,7 +105,7 @@ export async function loadNotificationPreferences(
 
     const { data: userPreferences, error: preferencesError } = await supabase
       .from("user_preferences")
-      .select("notifications_enabled, preferred_notification_time")
+      .select("notifications_enabled")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -137,9 +131,6 @@ export async function loadNotificationPreferences(
       preferences: {
         language: profile?.language ?? null,
         notificationsEnabled: userPreferences?.notifications_enabled ?? false,
-        preferredNotificationTime:
-          userPreferences?.preferred_notification_time ?? DEFAULT_NOTIFICATION_TIME,
-        timezone: profile?.timezone ?? null,
         tokenStorageReady,
         tokenStored: tokenStorageReady && (tokens?.length ?? 0) > 0
       }
@@ -155,12 +146,10 @@ export async function loadNotificationPreferences(
 export async function saveNotificationPreferences({
   enabled,
   language = null,
-  preferredNotificationTime,
   userId
 }: {
   enabled: boolean;
   language?: Language | null;
-  preferredNotificationTime: string;
   userId: string;
 }): Promise<SaveNotificationPreferencesResult> {
   const copy = getNotificationPreferenceCopy(language);
@@ -176,21 +165,8 @@ export async function saveNotificationPreferences({
     };
   }
 
-  const notificationTime = normalizeNotificationTime(preferredNotificationTime);
-
-  if (!notificationTime) {
-    return {
-      ok: false,
-      registrationState: "not_requested",
-      error: {
-        code: "invalid_notification_time",
-        message: copy.invalidTime
-      }
-    };
-  }
-
   if (!enabled) {
-    const preferencesResult = await upsertNotificationPreferences(userId, false, notificationTime, language);
+    const preferencesResult = await upsertNotificationPreferences(userId, false, language);
 
     if (!preferencesResult.ok) {
       return {
@@ -212,7 +188,7 @@ export async function saveNotificationPreferences({
   const registration = await registerForPushNotifications(language);
 
   if (!registration.ok) {
-    await upsertNotificationPreferences(userId, false, notificationTime, language);
+    await upsertNotificationPreferences(userId, false, language);
 
     return {
       ok: false,
@@ -224,7 +200,7 @@ export async function saveNotificationPreferences({
   const tokenResult = await storePushToken(userId, registration.token, language);
 
   if (!tokenResult.ok) {
-    await upsertNotificationPreferences(userId, false, notificationTime, language);
+    await upsertNotificationPreferences(userId, false, language);
 
     return {
       ok: false,
@@ -233,7 +209,7 @@ export async function saveNotificationPreferences({
     };
   }
 
-  const preferencesResult = await upsertNotificationPreferences(userId, true, notificationTime, language);
+  const preferencesResult = await upsertNotificationPreferences(userId, true, language);
 
   if (!preferencesResult.ok) {
     return {
@@ -244,16 +220,6 @@ export async function saveNotificationPreferences({
   }
 
   return { ok: true, registrationState: "granted" };
-}
-
-export function normalizeNotificationTime(value: string): string | null {
-  const trimmed = value.trim();
-
-  if (!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(trimmed)) {
-    return null;
-  }
-
-  return trimmed;
 }
 
 async function registerForPushNotifications(
@@ -400,7 +366,6 @@ async function disableStoredPushTokens(
 async function upsertNotificationPreferences(
   userId: string,
   notificationsEnabled: boolean,
-  preferredNotificationTime: string,
   language: Language | null
 ): Promise<{ ok: true } | { ok: false; error: NormalizedSupabaseError }> {
   const copy = getNotificationPreferenceCopy(language);
@@ -418,7 +383,6 @@ async function upsertNotificationPreferences(
   const { error } = await supabase.from("user_preferences").upsert({
     user_id: userId,
     notifications_enabled: notificationsEnabled,
-    preferred_notification_time: preferredNotificationTime,
     updated_at: new Date().toISOString()
   });
 

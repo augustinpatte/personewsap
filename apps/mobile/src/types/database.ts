@@ -95,8 +95,8 @@ export type Database = {
           goal: GoalId;
           frequency: PreferenceFrequency;
           newsletter_article_count: number;
+          mini_case_topic_id: TopicId | null;
           notifications_enabled: boolean;
-          preferred_notification_time: string;
           email_enabled: boolean;
           created_at: string;
           updated_at: string;
@@ -106,8 +106,8 @@ export type Database = {
           goal?: GoalId;
           frequency?: PreferenceFrequency;
           newsletter_article_count?: number;
+          mini_case_topic_id?: TopicId | null;
           notifications_enabled?: boolean;
-          preferred_notification_time?: string;
           email_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -117,8 +117,8 @@ export type Database = {
           goal?: GoalId;
           frequency?: PreferenceFrequency;
           newsletter_article_count?: number;
+          mini_case_topic_id?: TopicId | null;
           notifications_enabled?: boolean;
-          preferred_notification_time?: string;
           email_enabled?: boolean;
           created_at?: string;
           updated_at?: string;

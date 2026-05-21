@@ -714,6 +714,17 @@ async function assignStoredDropToUsers(input: {
     const selection = selectDailyDropItemsForUser(preference, input.storedItems);
     const itemIds = completeSelection(selection.items, input.storedItems);
 
+    if (selection.diagnostics.miniCase.fallbackReason !== "none") {
+      logProgress("mini-case topic fallback", {
+        user_id: preference.user_id,
+        drop_date: input.dropDate,
+        language: input.language,
+        requested_topic_id: selection.diagnostics.miniCase.requestedTopicId,
+        selected_topic_id: selection.diagnostics.miniCase.selectedTopicId,
+        fallback_reason: selection.diagnostics.miniCase.fallbackReason
+      }, input.logPrefix);
+    }
+
     if (!hasRequiredSlots(itemIds)) {
       usersSkippedIncompleteSelection += 1;
       logProgress("assignment skipped incomplete selection", {
@@ -726,7 +737,9 @@ async function assignStoredDropToUsers(input: {
           topic_id: topic.topic_id,
           articles_count: topic.articles_count,
           position: topic.position
-        }))
+        })),
+        mini_case_topic_id: preference.mini_case_topic_id,
+        mini_case_fallback_reason: selection.diagnostics.miniCase.fallbackReason
       }, input.logPrefix);
       continue;
     }
@@ -917,6 +930,10 @@ function completeSelection(
 
   for (const slot of REQUIRED_SLOTS) {
     if (completed.some((item) => item.slot === slot)) {
+      continue;
+    }
+
+    if (slot === "mini_case") {
       continue;
     }
 
@@ -1279,7 +1296,9 @@ function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
           `daily-job-test refused to write because the following required setting(s) are missing: ${missing.join(", ")}.`,
           "This command persists published test content and assigns daily drops to a limited set of app users.",
           "To run it intentionally, set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and CONFIRM_DAILY_JOB_TEST=true.",
-          "Use USER_LIMIT=5 or lower for local checks, and use a local or disposable Supabase project by default."
+          "Local helper: copy services/content-engine/.env.example to services/content-engine/.env, fill server-side values, set CONFIRM_DAILY_JOB_TEST=true, then run npm run content:daily-job-test:local -- --language en --limit 3.",
+          "Use USER_LIMIT=5 or lower for local checks, and use a local or disposable Supabase project by default.",
+          "Never put SUPABASE_SERVICE_ROLE_KEY in apps/mobile/.env or any client-side env file."
         ].join(" ")
       : [
           `daily-job refused to run because the following required setting(s) are missing: ${missing.join(", ")}.`,

@@ -6,6 +6,8 @@ import type { SourceFetcher } from "../sources/sourceFetcher.js";
 import type { ContentRepository } from "../storage/contentRepository.js";
 import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "./dailyDropBuilder.js";
 
+const REQUIRED_DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
+
 export type DailyContentJobOptions = {
   dropDate: string;
   languages: Language[];
@@ -89,6 +91,26 @@ export class DailyContentJob {
 
         for (const preference of preferences) {
           const selection = selectDailyDropItemsForUser(preference, stored);
+          const missingSlots = missingRequiredSlots(selection.items);
+          if (selection.diagnostics.miniCase.fallbackReason !== "none") {
+            console.warn("[content-engine] mini-case topic fallback", {
+              user_id: preference.user_id,
+              language,
+              requested_topic_id: selection.diagnostics.miniCase.requestedTopicId,
+              selected_topic_id: selection.diagnostics.miniCase.selectedTopicId,
+              fallback_reason: selection.diagnostics.miniCase.fallbackReason
+            });
+          }
+          if (missingSlots.length > 0) {
+            console.warn("[content-engine] daily drop assignment skipped incomplete selection", {
+              user_id: preference.user_id,
+              language,
+              missing_slots: missingSlots,
+              mini_case_topic_id: preference.mini_case_topic_id,
+              mini_case_fallback_reason: selection.diagnostics.miniCase.fallbackReason
+            });
+            continue;
+          }
           await persistenceRepository.createDailyDropForUser({
             userId: selection.userId,
             dropDate: options.dropDate,
@@ -115,4 +137,12 @@ export class DailyContentJob {
       languages: results
     };
   }
+}
+
+function missingRequiredSlots(
+  selectedItems: Array<{ slot: (typeof REQUIRED_DAILY_DROP_SLOTS)[number] }>
+) {
+  const slots = new Set(selectedItems.map((item) => item.slot));
+
+  return REQUIRED_DAILY_DROP_SLOTS.filter((slot) => !slots.has(slot));
 }

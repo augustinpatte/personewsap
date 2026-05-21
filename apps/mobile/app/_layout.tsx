@@ -4,7 +4,7 @@ import { StatusBar } from "react-native";
 
 import { AppErrorBoundary } from "../src/components";
 import { tokens } from "../src/design/tokens";
-import { AuthProvider } from "../src/features/auth";
+import { AuthProvider, useAuth } from "../src/features/auth";
 import { trackAnalyticsEvent } from "../src/lib/analytics";
 
 export default function RootLayout() {
@@ -14,15 +14,23 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <AppErrorBoundary>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: tokens.color.background }
-          }}
-        />
-        <StatusBar barStyle="dark-content" />
-      </AppErrorBoundary>
+      <RootNavigator />
     </AuthProvider>
+  );
+}
+
+function RootNavigator() {
+  const { profileLanguage } = useAuth();
+
+  return (
+    <AppErrorBoundary language={profileLanguage}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: tokens.color.background }
+        }}
+      />
+      <StatusBar barStyle="dark-content" />
+    </AppErrorBoundary>
   );
 }

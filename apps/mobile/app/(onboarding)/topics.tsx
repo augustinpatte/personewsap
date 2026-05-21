@@ -43,10 +43,12 @@ export default function TopicsScreen() {
             toggleTopic(option.id);
             trackAnalyticsEvent("topic_preference_updated", {
               language: state.language ?? undefined,
-              topic: option.id
+              topic: option.backendTopicId
             });
           }}
           selected={state.selectedTopics.includes(option.id)}
+          selectedBadge={copy.common.selected}
+          unselectedBadge={copy.common.notSelected}
         />
       ))}
     </OnboardingScaffold>

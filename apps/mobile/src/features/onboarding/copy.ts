@@ -8,7 +8,9 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         step: (step: number, total: number) => `Step ${step} of ${total}`,
         common: {
           back: "Back",
-          continue: "Continue"
+          continue: "Continue",
+          selected: "Selected",
+          notSelected: "Not selected"
         },
         language: {
           title: "Pick your briefing language",
@@ -19,12 +21,21 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           backToLogin: "Back to login"
         },
         topics: {
-          title: "Pick practical-case interests",
+          title: "Pick newsletter topics",
           description:
-            "Choose the categories you want for practical mini-cases. They also shape newsletter depth.",
+            "Choose one or more categories for your daily newsletter. They also shape mini-cases.",
           selectedFooter: (count: number) =>
-            `${count} categor${count === 1 ? "y" : "ies"} selected for articles and cases`,
-          emptyFooter: "Choose at least one practical-case category to continue."
+            `${count} newsletter categor${count === 1 ? "y" : "ies"} selected`,
+          emptyFooter: "Choose at least one newsletter category to continue."
+        },
+        miniCaseTopic: {
+          title: "Pick your mini-case topic",
+          description:
+            "Your daily mini-case uses one topic from your newsletter choices. Pick the one you want to practice.",
+          singleDescription:
+            "You selected one newsletter category, so your mini-case will use it too.",
+          selectedFooter: "This topic will drive the daily mini-case.",
+          emptyFooter: "Choose one mini-case topic to continue."
         },
         articleCount: {
           title: "Tune the daily dose",
@@ -44,7 +55,9 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         step: (step: number, total: number) => `Étape ${step} sur ${total}`,
         common: {
           back: "Retour",
-          continue: "Continuer"
+          continue: "Continuer",
+          selected: "Sélectionné",
+          notSelected: "Non sélectionné"
         },
         language: {
           title: "Choisis la langue de ton briefing",
@@ -55,12 +68,21 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           backToLogin: "Retour à la connexion"
         },
         topics: {
-          title: "Choisis tes intérêts mini-cas",
+          title: "Choisis tes sujets newsletter",
           description:
-            "Choisis les catégories que tu veux pour les mini-cas pratiques. Elles règlent aussi la profondeur newsletter.",
+            "Choisis une ou plusieurs catégories pour ta newsletter quotidienne. Elles guident aussi les mini-cas.",
           selectedFooter: (count: number) =>
-            `${count} catégorie${count > 1 ? "s" : ""} sélectionnée${count > 1 ? "s" : ""} pour articles et mini-cas`,
-          emptyFooter: "Choisis au moins une catégorie mini-cas pour continuer."
+            `${count} catégorie${count > 1 ? "s" : ""} newsletter sélectionnée${count > 1 ? "s" : ""}`,
+          emptyFooter: "Choisis au moins une catégorie newsletter pour continuer."
+        },
+        miniCaseTopic: {
+          title: "Choisis ton sujet de mini-cas",
+          description:
+            "Ton mini-cas quotidien utilise un sujet parmi tes choix newsletter. Choisis celui que tu veux travailler.",
+          singleDescription:
+            "Tu as sélectionné une seule catégorie newsletter, donc ton mini-cas l'utilisera aussi.",
+          selectedFooter: "Ce sujet guidera le mini-cas quotidien.",
+          emptyFooter: "Choisis un sujet de mini-cas pour continuer."
         },
         articleCount: {
           title: "Dose ton contenu quotidien",

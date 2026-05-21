@@ -78,4 +78,4 @@ This app now covers the beta mobile shell:
 - Supabase client setup without server secrets
 - Account-only push reminder permission flow
 
-Push notification readiness is token capture only. The app asks for notification permission from Account after signup/onboarding, stores Expo push tokens in `push_tokens` only when the RLS-protected table exists, and keeps working when permission is denied or a simulator cannot register. Actual push delivery still needs a backend sender job that reads enabled tokens and `user_preferences.preferred_notification_time` by profile timezone, then sends through the Expo Push API with production APNs/FCM/EAS credentials.
+Push notification readiness is token capture only. The app asks for notification permission from Account after signup/onboarding, stores Expo push tokens in `push_tokens` only when the RLS-protected table exists, and keeps working when permission is denied or a simulator cannot register. Content is published once daily globally. Actual push delivery still needs a backend sender job that reads enabled tokens, then sends through the Expo Push API with production APNs/FCM/EAS credentials.

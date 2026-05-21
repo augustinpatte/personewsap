@@ -4,9 +4,9 @@ import type { MobileSupabaseClient, NormalizedSupabaseError } from "../../lib/su
 import type { Language } from "../../types/domain";
 import type { OnboardingState } from "./OnboardingState";
 import {
+  buildNewsletterTopicPreferenceRows,
   clampNewsletterArticleCount,
-  normalizeNewsletterTopics,
-  TOPIC_OPTIONS
+  normalizeNewsletterTopics
 } from "./options";
 
 type SaveOnboardingPreferencesResult =
@@ -55,8 +55,8 @@ export async function saveOnboardingPreferences(
         code: "incomplete_onboarding",
         message: localized(
           {
-            en: "Choose a language and at least one practical-case category before saving.",
-            fr: "Choisis une langue et au moins une catégorie mini-cas avant d'enregistrer."
+            en: "Choose a language and at least one newsletter category before saving.",
+            fr: "Choisis une langue et au moins une catégorie newsletter avant d'enregistrer."
           },
           language
         )
@@ -145,7 +145,6 @@ async function saveValidatedOnboardingPreferences(
     };
   }
 
-  const selectedTopicIds = new Set(selectedTopics);
   const totalArticleCount = selectedTopics.reduce(
     (total, topicId) =>
       total + clampNewsletterArticleCount(state.articlesPerTopic[topicId] ?? 1),
@@ -216,18 +215,10 @@ async function saveValidatedOnboardingPreferences(
     user_id: redactIdentifier(user.id)
   });
 
-  const topicPreferenceRows = TOPIC_OPTIONS.map((topic, index) => {
-    const enabled = selectedTopicIds.has(topic.id);
-
-    return {
-      user_id: user.id,
-      topic_id: topic.id,
-      articles_count: enabled
-        ? clampNewsletterArticleCount(state.articlesPerTopic[topic.id] ?? 1)
-        : 1,
-      enabled,
-      position: enabled ? selectedTopics.indexOf(topic.id) + 1 : index + 1
-    };
+  const topicPreferenceRows = buildNewsletterTopicPreferenceRows({
+    articlesPerTopic: state.articlesPerTopic,
+    selectedTopics,
+    userId: user.id
   });
 
   const topicsResult = await client.from("user_topic_preferences").upsert(
@@ -250,8 +241,8 @@ async function saveValidatedOnboardingPreferences(
         topicsResult.error,
         localized(
           {
-            en: "Could not save your practical-case interests.",
-            fr: "Impossible d'enregistrer tes intérêts mini-cas."
+            en: "Could not save your newsletter topics.",
+            fr: "Impossible d'enregistrer tes sujets newsletter."
           },
           language
         )

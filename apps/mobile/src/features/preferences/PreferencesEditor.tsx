@@ -6,13 +6,15 @@ import { tokens } from "../../design/tokens";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { formatLanguageName, localized } from "../../lib/i18n";
 import { getUserFacingErrorMessage } from "../../lib/userFacingErrors";
-import type { Language, TopicId } from "../../types/domain";
+import type { Language } from "../../types/domain";
 import {
   ArticleCountRow,
   LANGUAGE_OPTIONS,
   localizeOptions,
+  mapNewsletterTopicToBackendTopic,
   SelectableCard,
-  TOPIC_OPTIONS
+  TOPIC_OPTIONS,
+  type NewsletterTopicId
 } from "../onboarding";
 import {
   loadEditablePreferences,
@@ -120,7 +122,7 @@ export function PreferencesEditor({
     setErrorMessage(null);
   }, []);
 
-  const toggleTopic = useCallback((topicId: TopicId) => {
+  const toggleTopic = useCallback((topicId: NewsletterTopicId) => {
     setDraft((current) => {
       if (!current) {
         return current;
@@ -148,7 +150,7 @@ export function PreferencesEditor({
     setErrorMessage(null);
   }, []);
 
-  const setArticleCount = useCallback((topicId: TopicId, count: number) => {
+  const setArticleCount = useCallback((topicId: NewsletterTopicId, count: number) => {
     setDraft((current) =>
       current
         ? normalizeEditablePreferences({
@@ -273,6 +275,8 @@ export function PreferencesEditor({
             label={option.label}
             onPress={() => toggleTopic(option.id)}
             selected={draft.selectedTopics.includes(option.id)}
+            selectedBadge={copy.selected}
+            unselectedBadge={copy.notSelected}
           />
         ))}
       </PreferenceGroup>
@@ -312,7 +316,12 @@ export function PreferencesEditor({
           }}
         />
         <PrimaryButton
-          disabled={saving || loading || !hasChanges || draft.selectedTopics.length === 0}
+          disabled={
+            saving ||
+            loading ||
+            !hasChanges ||
+            draft.selectedTopics.length === 0
+          }
           label={saving ? copy.saving : copy.saveChanges}
           loading={saving}
           onPress={savePreferences}
@@ -337,7 +346,6 @@ function PreferenceSummary({
   const topicLabels = preferences.selectedTopics
     .map((topicId) => topicOptions.find((topic) => topic.id === topicId)?.label)
     .filter((label): label is string => Boolean(label));
-
   return (
     <View style={styles.summaryPanel}>
       <View style={styles.summaryRow}>
@@ -401,13 +409,15 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         refreshingDetail:
           "Refreshing settings. Last loaded choices stay editable while the app checks live data.",
         saved:
-          "Saved. Future daily drops will use these newsletter and practical-case preferences.",
+          "Saved. Future daily drops will use these newsletter preferences.",
         language: "Language",
-        topics: "Practical-case interests",
+        topics: "Newsletter topics",
         topicsHelp:
-          "Choose at least one category. These choices guide practical mini-cases and newsletter depth.",
+          "Choose one or more categories. These choices guide newsletter depth and mini-cases.",
         articleCounts: "Newsletter depth",
-        missingTopic: "Select at least one practical-case category to save preferences.",
+        missingTopic: "Select at least one newsletter category to save preferences.",
+        selected: "Selected",
+        notSelected: "Not selected",
         reset: "Reset",
         saving: "Saving...",
         saveChanges: "Save changes",
@@ -427,13 +437,15 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         refreshingDetail:
           "Actualisation des réglages. Les derniers choix chargés restent modifiables pendant la vérification.",
         saved:
-          "Enregistré. Les prochaines mises à jour utiliseront ces préférences d'articles et de mini-cas.",
+          "Enregistré. Les prochaines mises à jour utiliseront ces préférences newsletter.",
         language: "Langue",
-        topics: "Intérêts mini-cas",
+        topics: "Sujets newsletter",
         topicsHelp:
-          "Choisis au moins une catégorie. Ces choix guident les mini-cas pratiques et la profondeur newsletter.",
+          "Choisis une ou plusieurs catégories. Ces choix guident la profondeur newsletter et les mini-cas.",
         articleCounts: "Profondeur newsletter",
-        missingTopic: "Sélectionne au moins une catégorie mini-cas pour enregistrer les préférences.",
+        missingTopic: "Sélectionne au moins une catégorie newsletter pour enregistrer les préférences.",
+        selected: "Sélectionné",
+        notSelected: "Non sélectionné",
         reset: "Réinitialiser",
         saving: "Enregistrement...",
         saveChanges: "Enregistrer",
@@ -462,7 +474,7 @@ function trackSavedPreferenceUpdates(
   for (const topic of changedTopics) {
     trackAnalyticsEvent("topic_preference_updated", {
       language: next.language,
-      topic
+      topic: mapNewsletterTopicToBackendTopic(topic)
     });
   }
 }
@@ -471,7 +483,7 @@ function getChangedTopics(
   previous: EditablePreferences | null,
   next: EditablePreferences
 ) {
-  const changedTopics = new Set<TopicId>();
+  const changedTopics = new Set<NewsletterTopicId>();
   const previousTopics = new Set(previous?.selectedTopics ?? []);
   const nextTopics = new Set(next.selectedTopics);
 

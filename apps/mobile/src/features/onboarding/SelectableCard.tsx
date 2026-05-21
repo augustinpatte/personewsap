@@ -9,6 +9,8 @@ type SelectableCardProps = {
   selected?: boolean;
   disabled?: boolean;
   badge?: string;
+  selectedBadge?: string;
+  unselectedBadge?: string;
   onPress: () => void;
 };
 
@@ -18,8 +20,12 @@ export function SelectableCard({
   selected = false,
   disabled = false,
   badge,
+  selectedBadge,
+  unselectedBadge,
   onPress
 }: SelectableCardProps) {
+  const selectionBadge = selected ? selectedBadge : unselectedBadge;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -49,6 +55,11 @@ export function SelectableCard({
             </View>
             {badge ? (
               <ProgressPill label={badge} tone={disabled ? "neutral" : "accent"} />
+            ) : selectionBadge ? (
+              <ProgressPill
+                label={selectionBadge}
+                tone={disabled ? "neutral" : selected ? "accent" : "neutral"}
+              />
             ) : (
               <View style={[styles.check, selected ? styles.checkSelected : null]}>
                 {selected ? <View style={styles.checkDot} /> : null}

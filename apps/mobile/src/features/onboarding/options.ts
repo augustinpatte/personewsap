@@ -48,137 +48,172 @@ export const LANGUAGE_OPTIONS: Array<OnboardingOption<Language>> = [
 ];
 
 export const NEWSLETTER_TOPIC_IDS = [
-  "business",
-  "finance",
-  "tech_ai",
-  "law",
-  "medicine",
-  "engineering",
-  "sport_business",
-  "culture_media"
-] as const satisfies readonly TopicId[];
+  "sport",
+  "international",
+  "finance_economy",
+  "stock_market",
+  "automotive",
+  "pharmaceutical",
+  "artificial_intelligence",
+  "culture"
+] as const;
+
+export type NewsletterTopicId = (typeof NEWSLETTER_TOPIC_IDS)[number];
+
+export const NEWSLETTER_TO_BACKEND_TOPIC_ID = {
+  sport: "sport_business",
+  international: "law",
+  finance_economy: "finance",
+  stock_market: "business",
+  automotive: "engineering",
+  pharmaceutical: "medicine",
+  artificial_intelligence: "tech_ai",
+  culture: "culture_media"
+} as const satisfies Record<NewsletterTopicId, TopicId>;
+
+export type NewsletterTopicOption = OnboardingOption<NewsletterTopicId> & {
+  backendTopicId: TopicId;
+};
 
 export const MIN_NEWSLETTER_ARTICLES_PER_TOPIC = 1;
 export const MAX_NEWSLETTER_ARTICLES_PER_TOPIC = 3;
 
-export const TOPIC_OPTIONS: Array<OnboardingOption<(typeof NEWSLETTER_TOPIC_IDS)[number]>> = [
+export type NewsletterTopicArticleCounts = Partial<Record<NewsletterTopicId, number>>;
+
+export type NewsletterTopicPreferenceRow = {
+  user_id: string;
+  topic_id: TopicId;
+  articles_count: number;
+  enabled: boolean;
+  position: number;
+};
+
+export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
   {
-    id: "business",
-    label: "Business",
-    description: "Strategy, companies, incentives, and operating decisions.",
+    id: "sport",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.sport,
+    label: "Sport",
+    description: "Sport leagues, athletes, competitions, media rights, and business moves.",
     translations: {
       en: {
-        label: "Business",
-        description: "Strategy, companies, incentives, and operating decisions."
+        label: "Sport",
+        description: "Sport leagues, athletes, competitions, media rights, and business moves."
       },
       fr: {
-        label: "Business",
-        description: "Stratégie, entreprises, incitations et décisions opérationnelles."
+        label: "Sport",
+        description: "Ligues, athlètes, compétitions, droits médias et décisions business."
       }
     }
   },
   {
-    id: "finance",
-    label: "Finance",
-    description: "Markets, capital, risk, and budget trade-offs.",
+    id: "international",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.international,
+    label: "International",
+    description: "Geopolitics, institutions, trade, regulation, and global decisions.",
     translations: {
       en: {
-        label: "Finance",
-        description: "Markets, capital, risk, and budget trade-offs."
+        label: "International",
+        description: "Geopolitics, institutions, trade, regulation, and global decisions."
       },
       fr: {
-        label: "Finance",
-        description: "Marchés, capital, risque et arbitrages de budget."
+        label: "International",
+        description: "Géopolitique, institutions, commerce, régulation et décisions mondiales."
       }
     }
   },
   {
-    id: "tech_ai",
-    label: "Tech / AI",
-    description: "Platforms, AI shifts, product bets, and regulation.",
+    id: "finance_economy",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.finance_economy,
+    label: "Finance & Economy",
+    description: "Macroeconomics, capital, rates, risk, and budget trade-offs.",
     translations: {
       en: {
-        label: "Tech / AI",
-        description: "Platforms, AI shifts, product bets, and regulation."
+        label: "Finance & Economy",
+        description: "Macroeconomics, capital, rates, risk, and budget trade-offs."
       },
       fr: {
-        label: "Tech / IA",
-        description: "Plateformes, ruptures IA, paris produit et régulation."
+        label: "Finance & économie",
+        description: "Macroéconomie, capital, taux, risque et arbitrages de budget."
       }
     }
   },
   {
-    id: "law",
-    label: "Law",
-    description: "Rules, cases, compliance, and institutional decisions.",
+    id: "stock_market",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.stock_market,
+    label: "Stock Market",
+    description: "Listed companies, earnings, valuations, sectors, and market signals.",
     translations: {
       en: {
-        label: "Law",
-        description: "Rules, cases, compliance, and institutional decisions."
+        label: "Stock Market",
+        description: "Listed companies, earnings, valuations, sectors, and market signals."
       },
       fr: {
-        label: "Droit",
-        description: "Règles, affaires, conformité et décisions institutionnelles."
+        label: "Bourse",
+        description: "Entreprises cotées, résultats, valorisations, secteurs et signaux de marché."
       }
     }
   },
   {
-    id: "medicine",
-    label: "Medicine",
-    description: "Clinical evidence, health systems, biotech, and safety choices.",
+    id: "automotive",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.automotive,
+    label: "Automotive",
+    description: "Vehicles, mobility, manufacturing, energy, infrastructure, and constraints.",
     translations: {
       en: {
-        label: "Medicine",
-        description: "Clinical evidence, health systems, biotech, and safety choices."
+        label: "Automotive",
+        description: "Vehicles, mobility, manufacturing, energy, infrastructure, and constraints."
       },
       fr: {
-        label: "Médecine",
-        description: "Preuves cliniques, systèmes de santé, biotech et choix de sécurité."
+        label: "Automobile",
+        description: "Véhicules, mobilité, industrie, énergie, infrastructure et contraintes."
       }
     }
   },
   {
-    id: "engineering",
-    label: "Engineering",
-    description: "Infrastructure, energy, hardware, reliability, and constraints.",
+    id: "pharmaceutical",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.pharmaceutical,
+    label: "Pharmaceutical",
+    description: "Drugmakers, trials, health systems, biotech, access, and safety choices.",
     translations: {
       en: {
-        label: "Engineering",
-        description: "Infrastructure, energy, hardware, reliability, and constraints."
+        label: "Pharmaceutical",
+        description: "Drugmakers, trials, health systems, biotech, access, and safety choices."
       },
       fr: {
-        label: "Ingénierie",
-        description: "Infrastructure, énergie, hardware, fiabilité et contraintes."
+        label: "Pharmaceutique",
+        description: "Laboratoires, essais, systèmes de santé, biotech, accès et sécurité."
       }
     }
   },
   {
-    id: "sport_business",
-    label: "Sport Business",
-    description: "Leagues, media rights, athletes, brands, and money.",
+    id: "artificial_intelligence",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.artificial_intelligence,
+    label: "Artificial Intelligence",
+    description: "AI models, platforms, product bets, compute, regulation, and adoption.",
     translations: {
       en: {
-        label: "Sport Business",
-        description: "Leagues, media rights, athletes, brands, and money."
+        label: "Artificial Intelligence",
+        description: "AI models, platforms, product bets, compute, regulation, and adoption."
       },
       fr: {
-        label: "Business du sport",
-        description: "Ligues, droits médias, athlètes, marques et argent."
+        label: "Intelligence artificielle",
+        description: "Modèles IA, plateformes, paris produit, calcul, régulation et adoption."
       }
     }
   },
   {
-    id: "culture_media",
-    label: "Culture / Media",
-    description: "Attention, creative industries, platforms, and influence.",
+    id: "culture",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.culture,
+    label: "Culture",
+    description: "Culture, media, creative industries, platforms, attention, and influence.",
     translations: {
       en: {
-        label: "Culture / Media",
-        description: "Attention, creative industries, platforms, and influence."
+        label: "Culture",
+        description: "Culture, media, creative industries, platforms, attention, and influence."
       },
       fr: {
-        label: "Culture / médias",
-        description: "Attention, industries créatives, plateformes et influence."
+        label: "Culture",
+        description: "Culture, médias, industries créatives, plateformes, attention et influence."
       }
     }
   }
@@ -196,8 +231,16 @@ export function localizeOptions<Option extends OnboardingOption<string>>(
   }));
 }
 
-export function isNewsletterTopicId(value: string): value is TopicId {
-  return NEWSLETTER_TOPIC_IDS.includes(value as TopicId);
+export function isNewsletterTopicId(value: string): value is NewsletterTopicId {
+  return NEWSLETTER_TOPIC_IDS.includes(value as NewsletterTopicId);
+}
+
+export function mapNewsletterTopicToBackendTopic(topicId: NewsletterTopicId): TopicId {
+  return NEWSLETTER_TO_BACKEND_TOPIC_ID[topicId];
+}
+
+export function mapBackendTopicToNewsletterTopic(topicId: TopicId): NewsletterTopicId | null {
+  return TOPIC_OPTIONS.find((option) => option.backendTopicId === topicId)?.id ?? null;
 }
 
 export function clampNewsletterArticleCount(count: number) {
@@ -207,9 +250,57 @@ export function clampNewsletterArticleCount(count: number) {
   );
 }
 
-export function normalizeNewsletterTopics(topicIds: readonly TopicId[]) {
+export function normalizeNewsletterTopics(topicIds: readonly NewsletterTopicId[]) {
   return topicIds.filter(
     (topicId, index, topics) =>
       isNewsletterTopicId(topicId) && topics.indexOf(topicId) === index
   );
+}
+
+export function buildNewsletterTopicPreferenceRows({
+  articlesPerTopic,
+  selectedTopics,
+  userId
+}: {
+  articlesPerTopic: NewsletterTopicArticleCounts;
+  selectedTopics: readonly NewsletterTopicId[];
+  userId: string;
+}): NewsletterTopicPreferenceRow[] {
+  const normalizedSelectedTopics = normalizeNewsletterTopics(selectedTopics);
+  const selectedTopicIds = new Set(normalizedSelectedTopics);
+
+  return TOPIC_OPTIONS.map((topic, index) => {
+    const enabled = selectedTopicIds.has(topic.id);
+    const selectedPosition = normalizedSelectedTopics.indexOf(topic.id);
+
+    return {
+      user_id: userId,
+      topic_id: topic.backendTopicId,
+      articles_count: enabled
+        ? clampNewsletterArticleCount(articlesPerTopic[topic.id] ?? 1)
+        : 1,
+      enabled,
+      position:
+        enabled && selectedPosition >= 0
+          ? selectedPosition + 1
+          : normalizedSelectedTopics.length + index + 1
+    };
+  });
+}
+
+export function normalizeMiniCaseTopicId(
+  selectedTopics: readonly NewsletterTopicId[],
+  miniCaseTopicId: NewsletterTopicId | null | undefined
+): NewsletterTopicId | null {
+  const normalizedTopics = normalizeNewsletterTopics(selectedTopics);
+
+  if (normalizedTopics.length === 0) {
+    return null;
+  }
+
+  if (miniCaseTopicId && normalizedTopics.includes(miniCaseTopicId)) {
+    return miniCaseTopicId;
+  }
+
+  return normalizedTopics.length === 1 ? normalizedTopics[0] : null;
 }

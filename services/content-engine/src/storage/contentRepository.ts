@@ -145,6 +145,7 @@ type AppUserPreferenceRow = {
   goal: string | null;
   frequency: string | null;
   newsletter_article_count: number | null;
+  mini_case_topic_id: string | null;
 };
 
 type AppUserTopicPreferenceRow = {
@@ -815,6 +816,11 @@ export class ContentRepository {
         goal: String(preference.goal ?? "become_sharper_daily") as UserDailyDropPreference["goal"],
         frequency: String(preference.frequency ?? "daily") as UserDailyDropPreference["frequency"],
         newsletter_article_count: normalizeNewsletterArticleCount(preference.newsletter_article_count),
+        mini_case_topic_id:
+          isTopicId(preference.mini_case_topic_id ?? "") &&
+          enabledTopics.some((topic) => topic.topic_id === preference.mini_case_topic_id)
+            ? preference.mini_case_topic_id as UserDailyDropPreference["mini_case_topic_id"]
+            : null,
         topics: enabledTopics.map((topic) => ({
           topic_id: topic.topic_id as UserDailyDropPreference["topics"][number]["topic_id"],
           articles_count: normalizeArticlesCount(topic.articles_count),
@@ -941,7 +947,7 @@ export class ContentRepository {
 
     const { data, error } = await this.supabase
       .from("user_preferences")
-      .select("user_id,goal,frequency,newsletter_article_count")
+      .select("user_id,goal,frequency,newsletter_article_count,mini_case_topic_id")
       .in("user_id", uniqueUserIds)
       .returns<AppUserPreferenceRow[]>();
 
