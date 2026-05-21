@@ -131,6 +131,30 @@ export function isLikelyNetworkError(error: NormalizedSupabaseError | null | und
   );
 }
 
+export function isAuthSessionError(error: NormalizedSupabaseError | null | undefined): boolean {
+  if (!error) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+  const normalizedCode = error.code?.toLowerCase() ?? "";
+
+  return (
+    normalizedCode === "session_expired" ||
+    normalizedCode === "session_not_found" ||
+    normalizedCode === "auth_session_missing" ||
+    normalizedCode === "auth_session_mismatch" ||
+    normalizedCode.includes("refresh_token") ||
+    normalizedCode.includes("invalid_jwt") ||
+    normalizedMessage.includes("session expired") ||
+    normalizedMessage.includes("auth session missing") ||
+    normalizedMessage.includes("invalid refresh token") ||
+    normalizedMessage.includes("refresh token not found") ||
+    normalizedMessage.includes("jwt expired") ||
+    normalizedMessage.includes("invalid jwt")
+  );
+}
+
 export async function getAuthSession(): Promise<AuthResult<Session>> {
   if (!supabase) {
     return {
@@ -150,6 +174,73 @@ export async function getAuthSession(): Promise<AuthResult<Session>> {
     return {
       data: null,
       error: normalizeSupabaseError(error, "Could not read the auth session.")
+    };
+  }
+}
+
+export async function getValidatedAuthSession(): Promise<AuthResult<Session>> {
+  const sessionResult = await getAuthSession();
+
+  if (!supabase || sessionResult.error || !sessionResult.data) {
+    return sessionResult;
+  }
+
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      const normalizedError = normalizeSupabaseError(
+        userError,
+        "Could not validate the auth session."
+      );
+
+      if (isLikelyNetworkError(normalizedError)) {
+        return sessionResult;
+      }
+
+      if (isAuthSessionError(normalizedError)) {
+        await clearLocalAuthSession();
+      }
+
+      return {
+        data: null,
+        error: normalizedError
+      };
+    }
+
+    if (!userData.user || userData.user.id !== sessionResult.data.user.id) {
+      const mismatchError: NormalizedSupabaseError = {
+        code: "auth_session_mismatch",
+        message: "The saved auth session does not match the current user.",
+        hint: "Log in again to refresh the local session."
+      };
+
+      await clearLocalAuthSession();
+
+      return {
+        data: null,
+        error: mismatchError
+      };
+    }
+
+    return sessionResult;
+  } catch (error) {
+    const normalizedError = normalizeSupabaseError(
+      error,
+      "Could not validate the auth session."
+    );
+
+    if (isLikelyNetworkError(normalizedError)) {
+      return sessionResult;
+    }
+
+    if (isAuthSessionError(normalizedError)) {
+      await clearLocalAuthSession();
+    }
+
+    return {
+      data: null,
+      error: normalizedError
     };
   }
 }
@@ -174,6 +265,18 @@ export async function signOut(): Promise<AuthResult<null>> {
       data: null,
       error: normalizeSupabaseError(error, "Could not sign out.")
     };
+  }
+}
+
+export async function clearLocalAuthSession(): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // Best effort only: callers already surface the original auth error.
   }
 }
 
@@ -474,6 +577,15 @@ function normalizeNetworkErrorMessage(
       ...error,
       code: error.code ?? "rate_limited",
       message: "Too many attempts. Wait a moment, then try again."
+    };
+  }
+
+  if (isAuthSessionError(error)) {
+    return {
+      ...error,
+      code: error.code ?? "session_expired",
+      message: "Your session has expired. Please log in again.",
+      hint: error.hint ?? "The saved session is no longer valid on the server."
     };
   }
 

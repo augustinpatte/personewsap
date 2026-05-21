@@ -407,7 +407,7 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         tryAgain: "Try again",
         refreshing: "Refreshing",
         refreshingDetail:
-          "Refreshing settings. Last loaded choices stay editable while the app checks live data.",
+          "Refreshing settings. Last loaded choices stay editable while the app checks your account.",
         saved:
           "Saved. Future daily drops will use these newsletter preferences.",
         language: "Language",

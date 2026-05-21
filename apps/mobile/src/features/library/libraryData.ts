@@ -23,6 +23,13 @@ const libraryDropCacheTtlMs = 60_000;
 const liveDataProofMode = process.env.EXPO_PUBLIC_LIVE_DATA_PROOF_MODE === "true";
 const maxLibraryDropLimit = 50;
 const publishedContentStatus = "published";
+const contentInteractionSelect =
+  "id,user_id,content_item_id,interaction_type,rating,message,created_at";
+const contentItemSelect =
+  "id,content_type,topic_id,language,title,summary,body_md,difficulty,estimated_read_seconds,publication_date,version,status,generation_run_id,source_count,metadata,created_at,updated_at";
+const dailyDropItemSelect = "daily_drop_id,content_item_id,slot,position,created_at";
+const dailyDropSelect =
+  "id,user_id,drop_date,language,status,generated_at,published_at,created_at,updated_at";
 const slotOrder = {
   newsletter: 0,
   business_story: 1,
@@ -94,7 +101,7 @@ export async function fetchLibraryDrops(
 
     const { data: drops, error: dropsError } = await supabase
       .from("daily_drops")
-      .select("*")
+      .select(dailyDropSelect)
       .eq("user_id", userId)
       .in("status", [...archiveDropStatuses])
       .order("drop_date", { ascending: false })
@@ -177,7 +184,7 @@ async function buildLibraryDropSummaries(
   const dropIds = drops.map((drop) => drop.id);
   const { data: dropItems, error: dropItemsError } = await supabase
     .from("daily_drop_items")
-    .select("*")
+    .select(dailyDropItemSelect)
     .in("daily_drop_id", dropIds)
     .order("position", { ascending: true });
 
@@ -251,7 +258,7 @@ async function fetchContentItemsById(
 
   const { data: contentItems, error } = await supabase
     .from("content_items")
-    .select("*")
+    .select(contentItemSelect)
     .in("id", contentItemIds)
     .eq("status", publishedContentStatus);
 
@@ -272,7 +279,7 @@ async function fetchLibraryInteractions(
 
   const { data: interactions, error } = await supabase
     .from("content_interactions")
-    .select("*")
+    .select(contentInteractionSelect)
     .eq("user_id", userId)
     .in("content_item_id", contentItemIds)
     .in("interaction_type", ["complete", "save"]);

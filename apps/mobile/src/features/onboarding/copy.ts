@@ -28,15 +28,6 @@ export function getOnboardingCopy(language: Language | null | undefined) {
             `${count} newsletter categor${count === 1 ? "y" : "ies"} selected`,
           emptyFooter: "Choose at least one newsletter category to continue."
         },
-        miniCaseTopic: {
-          title: "Pick your mini-case topic",
-          description:
-            "Your daily mini-case uses one topic from your newsletter choices. Pick the one you want to practice.",
-          singleDescription:
-            "You selected one newsletter category, so your mini-case will use it too.",
-          selectedFooter: "This topic will drive the daily mini-case.",
-          emptyFooter: "Choose one mini-case topic to continue."
-        },
         articleCount: {
           title: "Tune the daily dose",
           description: "Choose how many newsletter articles each selected category gets.",
@@ -74,15 +65,6 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           selectedFooter: (count: number) =>
             `${count} catégorie${count > 1 ? "s" : ""} newsletter sélectionnée${count > 1 ? "s" : ""}`,
           emptyFooter: "Choisis au moins une catégorie newsletter pour continuer."
-        },
-        miniCaseTopic: {
-          title: "Choisis ton sujet de mini-cas",
-          description:
-            "Ton mini-cas quotidien utilise un sujet parmi tes choix newsletter. Choisis celui que tu veux travailler.",
-          singleDescription:
-            "Tu as sélectionné une seule catégorie newsletter, donc ton mini-cas l'utilisera aussi.",
-          selectedFooter: "Ce sujet guidera le mini-cas quotidien.",
-          emptyFooter: "Choisis un sujet de mini-cas pour continuer."
         },
         articleCount: {
           title: "Dose ton contenu quotidien",

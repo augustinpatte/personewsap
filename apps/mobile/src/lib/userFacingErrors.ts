@@ -130,8 +130,8 @@ function copy(language: Language | null | undefined) {
     {
       en: {
         contentLoadFailed: {
-          title: "Could not load live content",
-          message: "We could not load live content right now. Please try again."
+          title: "Could not load content",
+          message: "We could not load your latest content right now. Please try again."
         },
         emailAlreadyRegistered: {
           title: "Account already exists",
@@ -150,8 +150,8 @@ function copy(language: Language | null | undefined) {
           message: "The email or password is incorrect."
         },
         liveUnavailable: {
-          title: "Live features unavailable",
-          message: "Live account features are unavailable right now. Please try again later."
+          title: "Account features unavailable",
+          message: "Account features are unavailable right now. Please try again later."
         },
         missingPreferences: {
           title: "Preferences incomplete",
@@ -193,7 +193,7 @@ function copy(language: Language | null | undefined) {
       fr: {
         contentLoadFailed: {
           title: "Chargement impossible",
-          message: "Impossible de charger le contenu en direct pour le moment. Réessaie."
+          message: "Impossible de charger ton dernier contenu pour le moment. Réessaie."
         },
         emailAlreadyRegistered: {
           title: "Compte déjà existant",
@@ -212,8 +212,8 @@ function copy(language: Language | null | undefined) {
           message: "L'email ou le mot de passe est incorrect."
         },
         liveUnavailable: {
-          title: "Fonctions en direct indisponibles",
-          message: "Les fonctions de compte en direct sont indisponibles pour le moment. Réessaie plus tard."
+          title: "Fonctions du compte indisponibles",
+          message: "Les fonctions de compte sont indisponibles pour le moment. Réessaie plus tard."
         },
         missingPreferences: {
           title: "Préférences incomplètes",

@@ -108,16 +108,16 @@ export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
   {
     id: "international",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.international,
-    label: "International",
-    description: "Geopolitics, institutions, trade, regulation, and global decisions.",
+    label: "Law & Institutions",
+    description: "Rules, cases, regulation, institutions, and global decisions.",
     translations: {
       en: {
-        label: "International",
-        description: "Geopolitics, institutions, trade, regulation, and global decisions."
+        label: "Law & Institutions",
+        description: "Rules, cases, regulation, institutions, and global decisions."
       },
       fr: {
-        label: "International",
-        description: "Géopolitique, institutions, commerce, régulation et décisions mondiales."
+        label: "Droit & institutions",
+        description: "Règles, affaires, régulation, institutions et décisions mondiales."
       }
     }
   },
@@ -140,63 +140,63 @@ export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
   {
     id: "stock_market",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.stock_market,
-    label: "Stock Market",
-    description: "Listed companies, earnings, valuations, sectors, and market signals.",
+    label: "Business & Markets",
+    description: "Companies, strategy, earnings, sectors, and market signals.",
     translations: {
       en: {
-        label: "Stock Market",
-        description: "Listed companies, earnings, valuations, sectors, and market signals."
+        label: "Business & Markets",
+        description: "Companies, strategy, earnings, sectors, and market signals."
       },
       fr: {
-        label: "Bourse",
-        description: "Entreprises cotées, résultats, valorisations, secteurs et signaux de marché."
+        label: "Business & marchés",
+        description: "Entreprises, stratégie, résultats, secteurs et signaux de marché."
       }
     }
   },
   {
     id: "automotive",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.automotive,
-    label: "Automotive",
-    description: "Vehicles, mobility, manufacturing, energy, infrastructure, and constraints.",
+    label: "Engineering & Mobility",
+    description: "Systems, mobility, manufacturing, energy, infrastructure, and constraints.",
     translations: {
       en: {
-        label: "Automotive",
-        description: "Vehicles, mobility, manufacturing, energy, infrastructure, and constraints."
+        label: "Engineering & Mobility",
+        description: "Systems, mobility, manufacturing, energy, infrastructure, and constraints."
       },
       fr: {
-        label: "Automobile",
-        description: "Véhicules, mobilité, industrie, énergie, infrastructure et contraintes."
+        label: "Ingénierie & mobilité",
+        description: "Systèmes, mobilité, industrie, énergie, infrastructure et contraintes."
       }
     }
   },
   {
     id: "pharmaceutical",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.pharmaceutical,
-    label: "Pharmaceutical",
-    description: "Drugmakers, trials, health systems, biotech, access, and safety choices.",
+    label: "Medicine & Biotech",
+    description: "Clinical evidence, drugmakers, health systems, biotech, access, and safety.",
     translations: {
       en: {
-        label: "Pharmaceutical",
-        description: "Drugmakers, trials, health systems, biotech, access, and safety choices."
+        label: "Medicine & Biotech",
+        description: "Clinical evidence, drugmakers, health systems, biotech, access, and safety."
       },
       fr: {
-        label: "Pharmaceutique",
-        description: "Laboratoires, essais, systèmes de santé, biotech, accès et sécurité."
+        label: "Médecine & biotech",
+        description: "Preuves cliniques, laboratoires, systèmes de santé, biotech, accès et sécurité."
       }
     }
   },
   {
     id: "artificial_intelligence",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.artificial_intelligence,
-    label: "Artificial Intelligence",
+    label: "AI & Tech",
     description: "AI models, platforms, product bets, compute, regulation, and adoption.",
     translations: {
       en: {
-        label: "Artificial Intelligence",
+        label: "AI & Tech",
         description: "AI models, platforms, product bets, compute, regulation, and adoption."
       },
       fr: {
-        label: "Intelligence artificielle",
+        label: "IA & tech",
         description: "Modèles IA, plateformes, paris produit, calcul, régulation et adoption."
       }
     }
@@ -204,15 +204,15 @@ export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
   {
     id: "culture",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.culture,
-    label: "Culture",
+    label: "Culture & Media",
     description: "Culture, media, creative industries, platforms, attention, and influence.",
     translations: {
       en: {
-        label: "Culture",
+        label: "Culture & Media",
         description: "Culture, media, creative industries, platforms, attention, and influence."
       },
       fr: {
-        label: "Culture",
+        label: "Culture & médias",
         description: "Culture, médias, industries créatives, plateformes, attention et influence."
       }
     }
@@ -286,21 +286,4 @@ export function buildNewsletterTopicPreferenceRows({
           : normalizedSelectedTopics.length + index + 1
     };
   });
-}
-
-export function normalizeMiniCaseTopicId(
-  selectedTopics: readonly NewsletterTopicId[],
-  miniCaseTopicId: NewsletterTopicId | null | undefined
-): NewsletterTopicId | null {
-  const normalizedTopics = normalizeNewsletterTopics(selectedTopics);
-
-  if (normalizedTopics.length === 0) {
-    return null;
-  }
-
-  if (miniCaseTopicId && normalizedTopics.includes(miniCaseTopicId)) {
-    return miniCaseTopicId;
-  }
-
-  return normalizedTopics.length === 1 ? normalizedTopics[0] : null;
 }

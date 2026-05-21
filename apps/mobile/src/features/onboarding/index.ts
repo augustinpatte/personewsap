@@ -9,7 +9,6 @@ export {
   mapNewsletterTopicToBackendTopic,
   NEWSLETTER_TOPIC_IDS,
   NEWSLETTER_TO_BACKEND_TOPIC_ID,
-  normalizeMiniCaseTopicId,
   TOPIC_OPTIONS,
   localizeOptions,
   type NewsletterTopicId

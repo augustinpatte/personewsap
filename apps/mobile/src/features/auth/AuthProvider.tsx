@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren
 } from "react";
@@ -12,9 +13,11 @@ import * as Linking from "expo-linking";
 
 import {
   applySupabaseAuthUrl,
-  getAuthSession,
+  clearLocalAuthSession,
+  getValidatedAuthSession,
   getSupabaseConfigError,
   hasSupabaseConfig,
+  isAuthSessionError,
   normalizeSupabaseError,
   signOut as signOutFromSupabase,
   supabase,
@@ -210,8 +213,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profileCompleted, setProfileCompleted] = useState(false);
   const [profileLanguage, setProfileLanguage] = useState<Language | null>(null);
   const [error, setError] = useState<NormalizedSupabaseError | null>(null);
+  const authApplySequenceRef = useRef(0);
 
   const applySession = useCallback(async (nextSession: Session | null) => {
+    const sequence = authApplySequenceRef.current + 1;
+    authApplySequenceRef.current = sequence;
+    const isCurrent = () => authApplySequenceRef.current === sequence;
+
     setSession(nextSession);
 
     if (!nextSession?.user) {
@@ -222,7 +230,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     const profileResult = await createProfileIfMissing(nextSession.user);
+    if (!isCurrent()) {
+      return;
+    }
+
     if (profileResult.error) {
+      if (isAuthSessionError(profileResult.error)) {
+        await clearLocalAuthSession();
+        if (!isCurrent()) {
+          return;
+        }
+        setSession(null);
+        setProfileCompleted(false);
+        setProfileLanguage(null);
+        setError(profileResult.error);
+        setStatus("signedOut");
+        return;
+      }
+
       setError(profileResult.error);
       setProfileCompleted(false);
       setProfileLanguage(null);
@@ -231,6 +256,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     const profileStatus = await getProfileCompleted(nextSession.user.id);
+    if (!isCurrent()) {
+      return;
+    }
+
+    if (profileStatus.error && isAuthSessionError(profileStatus.error)) {
+      await clearLocalAuthSession();
+      if (!isCurrent()) {
+        return;
+      }
+      setSession(null);
+      setError(profileStatus.error);
+      setProfileCompleted(false);
+      setProfileLanguage(null);
+      setStatus("signedOut");
+      return;
+    }
+
     setError(profileStatus.error);
     setProfileCompleted(profileStatus.completed);
     setProfileLanguage(profileStatus.language ?? profileResult.language ?? null);
@@ -240,7 +282,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const refreshAuthState = useCallback(async () => {
     setStatus("loading");
 
-    const { data, error: sessionError } = await getAuthSession();
+    const { data, error: sessionError } = await getValidatedAuthSession();
 
     if (sessionError) {
       setError(sessionError);
@@ -343,9 +385,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signOut = useCallback(async () => {
     const { error: signOutError } = await signOutFromSupabase();
 
-    if (signOutError) {
+    if (signOutError && !isAuthSessionError(signOutError)) {
       setError(signOutError);
       return { error: signOutError };
+    }
+
+    if (signOutError) {
+      logAuthDebug("logout_stale_session_cleared", signOutError);
     }
 
     setError(null);

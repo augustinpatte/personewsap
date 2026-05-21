@@ -43,6 +43,14 @@ const publishedDropStatuses = ["published", "read", "archived"] as const;
 const todayDropCacheTtlMs = 60_000;
 const contentSourcesCacheTtlMs = 5 * 60_000;
 const liveDataProofMode = process.env.EXPO_PUBLIC_LIVE_DATA_PROOF_MODE === "true";
+const contentItemSelect =
+  "id,content_type,topic_id,language,title,summary,body_md,difficulty,estimated_read_seconds,publication_date,version,status,generation_run_id,source_count,metadata,created_at,updated_at";
+const contentItemSourceSelect = "content_item_id,source_id,claim,source_order,created_at";
+const dailyDropItemSelect = "daily_drop_id,content_item_id,slot,position,created_at";
+const dailyDropSelect =
+  "id,user_id,drop_date,language,status,generated_at,published_at,created_at,updated_at";
+const sourceSelect =
+  "id,url,title,publisher,author,published_at,retrieved_at,language,credibility_score,content_hash,created_at,updated_at";
 
 const topicIds = [
   "business",
@@ -114,7 +122,7 @@ export async function fetchTodayDrop(
 
     let dropQuery = supabase
       .from("daily_drops")
-      .select("*")
+      .select(dailyDropSelect)
       .eq("user_id", userId)
       .eq("drop_date", dropDate)
       .in("status", [...publishedDropStatuses]);
@@ -219,7 +227,7 @@ export async function fetchContentItemSources(
 
     const { data: sourceLinks, error: sourceLinksError } = await supabase
       .from("content_item_sources")
-      .select("*")
+      .select(contentItemSourceSelect)
       .eq("content_item_id", contentItemId)
       .order("source_order", { ascending: true });
 
@@ -241,7 +249,7 @@ export async function fetchContentItemSources(
 
     const { data: sources, error: sourcesError } = await supabase
       .from("sources")
-      .select("*")
+      .select(sourceSelect)
       .in("id", sourceIds);
 
     if (sourcesError) {
@@ -287,7 +295,7 @@ async function fetchAndMapDailyDrop(
 
   const { data: dropItems, error: dropItemsError } = await supabase
     .from("daily_drop_items")
-    .select("*")
+    .select(dailyDropItemSelect)
     .eq("daily_drop_id", drop.id)
     .order("position", { ascending: true });
 
@@ -304,7 +312,7 @@ async function fetchAndMapDailyDrop(
 
   const { data: contentItems, error: contentItemsError } = await supabase
     .from("content_items")
-    .select("*")
+    .select(contentItemSelect)
     .in("id", contentItemIds)
     .eq("status", "published");
 
@@ -341,7 +349,7 @@ async function fetchSourcesByContentItemIds(
 
   const { data: sourceLinks, error } = await supabase
     .from("content_item_sources")
-    .select("*")
+    .select(contentItemSourceSelect)
     .in("content_item_id", contentItemIds)
     .order("source_order", { ascending: true });
 
@@ -358,7 +366,7 @@ async function fetchSourcesByContentItemIds(
 
   const { data: sources, error: sourcesError } = await supabase
     .from("sources")
-    .select("*")
+    .select(sourceSelect)
     .in("id", sourceIds);
 
   if (sourcesError) {

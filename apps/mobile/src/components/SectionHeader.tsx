@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     gap: tokens.space.xs
   },
   action: {
-    minHeight: 38,
+    minHeight: 44,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm
   }

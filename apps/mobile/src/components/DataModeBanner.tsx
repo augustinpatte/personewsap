@@ -11,6 +11,7 @@ type DataModeBannerProps = {
   title: string;
   description: string;
   detail?: string;
+  statusLabel?: string;
   actionLabel?: string;
   onActionPress?: () => void;
 };
@@ -20,6 +21,7 @@ export function DataModeBanner({
   title,
   description,
   detail,
+  statusLabel,
   actionLabel,
   onActionPress
 }: DataModeBannerProps) {
@@ -40,15 +42,7 @@ export function DataModeBanner({
     >
       <View style={styles.header}>
         <ProgressPill
-          label={
-            isLive
-              ? "LIVE DATA"
-              : isCache
-                ? "CACHED DATA"
-                : isChecking
-                  ? "CHECKING LIVE DATA"
-                  : "PREVIEW MODE"
-          }
+          label={statusLabel ?? getDefaultStatusLabel(mode)}
           tone={isLive ? "success" : isCache ? "warning" : isChecking ? "neutral" : "warning"}
           value={isLive ? 1 : undefined}
         />
@@ -69,6 +63,22 @@ export function DataModeBanner({
       {actionLabel ? <SecondaryButton label={actionLabel} onPress={onActionPress} /> : null}
     </Card>
   );
+}
+
+function getDefaultStatusLabel(mode: DataModeBannerProps["mode"]) {
+  if (mode === "live") {
+    return "Ready";
+  }
+
+  if (mode === "cache") {
+    return "Saved copy";
+  }
+
+  if (mode === "checking") {
+    return "Checking";
+  }
+
+  return "Sample";
 }
 
 const styles = StyleSheet.create({

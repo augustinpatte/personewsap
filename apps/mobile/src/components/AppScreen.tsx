@@ -40,7 +40,10 @@ function AppScreenRoot({
     <SafeAreaView style={[styles.safeArea, safeAreaStyle]}>
       {scroll ? (
         <ScrollView
-          bounces={false}
+          automaticallyAdjustKeyboardInsets
+          bounces
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           {...scrollViewProps}
           contentContainerStyle={contentStyles}

@@ -215,14 +215,14 @@ function getAccountCopy(language: string | null) {
         noActiveUser: "No active user",
         ready: "Ready",
         complete:
-          "Your onboarding is complete. Today will show a live assigned drop when one is available.",
+          "Your setup is complete. Today will show your assigned drop when one is available.",
         finishOnboarding: "Finish onboarding to unlock your daily drop.",
         dailyDropLanguage: "Daily drop language",
-        connectionTitle: "Live account connection",
-        connectionReady: "Live account features are available.",
-        connectionUnavailable: "Live account features are unavailable right now.",
+        connectionTitle: "Account connection",
+        connectionReady: "Your account features are available.",
+        connectionUnavailable: "Account features are unavailable right now.",
         unavailable: "Unavailable",
-        configured: "Configured",
+        configured: "Ready",
         refresh: "Refresh",
         logOut: "Log out"
       },
@@ -240,10 +240,10 @@ function getAccountCopy(language: string | null) {
         finishOnboarding: "Termine la configuration pour débloquer ta mise à jour quotidienne.",
         dailyDropLanguage: "Langue de la mise à jour",
         connectionTitle: "Connexion du compte",
-        connectionReady: "Les fonctions de compte en direct sont disponibles.",
-        connectionUnavailable: "Les fonctions de compte en direct sont indisponibles pour le moment.",
+        connectionReady: "Les fonctions de ton compte sont disponibles.",
+        connectionUnavailable: "Les fonctions de compte sont indisponibles pour le moment.",
         unavailable: "Indisponible",
-        configured: "Configuré",
+        configured: "Prêt",
         refresh: "Actualiser",
         logOut: "Se déconnecter"
       }

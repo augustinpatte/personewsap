@@ -246,7 +246,7 @@ function getResetPasswordCopy(language: Language | null | undefined) {
         backToLogin: "Back to login",
         confirmNewPassword: "Confirm new password",
         email: "Email",
-        eyebrow: "Compte",
+        eyebrow: "Account",
         newPassword: "New password",
         newPasswordDescription: "Choose a new password for your PersoNewsAP account.",
         newPasswordTitle: "Set a new password",

@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 
 import {
   getOnboardingCopy,
@@ -15,6 +15,10 @@ export default function TopicsScreen() {
   const { state, toggleTopic } = useOnboarding();
   const copy = getOnboardingCopy(state.language);
   const topicOptions = localizeOptions(TOPIC_OPTIONS, state.language);
+
+  if (!state.language) {
+    return <Redirect href="/(onboarding)/language" />;
+  }
 
   return (
     <OnboardingScaffold

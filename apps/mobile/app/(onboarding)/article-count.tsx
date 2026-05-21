@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 
 import { EmptyState } from "../../src/components";
 import { useAuth } from "../../src/features/auth";
@@ -42,6 +42,10 @@ export default function ArticleCountScreen() {
   const hasRequiredPreferences =
     Boolean(state.language) &&
     selectedTopics.length > 0;
+
+  if (!state.language) {
+    return <Redirect href="/(onboarding)/language" />;
+  }
 
   const savePreferences = async () => {
     setSaving(true);

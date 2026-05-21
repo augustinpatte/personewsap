@@ -446,6 +446,7 @@ function TodayDataStateBanner({
       <DataModeBanner
         description={copy.loadingDropDescription}
         mode="checking"
+        statusLabel={copy.checkingStatus}
         title={copy.loadingDropTitle}
       />
     );
@@ -457,6 +458,7 @@ function TodayDataStateBanner({
         description={copy.liveDropDescription}
         detail={formatShortDate(loadState.drop.drop_date, language)}
         mode="live"
+        statusLabel={copy.readyStatus}
         title={copy.liveDropTitle}
       />
     );
@@ -470,6 +472,7 @@ function TodayDataStateBanner({
         detail={formatShortDate(loadState.drop.drop_date, language)}
         mode="cache"
         onActionPress={onRetry}
+        statusLabel={copy.savedCopyStatus}
         title={copy.cachedDropTitle}
       />
     );
@@ -484,6 +487,7 @@ function TodayDataStateBanner({
         description={`${userFacingError.message} ${copy.previewFallback}`}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={userFacingError.title}
       />
     );
@@ -498,6 +502,7 @@ function TodayDataStateBanner({
         description={`${userFacingError.message} ${copy.previewFallback}`}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={userFacingError.title}
       />
     );
@@ -512,6 +517,7 @@ function TodayDataStateBanner({
         description={`${userFacingError.message} ${copy.previewFallback}`}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={userFacingError.title}
       />
     );
@@ -525,6 +531,7 @@ function TodayDataStateBanner({
         detail={copy.languageName}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={copy.noLiveDropTitle}
       />
     );
@@ -537,6 +544,7 @@ function TodayDataStateBanner({
         description={copy.noSessionDescription}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={copy.noSessionTitle}
       />
     );
@@ -1526,6 +1534,7 @@ function getTodayCopy(language: ContentLanguage) {
         careerTopic: "Career",
         challenge: "Challenge",
         checkAgain: "Check again",
+        checkingStatus: "Checking",
         commonMistake: "Common mistake",
         complete: "Complete",
         completeMessage: "Daily drop complete. Come back tomorrow for the next one.",
@@ -1541,7 +1550,7 @@ function getTodayCopy(language: ContentLanguage) {
         done: "Done",
         dropComplete: "Drop complete",
         emptyDropDescription:
-          "No readable modules are attached to this drop yet. Try again after the daily job assigns content, or continue with preview mode if shown above.",
+          "No readable modules are attached to this drop yet. Try again after the daily content refresh, or continue with the sample if shown above.",
         emptyDropEyebrow: "Empty drop",
         emptyDropTitle: "Today's content is not ready",
         example: "Example",
@@ -1557,15 +1566,15 @@ function getTodayCopy(language: ContentLanguage) {
         libraryLater:
           "The Library can hold past work later. Today stays focused: four modules, then stop.",
         linkedSources: (count: number) => `${count} linked`,
-        liveContent: "Live content",
+        liveContent: "Account content",
         liveDropDescription:
           "This is the assigned daily drop for this account. Saves, completions, and ratings are stored.",
-        liveDropTitle: "Live daily drop",
+        liveDropTitle: "Today's assigned drop",
         loadingDropDescription:
-          "Looking for today's assigned drop. Existing content stays visible while the app checks live data.",
+          "Looking for today's assigned drop. Existing content stays visible while the app checks your account.",
         loadingDropTitle: "Loading today's drop",
         localSaveOnly:
-          "Saved on this device for this session. Live sync did not complete.",
+          "Saved on this device for this session. Account sync did not complete.",
         markDone: "Mark done",
         markNewsletterRead: "Mark newsletter read",
         markStoryComplete: "Mark story complete",
@@ -1598,25 +1607,26 @@ function getTodayCopy(language: ContentLanguage) {
         newsletterEmptyTitle: "Newsletter slot is empty",
         newsletterTitle: "Signals worth knowing",
         noLiveDropDescription:
-          "No English daily drop is assigned to this account for today. Preview content is shown below so the app can still be tested without confusing it for live data.",
-        noLiveDropTitle: "No live daily drop yet",
+          "No English daily drop is assigned to this account for today. Sample content is shown below.",
+        noLiveDropTitle: "No assigned daily drop yet",
         noSessionDescription:
-          "Sign in to load your assigned daily drop. Preview content is shown below.",
+          "Sign in to load your assigned daily drop. Sample content is shown below.",
         noSessionTitle: "No active session",
         plainLanguage: "Plain English",
-        previewActionMarked: "Preview action marked for this session.",
-        previewContent: "Preview content",
-        previewFallback: "The app is showing preview content for now.",
-        previewMode: "Preview mode",
+        previewActionMarked: "Sample action marked for this session.",
+        previewContent: "Sample content",
+        previewFallback: "The app is showing sample content for now.",
+        previewMode: "Sample mode",
         ratingNotUseful: "Not useful",
         ratingOkay: "Okay",
         ratingUseful: "Useful",
         rated: (rating: string) => `Rated ${rating}`,
         ready: "Ready",
+        readyStatus: "Ready",
         reflection: "Reflection",
         reflectionQuestion: "Was this worth your five minutes?",
         resetTodayProgress: "Reset today's progress",
-        retryLiveData: "Retry live data",
+        retryLiveData: "Try again",
         retrySessionCheck: "Retry session check",
         ritualSteps: [
           "Read the newsletter signals.",
@@ -1626,9 +1636,11 @@ function getTodayCopy(language: ContentLanguage) {
         ],
         ritualTitle: "What to do now",
         sampleAnswer: "Sample answer",
+        sampleStatus: "Sample",
         save: "Save",
         saveConceptForToday: "Save concept for today",
         saved: "Saved",
+        savedCopyStatus: "Saved copy",
         savedToAccount: "Saved to your account.",
         saving: "Saving",
         showSample: "Show sample",
@@ -1672,6 +1684,7 @@ function getTodayCopy(language: ContentLanguage) {
         careerTopic: "Carrière",
         challenge: "Défi",
         checkAgain: "Vérifier à nouveau",
+        checkingStatus: "Vérification",
         commonMistake: "Erreur fréquente",
         complete: "Terminer",
         completeMessage: "Mise à jour terminée. Reviens demain pour la suivante.",
@@ -1687,7 +1700,7 @@ function getTodayCopy(language: ContentLanguage) {
         done: "Fait",
         dropComplete: "Mise à jour terminée",
         emptyDropDescription:
-          "Aucun module lisible n'est attaché à cette mise à jour. Réessaie après l'assignation du contenu quotidien, ou continue avec la prévisualisation si elle s'affiche au-dessus.",
+          "Aucun module lisible n'est attaché à cette mise à jour. Réessaie après l'actualisation du contenu quotidien, ou continue avec l'exemple s'il s'affiche au-dessus.",
         emptyDropEyebrow: "Mise à jour vide",
         emptyDropTitle: "Le contenu du jour n'est pas prêt",
         example: "Exemple",
@@ -1703,15 +1716,15 @@ function getTodayCopy(language: ContentLanguage) {
         libraryLater:
           "La Bibliothèque peut garder le travail passé. Aujourd'hui reste concentré : quatre modules, puis stop.",
         linkedSources: (count: number) => `${count} source${count > 1 ? "s" : ""} liée${count > 1 ? "s" : ""}`,
-        liveContent: "Contenu en direct",
+        liveContent: "Contenu du compte",
         liveDropDescription:
           "Voici la mise à jour quotidienne assignée à ce compte. Sauvegardes, complétions et avis sont enregistrés.",
-        liveDropTitle: "Mise à jour en direct",
+        liveDropTitle: "Mise à jour assignée",
         loadingDropDescription:
-          "Recherche de la mise à jour assignée aujourd'hui. Le contenu existant reste visible pendant la vérification des données en direct.",
+          "Recherche de la mise à jour assignée aujourd'hui. Le contenu existant reste visible pendant la vérification du compte.",
         loadingDropTitle: "Chargement du jour",
         localSaveOnly:
-          "Enregistré sur cet appareil pour cette session. La synchronisation en direct n'a pas abouti.",
+          "Enregistré sur cet appareil pour cette session. La synchronisation du compte n'a pas abouti.",
         markDone: "Marquer comme fait",
         markNewsletterRead: "Marquer la newsletter comme lue",
         markStoryComplete: "Marquer l'histoire comme terminée",
@@ -1744,25 +1757,26 @@ function getTodayCopy(language: ContentLanguage) {
         newsletterEmptyTitle: "L'emplacement newsletter est vide",
         newsletterTitle: "Signaux à connaître",
         noLiveDropDescription:
-          "Aucune mise à jour quotidienne en français n'est assignée à ce compte aujourd'hui. Le contenu de prévisualisation s'affiche ci-dessous pour tester l'app sans le confondre avec du direct.",
-        noLiveDropTitle: "Aucune mise à jour en direct",
+          "Aucune mise à jour quotidienne en français n'est assignée à ce compte aujourd'hui. Un contenu d'exemple s'affiche ci-dessous.",
+        noLiveDropTitle: "Aucune mise à jour assignée",
         noSessionDescription:
-          "Connecte-toi pour charger ta mise à jour assignée. Le contenu de prévisualisation s'affiche ci-dessous.",
+          "Connecte-toi pour charger ta mise à jour assignée. Un contenu d'exemple s'affiche ci-dessous.",
         noSessionTitle: "Aucune session active",
         plainLanguage: "En clair",
-        previewActionMarked: "Action de prévisualisation marquée pour cette session.",
-        previewContent: "Contenu de prévisualisation",
-        previewFallback: "L'app affiche le contenu de prévisualisation pour le moment.",
-        previewMode: "Prévisualisation",
+        previewActionMarked: "Action d'exemple marquée pour cette session.",
+        previewContent: "Contenu d'exemple",
+        previewFallback: "L'app affiche un contenu d'exemple pour le moment.",
+        previewMode: "Mode exemple",
         ratingNotUseful: "Peu utile",
         ratingOkay: "Correct",
         ratingUseful: "Utile",
         rated: (rating: string) => `Noté ${rating}`,
         ready: "Prêt",
+        readyStatus: "Prêt",
         reflection: "Retour",
         reflectionQuestion: "Est-ce que cela valait tes cinq minutes ?",
         resetTodayProgress: "Réinitialiser la progression du jour",
-        retryLiveData: "Réessayer les données en direct",
+        retryLiveData: "Réessayer",
         retrySessionCheck: "Revérifier la session",
         ritualSteps: [
           "Lis les signaux newsletter.",
@@ -1772,9 +1786,11 @@ function getTodayCopy(language: ContentLanguage) {
         ],
         ritualTitle: "Que faire maintenant",
         sampleAnswer: "Exemple de réponse",
+        sampleStatus: "Exemple",
         save: "Sauvegarder",
         saveConceptForToday: "Sauvegarder le concept du jour",
         saved: "Sauvegardé",
+        savedCopyStatus: "Copie disponible",
         savedToAccount: "Enregistré sur ton compte.",
         saving: "Sauvegarde",
         showSample: "Voir l'exemple",
@@ -2075,7 +2091,7 @@ const styles = StyleSheet.create({
   },
   interactionButton: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 44,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm
   },
@@ -2095,7 +2111,7 @@ const styles = StyleSheet.create({
     borderColor: tokens.color.border,
     borderRadius: tokens.radius.pill,
     borderWidth: 1,
-    minHeight: 34,
+    minHeight: 44,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm
   },
@@ -2111,6 +2127,8 @@ const styles = StyleSheet.create({
   },
   resetLink: {
     alignSelf: "flex-start",
+    justifyContent: "center",
+    minHeight: 44,
     paddingVertical: tokens.space.xs
   }
 });

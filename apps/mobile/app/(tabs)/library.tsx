@@ -321,6 +321,7 @@ function LibraryDataStateBanner({
       <DataModeBanner
         description={copy.loadingDescription}
         mode="checking"
+        statusLabel={copy.checkingStatus}
         title={copy.loadingTitle}
       />
     );
@@ -332,6 +333,7 @@ function LibraryDataStateBanner({
         description={copy.liveArchiveDescription}
         detail={copy.dropCount(loadState.drops.length)}
         mode="live"
+        statusLabel={copy.readyStatus}
         title={copy.liveArchiveTitle}
       />
     );
@@ -345,6 +347,7 @@ function LibraryDataStateBanner({
         detail={copy.dropCount(loadState.drops.length)}
         mode="cache"
         onActionPress={onRetry}
+        statusLabel={copy.savedCopyStatus}
         title={copy.cachedArchiveTitle}
       />
     );
@@ -363,6 +366,7 @@ function LibraryDataStateBanner({
         description={`${userFacingError.message} ${copy.previewArchiveFallback}`}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={userFacingError.title}
       />
     );
@@ -381,6 +385,7 @@ function LibraryDataStateBanner({
         description={`${userFacingError.message} ${copy.previewArchiveFallback}`}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={userFacingError.title}
       />
     );
@@ -399,6 +404,7 @@ function LibraryDataStateBanner({
         description={`${userFacingError.message} ${copy.previewArchiveFallback}`}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={userFacingError.title}
       />
     );
@@ -411,6 +417,7 @@ function LibraryDataStateBanner({
         description={copy.noLiveArchiveDescription}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={copy.noLiveArchiveTitle}
       />
     );
@@ -423,6 +430,7 @@ function LibraryDataStateBanner({
         description={copy.noSessionDescription}
         mode="preview"
         onActionPress={onRetry}
+        statusLabel={copy.sampleStatus}
         title={copy.noSessionTitle}
       />
     );
@@ -683,7 +691,7 @@ function getLibraryCopy(language: Language) {
       en: {
         allTopics: "All topics",
         archiveEmptyDescription:
-          "Completed and assigned drops will appear here by date after your first live daily drop.",
+          "Completed and assigned drops will appear here by date after your first assigned daily drop.",
         archiveEyebrow: "Archive",
         archiveTitle: "Daily drops by date",
         cachedArchiveDescription:
@@ -691,6 +699,7 @@ function getLibraryCopy(language: Language) {
         cachedArchiveTitle: "Cached archive",
         careerTopic: "Career",
         checkAgain: "Check again",
+        checkingStatus: "Checking",
         clear: "Clear",
         clearFilters: "Clear filters",
         contentFilters: {
@@ -720,29 +729,32 @@ function getLibraryCopy(language: Language) {
         findTitle: "Find a past lesson",
         generalTopic: "General",
         liveArchiveDescription: "These archived drops are assigned to this account.",
-        liveArchiveTitle: "Live archive",
+        liveArchiveTitle: "Account archive",
         loadingDescription:
-          "Looking for assigned past drops. Existing archive content stays visible while the app checks live data.",
+          "Looking for assigned past drops. Existing archive content stays visible while the app checks your account.",
         loadingTitle: "Loading archive",
         matchingSummary: (items: number, drops: number) =>
           `${items} matching item${items === 1 ? "" : "s"} across ${drops} daily drop${drops === 1 ? "" : "s"}.`,
         missing: "Missing",
         noLiveArchiveDescription:
-          "No archived daily drops are assigned to this account yet. Preview archive content is shown below.",
-        noLiveArchiveTitle: "No live archive yet",
+          "No archived daily drops are assigned to this account yet. Sample archive content is shown below.",
+        noLiveArchiveTitle: "No account archive yet",
         noResultsEyebrow: "No results",
         noSessionDescription:
-          "Sign in to load your archived daily drops. Preview archive content is shown below.",
+          "Sign in to load your archived daily drops. Sample archive content is shown below.",
         noSessionTitle: "No active session",
-        previewArchiveFallback: "The app is showing preview archive content for now.",
-        previewArchiveTitle: "Preview archive",
-        retryLiveArchive: "Retry live archive",
+        previewArchiveFallback: "The app is showing sample archive content for now.",
+        previewArchiveTitle: "Sample archive",
+        readyStatus: "Ready",
+        retryLiveArchive: "Try again",
         retrySessionCheck: "Retry session check",
         savedDescription: "A quiet shelf for the pieces worth revisiting.",
         savedEmptyDescription: "Saved articles, mini-cases, and concepts will appear here.",
         savedEmptyTitle: "Nothing saved yet",
         savedEyebrow: "Saved",
         savedPill: "Saved",
+        savedCopyStatus: "Saved copy",
+        sampleStatus: "Sample",
         savedTitle: "Saved items",
         searchAccessibility: "Search library",
         searchPlaceholder: "Search archive",
@@ -771,6 +783,7 @@ function getLibraryCopy(language: Language) {
         cachedArchiveTitle: "Archive en cache",
         careerTopic: "Carrière",
         checkAgain: "Vérifier à nouveau",
+        checkingStatus: "Vérification",
         clear: "Effacer",
         clearFilters: "Effacer les filtres",
         contentFilters: {
@@ -800,29 +813,32 @@ function getLibraryCopy(language: Language) {
         findTitle: "Retrouver une leçon",
         generalTopic: "Général",
         liveArchiveDescription: "Ces archives sont assignées à ce compte.",
-        liveArchiveTitle: "Archive en direct",
+        liveArchiveTitle: "Archive du compte",
         loadingDescription:
-          "Recherche des mises à jour passées assignées. L'archive existante reste visible pendant la vérification des données en direct.",
+          "Recherche des mises à jour passées assignées. L'archive existante reste visible pendant la vérification du compte.",
         loadingTitle: "Chargement de l'archive",
         matchingSummary: (items: number, drops: number) =>
           `${items} élément${items > 1 ? "s" : ""} correspondant${items > 1 ? "s" : ""} dans ${drops} mise${drops > 1 ? "s" : ""} à jour.`,
         missing: "Manquant",
         noLiveArchiveDescription:
-          "Aucune archive en direct n'est encore assignée à ce compte. Le contenu de prévisualisation s'affiche ci-dessous.",
-        noLiveArchiveTitle: "Aucune archive en direct",
+          "Aucune archive en direct n'est encore assignée à ce compte. Une archive d'exemple s'affiche ci-dessous.",
+        noLiveArchiveTitle: "Aucune archive de compte",
         noResultsEyebrow: "Aucun résultat",
         noSessionDescription:
-          "Connecte-toi pour charger tes mises à jour archivées. Le contenu de prévisualisation s'affiche ci-dessous.",
+          "Connecte-toi pour charger tes mises à jour archivées. Une archive d'exemple s'affiche ci-dessous.",
         noSessionTitle: "Aucune session active",
-        previewArchiveFallback: "L'app affiche l'archive de prévisualisation pour le moment.",
-        previewArchiveTitle: "Archive de prévisualisation",
-        retryLiveArchive: "Réessayer l'archive en direct",
+        previewArchiveFallback: "L'app affiche une archive d'exemple pour le moment.",
+        previewArchiveTitle: "Archive d'exemple",
+        readyStatus: "Prêt",
+        retryLiveArchive: "Réessayer",
         retrySessionCheck: "Revérifier la session",
         savedDescription: "Un espace calme pour les éléments à revoir.",
         savedEmptyDescription: "Les articles, mini-cas et concepts sauvegardés apparaîtront ici.",
         savedEmptyTitle: "Rien de sauvegardé pour l'instant",
         savedEyebrow: "Sauvegardés",
         savedPill: "Sauvegardé",
+        savedCopyStatus: "Copie disponible",
+        sampleStatus: "Exemple",
         savedTitle: "Éléments sauvegardés",
         searchAccessibility: "Rechercher dans la bibliothèque",
         searchPlaceholder: "Rechercher dans l'archive",
@@ -872,7 +888,7 @@ const styles = StyleSheet.create({
     gap: tokens.space.xs
   },
   clearButton: {
-    minHeight: 38,
+    minHeight: 44,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm
   },
@@ -900,7 +916,7 @@ const styles = StyleSheet.create({
     borderColor: tokens.color.border,
     borderRadius: tokens.radius.pill,
     borderWidth: 1,
-    minHeight: 34,
+    minHeight: 44,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm
   },

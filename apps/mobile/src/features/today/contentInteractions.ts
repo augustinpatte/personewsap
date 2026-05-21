@@ -27,6 +27,8 @@ type WriteContentInteractionResult =
     }
   | { ok: false; error: NormalizedSupabaseError };
 
+const contentInteractionSelect =
+  "id,user_id,content_item_id,interaction_type,rating,message,created_at";
 const persistedInteractionTypes = ["complete", "save", "feedback"] as const;
 
 export async function readContentInteractionSnapshot(
@@ -77,7 +79,7 @@ export async function readContentInteractionSnapshot(
   try {
     const { data, error } = await supabase
       .from("content_interactions")
-      .select("*")
+      .select(contentInteractionSelect)
       .eq("user_id", userId)
       .in("content_item_id", [...new Set(contentItemIds)])
       .in("interaction_type", [...persistedInteractionTypes])
