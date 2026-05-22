@@ -13,7 +13,7 @@ import {
   type TopicId,
   type UserDailyDropPreference
 } from "../domain.js";
-import { sha256 } from "../utils/hash.js";
+import { normalizeUrl, sha256 } from "../utils/hash.js";
 import {
   assertDailyPayloadSourcesArePersistable,
   mapArticlesToSourceUpserts,
@@ -27,6 +27,8 @@ import { throwPersistenceError } from "./persistenceError.js";
 type StoredGeneratedItem = {
   item: GeneratedContentItem;
   content_item_id: string;
+  reused_existing_content_item: boolean;
+  dedup_key: string | null;
 };
 
 type GenerationRunRow = {
@@ -61,6 +63,10 @@ type SourceRow = {
 };
 
 type ContentItemRow = {
+  id: string;
+};
+
+type ContentItemDedupRow = {
   id: string;
 };
 
@@ -703,6 +709,26 @@ export class ContentRepository {
     return data.id;
   }
 
+  async findExistingContentItemByDedupKey(dedupKey: string): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from("content_items")
+      .select("id")
+      .eq("metadata->>dedup_key", dedupKey)
+      .neq("status", "archived")
+      .limit(1)
+      .returns<ContentItemDedupRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "content_items",
+        action: "select content item by dedup key",
+        error
+      });
+    }
+
+    return data?.[0]?.id ?? null;
+  }
+
   async insertContentItemSources(sourceLinks: ContentItemSourceInsert[]): Promise<void> {
     if (sourceLinks.length === 0) {
       return;
@@ -744,17 +770,43 @@ export class ContentRepository {
       });
 
       try {
-        const insert = mapGeneratedItemToContentInsert(item, input.payload.drop_date, input.contentStatus, runId, input.metadata);
-        const contentItemId = await this.insertContentItem(insert);
+        const dedup = buildContentItemDedup({
+          item,
+          language: input.payload.language,
+          metadata: input.metadata
+        });
+        const insert = mapGeneratedItemToContentInsert(
+          item,
+          input.payload.drop_date,
+          input.contentStatus,
+          runId,
+          dedup
+            ? {
+                ...input.metadata,
+                dedup_key: dedup.key,
+                dedup_run_id: dedup.runId,
+                source_url_fingerprint: dedup.sourceUrlFingerprint
+              }
+            : input.metadata
+        );
+        const existingContentItemId = dedup ? await this.findExistingContentItemByDedupKey(dedup.key) : null;
+        const contentItemId = existingContentItemId ?? (await this.insertContentItem(insert));
         const sourceLinks = mapContentItemSourceInserts({
           contentItemId,
           sourceUrls: item.source_urls,
           sourceIdsByUrl
         });
 
-        await this.insertContentItemSources(sourceLinks);
+        if (!existingContentItemId) {
+          await this.insertContentItemSources(sourceLinks);
+        }
         await this.completeGenerationRun(runId, sha256(JSON.stringify(item)), input.contentStatus === "published" ? "published" : "generated");
-        storedItems.push({ item, content_item_id: contentItemId });
+        storedItems.push({
+          item,
+          content_item_id: contentItemId,
+          reused_existing_content_item: Boolean(existingContentItemId),
+          dedup_key: dedup?.key ?? null
+        });
       } catch (error) {
         await this.failGenerationRun(runId, error instanceof Error ? error.message : JSON.stringify(error));
         throw error;
@@ -1306,10 +1358,13 @@ export class ContentRepository {
     const normalized = normalizeDailyDropItems(items);
     const existingItems = await this.listDailyDropItems(dailyDropId);
     const desiredPositions = new Set(normalized.items.map((item) => dailyDropItemPositionKey(item)));
+    const desiredContentIds = new Set(normalized.items.map((item) => item.contentItemId));
     const staleItems = existingItems.filter((item) => !desiredPositions.has(dailyDropItemPositionKey(item)));
+    const conflictingStaleItems = staleItems.filter((item) => desiredContentIds.has(item.content_item_id));
+    const nonConflictingStaleItems = staleItems.filter((item) => !desiredContentIds.has(item.content_item_id));
     let staleItemsRemoved = 0;
 
-    for (const staleItem of staleItems) {
+    for (const staleItem of conflictingStaleItems) {
       staleItemsRemoved += await this.deleteDailyDropItem({
         dailyDropId,
         contentItemId: staleItem.content_item_id,
@@ -1336,6 +1391,15 @@ export class ContentRepository {
           error
         });
       }
+    }
+
+    for (const staleItem of nonConflictingStaleItems) {
+      staleItemsRemoved += await this.deleteDailyDropItem({
+        dailyDropId,
+        contentItemId: staleItem.content_item_id,
+        slot: staleItem.slot,
+        position: staleItem.position
+      });
     }
 
     return {
@@ -1424,6 +1488,52 @@ function dailyDropItemPositionKey(item: {
   position: number;
 }): string {
   return `${item.slot}:${item.position}`;
+}
+
+function buildContentItemDedup(input: {
+  item: GeneratedContentItem;
+  language: Language;
+  metadata?: Record<string, unknown>;
+}): {
+  key: string;
+  runId: string;
+  sourceUrlFingerprint: string;
+} | null {
+  const runId = readMetadataString(input.metadata, "scheduler_run_id") ?? readMetadataString(input.metadata, "run_id");
+  const sourceUrls = normalizeSourceUrlsForDedup(input.item.source_urls);
+
+  if (!runId || sourceUrls.length === 0) {
+    return null;
+  }
+
+  const topic = input.item.topic ?? "none";
+  const sourceUrlFingerprint = sha256(sourceUrls.join("|"));
+  const key = sha256([runId, input.language, input.item.content_type, topic, sourceUrlFingerprint].join("|"));
+
+  return {
+    key,
+    runId,
+    sourceUrlFingerprint
+  };
+}
+
+function normalizeSourceUrlsForDedup(urls: string[]): string[] {
+  const normalized = new Set<string>();
+
+  for (const url of urls) {
+    try {
+      normalized.add(normalizeUrl(url));
+    } catch {
+      normalized.add(url.trim());
+    }
+  }
+
+  return Array.from(normalized).filter(Boolean).sort();
+}
+
+function readMetadataString(metadata: Record<string, unknown> | undefined, key: string): string | null {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
 function groupTopicPreferencesByUserId(

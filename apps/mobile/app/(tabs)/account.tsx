@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { useRouter } from "expo-router";
+import { Modal, Share, StyleSheet, View } from "react-native";
+import { useRouter, type Href } from "expo-router";
 
 import { AppScreen } from "../../src/components/AppScreen";
 import { AppText } from "../../src/components/AppText";
@@ -9,6 +9,10 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ProgressPill } from "../../src/components/ProgressPill";
 import { SecondaryButton } from "../../src/components/SecondaryButton";
 import { tokens } from "../../src/design/tokens";
+import {
+  exportAuthenticatedUserData,
+  requestAuthenticatedAccountDeletion
+} from "../../src/features/account/privacyData";
 import { useAuth } from "../../src/features/auth";
 import { NotificationPreferencesCard } from "../../src/features/notifications";
 import { PreferencesEditor } from "../../src/features/preferences";
@@ -32,7 +36,13 @@ export default function AccountScreen() {
   } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isExportingData, setIsExportingData] = useState(false);
+  const [isRequestingDeletion, setIsRequestingDeletion] = useState(false);
   const [preferencesRefreshKey, setPreferencesRefreshKey] = useState(0);
+  const [privacyActionError, setPrivacyActionError] = useState<NormalizedSupabaseError | null>(null);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteRequestMessage, setDeleteRequestMessage] = useState<string | null>(null);
   const [signOutError, setSignOutError] = useState<NormalizedSupabaseError | null>(null);
   const copy = getAccountCopy(profileLanguage);
   const visibleAccountError = signOutError ?? error;
@@ -75,6 +85,62 @@ export default function AccountScreen() {
     setIsSigningOut(false);
     router.replace("/(auth)/login");
   }, [router, signOut]);
+
+  const handleExportData = useCallback(async () => {
+    if (!user?.id) {
+      setPrivacyActionError({ code: "missing_user", message: copy.noActiveUser });
+      return;
+    }
+
+    setIsExportingData(true);
+    setPrivacyActionError(null);
+    setExportMessage(null);
+
+    const result = await exportAuthenticatedUserData(user.id);
+
+    setIsExportingData(false);
+
+    if (result.error || !result.data) {
+      setPrivacyActionError(result.error);
+      return;
+    }
+
+    try {
+      await Share.share({
+        message: result.data,
+        title: copy.exportShareTitle
+      });
+      setExportMessage(copy.exportShared);
+    } catch {
+      setPrivacyActionError({
+        code: "data_export_share_failed",
+        message: copy.exportShareFailed
+      });
+    }
+  }, [copy.exportShareFailed, copy.exportShareTitle, copy.exportShared, copy.noActiveUser, user?.id]);
+
+  const handleRequestDeletion = useCallback(async () => {
+    if (!user?.id) {
+      setPrivacyActionError({ code: "missing_user", message: copy.noActiveUser });
+      return;
+    }
+
+    setIsRequestingDeletion(true);
+    setPrivacyActionError(null);
+    setDeleteRequestMessage(null);
+
+    const result = await requestAuthenticatedAccountDeletion(user.id);
+
+    setIsRequestingDeletion(false);
+
+    if (result.error) {
+      setPrivacyActionError(result.error);
+      return;
+    }
+
+    setDeleteModalVisible(false);
+    setDeleteRequestMessage(copy.deletionRequested);
+  }, [copy.deletionRequested, copy.noActiveUser, user?.id]);
 
   return (
     <AppScreen>
@@ -140,6 +206,45 @@ export default function AccountScreen() {
           </View>
         </Card>
 
+        <Card tone="muted">
+          <View style={styles.connectionCard}>
+            <AppText variant="subtitle">{copy.privacyTitle}</AppText>
+            <AppText color="muted" variant="body">
+              {copy.privacyDescription}
+            </AppText>
+            <View style={styles.linkActions}>
+              <SecondaryButton
+                label={copy.privacyPolicy}
+                onPress={() => router.push("/privacy" as Href)}
+              />
+              <SecondaryButton
+                disabled={isExportingData}
+                label={copy.exportData}
+                onPress={handleExportData}
+              />
+              <SecondaryButton
+                label={copy.deleteAccount}
+                onPress={() => setDeleteModalVisible(true)}
+              />
+            </View>
+            {deleteRequestMessage ? (
+              <AppText color="success" variant="body">
+                {deleteRequestMessage}
+              </AppText>
+            ) : null}
+            {exportMessage ? (
+              <AppText color="success" variant="body">
+                {exportMessage}
+              </AppText>
+            ) : null}
+            {privacyActionError ? (
+              <AppText color="danger" variant="body">
+                {privacyActionError.message}
+              </AppText>
+            ) : null}
+          </View>
+        </Card>
+
         {userFacingAccountError ? (
           <AppText color="danger" variant="body">
             {userFacingAccountError.message}
@@ -149,7 +254,7 @@ export default function AccountScreen() {
         <View style={styles.actions}>
           <SecondaryButton disabled={isRefreshing || isSigningOut} label={copy.refresh} onPress={handleRefresh} />
           <PrimaryButton
-            disabled={isRefreshing}
+            disabled={isRefreshing || isSigningOut}
             label={copy.logOut}
             loading={isSigningOut}
             onPress={handleSignOut}
@@ -157,6 +262,35 @@ export default function AccountScreen() {
           />
         </View>
       </AppScreen.Body>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+        transparent
+        visible={deleteModalVisible}
+      >
+        <View style={styles.modalOverlay}>
+          <Card elevated padding="lg" style={styles.deleteModal}>
+            <AppText variant="subtitle">{copy.deleteConfirmTitle}</AppText>
+            <AppText color="muted" variant="body">
+              {copy.deleteConfirmDescription}
+            </AppText>
+            <View style={styles.actions}>
+              <SecondaryButton
+                disabled={isRequestingDeletion}
+                label={copy.cancel}
+                onPress={() => setDeleteModalVisible(false)}
+              />
+              <PrimaryButton
+                disabled={isRequestingDeletion}
+                label={copy.confirmDeletion}
+                loading={isRequestingDeletion}
+                onPress={handleRequestDeletion}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
     </AppScreen>
   );
 }
@@ -224,7 +358,23 @@ function getAccountCopy(language: string | null) {
         unavailable: "Unavailable",
         configured: "Ready",
         refresh: "Refresh",
-        logOut: "Log out"
+        logOut: "Log out",
+        privacyTitle: "Privacy and data",
+        privacyDescription:
+          "Review privacy information, request a data export, or ask for account deletion.",
+        privacyPolicy: "Privacy policy",
+        exportData: "Export data",
+        deleteAccount: "Delete account",
+        exportShareTitle: "PersoNewsAP data export",
+        exportShared: "Data export opened.",
+        exportShareFailed: "The data export could not be opened on this device.",
+        deleteConfirmTitle: "Request account deletion?",
+        deleteConfirmDescription:
+          "This is permanent once processed. Your account, preferences, interactions, mini-case responses, push tokens, and assigned daily drop links may be removed by the secure backend deletion process.",
+        deletionRequested: "Deletion request submitted.",
+        cancel: "Cancel",
+        close: "Close",
+        confirmDeletion: "Request deletion"
       },
       fr: {
         eyebrow: "Compte",
@@ -245,7 +395,23 @@ function getAccountCopy(language: string | null) {
         unavailable: "Indisponible",
         configured: "Prêt",
         refresh: "Actualiser",
-        logOut: "Se déconnecter"
+        logOut: "Se déconnecter",
+        privacyTitle: "Confidentialité et données",
+        privacyDescription:
+          "Consulte les informations de confidentialité, demande un export de données ou une suppression de compte.",
+        privacyPolicy: "Politique de confidentialité",
+        exportData: "Exporter les données",
+        deleteAccount: "Supprimer le compte",
+        exportShareTitle: "Export de données PersoNewsAP",
+        exportShared: "Export de données ouvert.",
+        exportShareFailed: "L'export de données ne peut pas être ouvert sur cet appareil.",
+        deleteConfirmTitle: "Demander la suppression du compte ?",
+        deleteConfirmDescription:
+          "Cette action est permanente une fois traitée. Ton compte, tes préférences, interactions, réponses aux mini-cas, jetons push et liens de mises à jour assignées peuvent être supprimés par le processus sécurisé côté serveur.",
+        deletionRequested: "Demande de suppression envoyée.",
+        cancel: "Annuler",
+        close: "Fermer",
+        confirmDeletion: "Demander la suppression"
       }
     },
     uiLanguage
@@ -276,6 +442,21 @@ const styles = StyleSheet.create({
   },
   connectionCard: {
     gap: tokens.space.sm
+  },
+  deleteModal: {
+    gap: tokens.space.lg,
+    maxWidth: 420,
+    width: "100%"
+  },
+  linkActions: {
+    gap: tokens.space.sm
+  },
+  modalOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(17, 24, 39, 0.44)",
+    flex: 1,
+    justifyContent: "center",
+    padding: tokens.space.lg
   },
   monospace: {
     fontFamily: "Courier",

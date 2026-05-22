@@ -66,9 +66,6 @@ export type Database = {
           id: string;
           legacy_user_id: string | null;
           email: string;
-          first_name: string | null;
-          last_name: string | null;
-          birth_year: number | null;
           language: Language;
           timezone: string;
           created_at: string;
@@ -78,9 +75,6 @@ export type Database = {
           id: string;
           email: string;
           legacy_user_id?: string | null;
-          first_name?: string | null;
-          last_name?: string | null;
-          birth_year?: number | null;
           language?: Language;
           timezone?: string;
           created_at?: string;
@@ -90,9 +84,6 @@ export type Database = {
           id?: string;
           legacy_user_id?: string | null;
           email?: string;
-          first_name?: string | null;
-          last_name?: string | null;
-          birth_year?: number | null;
           language?: Language;
           timezone?: string;
           created_at?: string;

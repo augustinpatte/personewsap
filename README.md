@@ -147,10 +147,15 @@ Other useful commands:
 ```sh
 npm --prefix apps/mobile run start
 npm --prefix apps/mobile run android
+npm --prefix apps/mobile run config:public
 npm run mobile:typecheck
 ```
 
 Never put a Supabase service role key, OpenAI key, Resend key, or generation secret in the mobile app.
+
+Expo Go is not a TestFlight proof. Use it for UI/auth iteration only; push
+notification registration must be tested in a development build or TestFlight
+build with EAS project metadata and native notification credentials.
 
 ## Content Engine
 
@@ -256,7 +261,7 @@ PersoNewsAP is not production-ready until TestFlight setup, privacy review, edit
 | Supabase schema/RLS verification | done | `npm run supabase:doctor` and [SUPABASE_CHECKLIST.md](SUPABASE_CHECKLIST.md) cover local/static and live read-only checks. |
 | Backend persistence safety | done | Write commands fail closed behind confirmation flags and service-role env vars. |
 | Mobile live-data path | implemented, wave proof required | Supported through marked test persistence and assignment; still needs a selected tester Supabase project and manual proof run. |
-| TestFlight | not ready | Build/signing/privacy/tester operations are not complete. |
+| TestFlight | partial | Expo config, icons/splash, iOS build number, and EAS profiles exist; Apple signing, App Store Connect setup, final privacy/support copy, and device proof are still required. |
 | Production scheduler | partial | `content:daily-job` exists and writes `job_runs` monitoring summaries; unattended scheduling and operational ownership are not wired. |
 | Editorial production workflow | missing | LLM output still needs human review before production publication. |
 | Source licensing | missing | RSS/source terms need review before production use. |

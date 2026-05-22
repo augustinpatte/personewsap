@@ -34,6 +34,44 @@ npm run content:build
 npm run content:dry-run
 ```
 
+## One-Command QA Workflows
+
+Use these commands from the repo root. They stream the underlying command output and finish with a PASS/FAIL/SKIP summary.
+
+### Before Every Commit
+
+```sh
+npm run qa:local
+```
+
+This runs mobile typecheck, content-engine build, lint, smoke, content quality proof, and the static Supabase doctor. It does not write Supabase data and does not require service-role keys.
+
+### Before TestFlight
+
+```sh
+npm run qa:local
+npm run qa:backend-live
+```
+
+`qa:backend-live` loads `.env` and `services/content-engine/.env` if present, then requires `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. It runs live Supabase doctor and content job health. It only runs `backend:e2e` when `CONFIRM_DAILY_JOB_TEST=true`; otherwise that write-capable proof is marked `SKIP`.
+
+### Before Production Daily Job
+
+```sh
+npm run qa:content-prod
+```
+
+This runs content build, production-shaped dry-run, quality proof, and job health when server env is present. The production dry-run is intentionally strict and should fail if required production content env, RSS, or LLM settings are missing.
+
+### After Production Daily Job
+
+```sh
+npm run qa:backend-live
+npm run content:job-health:strict
+```
+
+Use this to confirm live schema/RLS health and inspect the latest `job_runs` status. Keep `CONFIRM_DAILY_JOB_TEST` unset after production unless you intentionally want to run the marked test-write proof in the selected Supabase project.
+
 Run the backend E2E proof after Supabase env is configured:
 
 ```sh
@@ -146,7 +184,7 @@ Local mobile checks:
 
 - Sign up or log in.
 - Complete onboarding: language, newsletter/practical-case topics, article counts.
-- Open Account and confirm the tester user id is visible.
+- Open Account and confirm no raw tester user id is visible.
 - Open Today and Library.
 - Confirm the app clearly labels live data versus preview/mock mode.
 
@@ -347,7 +385,7 @@ Confirm the output contains:
 1. Start the mobile app.
 2. Create/sign in as the tester.
 3. Complete onboarding.
-4. Open Account and copy the tester user id.
+4. Use `npm run content:debug-users` or the Supabase dashboard to identify the tester account server-side.
 5. In a separate terminal, run:
 
 ```sh
@@ -487,7 +525,7 @@ Use this as the core QA path:
 1. Install or open the Expo build.
 2. Create a new account with a tester email.
 3. Complete onboarding.
-4. Copy the user id from Account.
+4. Identify the tester server-side with `content:debug-users` or the Supabase dashboard; do not expose raw user ids in the app UI.
 5. Assign a test daily drop to that user.
 6. Reload Today.
 7. Confirm Today says `Live daily drop`, not `Preview mode`.

@@ -9,6 +9,7 @@ import { ContentRepository } from "../storage/contentRepository.js";
 import { serializePersistenceError } from "../storage/persistenceError.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
 import { sha256 } from "../utils/hash.js";
+import { redactLogIdentifiers } from "../utils/redactIdentifier.js";
 import { parseDryRunOptions, type DryRunOptions } from "./dryRun.js";
 
 const PERSIST_TEST_NEWSLETTER_ARTICLE_COUNT = 1;
@@ -360,5 +361,7 @@ function buildTestRunId(dropDate: string, language: Language, topics: TopicId[])
 }
 
 function logProgress(message: string, details: Record<string, unknown>): void {
-  process.stderr.write(`[persist-test] ${new Date().toISOString()} ${message} ${JSON.stringify(details)}\n`);
+  process.stderr.write(
+    `[persist-test] ${new Date().toISOString()} ${message} ${JSON.stringify(redactLogIdentifiers(details))}\n`
+  );
 }

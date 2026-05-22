@@ -53,15 +53,20 @@ with expected_rls(table_name) as (
     ('profiles'),
     ('user_preferences'),
     ('user_topic_preferences'),
+    ('user_mini_case_topic_preferences'),
     ('topics'),
     ('content_items'),
     ('sources'),
+    ('content_item_sources'),
     ('daily_drops'),
     ('daily_drop_items'),
     ('content_interactions'),
+    ('mini_case_responses'),
     ('generation_runs'),
     ('job_runs'),
-    ('push_tokens')
+    ('push_tokens'),
+    ('pending_registrations'),
+    ('newsletter_feedback')
 )
 select
   'RLS enabled' as check_name,

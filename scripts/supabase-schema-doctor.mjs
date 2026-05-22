@@ -68,12 +68,14 @@ const EXPECTED_POLICIES = {
   daily_drop_items: ["Users can read items for their own published daily drops"],
   content_interactions: [
     "Users can read own interactions for assigned content",
-    "Users can insert own interactions for assigned content"
+    "Users can insert own interactions for assigned content",
+    "Users can delete their own interactions"
   ],
   mini_case_responses: [
     "Users can read own mini-case responses for assigned content",
     "Users can insert own mini-case responses for assigned content",
-    "Users can update own mini-case responses for assigned content"
+    "Users can update own mini-case responses for assigned content",
+    "Users can delete their own mini-case responses"
   ],
   pending_registrations: [
     "Users can update their pending registration"
@@ -241,6 +243,16 @@ async function runStaticMigrationAudit() {
     "migration removes broad pending registration update policy"
   );
 
+  const sqlWithoutLineComments = sql.replace(/--[^\n]*/g, "");
+  const publicArchiveEnabledByDb = /alter\s+database\s+\S+\s+set\s+app\.public_archive_enabled\s*=\s*'true'/i.test(sqlWithoutLineComments);
+  addCheck(
+    publicArchiveEnabledByDb ? "fail" : "pass",
+    "public archive feature flag not enabled in migrations",
+    publicArchiveEnabledByDb
+      ? "A migration sets app.public_archive_enabled = 'true', which bypasses assigned-content RLS for all authenticated users."
+      : "No migration enables the public archive bypass. Default is off."
+  );
+
   assertRegex(
     sql,
     /unique\s*\(\s*user_id\s*,\s*expo_push_token\s*\)/i,
@@ -263,6 +275,24 @@ async function runStaticMigrationAudit() {
     sql,
     /user_mini_case_topic_preferences_topic_id_check[\s\S]+law[\s\S]+finance_economy[\s\S]+artificial_intelligence[\s\S]+stock_market[\s\S]+engineering[\s\S]+health[\s\S]+entrepreneurship[\s\S]+career/i,
     "migration constrains mini-case preferences to product mini-case topic IDs"
+  );
+
+  assertRegex(
+    sql,
+    /alter\s+table\s+public\.profiles[\s\S]+drop\s+column\s+if\s+exists\s+first_name[\s\S]+drop\s+column\s+if\s+exists\s+last_name[\s\S]+drop\s+column\s+if\s+exists\s+birth_year/i,
+    "migration removes unused profile name and birth-year fields"
+  );
+
+  assertRegex(
+    sql,
+    /alter\s+table\s+public\.pending_registrations[\s\S]+add\s+column\s+if\s+not\s+exists\s+expires_at\s+timestamptz/i,
+    "migration adds pending registration expiry"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+or\s+replace\s+function\s+public\.cleanup_expired_pending_registrations\s*\(\s*\)/i,
+    "migration defines pending registration cleanup function"
   );
 }
 
@@ -416,6 +446,42 @@ async function runLiveReadOnlyChecks() {
       "authenticated RLS checks skipped",
       "Set SUPABASE_ANON_KEY and TEST_USER_ACCESS_TOKEN to check published-content and daily_drops RLS."
     );
+  }
+
+  addCheck(
+    "warn",
+    "pending_registrations INSERT is open to unauthenticated users",
+    "By design for cross-device registration, but an attacker who knows a target email can pre-insert a row and block that user's registration (UNIQUE constraint collision). Acceptable for current flow; revisit if registration DoS becomes a concern."
+  );
+
+  if (serviceRoleKey) {
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false }
+    });
+
+    const { data: archiveFlag, error: archiveFlagError } = await serviceClient.rpc(
+      "public_archive_enabled"
+    );
+
+    if (archiveFlagError) {
+      addCheck(
+        "warn",
+        "public_archive_enabled() RPC check skipped",
+        sanitizeError(archiveFlagError)
+      );
+    } else if (archiveFlag === true) {
+      addCheck(
+        "fail",
+        "public archive feature flag is OFF in live database",
+        "public_archive_enabled() returned true — all authenticated users can read ALL published content, bypassing assigned-content RLS. Disable with: ALTER DATABASE postgres RESET app.public_archive_enabled;"
+      );
+    } else {
+      addCheck(
+        "pass",
+        "public archive feature flag is OFF in live database",
+        "public_archive_enabled() returned false. Assigned-content RLS is the enforced path."
+      );
+    }
   }
 
   addCheck(

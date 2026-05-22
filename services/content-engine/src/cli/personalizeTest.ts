@@ -7,6 +7,7 @@ import {
 import { serializePersistenceError } from "../storage/persistenceError.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
 import { toDateOnly } from "../utils/date.js";
+import { redactLogIdentifiers } from "../utils/redactIdentifier.js";
 
 const DEFAULT_PERSONALIZE_LIMIT = 3;
 const REQUIRED_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
@@ -367,5 +368,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function logProgress(message: string, details: Record<string, unknown>): void {
-  process.stderr.write(`[personalize-test] ${new Date().toISOString()} ${message} ${JSON.stringify(details)}\n`);
+  process.stderr.write(
+    `[personalize-test] ${new Date().toISOString()} ${message} ${JSON.stringify(redactLogIdentifiers(details))}\n`
+  );
 }

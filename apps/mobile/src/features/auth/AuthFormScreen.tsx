@@ -6,7 +6,7 @@ import {
   TextInput,
   View
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 
 import {
   AppScreen,
@@ -214,7 +214,17 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
                 onPress={() => router.replace("/(auth)/reset-password")}
               />
             ) : null}
+            <SecondaryButton
+              label={copy.privacyPolicy}
+              onPress={() => router.push("/privacy" as Href)}
+            />
           </View>
+
+          {isSignup ? (
+            <AppText color="muted" style={styles.privacyNotice} variant="caption">
+              {copy.privacyNotice}
+            </AppText>
+          ) : null}
         </Card>
       </AppScreen>
     </KeyboardAvoidingView>
@@ -294,6 +304,9 @@ function getAuthFormCopy(language: Language | null | undefined) {
         passwordHint: "Password must be at least 8 characters.",
         passwordPlaceholder: "Minimum 8 characters",
         passwordsNeedMatch: "Passwords need to match before you can continue.",
+        privacyNotice:
+          "By creating an account, you can review how PersoNewsAP uses your account and learning data in the Privacy Policy.",
+        privacyPolicy: "Privacy Policy",
         repeatPassword: "Repeat password",
         resetPassword: "Reset password",
         signInNotSetup: "Sign-in is not set up for this build.",
@@ -319,6 +332,9 @@ function getAuthFormCopy(language: Language | null | undefined) {
         passwordHint: "Le mot de passe doit contenir au moins 8 caractères.",
         passwordPlaceholder: "Minimum 8 caractères",
         passwordsNeedMatch: "Les mots de passe doivent correspondre pour continuer.",
+        privacyNotice:
+          "En créant un compte, tu peux consulter l'utilisation de tes données de compte et d'apprentissage dans la Politique de confidentialité.",
+        privacyPolicy: "Politique de confidentialité",
         repeatPassword: "Répète le mot de passe",
         resetPassword: "Réinitialiser le mot de passe",
         signInNotSetup: "La connexion n'est pas configurée pour cette version.",
@@ -381,6 +397,9 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: tokens.space.sm
+  },
+  privacyNotice: {
+    textAlign: "center"
   },
   errorBox: {
     backgroundColor: tokens.color.dangerSoft,

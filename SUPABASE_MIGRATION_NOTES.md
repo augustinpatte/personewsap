@@ -62,3 +62,19 @@ The migration seeds the 8 mobile topic IDs:
 - `quick_quiz` is included as a content type for future reinforcement content, but it is not a daily drop slot.
 - `content_interactions` intentionally has no broad uniqueness constraint. Multiple feedback messages should be allowed, and repeated interaction events may be useful for analytics. A future partial unique index can be added for specific idempotent event types if needed.
 - Service role behavior is not represented in client policies; Supabase service role bypasses RLS and must stay server-side.
+
+## GDPR Launch Readiness
+
+Created migration:
+
+- `supabase/migrations/20260522123000_gdpr_launch_readiness.sql`
+
+It adds user-owned DELETE policies for `content_interactions` and `mini_case_responses`, removes unused `profiles.first_name`, `profiles.last_name`, and `profiles.birth_year`, and adds `pending_registrations.expires_at`.
+
+Pending registration cleanup can be run from a server-side/service-role SQL context:
+
+```sql
+select public.cleanup_expired_pending_registrations();
+```
+
+Do not run account deletion from the mobile client with service-role credentials. The mobile app only calls an optional authenticated backend endpoint configured through `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT`.

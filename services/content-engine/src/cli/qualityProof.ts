@@ -68,6 +68,15 @@ const TECH_SOURCE: RankedArticle = {
   rank_reasons: ["compute bottleneck", "deployment impact"]
 };
 
+const STALE_SOURCE: RankedArticle = {
+  ...FINANCE_SOURCE,
+  url: "https://www.reputable-publisher.test/markets/stale-oil-price-risk",
+  normalized_url: "https://www.reputable-publisher.test/markets/stale-oil-price-risk",
+  published_at: "2026-02-15",
+  retrieved_at: "2026-02-15",
+  content_hash: "stale-finance-source"
+};
+
 export function runQualityProof(): QualityProofOutput {
   const examples = [
     expectRejected(
@@ -122,6 +131,50 @@ export function runQualityProof(): QualityProofOutput {
       withNewsletterGenericFiller(),
       ["generic_filler"],
       [FINANCE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "source is stale for the daily drop date",
+      withNewsletterSourceUrl(STALE_SOURCE.url),
+      ["stale_source_date"],
+      [STALE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "specific numeric claim is not in cited source material",
+      withNewsletterBody([
+        "Oil prices rose after a supply disruption changed inflation and market risk expectations for finance teams.",
+        "The unsupported jump is the claim that funding costs moved by 42% across the whole market, which is not present in the supplied source material.",
+        "A stronger brief would keep the mechanism narrower: market risk can pressure budgets, but the operator still needs one observable funding signal before acting.",
+        "The practical implication is to separate the sourced market move from a personal finance recommendation and name the decision owner who must update the budget.",
+        `Source: Reputable Markets Desk, published ${SOURCE_DATE}, retrieved ${RETRIEVED_DATE}. ${FINANCE_SOURCE_URL}`
+      ].join("\n\n")),
+      ["unsupported_specific_claim"],
+      [FINANCE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "one source reused across too much of the daily drop",
+      withOverusedSource(),
+      ["source_overused"],
+      [FINANCE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "duplicate story title appears twice in one run",
+      withDuplicateNewsletterTitle(),
+      ["duplicate_story_title"],
+      [FINANCE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "newsletter product topic does not map to generated backend topic",
+      withNewsletterTopicMismatch(),
+      ["newsletter_topic_mismatch"],
+      [FINANCE_SOURCE, TECH_SOURCE],
+      { newsletterProductTopics: ["artificial_intelligence"] }
+    ),
+    expectRejected(
+      "mini-case topic does not match allowed user preference topic",
+      basePayload(),
+      ["mini_case_preference_topic_mismatch"],
+      [FINANCE_SOURCE, TECH_SOURCE],
+      { miniCaseAllowedPreferenceTopicIds: ["health"] }
     )
   ];
 
@@ -138,8 +191,13 @@ function expectSanitizedAccepted(): QualityProofOutput["sanitized_examples"][num
   const unsanitized = basePayload();
   unsanitized.items[0] = {
     ...unsanitized.items[0],
-    body_md:
-      "Oil prices rose after a supply disruption changed inflation and market risk expectations. The finance implication is market risk, funding cost pressure, and capital allocation discipline for operators deciding whether this is a temporary shock or a budget constraint.",
+    body_md: [
+      "Oil prices rose after a supply disruption changed inflation and market risk expectations for finance teams.",
+      "The finance implication is not a broad investment call. It is a budget discipline problem: operators need to decide whether the move changes funding assumptions, working-capital buffers, or only the monitoring cadence.",
+      "The observable signal is whether funding costs, inflation expectations, or budget guidance move again after the initial shock.",
+      "That gives the item a concrete mechanism, a decision owner, and a narrow next signal without inventing a number or pretending the source proves more than it says.",
+      "A production-valid version should leave the reader with one practical question: which assumption in the operating plan becomes fragile if this market move lasts for several more days?"
+    ].join("\n\n"),
     source_urls: [`${FINANCE_SOURCE_URL}/?utm_source=llm#summary`]
   } as GeneratedContentItem;
   unsanitized.items[1] = {
@@ -148,6 +206,9 @@ function expectSanitizedAccepted(): QualityProofOutput["sanitized_examples"][num
       "AI chip capacity constraints changed model deployment timelines for cloud teams and made compute allocation a business decision.",
       "The operator trade-off is whether to protect the highest-value customers first or spread scarce capacity across more launches with weaker guarantees.",
       "The signal to watch is deployment delay by customer segment, because that shows whether compute scarcity is shaping revenue, trust, or product roadmaps.",
+      "A useful business story also names the constraint clearly: scarce chips turn an engineering queue into a promise-management problem for sales, support, and product leadership.",
+      "The lesson stays sourced and practical. It does not predict the market winner; it explains which metric would show the capacity bottleneck becoming a commercial bottleneck.",
+      "That is the management pattern worth learning: when a technical bottleneck touches customer commitments, leaders need an allocation rule before the queue becomes a trust problem.",
       `Source: Reputable Tech Desk, published ${SOURCE_DATE}, retrieved ${RETRIEVED_DATE}. ${TECH_SOURCE_URL}`
     ].join("\n\n")
   } as GeneratedContentItem;
@@ -157,6 +218,9 @@ function expectSanitizedAccepted(): QualityProofOutput["sanitized_examples"][num
       "Oil prices rose after a supply disruption changed inflation and market risk expectations for finance teams.",
       "Your task is to brief a decision owner on whether the move changes this week's funding assumptions or only deserves monitoring.",
       "A strong answer names the factual market move, one capital risk, and the next signal that would justify action.",
+      "The challenge is deliberately narrow: do not recommend buying or selling anything, and do not turn one source into a universal forecast.",
+      "A premium answer separates the dated source fact from the judgment, then says who owns the decision and which observable signal would change the recommendation.",
+      "The point is to practice evidence discipline: a useful answer can be decisive about the next question without pretending the source settles every downstream consequence.",
       `Source: Reputable Markets Desk, published ${SOURCE_DATE}, retrieved ${RETRIEVED_DATE}. ${FINANCE_SOURCE_URL}`
     ].join("\n\n")
   } as GeneratedContentItem;
@@ -164,8 +228,13 @@ function expectSanitizedAccepted(): QualityProofOutput["sanitized_examples"][num
     ...unsanitized.items[3],
     title: "Decision lens",
     category: "business",
-    body_md:
-      "Oil prices rose after a supply disruption changed inflation and market risk expectations. The reusable lesson is to separate the observed market move from the decision owner, then watch the next capital signal before acting.",
+    body_md: [
+      "Oil prices rose after a supply disruption changed inflation and market risk expectations.",
+      "The reusable lesson is to separate the observed market move from the decision owner, then watch the next capital signal before acting.",
+      "That makes the concept operational rather than decorative: a reader can ask which budget, timeline, or risk limit would actually change because of the source.",
+      "The concept also limits overreach. It turns the update into a testable lens without pretending the article proves a personal financial recommendation or a complete market forecast.",
+      "Used well, the lens helps a student move from headline awareness to operator judgment: name the fact, name the owner, name the signal, and wait for evidence before escalating."
+    ].join("\n\n"),
     source_urls: []
   } as GeneratedContentItem;
 
@@ -198,12 +267,14 @@ function expectRejected(
   name: string,
   payload: DailyDropPayload,
   expectedCodes: string[],
-  articles: RankedArticle[]
+  articles: RankedArticle[],
+  extraOptions: Parameters<typeof validateDailyDropQuality>[1] = {}
 ): RejectedExample {
   const diagnostics = validateDailyDropQuality(payload, {
     articles,
     rssOnly: true,
-    productionStrict: true
+    productionStrict: true,
+    ...extraOptions
   });
 
   let error: string | null = null;
@@ -211,7 +282,8 @@ function expectRejected(
     assertValidDailyDropPayload(payload, {
       articles,
       rssOnly: true,
-      productionStrict: true
+      productionStrict: true,
+      ...extraOptions
     });
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught);
@@ -392,11 +464,42 @@ function withNewsletterGenericFiller(): DailyDropPayload {
   return payload;
 }
 
+function withOverusedSource(): DailyDropPayload {
+  const payload = basePayload();
+  payload.items = payload.items.map((item) => ({
+    ...item,
+    topic: "finance",
+    body_md: sourceBackedBody(FINANCE_SOURCE_URL, "Finance"),
+    source_urls: [FINANCE_SOURCE_URL]
+  })) as GeneratedContentItem[];
+  return payload;
+}
+
+function withDuplicateNewsletterTitle(): DailyDropPayload {
+  const payload = basePayload();
+  payload.items[1] = {
+    ...payload.items[1],
+    title: payload.items[0].title
+  } as GeneratedContentItem;
+  return payload;
+}
+
+function withNewsletterTopicMismatch(): DailyDropPayload {
+  const payload = basePayload();
+  payload.items[0] = {
+    ...payload.items[0],
+    topic: "finance"
+  } as GeneratedContentItem;
+  return payload;
+}
+
 function sourceBackedBody(sourceUrl: string, label: string): string {
   return [
     `${label} update: Oil prices rose after a supply disruption changed inflation and market risk expectations for the day.`,
     "The analytical move is to separate the sourced fact from the decision it pressures, then name the owner and the next signal.",
     "A useful brief would watch funding costs, deployment timelines, customer behavior, or budget changes before turning the update into action.",
+    "The judgment stays deliberately narrow: it does not tell a reader to buy, sell, sue, diagnose, or change treatment. It explains which constraint deserves attention and what evidence would make the decision materially different.",
+    "That keeps the item useful for a five-minute learning product while avoiding a generic conclusion or unsupported prediction.",
     `Source: [Reputable Desk](${sourceUrl}), published ${SOURCE_DATE}, retrieved ${RETRIEVED_DATE}.`
   ].join("\n\n");
 }

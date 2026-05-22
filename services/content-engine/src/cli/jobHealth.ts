@@ -8,6 +8,7 @@ export type JobHealthOptions = {
   runDate: string;
   limit: number;
   strictWarnings: boolean;
+  staleMinutes: number;
 };
 
 export type JobHealthOutput = {
@@ -16,6 +17,15 @@ export type JobHealthOutput = {
   status: JobHealthStatus;
   runDate: string;
   latestRun: JobHealthRunSummary | null;
+  staleRunningRuns: Array<{
+    run_id: string;
+    status: string;
+    run_date: string;
+    age_minutes: number;
+    started_at: string;
+    updated_at: string;
+    recovery: string;
+  }>;
   checks: Array<{
     name: string;
     status: JobHealthStatus;
@@ -34,7 +44,10 @@ type JobHealthRunSummary = {
   source_mode: string;
   languages: string[];
   topics: string[];
+  started_at: string;
   completed_at: string | null;
+  updated_at: string;
+  age_minutes: number;
   metrics: {
     rss_attempted: number | null;
     rss_succeeded: number | null;
@@ -45,6 +58,7 @@ type JobHealthRunSummary = {
     validation_failure_count: number;
     generated_items_by_language: Record<string, number>;
     stored_items: number | null;
+    content_items_deduplicated: number | null;
     assigned_users: number | null;
     estimated_cost_usd: number | null;
     estimated_cost_available: boolean | null;
@@ -53,9 +67,17 @@ type JobHealthRunSummary = {
   operator_summary: {
     generated: number | null;
     stored: number | null;
+    deduplicated_content_items: number | null;
     assigned: number | null;
     failed_languages: string[];
     failed_topics: string[];
+    headline: string | null;
+    what_happened: string | null;
+    users_received_content: boolean | null;
+    rerun_safe: boolean | null;
+    rerun_recommendation: string | null;
+    failures: string[];
+    recovery_hints: string[];
     cost_estimate_available: boolean | null;
     cost_estimate_usd: number | null;
     cost_estimate_reason: string | null;
@@ -74,7 +96,18 @@ export async function runJobHealth(options: JobHealthOptions): Promise<JobHealth
   });
   const runs = rows.map(toRunSummary);
   const latestRun = runs[0] ?? null;
-  const checks = buildChecks(latestRun);
+  const staleRunningRuns = runs
+    .filter((run) => isStaleRunningRun(run, options.staleMinutes))
+    .map((run) => ({
+      run_id: run.run_id,
+      status: run.status,
+      run_date: run.run_date,
+      age_minutes: run.age_minutes,
+      started_at: run.started_at,
+      updated_at: run.updated_at,
+      recovery: "Confirm no process is still running, then follow BACKEND_OPERATIONS.md stale job recovery."
+    }));
+  const checks = buildChecks(latestRun, runs, staleRunningRuns, options.staleMinutes);
   const status = worstStatus(checks.map((check) => check.status));
 
   if (status === "critical" || (options.strictWarnings && status === "warning")) {
@@ -87,6 +120,7 @@ export async function runJobHealth(options: JobHealthOptions): Promise<JobHealth
     status,
     runDate: options.runDate,
     latestRun,
+    staleRunningRuns,
     checks,
     runs
   };
@@ -102,11 +136,17 @@ export function parseJobHealthOptions(args: string[]): JobHealthOptions {
   return {
     runDate: flags.get("date") ?? toDateOnly(new Date()),
     limit,
-    strictWarnings: flags.has("strict")
+    strictWarnings: flags.has("strict"),
+    staleMinutes: readIntegerFlag(flags, "stale-minutes", 90, 5, 1440)
   };
 }
 
-function buildChecks(latestRun: JobHealthRunSummary | null): JobHealthOutput["checks"] {
+function buildChecks(
+  latestRun: JobHealthRunSummary | null,
+  runs: JobHealthRunSummary[],
+  staleRunningRuns: JobHealthOutput["staleRunningRuns"],
+  staleMinutes: number
+): JobHealthOutput["checks"] {
   if (!latestRun) {
     return [
       {
@@ -125,6 +165,21 @@ function buildChecks(latestRun: JobHealthRunSummary | null): JobHealthOutput["ch
         latestRun.operator_summary.failed_languages.length > 0
           ? `Latest run ${latestRun.run_id} finished with status ${latestRun.status}; failed languages=${latestRun.operator_summary.failed_languages.join(",")}.`
           : `Latest run ${latestRun.run_id} finished with status ${latestRun.status}.`
+    },
+    {
+      name: "stale_running_jobs",
+      status: staleRunningRuns.length > 0 ? "critical" : runs.some((run) => run.status === "running") ? "warning" : "ok",
+      detail:
+        staleRunningRuns.length > 0
+          ? `Stale running job(s) older than ${staleMinutes}m: ${staleRunningRuns.map((run) => `${run.run_id} (${run.age_minutes}m)`).join(", ")}.`
+          : runs.some((run) => run.status === "running")
+          ? "A job is currently running but is not stale yet."
+          : "No running jobs found in the inspected window."
+    },
+    {
+      name: "recent_failed_jobs",
+      status: runs.some((run) => run.status === "failed") ? "critical" : runs.some((run) => run.status === "partial_failed") ? "warning" : "ok",
+      detail: `Recent failed=${runs.filter((run) => run.status === "failed").length}; partial_failed=${runs.filter((run) => run.status === "partial_failed").length}.`
     },
     {
       name: "language_failures",
@@ -174,7 +229,7 @@ function buildChecks(latestRun: JobHealthRunSummary | null): JobHealthOutput["ch
       status: latestRun.dry_run ? "warning" : latestRun.metrics.stored_items && latestRun.metrics.stored_items > 0 ? "ok" : "critical",
       detail: latestRun.dry_run
         ? "Latest run was dry-run and did not persist content."
-        : `Stored items=${latestRun.metrics.stored_items ?? 0}.`
+        : `Stored items=${latestRun.metrics.stored_items ?? 0}; content items reused by dedup=${latestRun.metrics.content_items_deduplicated ?? 0}.`
     },
     {
       name: "assignment",
@@ -207,7 +262,10 @@ function toRunSummary(row: JobRunRow): JobHealthRunSummary {
     source_mode: row.source_mode,
     languages: row.languages,
     topics: row.topics,
+    started_at: row.started_at,
     completed_at: row.completed_at,
+    updated_at: row.updated_at,
+    age_minutes: ageMinutes(row.updated_at),
     metrics: {
       rss_attempted: readNumber(metrics.rss_attempted),
       rss_succeeded: readNumber(metrics.rss_succeeded),
@@ -218,6 +276,7 @@ function toRunSummary(row: JobRunRow): JobHealthRunSummary {
       validation_failure_count: validationFailureCount,
       generated_items_by_language: readNumberRecord(readRecord(metrics.generated_items_by_language)),
       stored_items: readNumber(metrics.stored_items),
+      content_items_deduplicated: readNumber(metrics.content_items_deduplicated),
       assigned_users: readNumber(metrics.assigned_users),
       estimated_cost_usd: readNumber(metrics.estimated_cost_usd),
       estimated_cost_available: readBoolean(metrics.estimated_cost_available),
@@ -226,14 +285,34 @@ function toRunSummary(row: JobRunRow): JobHealthRunSummary {
     operator_summary: {
       generated: readNumber(operatorSummary.generated),
       stored: readNumber(operatorSummary.stored),
+      deduplicated_content_items: readNumber(operatorSummary.deduplicatedContentItems),
       assigned: readNumber(operatorSummary.assigned),
       failed_languages: readStringArray(operatorSummary.failedLanguages),
       failed_topics: readStringArray(operatorSummary.failedTopics),
+      headline: readString(operatorSummary.headline),
+      what_happened: readString(operatorSummary.whatHappened),
+      users_received_content: readBoolean(operatorSummary.usersReceivedContent),
+      rerun_safe: readBoolean(operatorSummary.rerunSafe),
+      rerun_recommendation: readString(operatorSummary.rerunRecommendation),
+      failures: readStringArray(operatorSummary.failures),
+      recovery_hints: readStringArray(operatorSummary.recoveryHints),
       cost_estimate_available: readBoolean(readRecord(operatorSummary.costEstimate).available),
       cost_estimate_usd: readNumber(readRecord(operatorSummary.costEstimate).estimatedUsd),
       cost_estimate_reason: readString(readRecord(operatorSummary.costEstimate).reason)
     }
   };
+}
+
+function isStaleRunningRun(run: JobHealthRunSummary, staleMinutes: number): boolean {
+  return run.status === "running" && run.age_minutes >= staleMinutes;
+}
+
+function ageMinutes(updatedAt: string): number {
+  const updatedAtMs = Date.parse(updatedAt);
+  if (!Number.isFinite(updatedAtMs)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor((Date.now() - updatedAtMs) / 60_000));
 }
 
 function worstStatus(statuses: JobHealthStatus[]): JobHealthStatus {
@@ -270,6 +349,20 @@ function readFlags(args: string[]): Map<string, string> {
   }
 
   return values;
+}
+
+function readIntegerFlag(flags: Map<string, string>, key: string, fallback: number, min: number, max: number): number {
+  const raw = flags.get(key);
+  if (!raw) {
+    return fallback;
+  }
+
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`--${key} must be an integer from ${min} to ${max}.`);
+  }
+
+  return value;
 }
 
 function readRecord(value: unknown): Record<string, unknown> {

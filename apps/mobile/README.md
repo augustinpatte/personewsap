@@ -21,7 +21,13 @@ cp .env.example .env
 npm run start
 ```
 
-Then open the app in Expo Go, an iOS simulator, or an Android emulator.
+Then open the app in Expo Go, an iOS simulator, an Android emulator, or a
+development build.
+
+Expo Go is useful for UI and auth checks, but it is not a TestFlight proof.
+Push notification registration needs a development build or a TestFlight build
+with EAS project metadata and native notification credentials. Expo Go should
+not be used to validate push opt-in, push token storage, or App Store readiness.
 
 ## Environment
 
@@ -65,6 +71,8 @@ profile fields, free text, source URLs, secrets, or authentication tokens.
 npm run start
 npm run ios
 npm run android
+npm run config:public
+npm run build:ios:preview
 npm run typecheck
 ```
 
@@ -79,3 +87,18 @@ This app now covers the beta mobile shell:
 - Account-only push reminder permission flow
 
 Push notification readiness is token capture only. The app asks for notification permission from Account after signup/onboarding, stores Expo push tokens in `push_tokens` only when the RLS-protected table exists, and keeps working when permission is denied or a simulator cannot register. Content is published once daily globally. Actual push delivery still needs a backend sender job that reads enabled tokens, then sends through the Expo Push API with production APNs/FCM/EAS credentials.
+
+## TestFlight Checklist
+
+Before uploading a build:
+
+- Run `npm run typecheck`.
+- Run `npx expo config --type public` and confirm name, bundle identifier,
+  version, iOS build number, scheme, icon, splash, and notification config.
+- Build with `npm run build:ios:preview` for internal device testing.
+- Install on a physical iPhone through the development build or TestFlight.
+- Sign up, complete onboarding, log out, log back in, open Today, open Library,
+  edit Account preferences, and toggle the daily reminder.
+- Confirm French and English flows do not mix languages.
+- Confirm no service-role keys, raw user ids, stack traces, or developer-only
+  diagnostic copy appear in the UI.

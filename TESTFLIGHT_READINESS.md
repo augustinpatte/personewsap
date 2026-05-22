@@ -22,18 +22,18 @@ Current TestFlight status: not ready. This repo is ready for local/staging backe
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| Expo app config | partial | `apps/mobile/app.json` has name, slug, scheme, version, bundle identifier, Android package, portrait orientation, and Expo Router. |
-| iOS build number | missing | Add and increment `expo.ios.buildNumber` before TestFlight uploads. |
-| EAS build profile | missing | No `eas.json` is present, so the build/upload path still needs an owner decision. |
-| App icon and splash assets | missing | No icon/splash assets are configured in `app.json`; add before showing TestFlight to external testers. |
+| Expo app config | ready for internal build | `apps/mobile/app.json` has name, slug, scheme, version, iOS build number, bundle identifier, Android package, portrait orientation, icon, splash, notifications, and Expo Router. |
+| iOS build number | configured | `expo.ios.buildNumber` is present. Increment it for every App Store Connect upload. |
+| EAS build profile | configured | `apps/mobile/eas.json` has development, preview, and production profiles. Apple/EAS credentials still need owner setup. |
+| App icon and splash assets | configured | Local icon, splash, and notification assets are wired in `app.json`. Final brand artwork can replace them later. |
 | TestFlight signing/upload workflow | missing | Apple Developer account, certificates/profiles, App Store Connect app, and upload steps are not represented in repo config. |
 | Mobile env boundary | partial | `.env.example` uses only public `EXPO_PUBLIC_*` keys; final build env values still need to be configured in the chosen build system. |
 
 ## Must Be Done Before TestFlight
 
 - Confirm the Apple Developer account, App Store Connect app record, bundle identifier, signing certificates, and provisioning are ready.
-- Decide EAS vs local Xcode/archive workflow and document the exact upload command.
-- Add `expo.ios.buildNumber`, app icon, and splash screen config.
+- Use EAS preview/production profiles or document a local Xcode/archive alternative.
+- Increment `expo.ios.buildNumber` before every TestFlight upload.
 - Decide the tester Supabase project and apply all migrations.
 - Configure only public mobile env vars in the build:
   - `EXPO_PUBLIC_SUPABASE_URL`
@@ -53,6 +53,7 @@ Current TestFlight status: not ready. This repo is ready for local/staging backe
 - Share known limitations from [KNOWN_ISSUES.md](KNOWN_ISSUES.md) with the tester coordinator.
 - Review App Store privacy nutrition labels and data collection statements against actual Supabase/auth/interaction data.
 - Confirm support contact, feedback channel, and tester invite list.
+- Push notification opt-in must be tested in a development build or TestFlight build. Expo Go is not a valid push proof.
 
 ## Must Be True In The App
 
@@ -61,7 +62,8 @@ Current TestFlight status: not ready. This repo is ready for local/staging backe
 - Empty states are readable and do not look broken.
 - Auth errors are human-readable.
 - Onboarding can be completed without developer intervention.
-- Account screen exposes the tester user id for assignment during the controlled test.
+- Account does not expose raw user ids, stack traces, or internal database identifiers.
+- Account exposes privacy, data export, and account deletion request entry points.
 - Logout and login return the tester to the correct state.
 - No screen exposes raw secrets, service-role data, or internal stack traces.
 
@@ -69,7 +71,7 @@ Current TestFlight status: not ready. This repo is ready for local/staging backe
 
 - Automated production scheduler.
 - Editorial review dashboard.
-- Push notifications.
+- Push delivery automation.
 - In-app tester feedback form, if an external form is used.
 - Analytics instrumentation beyond manual QA notes.
 - Full App Store marketing page polish.
@@ -94,7 +96,8 @@ Current TestFlight status: not ready. This repo is ready for local/staging backe
 - Invalid password shows a readable error.
 - Onboarding saves language, goal, topics, article count, and frequency.
 - Account shows onboarding as complete.
-- Account shows the tester user id.
+- Account does not show raw user ids.
+- Account privacy, export, and deletion links open the expected external flow.
 
 ### Daily Drop
 
@@ -138,7 +141,7 @@ Current TestFlight status: not ready. This repo is ready for local/staging backe
 - Cellular network, Wi-Fi, slow network, and airplane-mode spot check.
 - Background/foreground resume after login and while Today is loading.
 - Logout/login after app restart.
-- Push notification permission behavior if push prompts are added later.
+- Push notification permission behavior from Account in a development/TestFlight build. Do not use Expo Go for this proof.
 - Dark/light mode if supported by the simulator/device.
 
 ## First 15-Minute Beta Failure Modes
@@ -151,7 +154,7 @@ The first tester session is likely to fail if any of these happen:
 - Today falls back to preview mode during a live-data proof and the coordinator misses the proof-mode error.
 - Complete/save/rating writes fail because migrations, RLS, or beta hardening were not applied.
 - Library is empty after assignment because the drop/items were not published or linked.
-- The tester cannot find the Account user id, logout, or login path.
+- The tester cannot find logout, login, privacy, export, or deletion request entry points.
 - The app crashes or shows unreadable errors on a physical iPhone network transition.
 
 ## TestFlight Stop Conditions

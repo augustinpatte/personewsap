@@ -13,6 +13,7 @@ import { parsePersistTestOptions, runPersistTest } from "./cli/persistTest.js";
 import { runQualityProof } from "./cli/qualityProof.js";
 import { parseRssCheckOptions, runRssCheck } from "./cli/rssCheck.js";
 import { formatPersistenceError } from "./storage/persistenceError.js";
+import { redactLogIdentifiers } from "./utils/redactIdentifier.js";
 
 async function main(): Promise<void> {
   const [command = "dry-run", ...args] = process.argv.slice(2);
@@ -37,7 +38,7 @@ async function main(): Promise<void> {
 
   if (command === "persist-test") {
     const output = await runPersistTest(parsePersistTestOptions(args));
-    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    writeJson(output, { redactIdentifiers: true });
     return;
   }
 
@@ -49,25 +50,25 @@ async function main(): Promise<void> {
 
   if (command === "assign-test-users") {
     const output = await runAssignTestUsers(parseAssignTestUsersOptions(args));
-    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    writeJson(output, { redactIdentifiers: true });
     return;
   }
 
   if (command === "personalize-test") {
     const output = await runPersonalizeTest(parsePersonalizeTestOptions(args));
-    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    writeJson(output, { redactIdentifiers: true });
     return;
   }
 
   if (command === "daily-job") {
     const output = await runDailyJob(parseDailyJobOptions(args));
-    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    writeJson(output, { redactIdentifiers: true });
     return;
   }
 
   if (command === "daily-job-test") {
     const output = await runDailyJobTest(parseDailyJobTestOptions(args));
-    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    writeJson(output, { redactIdentifiers: true });
     return;
   }
 
@@ -79,7 +80,7 @@ async function main(): Promise<void> {
 
   if (command === "debug-users") {
     const output = await runDebugUsers(parseDebugUsersOptions(args));
-    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    writeJson(output, { redactIdentifiers: true });
     return;
   }
 
@@ -132,6 +133,7 @@ Options:
   --limit-per-source 5    For rss-check/RSS, cap items kept from each feed.
   --limit 5               For job-health, max recent job_runs rows to read.
   --strict                For job-health, make warning states fail automation.
+  --stale-minutes 90      For job-health, mark running job_runs older than this critical.
   --source-article-limit 6 For llm-proof, cap ranked articles sent to the LLM.
   --max-attempts 1        For llm-proof, cap LLM validation retry attempts.
   --max-output-tokens 4500 For llm-proof, cap OpenAI response tokens.
@@ -175,6 +177,11 @@ Examples:
   OPENAI_API_KEY=... npm run llm-proof -- --languages en --topics business,finance
   OPENAI_API_KEY=... OPENAI_REQUEST_TIMEOUT_MS=120000 npm run llm-proof -- --languages fr,en --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media --max-attempts 2
 `);
+}
+
+function writeJson(output: unknown, options: { redactIdentifiers?: boolean } = {}): void {
+  const safeOutput = options.redactIdentifiers ? redactLogIdentifiers(output) : output;
+  process.stdout.write(`${JSON.stringify(safeOutput, null, 2)}\n`);
 }
 
 main().catch((error: unknown) => {

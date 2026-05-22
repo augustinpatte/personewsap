@@ -6,12 +6,27 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "backgroundColor": "#f8fafc",
+      "resizeMode": "contain"
+    },
     "ios": {
+      "buildNumber": "1",
       "supportsTablet": true,
-      "bundleIdentifier": "com.personewsap.mobile"
+      "bundleIdentifier": "com.personewsap.mobile",
+      "infoPlist": {
+        "NSUserNotificationUsageDescription": "PersoNewsAP can send an optional daily reminder when your new drop is ready."
+      }
     },
     "android": {
       "package": "com.personewsap.mobile"
+    },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#2563eb",
+      "iosDisplayInForeground": true
     },
     "plugins": [
       "expo-router",

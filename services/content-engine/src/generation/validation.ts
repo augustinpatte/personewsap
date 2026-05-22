@@ -1,9 +1,11 @@
 import {
   CONTENT_TYPES,
+  MINI_CASE_TOPIC_IDS,
   TOPIC_IDS,
   type ContentType,
   type DailyDropPayload,
   type GeneratedContentItem,
+  type MiniCaseTopicId,
   type RankedArticle,
   type TopicId
 } from "../domain.js";
@@ -19,6 +21,10 @@ export type ContentQualityOptions = {
   articles?: RankedArticle[];
   productionStrict?: boolean;
   rssOnly?: boolean;
+  maxSourceAgeDays?: number;
+  newsletterProductTopics?: string[];
+  miniCaseProductTopics?: string[];
+  miniCaseAllowedPreferenceTopicIds?: string[];
 };
 
 export type ContentQualityDiagnostics = {
@@ -34,7 +40,10 @@ export type ContentQualityDiagnostics = {
 };
 
 const DATE_PATTERN = /\b\d{4}-\d{2}-\d{2}\b/;
+const SPECIFIC_CLAIM_PATTERN =
+  /(?:\b\d+(?:[.,]\d+)?%|\$[\d,.]+|\u20ac[\d,.]+|\u00a3[\d,.]+|\b\d{4}-\d{2}-\d{2}\b|\b\d+(?:[.,]\d+)?\s?(?:bn|billion|m|million|bps|basis points|days?|weeks?|months?|years?|milliards?|millions?|jours?|semaines?|mois|ans)\b)/gi;
 const WORDS_PER_MINUTE = 220;
+const DEFAULT_MAX_SOURCE_AGE_DAYS = 21;
 
 const REQUIRED_SOURCE_COUNTS: Record<ContentType, number> = {
   newsletter_article: 1,
@@ -65,13 +74,31 @@ const READING_TIME_LIMITS_SECONDS: Partial<Record<ContentType, { min: number; ma
   concept: { min: 30, max: 120 }
 };
 
+const MIN_BODY_WORDS: Partial<Record<ContentType, number>> = {
+  newsletter_article: 90,
+  business_story: 110,
+  mini_case: 90,
+  concept: 85,
+  quick_quiz: 45
+};
+
 const GENERIC_AI_PHRASES = [
   "in today's fast-paced world",
   "it is important",
   "it is important to note",
   "highlights the importance",
   "this highlights the importance",
+  "this shift means",
   "in the current climate",
+  "critical in",
+  "key in",
+  "underscores the importance",
+  "delve into",
+  "navigate the landscape",
+  "game changer",
+  "it remains to be seen",
+  "as we move forward",
+  "overall,",
   "in conclusion",
   "this serves as a reminder",
   "as we navigate",
@@ -101,6 +128,30 @@ const GENERIC_TITLE_PATTERNS = [
   /\bconcept cle\b/i
 ];
 
+export const NEWSLETTER_PRODUCT_TOPIC_TO_CONTENT_TOPICS = {
+  sport: ["sport_business"],
+  international: ["law"],
+  finance_economy: ["finance"],
+  stock_market: ["business", "finance"],
+  automotive: ["engineering"],
+  pharmaceutical: ["medicine"],
+  artificial_intelligence: ["tech_ai"],
+  culture: ["culture_media"]
+} as const satisfies Record<string, readonly TopicId[]>;
+
+export const MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS = {
+  law: ["law"],
+  finance_economy: ["finance"],
+  artificial_intelligence: ["tech_ai"],
+  stock_market: ["business", "finance"],
+  engineering: ["engineering"],
+  health: ["medicine"],
+  entrepreneurship: ["business"],
+  career: ["business"],
+  sport_business: ["sport_business"],
+  culture_media: ["culture_media"]
+} as const satisfies Record<string, readonly TopicId[]>;
+
 export const BANNED_EDITORIAL_PHRASES = [
   "this shift means",
   "it is important",
@@ -124,7 +175,8 @@ const HIGH_STAKES_ADVICE_PATTERNS = [
   /\bbuy this stock\b/i,
   /\bsell this stock\b/i,
   /\bguaranteed return\b/i,
-  /\bdiagnose\b/i,
+  /\bdiagnose (you|your|this|that|a|an)\b/i,
+  /\bdiagnosed? with\b/i,
   /\byou have\b.*\b(disease|condition|infection)\b/i,
   /\bstop taking\b/i,
   /\bstart taking\b/i,
@@ -216,10 +268,13 @@ export function validateDailyDropQuality(
   const strict = options.productionStrict ?? readProductionContentStrict();
   const issues: ValidationIssue[] = [];
   const sourceByUrl = new Map<string, RankedArticle>();
+  const maxSourceAgeDays = options.maxSourceAgeDays ?? DEFAULT_MAX_SOURCE_AGE_DAYS;
 
   for (const article of options.articles ?? []) {
     sourceByUrl.set(normalizeUrlKey(article.url), article);
   }
+
+  issues.push(...validateRequestedTopicTaxonomy(options, strict));
 
   payload.items.forEach((item, index) => {
     const path = `items.${index}`;
@@ -231,9 +286,14 @@ export function validateDailyDropQuality(
     issues.push(...validateConceptRelevance(item, path, sourceByUrl, strict));
     issues.push(...validateGenericFiller(item, path, strict));
     issues.push(...validateTitleReflectsTopic(item, path, sourceByUrl, strict));
+    issues.push(...validateSourceFreshness(item, path, sourceByUrl, payload.drop_date, maxSourceAgeDays, strict));
+    issues.push(...validateUnsupportedSpecificClaims(item, path, sourceByUrl, strict));
+    issues.push(...validateItemProductTopicMapping(item, path, options, strict));
   });
 
   issues.push(...validateRepeatedTemplatePhrases(payload, strict));
+  issues.push(...validateDuplicateDailyRunStories(payload, strict));
+  issues.push(...validateSourceDiversity(payload, sourceByUrl, strict));
 
   const checks = summarizeQualityChecks(issues);
   const failedChecks = checks.filter((check) => check.status === "failed").length;
@@ -669,7 +729,251 @@ function validateGenericFiller(item: GeneratedContentItem, path: string, strict:
     }));
   }
 
+  const minimumWords = MIN_BODY_WORDS[item.content_type];
+  if (minimumWords && wordCount(body) < minimumWords) {
+    issues.push(qualityIssue({
+      path: `${path}.body_md`,
+      code: "body_too_short",
+      message: `${item.content_type} body has ${wordCount(body)} words; expected at least ${minimumWords} words for sourced production content.`,
+      strict
+    }));
+  }
+
   return issues;
+}
+
+function validateSourceFreshness(
+  item: GeneratedContentItem,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  dropDate: string,
+  maxSourceAgeDays: number,
+  strict: boolean
+): ValidationIssue[] {
+  const dropDay = parseDateOnly(dropDate);
+  if (!dropDay) {
+    return [];
+  }
+
+  return knownSourcesForItem(item, sourceByUrl).flatMap((source, sourceIndex) => {
+    const sourceDate = parseDateOnly(source.published_at ?? source.retrieved_at);
+    if (!sourceDate) {
+      return [
+        qualityIssue({
+          path: `${path}.source_urls.${sourceIndex}`,
+          code: "source_date_missing",
+          message: `Cited source ${source.url} has no parseable published_at or retrieved_at YYYY-MM-DD date.`,
+          strict
+        })
+      ];
+    }
+
+    const ageDays = dateDiffDays(sourceDate, dropDay);
+    if (ageDays <= maxSourceAgeDays) {
+      return [];
+    }
+
+    return [
+      qualityIssue({
+        path: `${path}.source_urls.${sourceIndex}`,
+        code: "stale_source_date",
+        message: `Cited source ${source.url} is ${ageDays} days older than drop_date ${dropDate}; max allowed is ${maxSourceAgeDays} days unless intentionally overridden.`,
+        strict
+      })
+    ];
+  });
+}
+
+function validateUnsupportedSpecificClaims(
+  item: GeneratedContentItem,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  const sources = knownSourcesForItem(item, sourceByUrl);
+  if (sources.length === 0) {
+    return [];
+  }
+
+  const sourceText = normalizeClaimText(
+    sources.map((source) => `${source.title} ${source.summary ?? ""} ${source.body ?? ""} ${source.published_at ?? ""}`).join(" ")
+  );
+  const itemText = normalizeClaimText(templateTextForItem(item));
+  const claims = Array.from(itemText.matchAll(SPECIFIC_CLAIM_PATTERN))
+    .map((match) => match[0])
+    .filter((claim) => !isLikelyCitationDate(claim, item, sources));
+  const unsupported = Array.from(new Set(claims.filter((claim) => !sourceText.includes(claim))));
+
+  if (unsupported.length === 0) {
+    return [];
+  }
+
+  return [
+    qualityIssue({
+      path,
+      code: "unsupported_specific_claim",
+      message: `Specific claim(s) not found in cited source material: ${unsupported.slice(0, 4).join(", ")}.`,
+      strict
+    })
+  ];
+}
+
+function validateDuplicateDailyRunStories(payload: DailyDropPayload, strict: boolean): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const titles = new Map<string, string>();
+  const nonNewsletterTopicSlots = new Map<string, string>();
+
+  payload.items.forEach((item, index) => {
+    const path = `items.${index}`;
+    const normalizedTitle = normalizeStoryTitle(item.title);
+    if (normalizedTitle) {
+      const previousPath = titles.get(normalizedTitle);
+      if (previousPath) {
+        issues.push(qualityIssue({
+          path: `${path}.title`,
+          code: "duplicate_story_title",
+          message: `Duplicate story title also appears at ${previousPath}.`,
+          strict
+        }));
+      } else {
+        titles.set(normalizedTitle, `${path}.title`);
+      }
+    }
+
+    if (item.content_type !== "newsletter_article" && item.topic) {
+      const key = `${item.content_type}:${item.topic}`;
+      const previousPath = nonNewsletterTopicSlots.get(key);
+      if (previousPath) {
+        issues.push(qualityIssue({
+          path,
+          code: "duplicate_story_topic",
+          message: `Duplicate ${item.content_type} topic ${item.topic} also appears at ${previousPath}.`,
+          strict
+        }));
+      } else {
+        nonNewsletterTopicSlots.set(key, path);
+      }
+    }
+  });
+
+  return issues;
+}
+
+function validateSourceDiversity(
+  payload: DailyDropPayload,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  if (sourceByUrl.size <= 1 || payload.items.length <= 2) {
+    return [];
+  }
+
+  const usage = new Map<string, number>();
+  for (const item of payload.items) {
+    const firstUrl = Array.isArray(item.source_urls) ? item.source_urls[0] : null;
+    if (!firstUrl || !sourceByUrl.has(normalizeUrlKey(firstUrl))) {
+      continue;
+    }
+
+    const normalizedUrl = normalizeUrlKey(firstUrl);
+    usage.set(normalizedUrl, (usage.get(normalizedUrl) ?? 0) + 1);
+  }
+
+  const maxAllowed = Math.max(2, Math.ceil(payload.items.length * 0.6));
+  const overused = Array.from(usage.entries()).filter(([, count]) => count > maxAllowed);
+  return overused.map(([url, count]) =>
+    qualityIssue({
+      path: "items",
+      code: "source_overused",
+      message: `One source is cited by ${count}/${payload.items.length} items even though ${sourceByUrl.size} supplied alternatives exist: ${url}.`,
+      strict
+    })
+  );
+}
+
+function validateRequestedTopicTaxonomy(options: ContentQualityOptions, strict: boolean): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const topic of options.newsletterProductTopics ?? []) {
+    if (!(topic in NEWSLETTER_PRODUCT_TOPIC_TO_CONTENT_TOPICS)) {
+      issues.push(qualityIssue({
+        path: "newsletterProductTopics",
+        code: "invalid_newsletter_product_topic",
+        message: `Unsupported newsletter product topic "${topic}". Allowed: ${Object.keys(NEWSLETTER_PRODUCT_TOPIC_TO_CONTENT_TOPICS).join(", ")}.`,
+        strict
+      }));
+    }
+  }
+
+  for (const topic of options.miniCaseProductTopics ?? []) {
+    if (!(topic in MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS)) {
+      issues.push(qualityIssue({
+        path: "miniCaseProductTopics",
+        code: "invalid_mini_case_product_topic",
+        message: `Unsupported mini-case product topic "${topic}". Allowed: ${Object.keys(MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS).join(", ")}.`,
+        strict
+      }));
+    }
+  }
+
+  for (const topic of options.miniCaseAllowedPreferenceTopicIds ?? []) {
+    if (!isKnownMiniCaseProductTopic(topic)) {
+      issues.push(qualityIssue({
+        path: "miniCaseAllowedPreferenceTopicIds",
+        code: "invalid_mini_case_preference_topic",
+        message: `Unsupported mini-case preference topic "${topic}". Allowed: ${Object.keys(MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS).join(", ")}.`,
+        strict
+      }));
+    }
+  }
+
+  return issues;
+}
+
+function validateItemProductTopicMapping(
+  item: GeneratedContentItem,
+  path: string,
+  options: ContentQualityOptions,
+  strict: boolean
+): ValidationIssue[] {
+  if (!item.topic) {
+    return [];
+  }
+
+  if (item.content_type === "newsletter_article" && options.newsletterProductTopics?.length) {
+    const allowedContentTopics = productTopicsToContentTopics(options.newsletterProductTopics, NEWSLETTER_PRODUCT_TOPIC_TO_CONTENT_TOPICS);
+    if (!allowedContentTopics.has(item.topic)) {
+      return [
+        qualityIssue({
+          path: `${path}.topic`,
+          code: "newsletter_topic_mismatch",
+          message: `Newsletter item topic ${item.topic} does not map to requested product newsletter topics: ${options.newsletterProductTopics.join(", ")}.`,
+          strict
+        })
+      ];
+    }
+  }
+
+  if (item.content_type === "mini_case") {
+    const allowedProductTopics = options.miniCaseAllowedPreferenceTopicIds ?? options.miniCaseProductTopics ?? [];
+    if (allowedProductTopics.length === 0) {
+      return [];
+    }
+
+    const allowedContentTopics = productTopicsToContentTopics(allowedProductTopics, MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS);
+    if (!allowedContentTopics.has(item.topic)) {
+      return [
+        qualityIssue({
+          path: `${path}.topic`,
+          code: "mini_case_preference_topic_mismatch",
+          message: `Mini-case topic ${item.topic} does not match allowed mini-case preference topic(s): ${allowedProductTopics.join(", ")}.`,
+          strict
+        })
+      ];
+    }
+  }
+
+  return [];
 }
 
 function validateTitleReflectsTopic(
@@ -771,9 +1075,21 @@ function summarizeQualityChecks(issues: ValidationIssue[]): ContentQualityDiagno
     "published_unknown_with_known_date",
     "published_unknown_without_retrieved_date",
     "unsupported_source_url",
+    "source_date_missing",
+    "stale_source_date",
+    "unsupported_specific_claim",
+    "source_overused",
+    "duplicate_story_title",
+    "duplicate_story_topic",
+    "invalid_newsletter_product_topic",
+    "invalid_mini_case_product_topic",
+    "invalid_mini_case_preference_topic",
+    "newsletter_topic_mismatch",
+    "mini_case_preference_topic_mismatch",
     "source_topic_mismatch",
     "concept_missing_topic_anchor",
     "concept_example_source_mismatch",
+    "body_too_short",
     "generic_filler",
     "title_topic_mismatch",
     "repeated_template_phrase"
@@ -870,6 +1186,73 @@ function normalizeForTopicMatch(value: string): string {
   return normalizeForPhraseCheck(value)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeClaimText(value: string): string {
+  return value
+    .replace(/[’‘]/g, "'")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function isLikelyCitationDate(claim: string, item: GeneratedContentItem, sources: RankedArticle[]): boolean {
+  if (!DATE_PATTERN.test(claim)) {
+    return false;
+  }
+
+  const sourceDates = new Set(
+    sources
+      .flatMap((source) => [source.published_at?.slice(0, 10), source.retrieved_at?.slice(0, 10)])
+      .filter((date): date is string => Boolean(date))
+  );
+
+  if (sourceDates.has(claim)) {
+    return true;
+  }
+
+  if (item.content_type === "newsletter_article" && item.published_date === claim) {
+    return true;
+  }
+
+  return item.content_type === "business_story" && item.story_date === claim;
+}
+
+function parseDateOnly(value: string | null | undefined): Date | null {
+  const dateText = value?.slice(0, 10);
+  if (!dateText || !/^\d{4}-\d{2}-\d{2}$/.test(dateText)) {
+    return null;
+  }
+
+  const parsed = new Date(`${dateText}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dateDiffDays(left: Date, right: Date): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.floor((right.getTime() - left.getTime()) / msPerDay);
+}
+
+function normalizeStoryTitle(value: string): string {
+  return normalizeForTopicMatch(value)
+    .replace(/[^a-z0-9\u00C0-\u017F]+/gi, " ")
+    .trim();
+}
+
+function wordCount(value: string): number {
+  return value.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function productTopicsToContentTopics(
+  topics: string[],
+  mapping: Record<string, readonly TopicId[]>
+): Set<TopicId> {
+  return new Set(
+    topics.flatMap((topic) => mapping[topic] ?? [])
+  );
+}
+
+function isKnownMiniCaseProductTopic(value: string): value is MiniCaseTopicId | keyof typeof MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS {
+  return MINI_CASE_TOPIC_IDS.includes(value as MiniCaseTopicId) || value in MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS;
 }
 
 function extractSentences(value: string): string[] {

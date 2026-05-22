@@ -96,6 +96,7 @@ Stored in `job_runs.metrics`:
 - `validation_failures_by_rule`
 - `generated_items_by_language`
 - `stored_items`
+- `content_items_deduplicated`
 - `assigned_users`
 - `estimated_input_tokens`
 - `estimated_output_tokens`
@@ -110,6 +111,8 @@ Stored in `job_runs.operator_summary`:
 - failed languages/topics
 - cost estimate availability
 - idempotency notes
+- content item deduplication reuse count
+- rerun recommendation and recovery hints
 
 ## Daily Operator Check
 
@@ -119,7 +122,7 @@ Stored in `job_runs.operator_summary`:
 ```sh
 SUPABASE_URL="https://your-project.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
-npm run content:job-health -- --date "$(date +%F)" --limit 5
+npm run content:job-health -- --date "$(date +%F)" --limit 5 --stale-minutes 90
 ```
 
 3. Treat `status: "ok"` as healthy.
@@ -136,6 +139,8 @@ npm run content:job-health -- --date "$(date +%F)" --limit 5 --strict
 ```
 
 Use non-strict health for manual review dashboards; use strict health for cron/launchd alerting.
+
+`job-health` marks a `job_runs.status = 'running'` row as critical when its `updated_at` age is older than `--stale-minutes`. A non-stale running row is only a warning because a production job may legitimately still be active.
 
 ## Mac Mini Daily Automation
 
@@ -201,6 +206,7 @@ Automation assumptions:
       "llm_timeout_count": 0,
       "validation_failure_count": 0,
       "stored_items": 8,
+      "content_items_deduplicated": 2,
       "assigned_users": 123,
       "estimated_cost_usd": 0.0142
     }
@@ -217,6 +223,53 @@ Check these first:
 - LLM timeouts: inspect `job_runs.metrics.llm_timeout_count`, `OPENAI_REQUEST_TIMEOUT_MS`, and model/provider status.
 - Validation failures: inspect `job_runs.metrics.validation_failures_by_rule` and the failed language entry in command output.
 - Assignment warnings: inspect `assigned_users`, skipped users, and whether users have completed onboarding preferences.
+- Deduplication warnings: inspect `job_runs.metrics.content_items_deduplicated`. Reused content is expected when rerunning the same stable `RUN_ID`; unexpected growth means the dedup metadata/index is missing.
+
+## Stale Job Recovery
+
+A stale job is a `job_runs` row stuck in `running` after the operator is confident no process is still active.
+
+1. Check health and note stale run ids:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npm run content:job-health -- --date "$(date +%F)" --limit 10 --stale-minutes 90
+```
+
+2. Confirm no local scheduler or shell process is still running the same `RUN_ID`.
+3. Review whether content was stored and whether users were assigned:
+
+```sql
+select run_id, status, metrics, operator_summary, started_at, updated_at
+from public.job_runs
+where run_id = '<stale-run-id>';
+```
+
+4. If the process is gone, mark only that job row as failed. Do not delete content or daily drops during recovery:
+
+```sql
+update public.job_runs
+set
+  status = 'failed',
+  error = coalesce(error, 'Marked failed manually after stale running recovery.'),
+  completed_at = now(),
+  updated_at = now()
+where run_id = '<stale-run-id>'
+  and status = 'running';
+```
+
+5. Run `content:prod-dry-run` before any retry. If users already received content, rerun only the missing/failed language and keep the same date.
+
+## Idempotency And Duplicate Guards
+
+- `daily_drops` is unique by `(user_id, drop_date)` and production assignment upserts by that key.
+- `daily_drop_items` is unique by `(daily_drop_id, slot, position)` and `(daily_drop_id, content_item_id)`.
+- Assignment validates required slots before writing a user drop.
+- Existing daily-drop links are upserted before non-conflicting stale links are removed, reducing the chance that an item-link failure empties an existing drop.
+- New content-engine writes include `content_items.metadata.dedup_key`.
+- The migration `20260522120000_content_item_dedup_key.sql` adds a partial unique index for active content rows that have a dedup key.
+- Rerunning the same production command for the same date and stable `RUN_ID` should reuse existing content items and update daily-drop links rather than growing unbounded duplicates.
 
 ## FR/EN Failure Playbook
 

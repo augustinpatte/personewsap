@@ -6,6 +6,7 @@ import {
 } from "../storage/contentRepository.js";
 import { serializePersistenceError } from "../storage/persistenceError.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
+import { redactLogIdentifiers } from "../utils/redactIdentifier.js";
 
 const DEFAULT_ASSIGN_LIMIT = 5;
 const requiredSlots = ["newsletter", "business_story", "mini_case", "concept"] as const;
@@ -446,5 +447,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function logProgress(message: string, details: Record<string, unknown>): void {
-  process.stderr.write(`[assign-test-users] ${new Date().toISOString()} ${message} ${JSON.stringify(details)}\n`);
+  process.stderr.write(
+    `[assign-test-users] ${new Date().toISOString()} ${message} ${JSON.stringify(redactLogIdentifiers(details))}\n`
+  );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { AppText, PrimaryButton, ProgressPill, SecondaryButton } from "../../components";
@@ -46,6 +46,10 @@ export function PreferencesEditor({
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Tracks how many loads have completed. A save increments this on start;
+  // if the counter has advanced during the save's async work, a fresher load
+  // already committed state and the save result should not overwrite it.
+  const loadGenerationRef = useRef(0);
   const uiLanguage = draft?.language ?? saved?.language ?? preferredUiLanguage ?? "en";
   const copy = getPreferencesCopy(uiLanguage);
   const languageOptions = useMemo(
@@ -67,6 +71,11 @@ export function PreferencesEditor({
       setSaved(null);
       return;
     }
+
+    // Advance the generation counter so any in-flight save can detect
+    // that a fresher load has started and skip overwriting the result.
+    const generation = loadGenerationRef.current + 1;
+    loadGenerationRef.current = generation;
 
     setLoading(true);
     setErrorMessage(null);
@@ -209,6 +218,11 @@ export function PreferencesEditor({
       return;
     }
 
+    // Capture the load generation at save-start. If a new load completes
+    // while the save is in-flight, the generation will have advanced and
+    // the save result should not overwrite the fresher state.
+    const saveGeneration = loadGenerationRef.current;
+
     setSaving(true);
     setStatusMessage(null);
     setErrorMessage(null);
@@ -217,6 +231,12 @@ export function PreferencesEditor({
     const result = await saveEditablePreferences(userId, normalized);
 
     setSaving(false);
+
+    // A fresh load started (and may have already committed new state) during
+    // this save's async work. Discard this result to avoid overwriting it.
+    if (loadGenerationRef.current !== saveGeneration) {
+      return;
+    }
 
     if (!result.ok) {
       setErrorMessage(getUserFacingErrorMessage(result.error, normalized.language, "preferences"));

@@ -35,6 +35,7 @@ import { serializePersistenceError } from "../storage/persistenceError.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
 import { toDateOnly } from "../utils/date.js";
 import { sha256 } from "../utils/hash.js";
+import { redactLogIdentifiers } from "../utils/redactIdentifier.js";
 
 const DEFAULT_USER_LIMIT = 5;
 const MAX_USER_LIMIT = 25;
@@ -55,11 +56,23 @@ type DailyJobStatus = "completed" | "partial_failed" | "failed";
 type OperatorSummary = {
   runId: string;
   status: DailyJobStatus;
+  headline: string;
+  whatHappened: string;
+  usersReceivedContent: boolean;
+  rerunSafe: boolean;
+  rerunRecommendation: string;
   generated: number;
   stored: number;
   assigned: number;
+  deduplicatedContentItems: number;
   failedLanguages: Language[];
   failedTopics: TopicId[];
+  failures: string[];
+  recoveryHints: string[];
+  deduplication: {
+    contentItemsReused: number;
+    activeDedupKeyUniqueIndexRequired: boolean;
+  };
   costEstimate: {
     available: boolean;
     estimatedUsd: number | null;
@@ -137,6 +150,7 @@ export type DailyJobOutput = {
     totalProcessedArticles: number;
     totalGeneratedItems: number;
     totalStoredItems: number;
+    totalDeduplicatedContentItems: number;
     totalUsersConsidered: number;
     totalUsersAssigned: number;
     totalUsersCreated: number;
@@ -157,6 +171,7 @@ export type DailyJobOutput = {
     processedArticles: number;
     generatedItems: number;
     storedItems: number;
+    deduplicatedContentItems: number;
     usersConsidered: number;
     usersAssigned: number;
     usersCreated: number;
@@ -553,7 +568,8 @@ async function runDailyJobLanguage(input: {
       test_run_id: testRunId,
       language,
       content_status: options.contentStatus,
-      stored_items: storedItems.length
+      stored_items: storedItems.length,
+      content_items_reused_by_dedup: countDeduplicatedContentItems(storedItems)
     }, options.logPrefix);
   }
 
@@ -591,6 +607,7 @@ async function runDailyJobLanguage(input: {
     llmTimedOut: false,
     payload: jobPayload,
     storedItems: storedItems.length,
+    deduplicatedContentItems: countDeduplicatedContentItems(storedItems),
     assignedUsers: assignment.usersAssigned,
     pricing
   });
@@ -612,6 +629,7 @@ async function runDailyJobLanguage(input: {
     processedArticles: rankedArticles.length,
     generatedItems: jobPayload.items.length,
     storedItems: storedItems.length,
+    deduplicatedContentItems: countDeduplicatedContentItems(storedItems),
     usersConsidered: assignment.usersConsidered,
     usersAssigned: assignment.usersAssigned,
     usersCreated: assignment.usersCreated,
@@ -635,6 +653,7 @@ async function runDailyJobLanguage(input: {
     processed_articles: result.processedArticles,
     generated_items: result.generatedItems,
     stored_items: result.storedItems,
+    content_items_reused_by_dedup: result.deduplicatedContentItems,
     users_considered: result.usersConsidered,
     users_assigned: result.usersAssigned,
     users_created: result.usersCreated,
@@ -875,6 +894,7 @@ function emptyFailedLanguageResult(
     processedArticles: 0,
     generatedItems: 0,
     storedItems: 0,
+    deduplicatedContentItems: 0,
     usersConsidered: 0,
     usersAssigned: 0,
     usersCreated: 0,
@@ -895,6 +915,10 @@ function emptyFailedLanguageResult(
   };
 }
 
+function countDeduplicatedContentItems(storedItems: StoredItems): number {
+  return storedItems.filter((item) => item.reused_existing_content_item).length;
+}
+
 function summarizeLanguageResults(results: DailyJobLanguageResult[]): DailyJobTestOutput["summary"] {
   return {
     languagesRequested: results.length,
@@ -904,6 +928,7 @@ function summarizeLanguageResults(results: DailyJobLanguageResult[]): DailyJobTe
     totalProcessedArticles: sumResults(results, "processedArticles"),
     totalGeneratedItems: sumResults(results, "generatedItems"),
     totalStoredItems: sumResults(results, "storedItems"),
+    totalDeduplicatedContentItems: sumResults(results, "deduplicatedContentItems"),
     totalUsersConsidered: sumResults(results, "usersConsidered"),
     totalUsersAssigned: sumResults(results, "usersAssigned"),
     totalUsersCreated: sumResults(results, "usersCreated"),
@@ -922,6 +947,7 @@ function sumResults(results: DailyJobLanguageResult[], key: keyof Pick<
   | "processedArticles"
   | "generatedItems"
   | "storedItems"
+  | "deduplicatedContentItems"
   | "usersConsidered"
   | "usersAssigned"
   | "usersCreated"
@@ -944,6 +970,7 @@ function toLogSummary(summary: DailyJobTestOutput["summary"]): Record<string, nu
     total_processed_articles: summary.totalProcessedArticles,
     total_generated_items: summary.totalGeneratedItems,
     total_stored_items: summary.totalStoredItems,
+    total_content_items_reused_by_dedup: summary.totalDeduplicatedContentItems,
     total_users_considered: summary.totalUsersConsidered,
     total_users_assigned: summary.totalUsersAssigned,
     total_users_created: summary.totalUsersCreated,
@@ -1208,15 +1235,47 @@ function buildOperatorSummary(
   const failedLanguages = languageResults
     .filter((result) => result.status === "failed")
     .map((result) => result.language);
+  const failures = languageResults
+    .filter((result) => result.status === "failed")
+    .map((result) => `${result.language}: ${result.error ?? "unknown failure"}`);
+  const usersReceivedContent = summary.totalUsersAssigned > 0;
+  const rerunSafe = options.dryRun || status !== "failed";
+  const headline =
+    status === "completed"
+      ? `Completed: ${summary.totalUsersAssigned} user assignment(s), ${summary.totalStoredItems} stored item link(s).`
+      : status === "partial_failed"
+      ? `Partial failure: ${summary.languagesSucceeded}/${summary.languagesRequested} language(s) completed; ${summary.totalUsersAssigned} user assignment(s).`
+      : `Failed: no complete production daily job for ${options.dropDate}.`;
+  const recoveryHints = buildOperatorRecoveryHints({
+    status,
+    options,
+    summary,
+    failedLanguages,
+    metrics
+  });
 
   return {
     runId,
     status,
+    headline,
+    whatHappened: `${summary.languagesSucceeded}/${summary.languagesRequested} language(s) completed; generated=${summary.totalGeneratedItems}, stored=${summary.totalStoredItems}, assigned=${summary.totalUsersAssigned}.`,
+    usersReceivedContent,
+    rerunSafe,
+    rerunRecommendation: rerunSafe
+      ? "Rerun is safe at daily_drop level: drops upsert by user/date and links upsert by slot/position. Review failed languages before rerunning all languages."
+      : "Do not rerun blindly. Inspect failures and run content:prod-dry-run before any write retry.",
     generated: summary.totalGeneratedItems,
     stored: summary.totalStoredItems,
     assigned: summary.totalUsersAssigned,
+    deduplicatedContentItems: summary.totalDeduplicatedContentItems,
     failedLanguages,
     failedTopics: failedLanguages.length > 0 ? options.topics : [],
+    failures,
+    recoveryHints,
+    deduplication: {
+      contentItemsReused: summary.totalDeduplicatedContentItems,
+      activeDedupKeyUniqueIndexRequired: true
+    },
     costEstimate: {
       available: metrics.estimated_cost_available,
       estimatedUsd: metrics.estimated_cost_usd,
@@ -1226,9 +1285,45 @@ function buildOperatorSummary(
       stableRunId: true,
       dailyDropsUpsertByUserDate: true,
       dailyDropItemsReplaceBySlotPosition: true,
-      contentItemsDeduplicated: false
+      contentItemsDeduplicated: true
     }
   };
+}
+
+function buildOperatorRecoveryHints(input: {
+  status: DailyJobStatus;
+  options: DailyJobRunOptions;
+  summary: DailyJobOutput["summary"];
+  failedLanguages: Language[];
+  metrics: JobRunMetrics;
+}): string[] {
+  const hints: string[] = [];
+
+  if (input.failedLanguages.length > 0) {
+    hints.push(`Failed languages: ${input.failedLanguages.join(", ")}. Rerun only failed language(s) after a production dry-run passes.`);
+  }
+
+  if (input.metrics.rss_failed > 0) {
+    hints.push(`RSS failures reported: ${input.metrics.rss_failed}. Check connector logs and content:job-health before publishing another run.`);
+  }
+
+  if (input.metrics.llm_timeout_count > 0) {
+    hints.push(`LLM timeouts reported: ${input.metrics.llm_timeout_count}. Review timeout/model config before retry.`);
+  }
+
+  if (Object.keys(input.metrics.validation_failures_by_rule).length > 0) {
+    hints.push(`Validation failures by rule: ${JSON.stringify(input.metrics.validation_failures_by_rule)}.`);
+  }
+
+  if (!input.options.dryRun && input.summary.totalStoredItems > 0 && input.summary.totalUsersAssigned === 0) {
+    hints.push("Content was stored but no users were assigned. Check onboarding eligibility and assignment logs.");
+  }
+
+  if (input.status === "failed") {
+    hints.push("Failed job_runs should be treated as stop conditions until content:prod-dry-run and content:job-health are reviewed.");
+  }
+
+  return hints;
 }
 
 function buildContentMetadata(options: DailyJobRunOptions, runId: string, testRunId: string): Record<string, unknown> {
@@ -1462,5 +1557,7 @@ function envFlag(name: string): boolean {
 }
 
 function logProgress(message: string, details: Record<string, unknown>, prefix = "daily-job-test"): void {
-  process.stderr.write(`[${prefix}] ${new Date().toISOString()} ${message} ${JSON.stringify(details)}\n`);
+  process.stderr.write(
+    `[${prefix}] ${new Date().toISOString()} ${message} ${JSON.stringify(redactLogIdentifiers(details))}\n`
+  );
 }

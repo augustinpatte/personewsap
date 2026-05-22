@@ -4,6 +4,7 @@ import { assertValidDailyDropPayload } from "../generation/validation.js";
 import { processArticles } from "../processing/pipeline.js";
 import type { SourceFetcher } from "../sources/sourceFetcher.js";
 import type { ContentRepository } from "../storage/contentRepository.js";
+import { redactIdentifier } from "../utils/redactIdentifier.js";
 import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "./dailyDropBuilder.js";
 
 const REQUIRED_DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
@@ -93,7 +94,7 @@ export class DailyContentJob {
           const selection = selectDailyDropItemsForUser(preference, stored);
           const missingSlots = missingRequiredSlots(selection.items);
           console.info("[content-engine] assignment topic selection", {
-            user_id: preference.user_id,
+            user_id: redactIdentifier(preference.user_id),
             language,
             newsletter_topics_selected: selection.diagnostics.newsletter.selectedTopicIds,
             mini_case_topics_selected: selection.diagnostics.miniCase.allowedTopicIds,
@@ -102,7 +103,7 @@ export class DailyContentJob {
           });
           if (selection.diagnostics.miniCase.fallbackReason !== "none") {
             console.warn("[content-engine] mini-case topic fallback", {
-              user_id: preference.user_id,
+              user_id: redactIdentifier(preference.user_id),
               language,
               mini_case_topics_selected: selection.diagnostics.miniCase.allowedTopicIds,
               requested_topic_id: selection.diagnostics.miniCase.requestedTopicId,
@@ -112,7 +113,7 @@ export class DailyContentJob {
           }
           if (missingSlots.length > 0) {
             console.warn("[content-engine] daily drop assignment skipped incomplete selection", {
-              user_id: preference.user_id,
+              user_id: redactIdentifier(preference.user_id),
               language,
               missing_slots: missingSlots,
               mini_case_topics: preference.mini_case_topics,

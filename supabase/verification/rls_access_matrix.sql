@@ -357,6 +357,30 @@ FROM public.daily_drops
 WHERE user_id = :'user_b'::uuid
   AND status IN ('published', 'read', 'archived');
 
+INSERT INTO verification_results
+SELECT
+  'authenticated user cannot read another push_tokens',
+  CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+  count(*)::text || ' row(s)'
+FROM public.push_tokens
+WHERE user_id = :'user_b'::uuid;
+
+INSERT INTO verification_results
+SELECT
+  'authenticated user cannot read another user_mini_case_topic_preferences',
+  CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+  count(*)::text || ' row(s)'
+FROM public.user_mini_case_topic_preferences
+WHERE user_id = :'user_b'::uuid;
+
+INSERT INTO verification_results
+SELECT
+  'authenticated user cannot read another mini_case_responses',
+  CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+  count(*)::text || ' row(s)'
+FROM public.mini_case_responses
+WHERE user_id = :'user_b'::uuid;
+
 SELECT *
 FROM verification_results
 ORDER BY check_name;

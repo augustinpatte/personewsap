@@ -98,7 +98,10 @@ describe("LLM sanitizer", () => {
   it("canonicalizes supplied source URLs and appends the exact source/date line", () => {
     const payload = payloadWithItem(newsletterItem(`${SOURCE_URL}/?utm_medium=llm#draft`, [
       "Oil prices rose after a supply disruption changed inflation expectations.",
-      "The finance signal is market risk and funding cost pressure for operators."
+      "The finance signal is market risk and funding cost pressure for operators.",
+      "A production-valid brief should keep the judgment narrow: it should not turn the source into personal financial advice, and it should name which budget assumption would change if the risk signal persists.",
+      "The observable follow-up is whether funding costs, inflation expectations, or budget guidance move again after the dated source event.",
+      "That final signal gives the reader a concrete way to separate a sourced fact from a broader forecast."
     ].join("\n\n")));
 
     const sanitized = sanitizeLlmDailyDropPayload(payload, [SOURCE]);
@@ -181,6 +184,8 @@ function exactSourceBody(sourceUrl: string): string {
     "Oil prices rose after a supply disruption changed inflation and market risk expectations.",
     "The finance mechanism is risk repricing: higher uncertainty changes funding costs, budget buffers, and the timing of capital decisions.",
     "The observable signal is whether funding costs, inflation expectations, or budget guidance move again after the initial shock.",
+    "A strong daily brief keeps the claim narrow: it does not turn the sourced market move into a personal investment recommendation, and it names what evidence would make a finance team change a budget or wait.",
+    "That keeps the explanation concrete enough for learning while avoiding a generic conclusion detached from the cited material.",
     `Source: Reputable Markets Desk, published ${SOURCE_DATE}, retrieved ${RETRIEVED_DATE}. ${sourceUrl}`
   ].join("\n\n");
 }

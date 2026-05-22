@@ -20,6 +20,7 @@ export type LanguageJobMetrics = {
   validation_failures_by_rule: Record<string, number>;
   generated_items: number;
   stored_items: number;
+  content_items_deduplicated: number;
   assigned_users: number;
   estimated_input_tokens: number | null;
   estimated_output_tokens: number | null;
@@ -42,6 +43,7 @@ export type JobRunMetrics = {
   validation_failures_by_rule: Record<string, number>;
   generated_items_by_language: Partial<Record<Language, number>>;
   stored_items: number;
+  content_items_deduplicated: number;
   assigned_users: number;
   estimated_input_tokens: number | null;
   estimated_output_tokens: number | null;
@@ -78,6 +80,7 @@ export function buildLanguageJobMetrics(input: {
   validationFailuresByRule?: Record<string, number>;
   payload: DailyDropPayload | null;
   storedItems: number;
+  deduplicatedContentItems: number;
   assignedUsers: number;
   pricing: PricingConfig;
 }): LanguageJobMetrics {
@@ -107,6 +110,7 @@ export function buildLanguageJobMetrics(input: {
     validation_failures_by_rule: input.validationFailuresByRule ?? {},
     generated_items: input.payload?.items.length ?? 0,
     stored_items: input.storedItems,
+    content_items_deduplicated: input.deduplicatedContentItems,
     assigned_users: input.assignedUsers,
     estimated_input_tokens: tokenEstimate.input,
     estimated_output_tokens: tokenEstimate.output,
@@ -131,6 +135,7 @@ export function buildFailedLanguageJobMetrics(input: {
     validation_failures_by_rule: input.errorReason === "validation_error" ? parseValidationFailures(input.error) : {},
     generated_items: 0,
     stored_items: 0,
+    content_items_deduplicated: 0,
     assigned_users: 0,
     estimated_input_tokens: input.useLlm ? null : null,
     estimated_output_tokens: input.useLlm ? null : null,
@@ -188,6 +193,7 @@ export function aggregateJobRunMetrics(
       languageMetrics.map((result) => [result.language, result.metrics.generated_items])
     ) as Partial<Record<Language, number>>,
     stored_items: sumMetric(languageMetrics, "stored_items"),
+    content_items_deduplicated: sumMetric(languageMetrics, "content_items_deduplicated"),
     assigned_users: sumMetric(languageMetrics, "assigned_users"),
     estimated_input_tokens: hasTokenEstimate ? inputTokens : null,
     estimated_output_tokens: hasTokenEstimate ? outputTokens : null,
