@@ -34,11 +34,11 @@ const translations: Record<string, Record<string, string>> = {
   'topics.subtitle': { fr: 'Choisissez les sujets qui vous intéressent', en: 'Choose the topics that interest you' },
   'topics.sport': { fr: 'Sport', en: 'Sports' },
   'topics.international': { fr: 'International', en: 'International' },
-  'topics.finance': { fr: 'Finance / Économie', en: 'Finance / Economy' },
-  'topics.stocks': { fr: 'Marché actions', en: 'Stock Market' },
-  'topics.automotive': { fr: 'Industrie automobile', en: 'Automotive industry' },
-  'topics.pharma': { fr: 'Industrie pharmaceutique', en: 'Pharmaceutical industry' },
-  'topics.ai': { fr: 'Intelligence artificielle', en: 'Artificial Intelligence' },
+  'topics.finance_economy': { fr: 'Finance & économie', en: 'Finance & Economy' },
+  'topics.stock_market': { fr: 'Marché actions', en: 'Stock Market' },
+  'topics.automotive': { fr: 'Automobile', en: 'Automotive' },
+  'topics.pharma': { fr: 'Pharma', en: 'Pharma' },
+  'topics.artificial_intelligence': { fr: 'Intelligence artificielle', en: 'Artificial Intelligence' },
   'topics.culture': { fr: 'Culture', en: 'Culture' },
 
   // Articles page

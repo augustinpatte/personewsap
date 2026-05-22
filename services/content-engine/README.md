@@ -107,6 +107,7 @@ npm run daily-job
 npm run prod-dry-run
 npm run prod-run
 npm run job-health
+npm run job-health:strict
 ```
 
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
@@ -114,6 +115,8 @@ npm run job-health
 `daily-job` is the production scheduler entrypoint. Use `DRY_RUN=true` for a no-write rehearsal; write mode requires server-side Supabase service-role credentials.
 
 `job-health` is the read-only operator check for rows stored in `public.job_runs`. It requires server-side Supabase credentials and prints RSS, LLM, validation, storage, assignment, and cost-estimate health.
+
+`job-health:strict` is the automation form. It exits nonzero for both `warning` and `critical` states, which is the safer choice for cron/launchd notifications.
 
 `prod-dry-run` sets the production RSS/LLM source controls with `DRY_RUN=true`. It still requires `OPENAI_API_KEY`, but it never writes to Supabase.
 

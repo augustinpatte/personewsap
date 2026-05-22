@@ -54,7 +54,7 @@ This proof writes marked test content through `daily-job-test`. Use a local, sta
 | Test commands | `npm run smoke`, `npm run mobile:typecheck`, `npm run content:build`, `npm run content:dry-run` | No | Routine local validation before handoff. |
 | Local no-write commands | `npm run content:llm-run`, `npm run content:llm-proof`, `npm run content:quality-proof`, `npm run content:prod-dry-run`, `npm run content:rss-check`, `npm run supabase:doctor`, `npm run content:debug-users`, `npm run content:health` | No | LLM/RSS inspection, static/live read-only schema checks, user eligibility diagnostics, production-shaped dry runs, and job health checks. |
 | Local-only dangerous write commands | `npm run backend:e2e`, `npm run backend:e2e:live-rss`, `npm run backend:e2e:llm`, `npm run content:persist-test`, `npm run content:assign-test-users`, `npm run content:personalize-test`, `npm run content:daily-job-test`, `npm run content:cleanup-test` | Yes | Disposable or staging Supabase testing with explicit confirmation flags. |
-| Production commands | `npm run content:daily-job` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. Production runs write a `job_runs` summary for `content:job-health`. |
+| Production commands | `npm run content:daily-job`, `npm run content:prod-run` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. Production runs write a `job_runs` summary for `content:job-health`. |
 
 Dangerous write commands require `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the command-specific `CONFIRM_*` flag. Treat them as staging/test tools unless a production owner intentionally accepts test rows in production. `content:daily-job` does not use a test confirmation flag, so run it with `DRY_RUN=true` until the production environment, scheduler, monitoring, source rights, and editorial review workflow are explicitly approved.
 
@@ -145,7 +145,7 @@ npm --prefix apps/mobile run start
 Local mobile checks:
 
 - Sign up or log in.
-- Complete onboarding: language, goal, topics, article count, frequency.
+- Complete onboarding: language, newsletter/practical-case topics, article counts.
 - Open Account and confirm the tester user id is visible.
 - Open Today and Library.
 - Confirm the app clearly labels live data versus preview/mock mode.
@@ -242,6 +242,14 @@ SUPABASE_URL=... \
 SUPABASE_ANON_KEY=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
 npm run supabase:doctor -- --live
+```
+
+For production automation, use strict read-only checks so warnings fail the job:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+npm run content:job-health -- --date "$(date +%F)" --strict
 ```
 
 ## 6. Backend E2E Proof

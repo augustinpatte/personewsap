@@ -1,12 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   isLanguage,
+  isMiniCaseTopicId,
   isTopicId,
   type DailyDropStatus,
   type DailyDropPayload,
   type DailyDropSlot,
   type GeneratedContentItem,
   type Language,
+  type MiniCaseTopicId,
   type RankedArticle,
   type TopicId,
   type UserDailyDropPreference
@@ -129,6 +131,11 @@ type DebugTopicPreferenceRow = {
   enabled: boolean | null;
 };
 
+type DebugMiniCaseTopicPreferenceRow = {
+  user_id: string;
+  enabled: boolean | null;
+};
+
 type DebugDailyDropRow = {
   user_id: string;
   status: DailyDropStatus;
@@ -145,7 +152,6 @@ type AppUserPreferenceRow = {
   goal: string | null;
   frequency: string | null;
   newsletter_article_count: number | null;
-  mini_case_topic_id: string | null;
 };
 
 type AppUserTopicPreferenceRow = {
@@ -156,13 +162,21 @@ type AppUserTopicPreferenceRow = {
   enabled: boolean | null;
 };
 
+type AppUserMiniCasePreferenceRow = {
+  user_id: string;
+  topic_id: string | null;
+  position: number | null;
+  enabled: boolean | null;
+};
+
 export type UserDailyDropPreferenceSkip = {
   user_id: string;
   reason:
     | "invalid_profile_language"
     | "language_mismatch"
     | "missing_user_preferences"
-    | "missing_enabled_user_topic_preferences";
+    | "missing_enabled_user_topic_preferences"
+    | "missing_enabled_user_mini_case_preferences";
   language: string | null;
   expectedLanguage: Language;
   enabledTopicCount?: number;
@@ -174,6 +188,7 @@ export type UserDailyDropPreferenceSelection = {
   profilesRead: number;
   userPreferencesRead: number;
   userTopicPreferencesRead: number;
+  userMiniCasePreferencesRead: number;
 };
 
 export type DailyDropWriteResult = {
@@ -196,6 +211,8 @@ export type DailyJobUserDebugResult = {
     userPreferences: number;
     topicPreferences: number;
     enabledTopicPreferences: number;
+    miniCaseTopicPreferences: number;
+    enabledMiniCaseTopicPreferences: number;
     dailyDropsOnDate: number;
     dailyDropsOnDateForLanguage: number;
     dailyJobConsideredBeforeLimit: number;
@@ -207,6 +224,7 @@ export type DailyJobUserDebugResult = {
     no_profile: number;
     no_preferences: number;
     no_topics: number;
+    no_mini_case_topics: number;
     language_mismatch: number;
     already_has_drop: number;
   };
@@ -753,12 +771,14 @@ export class ContentRepository {
   async listUserDailyDropPreferenceSelection(language: Language): Promise<UserDailyDropPreferenceSelection> {
     const profiles = await this.listAppProfilesForPreferenceSelection();
     const profileIds = profiles.map((profile) => profile.id);
-    const [preferences, topicPreferences] = await Promise.all([
+    const [preferences, topicPreferences, miniCaseTopicPreferences] = await Promise.all([
       this.listAppUserPreferences(profileIds),
-      this.listAppUserTopicPreferences(profileIds)
+      this.listAppUserTopicPreferences(profileIds),
+      this.listAppUserMiniCaseTopicPreferences(profileIds)
     ]);
     const preferencesByUserId = new Map(preferences.map((preference) => [preference.user_id, preference]));
     const topicsByUserId = groupTopicPreferencesByUserId(topicPreferences);
+    const miniCaseTopicsByUserId = groupMiniCaseTopicPreferencesByUserId(miniCaseTopicPreferences);
     const selectedPreferences: UserDailyDropPreference[] = [];
     const skippedUsers: UserDailyDropPreferenceSkip[] = [];
 
@@ -810,17 +830,37 @@ export class ContentRepository {
         continue;
       }
 
+      const enabledMiniCaseTopics = (miniCaseTopicsByUserId.get(profile.id) ?? [])
+        .filter((topic) => topic.enabled !== false)
+        .map((topic) => ({
+          ...topic,
+          topic_id: normalizeMiniCasePreferenceTopicId(topic.topic_id)
+        }))
+        .filter((topic): topic is AppUserMiniCasePreferenceRow & { topic_id: MiniCaseTopicId } =>
+          Boolean(topic.topic_id)
+        );
+
+      if (enabledMiniCaseTopics.length === 0) {
+        skippedUsers.push({
+          user_id: profile.id,
+          reason: "missing_enabled_user_mini_case_preferences",
+          language: profile.language,
+          expectedLanguage: language,
+          enabledTopicCount: enabledTopics.length
+        });
+        continue;
+      }
+
       selectedPreferences.push({
         user_id: profile.id,
         language,
         goal: String(preference.goal ?? "become_sharper_daily") as UserDailyDropPreference["goal"],
         frequency: String(preference.frequency ?? "daily") as UserDailyDropPreference["frequency"],
         newsletter_article_count: normalizeNewsletterArticleCount(preference.newsletter_article_count),
-        mini_case_topic_id:
-          isTopicId(preference.mini_case_topic_id ?? "") &&
-          enabledTopics.some((topic) => topic.topic_id === preference.mini_case_topic_id)
-            ? preference.mini_case_topic_id as UserDailyDropPreference["mini_case_topic_id"]
-            : null,
+        mini_case_topics: enabledMiniCaseTopics.map((topic) => ({
+          topic_id: topic.topic_id,
+          position: topic.position === null || topic.position === undefined ? null : Number(topic.position)
+        })),
         topics: enabledTopics.map((topic) => ({
           topic_id: topic.topic_id as UserDailyDropPreference["topics"][number]["topic_id"],
           articles_count: normalizeArticlesCount(topic.articles_count),
@@ -834,7 +874,8 @@ export class ContentRepository {
       skippedUsers,
       profilesRead: profiles.length,
       userPreferencesRead: preferences.length,
-      userTopicPreferencesRead: topicPreferences.length
+      userTopicPreferencesRead: topicPreferences.length,
+      userMiniCasePreferencesRead: miniCaseTopicPreferences.length
     };
   }
 
@@ -843,16 +884,22 @@ export class ContentRepository {
     language: Language;
     userLimit: number;
   }): Promise<DailyJobUserDebugResult> {
-    const [profiles, preferences, topicPreferences, dailyDrops] = await Promise.all([
+    const [profiles, preferences, topicPreferences, miniCaseTopicPreferences, dailyDrops] = await Promise.all([
       this.listDebugProfiles(),
       this.listDebugUserPreferences(),
       this.listDebugTopicPreferences(),
+      this.listDebugMiniCaseTopicPreferences(),
       this.listDebugDailyDrops(input.dropDate)
     ]);
     const profileIds = new Set(profiles.map((profile) => profile.id));
     const preferencesByUser = new Set(preferences.map((preference) => preference.user_id));
     const enabledTopicsByUser = new Set(
       topicPreferences
+        .filter((topic) => topic.enabled !== false)
+        .map((topic) => topic.user_id)
+    );
+    const enabledMiniCaseTopicsByUser = new Set(
+      miniCaseTopicPreferences
         .filter((topic) => topic.enabled !== false)
         .map((topic) => topic.user_id)
     );
@@ -871,6 +918,12 @@ export class ContentRepository {
       }
     }
 
+    for (const topic of miniCaseTopicPreferences) {
+      if (!profileIds.has(topic.user_id)) {
+        orphanUserIds.add(topic.user_id);
+      }
+    }
+
     for (const drop of dailyDrops) {
       if (!profileIds.has(drop.user_id)) {
         orphanUserIds.add(drop.user_id);
@@ -879,7 +932,11 @@ export class ContentRepository {
 
     const profilesMatchingLanguage = profiles.filter((profile) => profile.language === input.language);
     const assignmentReadyProfiles = profilesMatchingLanguage.filter((profile) => {
-      return preferencesByUser.has(profile.id) && enabledTopicsByUser.has(profile.id);
+      return (
+        preferencesByUser.has(profile.id) &&
+        enabledTopicsByUser.has(profile.id) &&
+        enabledMiniCaseTopicsByUser.has(profile.id)
+      );
     });
     const dailyJobConsideredBeforeLimit = assignmentReadyProfiles.length;
     const alreadyHasDrop = assignmentReadyProfiles.filter((profile) => dailyDropsByUser.has(profile.id)).length;
@@ -896,6 +953,8 @@ export class ContentRepository {
         userPreferences: preferences.length,
         topicPreferences: topicPreferences.length,
         enabledTopicPreferences: topicPreferences.filter((topic) => topic.enabled !== false).length,
+        miniCaseTopicPreferences: miniCaseTopicPreferences.length,
+        enabledMiniCaseTopicPreferences: miniCaseTopicPreferences.filter((topic) => topic.enabled !== false).length,
         dailyDropsOnDate: dailyDrops.length,
         dailyDropsOnDateForLanguage: dailyDrops.filter((drop) => drop.language === input.language).length,
         dailyJobConsideredBeforeLimit,
@@ -909,12 +968,19 @@ export class ContentRepository {
         no_topics: profilesMatchingLanguage.filter((profile) => {
           return preferencesByUser.has(profile.id) && !enabledTopicsByUser.has(profile.id);
         }).length,
+        no_mini_case_topics: profilesMatchingLanguage.filter((profile) => {
+          return (
+            preferencesByUser.has(profile.id) &&
+            enabledTopicsByUser.has(profile.id) &&
+            !enabledMiniCaseTopicsByUser.has(profile.id)
+          );
+        }).length,
         language_mismatch: profiles.filter((profile) => profile.language !== input.language).length,
         already_has_drop: alreadyHasDrop
       },
       notes: [
         "No emails are selected or printed by this diagnostic.",
-        "dailyJobConsideredBeforeLimit mirrors daily-job-test user selection: matching profile language, user_preferences, and at least one enabled topic.",
+        "dailyJobConsideredBeforeLimit mirrors daily-job-test user selection: matching profile language, user_preferences, at least one enabled newsletter topic, and at least one enabled mini-case topic.",
         "eligibleNewAssignments additionally requires no daily_drops row for the target date.",
         "daily-job-test updates existing user/date drops; already_has_drop explains why a user is not a new assignment."
       ]
@@ -947,7 +1013,7 @@ export class ContentRepository {
 
     const { data, error } = await this.supabase
       .from("user_preferences")
-      .select("user_id,goal,frequency,newsletter_article_count,mini_case_topic_id")
+      .select("user_id,goal,frequency,newsletter_article_count")
       .in("user_id", uniqueUserIds)
       .returns<AppUserPreferenceRow[]>();
 
@@ -955,6 +1021,32 @@ export class ContentRepository {
       throwPersistenceError({
         table: "user_preferences",
         action: "select user preferences for daily drop preference selection",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  private async listAppUserMiniCaseTopicPreferences(userIds: string[]): Promise<AppUserMiniCasePreferenceRow[]> {
+    const uniqueUserIds = [...new Set(userIds)];
+
+    if (uniqueUserIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from("user_mini_case_topic_preferences")
+      .select("user_id,topic_id,position,enabled")
+      .in("user_id", uniqueUserIds)
+      .order("position", { ascending: true, nullsFirst: false })
+      .order("topic_id", { ascending: true })
+      .returns<AppUserMiniCasePreferenceRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "user_mini_case_topic_preferences",
+        action: "select mini-case topic preferences for daily drop preference selection",
         error
       });
     }
@@ -974,6 +1066,7 @@ export class ContentRepository {
       .select("user_id,topic_id,articles_count,position,enabled")
       .in("user_id", uniqueUserIds)
       .order("position", { ascending: true, nullsFirst: false })
+      .order("topic_id", { ascending: true })
       .returns<AppUserTopicPreferenceRow[]>();
 
     if (error) {
@@ -1031,6 +1124,23 @@ export class ContentRepository {
       throwPersistenceError({
         table: "user_topic_preferences",
         action: "select topic preferences for user debug",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  private async listDebugMiniCaseTopicPreferences(): Promise<DebugMiniCaseTopicPreferenceRow[]> {
+    const { data, error } = await this.supabase
+      .from("user_mini_case_topic_preferences")
+      .select("user_id,enabled")
+      .returns<DebugMiniCaseTopicPreferenceRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "user_mini_case_topic_preferences",
+        action: "select mini-case topic preferences for user debug",
         error
       });
     }
@@ -1137,7 +1247,8 @@ export class ContentRepository {
           drop_date: input.dropDate,
           language: input.language,
           status: input.status,
-          published_at: publishedAt
+          published_at: publishedAt,
+          updated_at: new Date().toISOString()
         },
         { onConflict: "user_id,drop_date" }
       )
@@ -1325,6 +1436,53 @@ function groupTopicPreferencesByUserId(
   }
 
   return groupedRows;
+}
+
+function groupMiniCaseTopicPreferencesByUserId(
+  rows: AppUserMiniCasePreferenceRow[]
+): Map<string, AppUserMiniCasePreferenceRow[]> {
+  const groupedRows = new Map<string, AppUserMiniCasePreferenceRow[]>();
+
+  for (const row of rows) {
+    groupedRows.set(row.user_id, [...(groupedRows.get(row.user_id) ?? []), row]);
+  }
+
+  return groupedRows;
+}
+
+function normalizeMiniCasePreferenceTopicId(value: string | null): MiniCaseTopicId | null {
+  if (!value) {
+    return null;
+  }
+
+  if (isMiniCaseTopicId(value)) {
+    return value;
+  }
+
+  if (!isTopicId(value)) {
+    return null;
+  }
+
+  switch (value) {
+    case "law":
+      return "law";
+    case "finance":
+      return "finance_economy";
+    case "tech_ai":
+      return "artificial_intelligence";
+    case "business":
+      return "stock_market";
+    case "medicine":
+      return "health";
+    case "engineering":
+      return "engineering";
+    case "sport_business":
+      return "entrepreneurship";
+    case "culture_media":
+      return "career";
+    default:
+      return null;
+  }
 }
 
 function normalizeNewsletterArticleCount(value: number | null): number {

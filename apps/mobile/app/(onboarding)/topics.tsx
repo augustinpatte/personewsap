@@ -1,4 +1,4 @@
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useRouter, type Href } from "expo-router";
 
 import {
   getOnboardingCopy,
@@ -9,6 +9,8 @@ import {
   useOnboarding
 } from "../../src/features/onboarding";
 import { trackAnalyticsEvent } from "../../src/lib/analytics";
+
+const articleCountHref = "/(onboarding)/article-count" as Href;
 
 export default function TopicsScreen() {
   const router = useRouter();
@@ -30,13 +32,13 @@ export default function TopicsScreen() {
       }
       primaryDisabled={state.selectedTopics.length === 0}
       primaryLabel={copy.common.continue}
-      onPrimaryPress={() => router.push("/(onboarding)/article-count")}
-      progressLabel={copy.step(2, 3)}
+      onPrimaryPress={() => router.push(articleCountHref)}
+      progressLabel={copy.step(2, 4)}
       secondaryLabel={copy.common.back}
       onSecondaryPress={() => router.back()}
       step={2}
       title={copy.topics.title}
-      totalSteps={3}
+      totalSteps={4}
     >
       {topicOptions.map((option) => (
         <SelectableCard

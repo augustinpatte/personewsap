@@ -88,15 +88,53 @@ export type NewsletterTopicPreferenceRow = {
   position: number;
 };
 
+export const MINI_CASE_TOPIC_IDS = [
+  "law",
+  "finance_economy",
+  "artificial_intelligence",
+  "stock_market",
+  "engineering",
+  "health",
+  "entrepreneurship",
+  "career"
+] as const;
+
+export type MiniCaseTopicId = (typeof MINI_CASE_TOPIC_IDS)[number];
+
+export const MINI_CASE_TO_BACKEND_TOPIC_ID = {
+  law: "law",
+  finance_economy: "finance",
+  artificial_intelligence: "tech_ai",
+  stock_market: "business",
+  engineering: "engineering",
+  health: "medicine",
+  entrepreneurship: "business",
+  career: "business"
+} as const satisfies Record<MiniCaseTopicId, TopicId>;
+
+export type MiniCaseTopicOption = OnboardingOption<MiniCaseTopicId> & {
+  backendTopicId: TopicId;
+};
+
+export type MiniCaseTopicPreferenceRow = {
+  user_id: string;
+  topic_id: MiniCaseTopicId;
+  enabled: boolean;
+  position: number;
+};
+
+export const MIN_MINI_CASE_TOPICS = 1;
+export const MAX_MINI_CASE_TOPICS = 3;
+
 export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
   {
     id: "sport",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.sport,
-    label: "Sport",
+    label: "Sports",
     description: "Sport leagues, athletes, competitions, media rights, and business moves.",
     translations: {
       en: {
-        label: "Sport",
+        label: "Sports",
         description: "Sport leagues, athletes, competitions, media rights, and business moves."
       },
       fr: {
@@ -108,31 +146,31 @@ export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
   {
     id: "international",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.international,
-    label: "Law & Institutions",
-    description: "Rules, cases, regulation, institutions, and global decisions.",
+    label: "International",
+    description: "Global decisions, institutions, geopolitics, trade, and regulation.",
     translations: {
       en: {
-        label: "Law & Institutions",
-        description: "Rules, cases, regulation, institutions, and global decisions."
+        label: "International",
+        description: "Global decisions, institutions, geopolitics, trade, and regulation."
       },
       fr: {
-        label: "Droit & institutions",
-        description: "Règles, affaires, régulation, institutions et décisions mondiales."
+        label: "International",
+        description: "Décisions mondiales, institutions, géopolitique, commerce et régulation."
       }
     }
   },
   {
     id: "finance_economy",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.finance_economy,
-    label: "Finance & Economy",
+    label: "Finance / Economy",
     description: "Macroeconomics, capital, rates, risk, and budget trade-offs.",
     translations: {
       en: {
-        label: "Finance & Economy",
+        label: "Finance / Economy",
         description: "Macroeconomics, capital, rates, risk, and budget trade-offs."
       },
       fr: {
-        label: "Finance & économie",
+        label: "Finance / Économie",
         description: "Macroéconomie, capital, taux, risque et arbitrages de budget."
       }
     }
@@ -140,63 +178,63 @@ export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
   {
     id: "stock_market",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.stock_market,
-    label: "Business & Markets",
-    description: "Companies, strategy, earnings, sectors, and market signals.",
+    label: "Stock Market",
+    description: "Stocks, earnings, sectors, valuation, and market signals.",
     translations: {
       en: {
-        label: "Business & Markets",
-        description: "Companies, strategy, earnings, sectors, and market signals."
+        label: "Stock Market",
+        description: "Stocks, earnings, sectors, valuation, and market signals."
       },
       fr: {
-        label: "Business & marchés",
-        description: "Entreprises, stratégie, résultats, secteurs et signaux de marché."
+        label: "Marché actions",
+        description: "Actions, résultats, secteurs, valorisation et signaux de marché."
       }
     }
   },
   {
     id: "automotive",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.automotive,
-    label: "Engineering & Mobility",
-    description: "Systems, mobility, manufacturing, energy, infrastructure, and constraints.",
+    label: "Automotive Industry",
+    description: "Automakers, mobility, manufacturing, energy, infrastructure, and constraints.",
     translations: {
       en: {
-        label: "Engineering & Mobility",
-        description: "Systems, mobility, manufacturing, energy, infrastructure, and constraints."
+        label: "Automotive Industry",
+        description: "Automakers, mobility, manufacturing, energy, infrastructure, and constraints."
       },
       fr: {
-        label: "Ingénierie & mobilité",
-        description: "Systèmes, mobilité, industrie, énergie, infrastructure et contraintes."
+        label: "Industrie automobile",
+        description: "Constructeurs, mobilité, production, énergie, infrastructure et contraintes."
       }
     }
   },
   {
     id: "pharmaceutical",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.pharmaceutical,
-    label: "Medicine & Biotech",
-    description: "Clinical evidence, drugmakers, health systems, biotech, access, and safety.",
+    label: "Pharmaceutical Industry",
+    description: "Drugmakers, biotech, clinical evidence, access, regulation, and safety.",
     translations: {
       en: {
-        label: "Medicine & Biotech",
-        description: "Clinical evidence, drugmakers, health systems, biotech, access, and safety."
+        label: "Pharmaceutical Industry",
+        description: "Drugmakers, biotech, clinical evidence, access, regulation, and safety."
       },
       fr: {
-        label: "Médecine & biotech",
-        description: "Preuves cliniques, laboratoires, systèmes de santé, biotech, accès et sécurité."
+        label: "Industrie pharmaceutique",
+        description: "Laboratoires, biotech, preuves cliniques, accès, régulation et sécurité."
       }
     }
   },
   {
     id: "artificial_intelligence",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.artificial_intelligence,
-    label: "AI & Tech",
+    label: "Artificial Intelligence",
     description: "AI models, platforms, product bets, compute, regulation, and adoption.",
     translations: {
       en: {
-        label: "AI & Tech",
+        label: "Artificial Intelligence",
         description: "AI models, platforms, product bets, compute, regulation, and adoption."
       },
       fr: {
-        label: "IA & tech",
+        label: "Intelligence artificielle",
         description: "Modèles IA, plateformes, paris produit, calcul, régulation et adoption."
       }
     }
@@ -204,20 +242,74 @@ export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
   {
     id: "culture",
     backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.culture,
-    label: "Culture & Media",
+    label: "Culture",
     description: "Culture, media, creative industries, platforms, attention, and influence.",
     translations: {
       en: {
-        label: "Culture & Media",
+        label: "Culture",
         description: "Culture, media, creative industries, platforms, attention, and influence."
       },
       fr: {
-        label: "Culture & médias",
+        label: "Culture",
         description: "Culture, médias, industries créatives, plateformes, attention et influence."
       }
     }
   }
 ];
+
+export const MINI_CASE_TOPIC_OPTIONS: MiniCaseTopicOption[] = MINI_CASE_TOPIC_IDS.map((id) => {
+  const copy = {
+    finance_economy: {
+      en: ["Finance / Economy", "Budget trade-offs, risk, rates, valuation, and capital choices."],
+      fr: ["Finance / économie", "Arbitrages de budget, risque, taux, valorisation et choix de capital."]
+    },
+    law: {
+      en: ["Law", "Rules, liability, compliance, negotiations, and institutional constraints."],
+      fr: ["Droit", "Règles, responsabilité, conformité, négociations et contraintes institutionnelles."]
+    },
+    artificial_intelligence: {
+      en: ["Artificial Intelligence", "AI adoption, product choices, platforms, data, and regulation."],
+      fr: ["Intelligence artificielle", "Adoption de l'IA, choix produit, plateformes, données et régulation."]
+    },
+    engineering: {
+      en: ["Engineering", "Systems, infrastructure, manufacturing, constraints, and reliability."],
+      fr: ["Ingénierie", "Systèmes, infrastructure, industrie, contraintes et fiabilité."]
+    },
+    stock_market: {
+      en: ["Stock Market", "Valuation, earnings, investor reactions, risk, and market timing."],
+      fr: ["Bourse", "Valorisation, résultats, réactions d'investisseurs, risque et timing de marché."]
+    },
+    health: {
+      en: ["Health", "Clinical evidence, health systems, safety, access, and ethics."],
+      fr: ["Santé", "Preuves cliniques, systèmes de santé, sécurité, accès et éthique."]
+    },
+    entrepreneurship: {
+      en: ["Entrepreneurship", "Strategy, pricing, operations, growth, and market positioning."],
+      fr: ["Entrepreneuriat", "Stratégie, prix, opérations, croissance et positionnement de marché."]
+    },
+    career: {
+      en: ["Career", "Workplace choices, skills, negotiation, leadership, and career moves."],
+      fr: ["Carrière", "Choix professionnels, compétences, négociation, leadership et trajectoires."]
+    }
+  } satisfies Record<MiniCaseTopicId, Record<Language, [string, string]>>;
+
+  return {
+    id,
+    backendTopicId: MINI_CASE_TO_BACKEND_TOPIC_ID[id],
+    label: copy[id].en[0],
+    description: copy[id].en[1],
+    translations: {
+      en: {
+        label: copy[id].en[0],
+        description: copy[id].en[1]
+      },
+      fr: {
+        label: copy[id].fr[0],
+        description: copy[id].fr[1]
+      }
+    }
+  };
+});
 
 export function localizeOptions<Option extends OnboardingOption<string>>(
   options: Option[],
@@ -243,6 +335,33 @@ export function mapBackendTopicToNewsletterTopic(topicId: TopicId): NewsletterTo
   return TOPIC_OPTIONS.find((option) => option.backendTopicId === topicId)?.id ?? null;
 }
 
+export function mapMiniCaseTopicToBackendTopic(topicId: MiniCaseTopicId): TopicId {
+  return MINI_CASE_TO_BACKEND_TOPIC_ID[topicId];
+}
+
+export function mapBackendTopicToMiniCaseTopic(topicId: TopicId): MiniCaseTopicId | null {
+  switch (topicId) {
+    case "law":
+      return "law";
+    case "finance":
+      return "finance_economy";
+    case "tech_ai":
+      return "artificial_intelligence";
+    case "business":
+      return "entrepreneurship";
+    case "medicine":
+      return "health";
+    case "engineering":
+      return "engineering";
+    case "sport_business":
+      return "entrepreneurship";
+    case "culture_media":
+      return "career";
+    default:
+      return null;
+  }
+}
+
 export function clampNewsletterArticleCount(count: number) {
   return Math.min(
     Math.max(Math.floor(count), MIN_NEWSLETTER_ARTICLES_PER_TOPIC),
@@ -255,6 +374,19 @@ export function normalizeNewsletterTopics(topicIds: readonly NewsletterTopicId[]
     (topicId, index, topics) =>
       isNewsletterTopicId(topicId) && topics.indexOf(topicId) === index
   );
+}
+
+export function isMiniCaseTopicId(value: string): value is MiniCaseTopicId {
+  return MINI_CASE_TOPIC_IDS.includes(value as MiniCaseTopicId);
+}
+
+export function normalizeMiniCaseTopics(topicIds: readonly MiniCaseTopicId[]) {
+  return topicIds
+    .filter(
+      (topicId, index, topics) =>
+        isMiniCaseTopicId(topicId) && topics.indexOf(topicId) === index
+    )
+    .slice(0, MAX_MINI_CASE_TOPICS);
 }
 
 export function buildNewsletterTopicPreferenceRows({
@@ -284,6 +416,31 @@ export function buildNewsletterTopicPreferenceRows({
         enabled && selectedPosition >= 0
           ? selectedPosition + 1
           : normalizedSelectedTopics.length + index + 1
+    };
+  });
+}
+
+export function buildMiniCaseTopicPreferenceRows({
+  selectedTopics,
+  userId
+}: {
+  selectedTopics: readonly MiniCaseTopicId[];
+  userId: string;
+}): MiniCaseTopicPreferenceRow[] {
+  const normalizedSelectedTopics = normalizeMiniCaseTopics(selectedTopics);
+  const selectedTopicIds = new Set(normalizedSelectedTopics);
+
+  return MINI_CASE_TOPIC_OPTIONS.map((topic, index) => {
+    const enabled = selectedTopicIds.has(topic.id);
+    const selectedPosition = normalizedSelectedTopics.indexOf(topic.id);
+    return {
+      user_id: userId,
+      topic_id: topic.id,
+      enabled,
+      position:
+        enabled && selectedPosition >= 0
+          ? selectedPosition + 1
+          : index + 1
     };
   });
 }

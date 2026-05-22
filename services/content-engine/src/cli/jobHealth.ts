@@ -7,6 +7,7 @@ type JobHealthStatus = "ok" | "warning" | "critical";
 export type JobHealthOptions = {
   runDate: string;
   limit: number;
+  strictWarnings: boolean;
 };
 
 export type JobHealthOutput = {
@@ -76,7 +77,7 @@ export async function runJobHealth(options: JobHealthOptions): Promise<JobHealth
   const checks = buildChecks(latestRun);
   const status = worstStatus(checks.map((check) => check.status));
 
-  if (status === "critical") {
+  if (status === "critical" || (options.strictWarnings && status === "warning")) {
     process.exitCode = 1;
   }
 
@@ -100,7 +101,8 @@ export function parseJobHealthOptions(args: string[]): JobHealthOptions {
 
   return {
     runDate: flags.get("date") ?? toDateOnly(new Date()),
-    limit
+    limit,
+    strictWarnings: flags.has("strict")
   };
 }
 

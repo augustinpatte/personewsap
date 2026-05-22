@@ -1,8 +1,9 @@
 import { useEffect } from "react";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 
 import { useAuth } from "../../src/features/auth";
 import {
+  clearStoredOnboardingDraft,
   getOnboardingCopy,
   LANGUAGE_OPTIONS,
   localizeOptions,
@@ -15,15 +16,28 @@ import { trackAnalyticsEvent } from "../../src/lib/analytics";
 export default function LanguageScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
-  const { setLanguage, state } = useOnboarding();
+  const { hydrated, restoredFromStorage, setLanguage, state } = useOnboarding();
   const copy = getOnboardingCopy(state.language);
   const languageOptions = localizeOptions(LANGUAGE_OPTIONS, state.language);
+
+  useEffect(() => {
+    if (!hydrated || !restoredFromStorage) {
+      return;
+    }
+
+    const resumeHref = getResumeHref(state);
+
+    if (resumeHref) {
+      router.replace(resumeHref);
+    }
+  }, [hydrated, restoredFromStorage, router, state]);
 
   useEffect(() => {
     trackAnalyticsEvent("onboarding_started");
   }, []);
 
   const returnToLogin = async () => {
+    await clearStoredOnboardingDraft();
     await signOut();
     router.replace("/(auth)/login");
   };
@@ -35,12 +49,12 @@ export default function LanguageScreen() {
       primaryDisabled={!state.language}
       primaryLabel={copy.common.continue}
       onPrimaryPress={() => router.push("/(onboarding)/topics")}
-      progressLabel={copy.step(1, 3)}
+      progressLabel={copy.step(1, 4)}
       secondaryLabel={copy.language.backToLogin}
       onSecondaryPress={returnToLogin}
       step={1}
       title={copy.language.title}
-      totalSteps={3}
+      totalSteps={4}
     >
       {languageOptions.map((option) => (
         <SelectableCard
@@ -58,4 +72,20 @@ export default function LanguageScreen() {
       ))}
     </OnboardingScaffold>
   );
+}
+
+function getResumeHref(state: ReturnType<typeof useOnboarding>["state"]): Href | null {
+  if (!state.language) {
+    return null;
+  }
+
+  if (state.selectedTopics.length === 0) {
+    return "/(onboarding)/topics" as Href;
+  }
+
+  if (!state.newsletterConfigurationComplete) {
+    return "/(onboarding)/article-count" as Href;
+  }
+
+  return "/(onboarding)/mini-case-topics" as Href;
 }

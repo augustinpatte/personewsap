@@ -9,6 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { getCountryOptions } from '@/lib/countries';
+import {
+  mapNewsletterTopicKeyToStorageTopic,
+  mapStorageTopicToNewsletterTopicKey,
+  NEWSLETTER_TOPIC_KEYS,
+  STORAGE_TOPIC_KEYS,
+} from '@/lib/topicTaxonomy';
 import BrandHeader from '@/components/BrandHeader';
 
 type TopicPreference = {
@@ -16,16 +22,7 @@ type TopicPreference = {
   articlesCount: number;
 };
 
-const TOPIC_KEYS = [
-  'sport',
-  'international',
-  'finance',
-  'stocks',
-  'automotive',
-  'pharma',
-  'ai',
-  'culture',
-];
+const TOPIC_KEYS = NEWSLETTER_TOPIC_KEYS;
 
 const Account = () => {
   const { language, setLanguage, t } = useLanguage();
@@ -104,7 +101,7 @@ const Account = () => {
 
       if (topics) {
         const mapped = topics.map((topic) => ({
-          topicKey: topic.topic_name,
+          topicKey: mapStorageTopicToNewsletterTopicKey(topic.topic_name),
           articlesCount: topic.articles_count,
         }));
         setTopicPreferences(mapped);
@@ -184,7 +181,7 @@ const Account = () => {
 
     const topicRows = topicPreferences.map((topic) => ({
       user_id: userRow.id,
-      topic_name: topic.topicKey,
+      topic_name: mapNewsletterTopicKeyToStorageTopic(topic.topicKey),
       articles_count: topic.articlesCount,
     }));
 
@@ -197,9 +194,10 @@ const Account = () => {
       return;
     }
 
-    const toRemove = TOPIC_KEYS.filter(
-      (topic) => !topicPreferences.find((pref) => pref.topicKey === topic)
+    const selectedStorageTopics = new Set(
+      topicPreferences.map((topic) => mapNewsletterTopicKeyToStorageTopic(topic.topicKey))
     );
+    const toRemove = STORAGE_TOPIC_KEYS.filter((topic) => !selectedStorageTopics.has(topic));
     if (toRemove.length > 0) {
       await supabase
         .from('user_topics')

@@ -37,6 +37,10 @@ export function getUserFacingError(
     return copy(language).sessionExpired;
   }
 
+  if (isInvalidEmailError(code, message)) {
+    return copy(language).invalidEmail;
+  }
+
   if (code === "invalid_credentials" || message.includes("invalid login credentials")) {
     return copy(language).invalidCredentials;
   }
@@ -45,7 +49,7 @@ export function getUserFacingError(
     return copy(language).emailConfirmationRequired;
   }
 
-  if (message.includes("already registered") || code.includes("already_registered")) {
+  if (isExistingEmailError(code, message)) {
     return copy(language).emailAlreadyRegistered;
   }
 
@@ -53,7 +57,7 @@ export function getUserFacingError(
     return copy(language).passwordMismatch;
   }
 
-  if (message.includes("password should be") || message.includes("weak password")) {
+  if (isPasswordPolicyError(code, message)) {
     return copy(language).weakPassword;
   }
 
@@ -63,6 +67,10 @@ export function getUserFacingError(
 
   if (code === "missing_topics" || code === "incomplete_onboarding") {
     return copy(language).missingPreferences;
+  }
+
+  if (code === "missing_mini_case_topics") {
+    return copy(language).missingMiniCasePreferences;
   }
 
   if (surface === "onboarding" || surface === "preferences") {
@@ -125,6 +133,37 @@ function isSessionError(code: string, message: string) {
   );
 }
 
+function isExistingEmailError(code: string, message: string) {
+  return (
+    code.includes("user_already_exists") ||
+    code.includes("already_registered") ||
+    code.includes("email_exists") ||
+    message.includes("already registered") ||
+    message.includes("already exists") ||
+    message.includes("email already")
+  );
+}
+
+function isInvalidEmailError(code: string, message: string) {
+  return (
+    code.includes("invalid_email") ||
+    code.includes("email_address_invalid") ||
+    message.includes("invalid email") ||
+    message.includes("email address is invalid") ||
+    message.includes("invalid format")
+  );
+}
+
+function isPasswordPolicyError(code: string, message: string) {
+  return (
+    code.includes("weak_password") ||
+    code.includes("invalid_password") ||
+    message.includes("password should be") ||
+    message.includes("weak password") ||
+    message.includes("password must")
+  );
+}
+
 function copy(language: Language | null | undefined) {
   return localized(
     {
@@ -135,15 +174,19 @@ function copy(language: Language | null | undefined) {
         },
         emailAlreadyRegistered: {
           title: "Account already exists",
-          message: "An account already exists for this email. Log in instead, or reset your password."
+          message: "An account already exists with this email address."
         },
         emailConfirmationRequired: {
           title: "Confirm your email",
           message: "Please confirm your email before logging in."
         },
         generic: {
-          title: "Something went wrong",
-          message: "Something went wrong. Please try again."
+          title: "Action not completed",
+          message: "We could not complete this action. Please try again."
+        },
+        invalidEmail: {
+          title: "Invalid email",
+          message: "Invalid email address."
         },
         invalidCredentials: {
           title: "Login failed",
@@ -156,6 +199,10 @@ function copy(language: Language | null | undefined) {
         missingPreferences: {
           title: "Preferences incomplete",
           message: "Choose at least one newsletter category before saving."
+        },
+        missingMiniCasePreferences: {
+          title: "Preferences incomplete",
+          message: "Choose at least one mini-case category before saving."
         },
         network: {
           title: "Connection problem",
@@ -187,7 +234,7 @@ function copy(language: Language | null | undefined) {
         },
         weakPassword: {
           title: "Password too weak",
-          message: "Choose a stronger password with at least 8 characters."
+          message: "Password must contain at least 8 characters."
         }
       },
       fr: {
@@ -197,15 +244,19 @@ function copy(language: Language | null | undefined) {
         },
         emailAlreadyRegistered: {
           title: "Compte déjà existant",
-          message: "Un compte existe déjà avec cet email. Connecte-toi ou réinitialise ton mot de passe."
+          message: "Un compte existe déjà avec cette adresse email."
         },
         emailConfirmationRequired: {
           title: "Confirme ton email",
           message: "Confirme ton email avant de te connecter."
         },
         generic: {
-          title: "Une erreur est survenue",
-          message: "Une erreur est survenue. Réessaie."
+          title: "Action non terminée",
+          message: "Impossible de terminer cette action. Réessaie."
+        },
+        invalidEmail: {
+          title: "Email invalide",
+          message: "Adresse email invalide."
         },
         invalidCredentials: {
           title: "Connexion impossible",
@@ -218,6 +269,10 @@ function copy(language: Language | null | undefined) {
         missingPreferences: {
           title: "Préférences incomplètes",
           message: "Choisis au moins une catégorie newsletter avant d'enregistrer."
+        },
+        missingMiniCasePreferences: {
+          title: "Préférences incomplètes",
+          message: "Choisis au moins une catégorie mini-cas avant d'enregistrer."
         },
         network: {
           title: "Problème de connexion",
@@ -249,7 +304,7 @@ function copy(language: Language | null | undefined) {
         },
         weakPassword: {
           title: "Mot de passe trop faible",
-          message: "Choisis un mot de passe plus solide avec au moins 8 caractères."
+          message: "Le mot de passe doit contenir au moins 8 caractères."
         }
       }
     },

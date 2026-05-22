@@ -40,7 +40,7 @@ export default function ResetPasswordScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isRecoverySession = Boolean(session);
   const copy = getResetPasswordCopy(profileLanguage);
-  const canRequestReset = useMemo(() => email.trim().includes("@"), [email]);
+  const canRequestReset = useMemo(() => isValidAuthEmail(email), [email]);
   const canUpdatePassword = useMemo(
     () => password.length >= 8 && password === confirmPassword,
     [confirmPassword, password]
@@ -57,6 +57,11 @@ export default function ResetPasswordScreen() {
           message: copy.signInNotSetup
         }
       );
+      return;
+    }
+
+    if (!isValidAuthEmail(email)) {
+      setError({ code: "invalid_email", message: "Invalid email address." });
       return;
     }
 
@@ -234,6 +239,10 @@ function AuthResetMessage({
       </AppText>
     </View>
   );
+}
+
+function isValidAuthEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
 function getResetPasswordCopy(language: Language | null | undefined) {

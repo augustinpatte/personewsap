@@ -22,6 +22,7 @@
     "daily-job-test": "npm run build && node dist/cli.js daily-job-test",
     "health": "npm run job-health --",
     "job-health": "npm run build && node dist/cli.js job-health",
+    "job-health:strict": "npm run job-health -- --strict",
     "debug-users": "npm run build && node dist/cli.js debug-users",
     "rss-check": "npm run build && node dist/cli.js rss-check",
     "quality-proof": "npm run build && node dist/cli.js quality-proof",

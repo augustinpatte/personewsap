@@ -131,6 +131,7 @@ Options:
   --since YYYY-MM-DD      For rss-check, reject older dated feed items.
   --limit-per-source 5    For rss-check/RSS, cap items kept from each feed.
   --limit 5               For job-health, max recent job_runs rows to read.
+  --strict                For job-health, make warning states fail automation.
   --source-article-limit 6 For llm-proof, cap ranked articles sent to the LLM.
   --max-attempts 1        For llm-proof, cap LLM validation retry attempts.
   --max-output-tokens 4500 For llm-proof, cap OpenAI response tokens.
@@ -166,7 +167,7 @@ Examples:
   PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... npm run daily-job
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true npm run daily-job-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true LANGUAGES=fr,en USER_LIMIT=5 CONTENT_STATUS=published npm run daily-job-test
-  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run job-health -- --date 2026-04-26
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run job-health -- --date 2026-04-26 --strict
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run debug-users -- --language en --date 2026-04-26
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSONALIZE_TEST=true npm run personalize-test
   npm run rss-check -- --languages en --topics business,finance --limit-per-source 3

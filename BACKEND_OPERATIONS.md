@@ -127,6 +127,60 @@ npm run content:job-health -- --date "$(date +%F)" --limit 5
 5. Treat `status: "critical"` as a page/manual intervention.
 6. If `latestRun.status` is `partial_failed`, read `latestRun.operator_summary.failed_languages` and follow the language failure playbook below.
 
+For unattended automation, add `--strict` so warning states also exit nonzero:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npm run content:job-health -- --date "$(date +%F)" --limit 5 --strict
+```
+
+Use non-strict health for manual review dashboards; use strict health for cron/launchd alerting.
+
+## Mac Mini Daily Automation
+
+The Mac Mini should run from one server-side shell profile or launchd plist that exports secrets outside the repo. Do not store secrets in checked-in files, Expo env, Vite env, screenshots, or command transcripts.
+
+Minimum reliable loop:
+
+1. `cd /Users/<operator>/personewsap`
+2. Pull or deploy the already-reviewed release.
+3. Run a no-write production proof:
+
+```sh
+OPENAI_API_KEY="<openai-key>" \
+LANGUAGES=fr,en \
+npm run content:prod-dry-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
+```
+
+4. Run one production write:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+OPENAI_API_KEY="<openai-key>" \
+LANGUAGES=fr,en \
+RUN_ID="daily-job-$(date +%F)" \
+npm run content:prod-run
+```
+
+5. Immediately run strict health:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npm run content:job-health -- --date "$(date +%F)" --limit 5 --strict
+```
+
+Automation assumptions:
+
+- Run at most once per calendar date unless the operator chooses a language-specific rerun id.
+- Keep stdout/stderr logs for at least 14 days; redact logs before sharing.
+- Alert on any nonzero exit code from `content:prod-run` or strict `content:job-health`.
+- Alert if no `job_runs` row exists for the current date by the expected local time.
+- Prefer `STRICT_ALL_LANGUAGES=true` only when a partial FR/EN daily drop is worse than holding the day.
+- Keep `USER_LIMIT` unset in real production; use it only for staged rollouts.
+
 ## Example Health Output
 
 ```json

@@ -190,8 +190,20 @@ async function getProfileCompleted(userId: string) {
       return { completed: false, language: profile?.language ?? null, error: normalizeSupabaseError(topicPreferenceError) };
     }
 
+    const { data: miniCaseTopicPreference, error: miniCaseTopicPreferenceError } = await supabase
+      .from("user_mini_case_topic_preferences")
+      .select("topic_id")
+      .eq("user_id", userId)
+      .eq("enabled", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (miniCaseTopicPreferenceError) {
+      return { completed: false, language: profile?.language ?? null, error: normalizeSupabaseError(miniCaseTopicPreferenceError) };
+    }
+
     return {
-      completed: Boolean(profile && preferences && topicPreference),
+      completed: Boolean(profile && preferences && topicPreference && miniCaseTopicPreference),
       language: profile?.language ?? null,
       error: null
     };
@@ -226,57 +238,58 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setProfileCompleted(false);
       setProfileLanguage(null);
       setStatus("signedOut");
-      return;
+      return null;
     }
 
     const profileResult = await createProfileIfMissing(nextSession.user);
     if (!isCurrent()) {
-      return;
+      return null;
     }
 
     if (profileResult.error) {
       if (isAuthSessionError(profileResult.error)) {
         await clearLocalAuthSession();
         if (!isCurrent()) {
-          return;
+          return null;
         }
         setSession(null);
         setProfileCompleted(false);
         setProfileLanguage(null);
         setError(profileResult.error);
         setStatus("signedOut");
-        return;
+        return profileResult.error;
       }
 
       setError(profileResult.error);
       setProfileCompleted(false);
       setProfileLanguage(null);
       setStatus("needsOnboarding");
-      return;
+      return profileResult.error;
     }
 
     const profileStatus = await getProfileCompleted(nextSession.user.id);
     if (!isCurrent()) {
-      return;
+      return null;
     }
 
     if (profileStatus.error && isAuthSessionError(profileStatus.error)) {
       await clearLocalAuthSession();
       if (!isCurrent()) {
-        return;
+        return null;
       }
       setSession(null);
       setError(profileStatus.error);
       setProfileCompleted(false);
       setProfileLanguage(null);
       setStatus("signedOut");
-      return;
+      return profileStatus.error;
     }
 
     setError(profileStatus.error);
     setProfileCompleted(profileStatus.completed);
     setProfileLanguage(profileStatus.language ?? profileResult.language ?? null);
     setStatus(profileStatus.completed ? "ready" : "needsOnboarding");
+    return profileStatus.error ?? null;
   }, []);
 
   const refreshAuthState = useCallback(async () => {
@@ -322,7 +335,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         setError(null);
-        await applySession(data.session);
+        const sessionApplyError = await applySession(data.session);
+        if (sessionApplyError) {
+          logAuthDebug("login_profile_state_error", sessionApplyError);
+          return { error: sessionApplyError };
+        }
         trackAnalyticsEvent("auth_signed_in");
         logAuthDebug("login_success");
 
@@ -362,7 +379,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         setError(null);
-        await applySession(data.session);
+        const sessionApplyError = await applySession(data.session);
+        if (sessionApplyError) {
+          logAuthDebug("signup_profile_state_error", sessionApplyError);
+          return { error: sessionApplyError };
+        }
         if (data.session) {
           trackAnalyticsEvent("auth_signed_in");
         }

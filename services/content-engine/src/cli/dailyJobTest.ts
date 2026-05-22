@@ -73,6 +73,15 @@ type OperatorSummary = {
   };
 };
 
+type AssignmentCompletion = {
+  items: Array<{
+    contentItemId: string;
+    slot: DailyDropSlot;
+    position: number;
+  }>;
+  fallbackSlots: DailyDropSlot[];
+};
+
 export type DailyJobRunOptions = {
   mode: DailyJobMode;
   dropDate: string;
@@ -657,6 +666,7 @@ async function assignStoredDropToUsers(input: {
   duplicateDailyDropItemsSkipped: number;
   assignmentSkippedReason: string | null;
 }> {
+  assertAssignableStoredItems(input.storedItems, input.language);
   const selection = await input.repository.listUserDailyDropPreferenceSelection(input.language);
   const preferences = selection.preferences;
   const sortedPreferences = [...preferences].sort((left, right) => left.user_id.localeCompare(right.user_id));
@@ -679,12 +689,13 @@ async function assignStoredDropToUsers(input: {
     profiles_read: selection.profilesRead,
     user_preferences_read: selection.userPreferencesRead,
     user_topic_preferences_read: selection.userTopicPreferencesRead,
+    user_mini_case_topic_preferences_read: selection.userMiniCasePreferencesRead,
     preferences_loaded: preferences.length,
     users_skipped_before_limit: selection.skippedUsers.length,
     user_limit: input.userLimit ?? "all",
     users_considered: candidates.length,
     selection_rule:
-      "profiles with matching language, user_preferences, and enabled user_topic_preferences; sorted by user_id; limited by USER_LIMIT"
+      "profiles with matching language, user_preferences, enabled newsletter topic preferences, and enabled mini-case topic preferences; sorted by user_id; limited by USER_LIMIT"
   }, input.logPrefix);
 
   const existingDrops = await input.repository.listDailyDropsForUsersOnDate({
@@ -712,7 +723,29 @@ async function assignStoredDropToUsers(input: {
     const existingDrop = existingDrops.get(preference.user_id);
 
     const selection = selectDailyDropItemsForUser(preference, input.storedItems);
-    const itemIds = completeSelection(selection.items, input.storedItems);
+    const completedSelection = completeSelection(selection.items, input.storedItems);
+    const itemIds = completedSelection.items;
+    const miniCaseItem = itemIds.find((item) => item.slot === "mini_case");
+
+    logProgress("assignment topic selection", {
+      user_id: preference.user_id,
+      drop_date: input.dropDate,
+      language: input.language,
+      newsletter_topics_selected: selection.diagnostics.newsletter.selectedTopicIds,
+      mini_case_topics_selected: selection.diagnostics.miniCase.allowedTopicIds,
+      newsletter_items_assigned: selection.diagnostics.newsletter.assignedItems.length,
+      mini_case_topic_assigned: selection.diagnostics.miniCase.selectedTopicId
+    }, input.logPrefix);
+
+    if (completedSelection.fallbackSlots.length > 0) {
+      logProgress("assignment filled missing non-personalized slot", {
+        user_id: preference.user_id,
+        drop_date: input.dropDate,
+        language: input.language,
+        fallback_slots: completedSelection.fallbackSlots,
+        fallback_policy: "same_run_same_language_content_only"
+      }, input.logPrefix);
+    }
 
     if (selection.diagnostics.miniCase.fallbackReason !== "none") {
       logProgress("mini-case topic fallback", {
@@ -738,7 +771,11 @@ async function assignStoredDropToUsers(input: {
           articles_count: topic.articles_count,
           position: topic.position
         })),
-        mini_case_topic_id: preference.mini_case_topic_id,
+        mini_case_topics: preference.mini_case_topics,
+        newsletter_topics_selected: selection.diagnostics.newsletter.selectedTopicIds,
+        mini_case_topics_selected: selection.diagnostics.miniCase.allowedTopicIds,
+        newsletter_items_assigned: itemIds.filter((item) => item.slot === "newsletter").length,
+        mini_case_topic_assigned: selection.diagnostics.miniCase.selectedTopicId,
         mini_case_fallback_reason: selection.diagnostics.miniCase.fallbackReason
       }, input.logPrefix);
       continue;
@@ -773,6 +810,11 @@ async function assignStoredDropToUsers(input: {
       daily_drop_id: assignment.dailyDropId,
       existing_drop_updated: assignment.existingDropUpdated,
       linked_items: assignment.linkedItems,
+      newsletter_topics_selected: selection.diagnostics.newsletter.selectedTopicIds,
+      mini_case_topics_selected: selection.diagnostics.miniCase.allowedTopicIds,
+      newsletter_items_assigned: itemIds.filter((item) => item.slot === "newsletter").length,
+      mini_case_topic_assigned: selection.diagnostics.miniCase.selectedTopicId,
+      mini_case_content_item_id: miniCaseItem?.contentItemId ?? null,
       stale_daily_drop_items_removed: assignment.staleItemsRemoved,
       duplicate_daily_drop_items_skipped: assignment.duplicateInputItemsSkipped
     }, input.logPrefix);
@@ -921,19 +963,16 @@ function completeSelection(
     position: number;
   }>,
   storedItems: StoredItems
-): Array<{
-  contentItemId: string;
-  slot: DailyDropSlot;
-  position: number;
-}> {
+): AssignmentCompletion {
   const completed = [...selected];
+  const fallbackSlots: DailyDropSlot[] = [];
 
   for (const slot of REQUIRED_SLOTS) {
     if (completed.some((item) => item.slot === slot)) {
       continue;
     }
 
-    if (slot === "mini_case") {
+    if (slot === "newsletter" || slot === "mini_case") {
       continue;
     }
 
@@ -945,11 +984,29 @@ function completeSelection(
     completed.push({
       contentItemId: fallback.content_item_id,
       slot,
-      position: slot === "newsletter" ? nextNewsletterPosition(completed) : 0
+      position: 0
     });
+    fallbackSlots.push(slot);
   }
 
-  return completed;
+  return {
+    items: completed,
+    fallbackSlots
+  };
+}
+
+function assertAssignableStoredItems(storedItems: StoredItems, language: Language): void {
+  if (storedItems.length === 0) {
+    throw new Error("Assignment refused because no same-run stored content items are available.");
+  }
+
+  const wrongLanguageItems = storedItems.filter((stored) => stored.item.language !== language);
+
+  if (wrongLanguageItems.length > 0) {
+    throw new Error(
+      `Assignment refused because ${wrongLanguageItems.length} stored item(s) do not match language ${language}.`
+    );
+  }
 }
 
 function hasRequiredSlots(
@@ -968,16 +1025,6 @@ function missingRequiredSlots(
 ): DailyDropSlot[] {
   const slots = new Set(itemIds.map((item) => item.slot));
   return REQUIRED_SLOTS.filter((slot) => !slots.has(slot));
-}
-
-function nextNewsletterPosition(
-  selected: Array<{
-    slot: DailyDropSlot;
-    position: number;
-  }>
-): number {
-  const newsletterPositions = selected.filter((item) => item.slot === "newsletter").map((item) => item.position);
-  return newsletterPositions.length === 0 ? 0 : Math.max(...newsletterPositions) + 1;
 }
 
 async function runStage<T>(

@@ -1,7 +1,9 @@
+import { miniCaseTopicToContentTopics } from "../domain.js";
 import type {
   DailyDropPayload,
   DailyDropSlot,
   GeneratedContentItem,
+  MiniCaseTopicId,
   TopicId,
   UserDailyDropPreference
 } from "../domain.js";
@@ -19,32 +21,34 @@ export type UserDailyDropSelection = {
     position: number;
   }>;
   diagnostics: {
+    newsletter: NewsletterSelectionDiagnostic;
     miniCase: MiniCaseSelectionDiagnostic;
   };
 };
 
+export type NewsletterSelectionDiagnostic = {
+  selectedTopicIds: TopicId[];
+  assignedItems: Array<{
+    contentItemId: string;
+    topicId: TopicId;
+  }>;
+};
+
 export type MiniCaseSelectionDiagnostic = {
-  requestedTopicId: TopicId | null;
-  selectedTopicId: TopicId | null;
+  requestedTopicId: MiniCaseTopicId | null;
+  allowedTopicIds: MiniCaseTopicId[];
+  selectedTopicId: MiniCaseTopicId | null;
   fallbackReason:
     | "none"
-    | "missing_mini_case_topic_id"
-    | "invalid_mini_case_topic_id"
+    | "missing_mini_case_topic_preferences"
     | "selected_topic_content_missing"
     | "no_mini_case_for_allowed_topics";
 };
 
 export function assembleDailyDropPayload(payload: DailyDropPayload): DailyDropPayload {
-  const slotOrder: Record<DailyDropSlot, number> = {
-    newsletter: 0,
-    business_story: 1,
-    mini_case: 2,
-    concept: 3
-  };
-
   return {
     ...payload,
-    items: [...payload.items].sort((left, right) => slotOrder[left.slot] - slotOrder[right.slot])
+    items: [...payload.items].sort(compareGeneratedItemsForAssignment)
   };
 }
 
@@ -53,12 +57,13 @@ export function selectDailyDropItemsForUser(
   storedItems: StoredContentSelection[]
 ): UserDailyDropSelection {
   const selected: UserDailyDropSelection["items"] = [];
-  const topicPlan = preference.topics.length > 0 ? preference.topics : defaultTopicPlan();
-  const sortedTopicPlan = [...topicPlan].sort((left, right) => (left.position ?? 99) - (right.position ?? 99));
+  const sortedTopicPlan = [...preference.topics].sort(compareTopicPreferences);
+  const sortedStoredItems = sortStoredItemsForAssignment(storedItems);
+  const newsletterAssignedItems: NewsletterSelectionDiagnostic["assignedItems"] = [];
   let newsletterPosition = 0;
 
   for (const topic of sortedTopicPlan) {
-    const matches = storedItems.filter(
+    const matches = sortedStoredItems.filter(
       (stored) => stored.item.content_type === "newsletter_article" && stored.item.topic === topic.topic_id
     );
 
@@ -72,18 +77,26 @@ export function selectDailyDropItemsForUser(
         slot: "newsletter",
         position: newsletterPosition
       });
+      newsletterAssignedItems.push({
+        contentItemId: match.content_item_id,
+        topicId: topic.topic_id
+      });
       newsletterPosition += 1;
     }
   }
 
-  addFirstSlot(selected, storedItems, "business_story");
-  const miniCaseDiagnostic = addMiniCaseSlot(selected, storedItems, preference, sortedTopicPlan);
-  addFirstSlot(selected, storedItems, "concept");
+  addFirstSlot(selected, sortedStoredItems, "business_story");
+  const miniCaseDiagnostic = addMiniCaseSlot(selected, sortedStoredItems, preference);
+  addFirstSlot(selected, sortedStoredItems, "concept");
 
   return {
     userId: preference.user_id,
     items: selected,
     diagnostics: {
+      newsletter: {
+        selectedTopicIds: sortedTopicPlan.map((topic) => topic.topic_id),
+        assignedItems: newsletterAssignedItems
+      },
       miniCase: miniCaseDiagnostic
     }
   };
@@ -122,23 +135,23 @@ function addFirstSlot(
 function addMiniCaseSlot(
   selected: UserDailyDropSelection["items"],
   storedItems: StoredContentSelection[],
-  preference: UserDailyDropPreference,
-  sortedTopicPlan: Array<{ topic_id: TopicId; articles_count: number; position: number | null }>
+  preference: UserDailyDropPreference
 ): MiniCaseSelectionDiagnostic {
-  const enabledTopicIds = sortedTopicPlan.map((topic) => topic.topic_id);
-  const allowedTopicIds = buildMiniCaseTopicOrder(preference.mini_case_topic_id, enabledTopicIds);
-  const requestedTopicId = preference.mini_case_topic_id;
+  const allowedTopicIds = getMiniCaseTopicIds(preference);
+  const requestedTopicId = allowedTopicIds[0] ?? null;
   let fallbackReason: MiniCaseSelectionDiagnostic["fallbackReason"] = "none";
 
-  if (!requestedTopicId) {
-    fallbackReason = "missing_mini_case_topic_id";
-  } else if (!enabledTopicIds.includes(requestedTopicId)) {
-    fallbackReason = "invalid_mini_case_topic_id";
+  if (allowedTopicIds.length === 0) {
+    fallbackReason = "missing_mini_case_topic_preferences";
   }
 
   for (const topicId of allowedTopicIds) {
+    const contentTopicIds = miniCaseTopicToContentTopics(topicId);
     const match = storedItems.find(
-      (stored) => stored.item.slot === "mini_case" && stored.item.topic === topicId
+      (stored) =>
+        stored.item.slot === "mini_case" &&
+        stored.item.topic !== null &&
+        contentTopicIds.includes(stored.item.topic)
     );
 
     if (!match) {
@@ -153,6 +166,7 @@ function addMiniCaseSlot(
 
     return {
       requestedTopicId,
+      allowedTopicIds,
       selectedTopicId: topicId,
       fallbackReason:
         fallbackReason === "none" && requestedTopicId !== topicId
@@ -163,30 +177,76 @@ function addMiniCaseSlot(
 
   return {
     requestedTopicId,
+    allowedTopicIds,
     selectedTopicId: null,
     fallbackReason:
       fallbackReason === "none" ? "no_mini_case_for_allowed_topics" : fallbackReason
   };
 }
 
-function buildMiniCaseTopicOrder(
-  miniCaseTopicId: TopicId | null,
-  enabledTopicIds: TopicId[]
-): TopicId[] {
-  if (miniCaseTopicId && enabledTopicIds.includes(miniCaseTopicId)) {
-    return [
-      miniCaseTopicId,
-      ...enabledTopicIds.filter((topicId) => topicId !== miniCaseTopicId)
-    ];
-  }
-
-  return enabledTopicIds;
+function getMiniCaseTopicIds(preference: UserDailyDropPreference): MiniCaseTopicId[] {
+  return uniqueMiniCaseTopicIds(
+    [...preference.mini_case_topics]
+      .sort(compareMiniCaseTopicPreferences)
+      .map((topic) => topic.topic_id)
+  );
 }
 
-function defaultTopicPlan(): Array<{ topic_id: TopicId; articles_count: number; position: number }> {
-  return [
-    { topic_id: "business", articles_count: 1, position: 1 },
-    { topic_id: "finance", articles_count: 1, position: 2 },
-    { topic_id: "tech_ai", articles_count: 1, position: 3 }
-  ];
+function uniqueMiniCaseTopicIds(topicIds: MiniCaseTopicId[]): MiniCaseTopicId[] {
+  return [...new Set(topicIds)];
+}
+
+function compareMiniCaseTopicPreferences(
+  left: { topic_id: MiniCaseTopicId; position: number | null },
+  right: { topic_id: MiniCaseTopicId; position: number | null }
+): number {
+  return (
+    (left.position ?? Number.MAX_SAFE_INTEGER) - (right.position ?? Number.MAX_SAFE_INTEGER) ||
+    left.topic_id.localeCompare(right.topic_id)
+  );
+}
+
+function sortStoredItemsForAssignment(storedItems: StoredContentSelection[]): StoredContentSelection[] {
+  return [...storedItems].sort((left, right) => {
+    const itemComparison = compareGeneratedItemsForAssignment(left.item, right.item);
+
+    if (itemComparison !== 0) {
+      return itemComparison;
+    }
+
+    return left.content_item_id.localeCompare(right.content_item_id);
+  });
+}
+
+function compareGeneratedItemsForAssignment(
+  left: GeneratedContentItem,
+  right: GeneratedContentItem
+): number {
+  return (
+    slotOrder(left.slot) - slotOrder(right.slot) ||
+    String(left.topic ?? "").localeCompare(String(right.topic ?? "")) ||
+    left.title.localeCompare(right.title) ||
+    left.source_urls.join("|").localeCompare(right.source_urls.join("|"))
+  );
+}
+
+function compareTopicPreferences(
+  left: { topic_id: TopicId; position: number | null },
+  right: { topic_id: TopicId; position: number | null }
+): number {
+  return (
+    (left.position ?? Number.MAX_SAFE_INTEGER) - (right.position ?? Number.MAX_SAFE_INTEGER) ||
+    left.topic_id.localeCompare(right.topic_id)
+  );
+}
+
+function slotOrder(slot: DailyDropSlot): number {
+  const order: Record<DailyDropSlot, number> = {
+    newsletter: 0,
+    business_story: 1,
+    mini_case: 2,
+    concept: 3
+  };
+
+  return order[slot];
 }

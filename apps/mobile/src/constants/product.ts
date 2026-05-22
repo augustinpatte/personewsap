@@ -1,12 +1,12 @@
 export const TOPICS = [
-  { id: "business", label: "Business" },
-  { id: "finance", label: "Finance" },
-  { id: "tech_ai", label: "Tech / AI" },
+  { id: "business", label: "Stock Market" },
+  { id: "finance", label: "Finance & Economy" },
+  { id: "tech_ai", label: "Artificial Intelligence" },
   { id: "law", label: "Law" },
-  { id: "medicine", label: "Medicine" },
+  { id: "medicine", label: "Health" },
   { id: "engineering", label: "Engineering" },
-  { id: "sport_business", label: "Sport Business" },
-  { id: "culture_media", label: "Culture / Media" }
+  { id: "sport_business", label: "Sport" },
+  { id: "culture_media", label: "Culture" }
 ] as const;
 
 export const GOALS = [

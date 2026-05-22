@@ -1,5 +1,5 @@
 import type { DailyDropSlot, Language, TopicId, UserDailyDropPreference } from "../domain.js";
-import { isTopicId } from "../domain.js";
+import { isTopicId, miniCaseTopicToContentTopics } from "../domain.js";
 import {
   ContentRepository,
   type PublishedPersistTestContentItem
@@ -312,15 +312,11 @@ function selectTestContentForPreference(
     position: number;
   }> = [];
   const sortedTopics = [...preference.topics].sort((left, right) => (left.position ?? 99) - (right.position ?? 99));
-  const topicPlan = sortedTopics.length > 0 ? sortedTopics : [{ topic_id: null, articles_count: 1 }];
   let newsletterPosition = 0;
 
-  for (const topic of topicPlan) {
+  for (const topic of sortedTopics) {
     const matches = contentItems.filter((item) => {
-      return (
-        item.slot === "newsletter" &&
-        (topic.topic_id === null || item.topic === topic.topic_id)
-      );
+      return item.slot === "newsletter" && item.topic === topic.topic_id;
     });
 
     for (const match of matches.slice(0, topic.articles_count)) {
@@ -342,7 +338,7 @@ function selectTestContentForPreference(
     selected,
     contentItems,
     "mini_case",
-    buildMiniCaseTopicOrder(preference.mini_case_topic_id, sortedTopics.map((topic) => topic.topic_id))
+    getMiniCaseContentTopicIds(preference)
   );
   addFirstSlot(selected, contentItems, "concept");
 
@@ -379,18 +375,16 @@ function addFirstSlot(
   });
 }
 
-function buildMiniCaseTopicOrder(
-  miniCaseTopicId: UserDailyDropPreference["mini_case_topic_id"],
-  enabledTopicIds: UserDailyDropPreference["topics"][number]["topic_id"][]
-) {
-  if (miniCaseTopicId && enabledTopicIds.includes(miniCaseTopicId)) {
-    return [
-      miniCaseTopicId,
-      ...enabledTopicIds.filter((topicId) => topicId !== miniCaseTopicId)
-    ];
-  }
-
-  return enabledTopicIds;
+function getMiniCaseContentTopicIds(
+  preference: UserDailyDropPreference
+): UserDailyDropPreference["topics"][number]["topic_id"][] {
+  return [
+    ...new Set(
+      preference.mini_case_topics.flatMap((topic) =>
+        miniCaseTopicToContentTopics(topic.topic_id)
+      )
+    )
+  ];
 }
 
 function hasRequiredSlots(

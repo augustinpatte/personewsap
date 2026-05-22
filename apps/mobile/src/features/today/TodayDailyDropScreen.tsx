@@ -738,7 +738,7 @@ function NewsletterSection({
             {articles.map((article) => (
               <View key={article.id} style={styles.topicCard}>
                 <AppText color="accentInk" variant="label">
-                  {getTopicLabel(article.topic, language)}
+                  {getNewsletterTopicLabel(article.topic, language)}
                 </AppText>
                 <AppText color="muted" variant="caption">
                   {copy.sourceCount(getSourceCount(article))}
@@ -790,11 +790,11 @@ function NewsletterArticlePreview({
     <Card padding="md" style={styles.articleCard}>
       <View style={styles.cardHeaderRow}>
         <AppText color="accent" variant="caption">
-          {getTopicLabel(article.topic, language)}
+          {getNewsletterTopicLabel(article.topic, language)}
         </AppText>
       </View>
       <AppText variant="bodyStrong">{article.title}</AppText>
-      <ContentMetaRow item={article} language={language} topicLabel={getTopicLabel(article.topic, language)} />
+      <ContentMetaRow item={article} language={language} topicLabel={getNewsletterTopicLabel(article.topic, language)} />
       <AppText variant="body">{article.summary}</AppText>
       <View style={styles.callout}>
         <AppText color="accentInk" variant="caption">
@@ -923,11 +923,11 @@ function MiniCaseSection({
         <View style={styles.cardHeaderRow}>
           <ProgressPill label={challenge.difficulty} tone="warning" />
           <AppText color="muted" variant="caption">
-            {getTopicLabel(challenge.topic, language)}
+            {getMiniCaseTopicLabel(challenge.topic, language)}
           </AppText>
         </View>
         <AppText variant="bodyStrong">{challenge.title}</AppText>
-        <ContentMetaRow item={challenge} language={language} topicLabel={getTopicLabel(challenge.topic, language)} />
+        <ContentMetaRow item={challenge} language={language} topicLabel={getMiniCaseTopicLabel(challenge.topic, language)} />
         <AppText variant="body">{challenge.context}</AppText>
         <View style={styles.challengeBox}>
           <AppText color="accentInk" variant="label">
@@ -1399,7 +1399,7 @@ function getItemTopic(item: DailyDropContentItem): TopicId | undefined {
 function getConceptTopicLabel(concept: KeyConcept, language: ContentLanguage) {
   const copy = getTodayCopy(language);
 
-  return concept.category === "career" ? copy.careerTopic : getTopicLabel(concept.category, language);
+  return concept.category === "career" ? copy.careerTopic : getMiniCaseTopicLabel(concept.category, language);
 }
 
 function estimateItemReadMinutes(item: DailyDropContentItem) {
@@ -1513,8 +1513,12 @@ function getLocalDropDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function getTopicLabel(topic: TopicId, language: ContentLanguage) {
-  return getTodayCopy(language).topics[topic];
+function getNewsletterTopicLabel(topic: TopicId, language: ContentLanguage) {
+  return getTodayCopy(language).newsletterTopics[topic];
+}
+
+function getMiniCaseTopicLabel(topic: TopicId, language: ContentLanguage) {
+  return getTodayCopy(language).miniCaseTopics[topic];
 }
 
 function getTodayCopy(language: ContentLanguage) {
@@ -1657,15 +1661,25 @@ function getTodayCopy(language: ContentLanguage) {
         storyTension: "Tension",
         title: "Five minutes. Four sharp moves.",
         todayDropOnly: "Today's drop only",
-        topics: {
-          business: "Business",
-          finance: "Finance",
-          tech_ai: "Tech / AI",
+        newsletterTopics: {
+          business: "Stock Market",
+          finance: "Finance & Economy",
+          tech_ai: "Artificial Intelligence",
+          law: "International",
+          medicine: "Pharma",
+          engineering: "Automotive",
+          sport_business: "Sport",
+          culture_media: "Culture"
+        },
+        miniCaseTopics: {
+          business: "Entrepreneurship",
+          finance: "Finance & Economy",
+          tech_ai: "Artificial Intelligence",
           law: "Law",
-          medicine: "Medicine",
+          medicine: "Health",
           engineering: "Engineering",
-          sport_business: "Sport Business",
-          culture_media: "Culture / Media"
+          sport_business: "Sport",
+          culture_media: "Culture"
         },
         useItLikeThis: "Use it like this",
         whyItMatters: "Why it matters"
@@ -1807,15 +1821,25 @@ function getTodayCopy(language: ContentLanguage) {
         storyTension: "Tension",
         title: "Cinq minutes. Quatre gestes utiles.",
         todayDropOnly: "Seulement la mise à jour du jour",
-        topics: {
-          business: "Business",
-          finance: "Finance",
-          tech_ai: "Tech / IA",
+        newsletterTopics: {
+          business: "Marché actions",
+          finance: "Finance & économie",
+          tech_ai: "Intelligence artificielle",
+          law: "International",
+          medicine: "Pharma",
+          engineering: "Automobile",
+          sport_business: "Sport",
+          culture_media: "Culture"
+        },
+        miniCaseTopics: {
+          business: "Entrepreneuriat",
+          finance: "Finance & économie",
+          tech_ai: "Intelligence artificielle",
           law: "Droit",
-          medicine: "Médecine",
+          medicine: "Santé",
           engineering: "Ingénierie",
-          sport_business: "Business du sport",
-          culture_media: "Culture / médias"
+          sport_business: "Sport",
+          culture_media: "Culture"
         },
         useItLikeThis: "À utiliser comme ça",
         whyItMatters: "Pourquoi c'est important"

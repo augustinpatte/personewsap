@@ -1,5 +1,5 @@
 import type { DailyDropSlot, Language, TopicId, UserDailyDropPreference } from "../domain.js";
-import { isTopicId } from "../domain.js";
+import { isTopicId, miniCaseTopicToContentTopics } from "../domain.js";
 import {
   ContentRepository,
   type PublishedContentItem
@@ -263,7 +263,7 @@ function selectPublishedContentForPreference(
     selected,
     matchingLanguageItems,
     "mini_case",
-    buildMiniCaseTopicOrder(preference.mini_case_topic_id, sortedTopics.map((topic) => topic.topic_id))
+    getMiniCaseContentTopicIds(preference)
   );
   addFirstSlot(selected, matchingLanguageItems, "concept", sortedTopics.map((topic) => topic.topic_id));
 
@@ -300,18 +300,16 @@ function addFirstSlot(
   });
 }
 
-function buildMiniCaseTopicOrder(
-  miniCaseTopicId: UserDailyDropPreference["mini_case_topic_id"],
-  enabledTopicIds: UserDailyDropPreference["topics"][number]["topic_id"][]
-) {
-  if (miniCaseTopicId && enabledTopicIds.includes(miniCaseTopicId)) {
-    return [
-      miniCaseTopicId,
-      ...enabledTopicIds.filter((topicId) => topicId !== miniCaseTopicId)
-    ];
-  }
-
-  return enabledTopicIds;
+function getMiniCaseContentTopicIds(
+  preference: UserDailyDropPreference
+): UserDailyDropPreference["topics"][number]["topic_id"][] {
+  return [
+    ...new Set(
+      preference.mini_case_topics.flatMap((topic) =>
+        miniCaseTopicToContentTopics(topic.topic_id)
+      )
+    )
+  ];
 }
 
 function hasRequiredSlots(

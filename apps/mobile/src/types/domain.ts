@@ -9,6 +9,7 @@ import type {
   GoalId,
   InteractionType,
   Language,
+  MiniCaseTopicId,
   PreferenceFrequency,
   TopicId
 } from "./database";
@@ -26,6 +27,7 @@ export type {
   GoalId,
   InteractionType,
   Language,
+  MiniCaseTopicId,
   PreferenceFrequency,
   TopicId
 };
@@ -34,6 +36,7 @@ export type Profile = PublicTableRow<"profiles">;
 export type UserPreferences = PublicTableRow<"user_preferences">;
 export type Topic = PublicTableRow<"topics">;
 export type UserTopicPreference = PublicTableRow<"user_topic_preferences">;
+export type UserMiniCaseTopicPreference = PublicTableRow<"user_mini_case_topic_preferences">;
 export type ContentItem = PublicTableRow<"content_items">;
 export type Source = PublicTableRow<"sources">;
 export type ContentItemSource = PublicTableRow<"content_item_sources">;

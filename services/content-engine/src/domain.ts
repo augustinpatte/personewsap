@@ -9,6 +9,17 @@ export const TOPIC_IDS = [
   "culture_media"
 ] as const;
 
+export const MINI_CASE_TOPIC_IDS = [
+  "law",
+  "finance_economy",
+  "artificial_intelligence",
+  "stock_market",
+  "engineering",
+  "health",
+  "entrepreneurship",
+  "career"
+] as const;
+
 export const GOAL_IDS = [
   "understand_world",
   "prepare_career",
@@ -23,6 +34,7 @@ export const DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case", "c
 export const CONTENT_DIFFICULTIES = ["easy", "medium", "hard"] as const;
 
 export type TopicId = (typeof TOPIC_IDS)[number];
+export type MiniCaseTopicId = (typeof MINI_CASE_TOPIC_IDS)[number];
 export type GoalId = (typeof GOAL_IDS)[number];
 export type Language = (typeof LANGUAGES)[number];
 export type ContentType = (typeof CONTENT_TYPES)[number];
@@ -146,7 +158,10 @@ export type UserDailyDropPreference = {
   goal: GoalId;
   frequency: PreferenceFrequency;
   newsletter_article_count: number;
-  mini_case_topic_id: TopicId | null;
+  mini_case_topics: Array<{
+    topic_id: MiniCaseTopicId;
+    position: number | null;
+  }>;
   topics: Array<{
     topic_id: TopicId;
     articles_count: number;
@@ -156,6 +171,25 @@ export type UserDailyDropPreference = {
 
 export function isTopicId(value: string): value is TopicId {
   return TOPIC_IDS.includes(value as TopicId);
+}
+
+export function isMiniCaseTopicId(value: string): value is MiniCaseTopicId {
+  return MINI_CASE_TOPIC_IDS.includes(value as MiniCaseTopicId);
+}
+
+export function miniCaseTopicToContentTopics(topicId: MiniCaseTopicId): TopicId[] {
+  const mapping: Record<MiniCaseTopicId, TopicId[]> = {
+    law: ["law"],
+    finance_economy: ["finance"],
+    artificial_intelligence: ["tech_ai"],
+    stock_market: ["business", "finance"],
+    engineering: ["engineering"],
+    health: ["medicine"],
+    entrepreneurship: ["business"],
+    career: ["business"]
+  };
+
+  return mapping[topicId];
 }
 
 export function isLanguage(value: string): value is Language {

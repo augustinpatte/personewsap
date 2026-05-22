@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { PendingRegistration } from '@/lib/pendingRegistration';
+import { mapNewsletterTopicKeyToStorageTopic } from '@/lib/topicTaxonomy';
 
 export const signUpWithPassword = async (email: string, password: string) => {
   return supabase.auth.signUp({
@@ -92,7 +93,7 @@ export const completeRegistration = async (pending: PendingRegistration, authUse
 
   const topicRows = pending.topics.map((pref) => ({
     user_id: userId,
-    topic_name: pref.topicKey,
+    topic_name: mapNewsletterTopicKeyToStorageTopic(pref.topicKey),
     articles_count: pref.articlesCount,
   }));
 

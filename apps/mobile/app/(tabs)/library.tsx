@@ -762,14 +762,14 @@ function getLibraryCopy(language: Language) {
         title: "Past drops",
         topicFilter: "Topic",
         topics: {
-          business: "Business",
-          finance: "Finance",
-          tech_ai: "Tech / AI",
+          business: "Stock Market",
+          finance: "Finance & Economy",
+          tech_ai: "Artificial Intelligence",
           law: "Law",
-          medicine: "Medicine",
+          medicine: "Health",
           engineering: "Engineering",
-          sport_business: "Sport Business",
-          culture_media: "Culture / Media"
+          sport_business: "Sport",
+          culture_media: "Culture"
         }
       },
       fr: {
@@ -846,14 +846,14 @@ function getLibraryCopy(language: Language) {
         title: "Mises à jour passées",
         topicFilter: "Sujet",
         topics: {
-          business: "Business",
-          finance: "Finance",
-          tech_ai: "Tech / IA",
+          business: "Marché actions",
+          finance: "Finance & économie",
+          tech_ai: "Intelligence artificielle",
           law: "Droit",
-          medicine: "Médecine",
+          medicine: "Santé",
           engineering: "Ingénierie",
-          sport_business: "Business du sport",
-          culture_media: "Culture / médias"
+          sport_business: "Sport",
+          culture_media: "Culture"
         }
       }
     },

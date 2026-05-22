@@ -92,10 +92,19 @@ export class DailyContentJob {
         for (const preference of preferences) {
           const selection = selectDailyDropItemsForUser(preference, stored);
           const missingSlots = missingRequiredSlots(selection.items);
+          console.info("[content-engine] assignment topic selection", {
+            user_id: preference.user_id,
+            language,
+            newsletter_topics_selected: selection.diagnostics.newsletter.selectedTopicIds,
+            mini_case_topics_selected: selection.diagnostics.miniCase.allowedTopicIds,
+            newsletter_items_assigned: selection.diagnostics.newsletter.assignedItems.length,
+            mini_case_topic_assigned: selection.diagnostics.miniCase.selectedTopicId
+          });
           if (selection.diagnostics.miniCase.fallbackReason !== "none") {
             console.warn("[content-engine] mini-case topic fallback", {
               user_id: preference.user_id,
               language,
+              mini_case_topics_selected: selection.diagnostics.miniCase.allowedTopicIds,
               requested_topic_id: selection.diagnostics.miniCase.requestedTopicId,
               selected_topic_id: selection.diagnostics.miniCase.selectedTopicId,
               fallback_reason: selection.diagnostics.miniCase.fallbackReason
@@ -106,7 +115,11 @@ export class DailyContentJob {
               user_id: preference.user_id,
               language,
               missing_slots: missingSlots,
-              mini_case_topic_id: preference.mini_case_topic_id,
+              mini_case_topics: preference.mini_case_topics,
+              newsletter_topics_selected: selection.diagnostics.newsletter.selectedTopicIds,
+              mini_case_topics_selected: selection.diagnostics.miniCase.allowedTopicIds,
+              newsletter_items_assigned: selection.diagnostics.newsletter.assignedItems.length,
+              mini_case_topic_assigned: selection.diagnostics.miniCase.selectedTopicId,
               mini_case_fallback_reason: selection.diagnostics.miniCase.fallbackReason
             });
             continue;

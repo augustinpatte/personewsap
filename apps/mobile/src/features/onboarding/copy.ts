@@ -21,22 +21,33 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           backToLogin: "Back to login"
         },
         topics: {
-          title: "Pick newsletter topics",
+          title: "Which newsletter topics do you want?",
           description:
-            "Choose one or more categories for your daily newsletter. They also shape mini-cases.",
+            "Choose 1 to 8 topics for your daily newsletter.",
           selectedFooter: (count: number) =>
-            `${count} newsletter categor${count === 1 ? "y" : "ies"} selected`,
-          emptyFooter: "Choose at least one newsletter category to continue."
+            `${count} newsletter topic${count === 1 ? "" : "s"} selected`,
+          emptyFooter: "Choose at least one newsletter topic to continue."
+        },
+        miniCaseTopics: {
+          title: "Which mini-case topics do you want?",
+          description:
+            "Choose 1 to 3 topics for your daily mini-case. These are separate from newsletter topics.",
+          selectedFooter: (count: number) =>
+            `${count} mini-case topic${count === 1 ? "" : "s"} selected`,
+          emptyFooter: "Choose at least one mini-case topic to continue.",
+          maxFooter: "You can choose up to 3 mini-case topics.",
+          save: "Save preferences",
+          saving: "Saving..."
         },
         articleCount: {
           title: "Tune the daily dose",
-          description: "Choose how many newsletter articles each selected category gets.",
-          selectedFooter: "One to three articles per selected category. Keep it readable.",
-          emptyFooter: "Choose categories before setting article counts.",
+          description: "Choose how many newsletter articles each selected topic gets.",
+          selectedFooter: "One to three articles per selected topic. Keep it readable.",
+          emptyFooter: "Choose newsletter topics before setting article counts.",
           countLabel: (count: number) => `${count} per drop`,
-          emptyTitle: "No categories selected",
-          emptyDescription: "Select at least one category before setting article counts.",
-          emptyAction: "Choose categories",
+          emptyTitle: "No topics selected",
+          emptyDescription: "Select at least one newsletter topic before setting article counts.",
+          emptyAction: "Choose topics",
           save: "Save preferences",
           saving: "Saving...",
           saveErrorTitle: "Could not save preferences"
@@ -59,22 +70,33 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           backToLogin: "Retour à la connexion"
         },
         topics: {
-          title: "Choisis tes sujets newsletter",
+          title: "Quels sujets veux-tu dans ta newsletter ?",
           description:
-            "Choisis une ou plusieurs catégories pour ta newsletter quotidienne. Elles guident aussi les mini-cas.",
+            "Choisis 1 à 8 sujets pour ta newsletter quotidienne.",
           selectedFooter: (count: number) =>
-            `${count} catégorie${count > 1 ? "s" : ""} newsletter sélectionnée${count > 1 ? "s" : ""}`,
-          emptyFooter: "Choisis au moins une catégorie newsletter pour continuer."
+            `${count} sujet${count > 1 ? "s" : ""} newsletter sélectionné${count > 1 ? "s" : ""}`,
+          emptyFooter: "Choisis au moins un sujet newsletter pour continuer."
+        },
+        miniCaseTopics: {
+          title: "Quels sujets veux-tu pour les mini-cas ?",
+          description:
+            "Choisis 1 à 3 sujets pour ton mini-cas quotidien. Ces choix sont séparés des sujets newsletter.",
+          selectedFooter: (count: number) =>
+            `${count} sujet${count > 1 ? "s" : ""} mini-cas sélectionné${count > 1 ? "s" : ""}`,
+          emptyFooter: "Choisis au moins un sujet mini-cas pour continuer.",
+          maxFooter: "Tu peux choisir jusqu'à 3 sujets mini-cas.",
+          save: "Enregistrer les préférences",
+          saving: "Enregistrement..."
         },
         articleCount: {
           title: "Dose ton contenu quotidien",
-          description: "Choisis combien d'articles newsletter chaque catégorie sélectionnée reçoit.",
-          selectedFooter: "Un à trois articles par catégorie sélectionnée. Garde un format lisible.",
-          emptyFooter: "Choisis des catégories avant de régler le nombre d'articles.",
+          description: "Choisis combien d'articles newsletter chaque sujet sélectionné reçoit.",
+          selectedFooter: "Un à trois articles par sujet sélectionné. Garde un format lisible.",
+          emptyFooter: "Choisis des sujets newsletter avant de régler le nombre d'articles.",
           countLabel: (count: number) => `${count} par jour`,
-          emptyTitle: "Aucune catégorie sélectionnée",
-          emptyDescription: "Sélectionne au moins une catégorie avant de régler les articles.",
-          emptyAction: "Choisir des catégories",
+          emptyTitle: "Aucun sujet sélectionné",
+          emptyDescription: "Sélectionne au moins un sujet newsletter avant de régler les articles.",
+          emptyAction: "Choisir des sujets",
           save: "Enregistrer les préférences",
           saving: "Enregistrement...",
           saveErrorTitle: "Impossible d'enregistrer les préférences"

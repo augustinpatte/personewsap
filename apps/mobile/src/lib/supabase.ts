@@ -535,6 +535,33 @@ function normalizeNetworkErrorMessage(
   const message = error.message.toLowerCase();
 
   if (
+    error.code === "user_already_exists" ||
+    message.includes("user already registered") ||
+    message.includes("already registered") ||
+    message.includes("already exists")
+  ) {
+    return {
+      ...error,
+      code: error.code ?? "user_already_exists",
+      message: "An account already exists with this email address."
+    };
+  }
+
+  if (
+    error.code === "invalid_email" ||
+    error.code === "email_address_invalid" ||
+    message.includes("invalid email") ||
+    message.includes("email address is invalid") ||
+    message.includes("invalid format")
+  ) {
+    return {
+      ...error,
+      code: error.code ?? "invalid_email",
+      message: "Invalid email address."
+    };
+  }
+
+  if (
     error.code === "invalid_credentials" ||
     message.includes("invalid login credentials")
   ) {
@@ -554,21 +581,17 @@ function normalizeNetworkErrorMessage(
     };
   }
 
-  if (message.includes("user already registered") || message.includes("already registered")) {
-    return {
-      ...error,
-      code: error.code ?? "user_already_registered",
-      message: "An account already exists for this email.",
-      hint: error.hint ?? "Log in instead, or reset your password if you cannot access it."
-    };
-  }
-
-  if (message.includes("password should be") || message.includes("weak password")) {
+  if (
+    error.code === "weak_password" ||
+    error.code === "invalid_password" ||
+    message.includes("password should be") ||
+    message.includes("weak password") ||
+    message.includes("password must")
+  ) {
     return {
       ...error,
       code: error.code ?? "weak_password",
-      message: "Choose a stronger password.",
-      hint: error.hint ?? "Use at least 8 characters with a mix of letters and numbers."
+      message: "Password must contain at least 8 characters."
     };
   }
 

@@ -3,6 +3,7 @@ import { useWizard } from '@/contexts/WizardContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import WizardLayout from '@/components/WizardLayout';
+import { NEWSLETTER_TOPIC_KEYS } from '@/lib/topicTaxonomy';
 
 interface TopicsStepProps {
   onNext: () => void;
@@ -10,16 +11,7 @@ interface TopicsStepProps {
   totalSteps: number;
 }
 
-const TOPIC_KEYS = [
-  'sport',
-  'international',
-  'finance',
-  'stocks',
-  'automotive',
-  'pharma',
-  'ai',
-  'culture',
-];
+const TOPIC_KEYS = NEWSLETTER_TOPIC_KEYS;
 
 const TopicsStep = ({ onNext, onBack, totalSteps }: TopicsStepProps) => {
   const { t } = useLanguage();

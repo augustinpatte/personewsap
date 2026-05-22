@@ -11,9 +11,13 @@ import {
   ArticleCountRow,
   LANGUAGE_OPTIONS,
   localizeOptions,
+  mapMiniCaseTopicToBackendTopic,
   mapNewsletterTopicToBackendTopic,
+  MAX_MINI_CASE_TOPICS,
+  MINI_CASE_TOPIC_OPTIONS,
   SelectableCard,
   TOPIC_OPTIONS,
+  type MiniCaseTopicId,
   type NewsletterTopicId
 } from "../onboarding";
 import {
@@ -50,6 +54,10 @@ export function PreferencesEditor({
   );
   const topicOptions = useMemo(
     () => localizeOptions(TOPIC_OPTIONS, uiLanguage),
+    [uiLanguage]
+  );
+  const miniCaseTopicOptions = useMemo(
+    () => localizeOptions(MINI_CASE_TOPIC_OPTIONS, uiLanguage),
     [uiLanguage]
   );
 
@@ -98,6 +106,13 @@ export function PreferencesEditor({
         .filter((topic): topic is (typeof TOPIC_OPTIONS)[number] => Boolean(topic)) ?? [],
     [draft?.selectedTopics, topicOptions]
   );
+  const selectedMiniCaseTopicOptions = useMemo(
+    () =>
+      draft?.miniCaseTopics
+        .map((topicId) => miniCaseTopicOptions.find((option) => option.id === topicId))
+        .filter((topic): topic is (typeof MINI_CASE_TOPIC_OPTIONS)[number] => Boolean(topic)) ?? [],
+    [draft?.miniCaseTopics, miniCaseTopicOptions]
+  );
 
   const totalArticleCount = useMemo(
     () =>
@@ -122,7 +137,7 @@ export function PreferencesEditor({
     setErrorMessage(null);
   }, []);
 
-  const toggleTopic = useCallback((topicId: NewsletterTopicId) => {
+  const toggleNewsletterTopic = useCallback((topicId: NewsletterTopicId) => {
     setDraft((current) => {
       if (!current) {
         return current;
@@ -144,6 +159,29 @@ export function PreferencesEditor({
         ...current,
         selectedTopics,
         articlesPerTopic
+      });
+    });
+    setStatusMessage(null);
+    setErrorMessage(null);
+  }, []);
+
+  const toggleMiniCaseTopic = useCallback((topicId: MiniCaseTopicId) => {
+    setDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const isSelected = current.miniCaseTopics.includes(topicId);
+
+      if (!isSelected && current.miniCaseTopics.length >= MAX_MINI_CASE_TOPICS) {
+        return current;
+      }
+
+      return normalizeEditablePreferences({
+        ...current,
+        miniCaseTopics: isSelected
+          ? current.miniCaseTopics.filter((selectedTopicId) => selectedTopicId !== topicId)
+          : [...current.miniCaseTopics, topicId]
       });
     });
     setStatusMessage(null);
@@ -247,6 +285,7 @@ export function PreferencesEditor({
 
       <PreferenceSummary
         copy={copy}
+        miniCaseTopicOptions={miniCaseTopicOptions}
         preferences={draft}
         topicOptions={topicOptions}
         totalArticleCount={totalArticleCount}
@@ -273,12 +312,49 @@ export function PreferencesEditor({
             description={option.description}
             key={option.id}
             label={option.label}
-            onPress={() => toggleTopic(option.id)}
+            onPress={() => toggleNewsletterTopic(option.id)}
             selected={draft.selectedTopics.includes(option.id)}
             selectedBadge={copy.selected}
             unselectedBadge={copy.notSelected}
           />
         ))}
+        {draft.selectedTopics.length === 0 ? (
+          <AppText color="danger" variant="body">
+            {copy.missingNewsletterTopic}
+          </AppText>
+        ) : null}
+      </PreferenceGroup>
+
+      <PreferenceGroup title={copy.miniCaseTopics}>
+        <AppText color="muted" variant="caption">
+          {copy.miniCaseTopicsHelp}
+        </AppText>
+        {miniCaseTopicOptions.map((option) => {
+          const selected = draft.miniCaseTopics.includes(option.id);
+          const disabled = !selected && draft.miniCaseTopics.length >= MAX_MINI_CASE_TOPICS;
+
+          return (
+            <SelectableCard
+              description={option.description}
+              disabled={disabled}
+              key={option.id}
+              label={option.label}
+              onPress={() => toggleMiniCaseTopic(option.id)}
+              selected={selected}
+              selectedBadge={copy.selected}
+              unselectedBadge={disabled ? copy.limitReached : copy.notSelected}
+            />
+          );
+        })}
+        {draft.miniCaseTopics.length === 0 ? (
+          <AppText color="danger" variant="body">
+            {copy.missingMiniCaseTopic}
+          </AppText>
+        ) : (
+          <AppText color="muted" variant="caption">
+            {copy.miniCaseSelectedFooter(selectedMiniCaseTopicOptions.length)}
+          </AppText>
+        )}
       </PreferenceGroup>
 
       <PreferenceGroup title={copy.articleCounts}>
@@ -295,7 +371,7 @@ export function PreferencesEditor({
           ))
         ) : (
           <AppText color="danger" variant="body">
-            {copy.missingTopic}
+            {copy.missingNewsletterTopic}
           </AppText>
         )}
       </PreferenceGroup>
@@ -320,7 +396,8 @@ export function PreferencesEditor({
             saving ||
             loading ||
             !hasChanges ||
-            draft.selectedTopics.length === 0
+            draft.selectedTopics.length === 0 ||
+            draft.miniCaseTopics.length === 0
           }
           label={saving ? copy.saving : copy.saveChanges}
           loading={saving}
@@ -334,17 +411,22 @@ export function PreferencesEditor({
 
 function PreferenceSummary({
   copy,
+  miniCaseTopicOptions,
   preferences,
   topicOptions,
   totalArticleCount
 }: {
   copy: ReturnType<typeof getPreferencesCopy>;
+  miniCaseTopicOptions: Array<(typeof MINI_CASE_TOPIC_OPTIONS)[number]>;
   preferences: EditablePreferences;
   topicOptions: Array<(typeof TOPIC_OPTIONS)[number]>;
   totalArticleCount: number;
 }) {
   const topicLabels = preferences.selectedTopics
     .map((topicId) => topicOptions.find((topic) => topic.id === topicId)?.label)
+    .filter((label): label is string => Boolean(label));
+  const miniCaseTopicLabels = preferences.miniCaseTopics
+    .map((topicId) => miniCaseTopicOptions.find((topic) => topic.id === topicId)?.label)
     .filter((label): label is string => Boolean(label));
   return (
     <View style={styles.summaryPanel}>
@@ -361,7 +443,17 @@ function PreferenceSummary({
           {copy.topics}
         </AppText>
         <AppText style={styles.summaryValue} variant="bodyStrong">
-          {topicLabels.length > 0 ? topicLabels.join(", ") : copy.missingTopic}
+          {topicLabels.length > 0 ? topicLabels.join(", ") : copy.missingNewsletterTopic}
+        </AppText>
+      </View>
+      <View style={styles.summaryRow}>
+        <AppText color="muted" variant="caption">
+          {copy.miniCaseTopics}
+        </AppText>
+        <AppText style={styles.summaryValue} variant="bodyStrong">
+          {miniCaseTopicLabels.length > 0
+            ? miniCaseTopicLabels.join(", ")
+            : copy.missingMiniCaseTopic}
         </AppText>
       </View>
       <View style={styles.summaryRow}>
@@ -391,6 +483,7 @@ function serializePreferences(preferences: EditablePreferences) {
   return JSON.stringify({
     language: normalized.language,
     selectedTopics: normalized.selectedTopics,
+    miniCaseTopics: normalized.miniCaseTopics,
     articlesPerTopic: normalized.articlesPerTopic
   });
 }
@@ -409,13 +502,18 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         refreshingDetail:
           "Refreshing settings. Last loaded choices stay editable while the app checks your account.",
         saved:
-          "Saved. Future daily drops will use these newsletter preferences.",
+          "Saved. Future daily drops will use these preferences.",
         language: "Language",
         topics: "Newsletter topics",
         topicsHelp:
-          "Choose one or more categories. These choices guide newsletter depth and mini-cases.",
+          "Choose one to eight topics for newsletter articles.",
+        miniCaseTopics: "Mini-case topics",
+        miniCaseTopicsHelp:
+          "Choose one to three topics for practical mini-cases. This stays separate from newsletter topics.",
         articleCounts: "Newsletter depth",
-        missingTopic: "Select at least one newsletter category to save preferences.",
+        missingNewsletterTopic: "Select at least one newsletter topic to save preferences.",
+        missingMiniCaseTopic: "Select at least one mini-case topic to save preferences.",
+        limitReached: "Limit reached",
         selected: "Selected",
         notSelected: "Not selected",
         reset: "Reset",
@@ -423,6 +521,8 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         saveChanges: "Save changes",
         articlePill: (count: number) => `${count} article${count === 1 ? "" : "s"}`,
         countLabel: (count: number) => `${count} per drop`,
+        miniCaseSelectedFooter: (count: number) =>
+          `${count}/3 mini-case topic${count === 1 ? "" : "s"} selected`,
         summaryArticles: (count: number) =>
           `${count} article${count === 1 ? "" : "s"} · daily`
       },
@@ -437,13 +537,18 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         refreshingDetail:
           "Actualisation des réglages. Les derniers choix chargés restent modifiables pendant la vérification.",
         saved:
-          "Enregistré. Les prochaines mises à jour utiliseront ces préférences newsletter.",
+          "Enregistré. Les prochaines mises à jour utiliseront ces préférences.",
         language: "Langue",
         topics: "Sujets newsletter",
         topicsHelp:
-          "Choisis une ou plusieurs catégories. Ces choix guident la profondeur newsletter et les mini-cas.",
+          "Choisis un à huit sujets pour les articles newsletter.",
+        miniCaseTopics: "Sujets mini-cas",
+        miniCaseTopicsHelp:
+          "Choisis un à trois sujets pour les mini-cas pratiques. Ce choix reste séparé des sujets newsletter.",
         articleCounts: "Profondeur newsletter",
-        missingTopic: "Sélectionne au moins une catégorie newsletter pour enregistrer les préférences.",
+        missingNewsletterTopic: "Sélectionne au moins un sujet newsletter pour enregistrer les préférences.",
+        missingMiniCaseTopic: "Sélectionne au moins un sujet mini-cas pour enregistrer les préférences.",
+        limitReached: "Limite atteinte",
         selected: "Sélectionné",
         notSelected: "Non sélectionné",
         reset: "Réinitialiser",
@@ -451,6 +556,8 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         saveChanges: "Enregistrer",
         articlePill: (count: number) => `${count} article${count > 1 ? "s" : ""}`,
         countLabel: (count: number) => `${count} par jour`,
+        miniCaseSelectedFooter: (count: number) =>
+          `${count}/3 sujet${count > 1 ? "s" : ""} mini-cas sélectionné${count > 1 ? "s" : ""}`,
         summaryArticles: (count: number) =>
           `${count} article${count > 1 ? "s" : ""} · quotidien`
       }
@@ -470,11 +577,19 @@ function trackSavedPreferenceUpdates(
   }
 
   const changedTopics = getChangedTopics(previous, next);
+  const changedMiniCaseTopics = getChangedMiniCaseTopics(previous, next);
 
   for (const topic of changedTopics) {
     trackAnalyticsEvent("topic_preference_updated", {
       language: next.language,
       topic: mapNewsletterTopicToBackendTopic(topic)
+    });
+  }
+
+  for (const topic of changedMiniCaseTopics) {
+    trackAnalyticsEvent("topic_preference_updated", {
+      language: next.language,
+      topic: mapMiniCaseTopicToBackendTopic(topic)
     });
   }
 }
@@ -500,6 +615,29 @@ function getChangedTopics(
     }
 
     if ((previous?.articlesPerTopic[topic] ?? 1) !== (next.articlesPerTopic[topic] ?? 1)) {
+      changedTopics.add(topic);
+    }
+  }
+
+  return changedTopics;
+}
+
+function getChangedMiniCaseTopics(
+  previous: EditablePreferences | null,
+  next: EditablePreferences
+) {
+  const changedTopics = new Set<MiniCaseTopicId>();
+  const previousTopics = new Set(previous?.miniCaseTopics ?? []);
+  const nextTopics = new Set(next.miniCaseTopics);
+
+  for (const topic of previousTopics) {
+    if (!nextTopics.has(topic)) {
+      changedTopics.add(topic);
+    }
+  }
+
+  for (const topic of nextTopics) {
+    if (!previousTopics.has(topic)) {
       changedTopics.add(topic);
     }
   }

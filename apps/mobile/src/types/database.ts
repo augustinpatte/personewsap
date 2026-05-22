@@ -18,6 +18,16 @@ export type TopicId =
   | "sport_business"
   | "culture_media";
 
+export type MiniCaseTopicId =
+  | "law"
+  | "finance_economy"
+  | "artificial_intelligence"
+  | "stock_market"
+  | "engineering"
+  | "health"
+  | "entrepreneurship"
+  | "career";
+
 export type GoalId =
   | "understand_world"
   | "prepare_career"
@@ -208,6 +218,32 @@ export type Database = {
           user_id?: string;
           topic_id?: TopicId;
           articles_count?: number;
+          enabled?: boolean;
+          position?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+      user_mini_case_topic_preferences: TableDefinition<
+        {
+          user_id: string;
+          topic_id: MiniCaseTopicId;
+          enabled: boolean;
+          position: number | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          user_id: string;
+          topic_id: MiniCaseTopicId;
+          enabled?: boolean;
+          position?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          user_id?: string;
+          topic_id?: MiniCaseTopicId;
           enabled?: boolean;
           position?: number | null;
           created_at?: string;

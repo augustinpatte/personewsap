@@ -9,6 +9,7 @@ const REQUIRED_TABLES = [
   "profiles",
   "user_preferences",
   "user_topic_preferences",
+  "user_mini_case_topic_preferences",
   "topics",
   "content_items",
   "sources",
@@ -52,6 +53,12 @@ const EXPECTED_POLICIES = {
     "Users can read their own topic preferences",
     "Users can update their own topic preferences",
     "Users can delete their own topic preferences"
+  ],
+  user_mini_case_topic_preferences: [
+    "Users can insert their own mini-case topic preferences",
+    "Users can read their own mini-case topic preferences",
+    "Users can update their own mini-case topic preferences",
+    "Users can delete their own mini-case topic preferences"
   ],
   topics: ["Anyone can read active topics"],
   content_items: ["Users can read assigned published content"],
@@ -97,6 +104,7 @@ const rootDir = process.cwd();
 const migrationDir = path.join(rootDir, "supabase", "migrations");
 const checks = [];
 
+await loadDefaultEnvFiles();
 await runStaticMigrationAudit();
 
 if (live) {
@@ -242,7 +250,19 @@ async function runStaticMigrationAudit() {
   assertRegex(
     sql,
     /alter\s+table\s+public\.user_preferences[\s\S]+add\s+column\s+(if\s+not\s+exists\s+)?mini_case_topic_id\s+text\s+references\s+public\.topics\s*\(\s*id\s*\)/i,
-    "migration stores explicit mini-case topic preference"
+    "migration preserves legacy explicit mini-case topic preference"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+table\s+if\s+not\s+exists\s+public\.user_mini_case_topic_preferences/i,
+    "migration stores mini-case preferences separately from newsletter topic preferences"
+  );
+
+  assertRegex(
+    sql,
+    /user_mini_case_topic_preferences_topic_id_check[\s\S]+law[\s\S]+finance_economy[\s\S]+artificial_intelligence[\s\S]+stock_market[\s\S]+engineering[\s\S]+health[\s\S]+entrepreneurship[\s\S]+career/i,
+    "migration constrains mini-case preferences to product mini-case topic IDs"
   );
 }
 
@@ -277,13 +297,33 @@ async function runLiveReadOnlyChecks() {
     for (const table of [...REQUIRED_TABLES, ...SUPPORTING_TABLES]) {
       const { error } = await serviceClient
         .from(table)
-        .select("*", { count: "exact", head: true });
+        .select("*")
+        .limit(1);
 
       if (error) {
         addCheck("fail", `service role can read public.${table}`, sanitizeError(error));
       } else {
         addCheck("pass", `service role can read public.${table}`, "Table exists and is reachable.");
       }
+    }
+
+    const { error: miniCaseColumnError } = await serviceClient
+      .from("user_preferences")
+      .select("mini_case_topic_id")
+      .limit(1);
+
+    if (miniCaseColumnError) {
+      addCheck(
+        "fail",
+        "service role can read public.user_preferences.mini_case_topic_id",
+        sanitizeError(miniCaseColumnError)
+      );
+    } else {
+      addCheck(
+        "pass",
+        "service role can read public.user_preferences.mini_case_topic_id",
+        "Compatibility column exists and is reachable."
+      );
     }
   } else {
     addCheck("warn", "service role checks skipped", "Set SUPABASE_SERVICE_ROLE_KEY to check service-role table reachability.");
@@ -428,6 +468,56 @@ function readEnv(name) {
   return value && value.length > 0 ? value : null;
 }
 
+async function loadDefaultEnvFiles() {
+  const envFiles = [
+    path.join(rootDir, ".env"),
+    path.join(rootDir, "apps", "mobile", ".env"),
+    path.join(rootDir, "services", "content-engine", ".env")
+  ];
+
+  for (const envFile of envFiles) {
+    try {
+      const content = await readFile(envFile, "utf8");
+      loadEnvContent(content);
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        addCheck("warn", `could not read ${path.relative(rootDir, envFile)}`, error.message);
+      }
+    }
+  }
+}
+
+function loadEnvContent(content) {
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
+
+    if (!match || process.env[match[1]]) {
+      continue;
+    }
+
+    process.env[match[1]] = parseEnvValue(match[2]);
+  }
+}
+
+function parseEnvValue(rawValue) {
+  const value = rawValue.trim();
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
+}
+
 function sanitizeError(error) {
   const parts = [
     typeof error?.code === "string" ? `code=${error.code}` : null,
@@ -480,6 +570,7 @@ Optional env vars for live mode:
   OTHER_USER_ID
 
 Notes:
+  The doctor loads .env, apps/mobile/.env, and services/content-engine/.env when present.
   TEST_USER_ACCESS_TOKEN should be a short-lived access token from a tester session.
   OTHER_USER_ID should be a different profile/auth user id used only to prove isolation.
 `);

@@ -60,7 +60,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
     password
   });
   const formValid = useMemo(() => {
-    const hasRequiredFields = email.trim().length > 3 && password.length >= 8;
+    const hasRequiredFields = isValidAuthEmail(email) && password.length >= 8;
     return isSignup
       ? hasRequiredFields && password === confirmPassword
       : hasRequiredFields;
@@ -94,6 +94,11 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
 
     if (isSignup && password !== confirmPassword) {
       setFormError({ code: "password_mismatch", message: "Passwords do not match." });
+      return;
+    }
+
+    if (!isValidAuthEmail(email)) {
+      setFormError({ code: "invalid_email", message: "Invalid email address." });
       return;
     }
 
@@ -229,7 +234,7 @@ function getFormHint({
   isSignup: boolean;
   password: string;
 }) {
-  if (!email.trim().includes("@")) {
+  if (!isValidAuthEmail(email)) {
     return copy.emailHint;
   }
 
@@ -242,6 +247,10 @@ function getFormHint({
   }
 
   return null;
+}
+
+function isValidAuthEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
 function AuthErrorMessage({
