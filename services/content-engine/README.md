@@ -108,6 +108,7 @@ npm run prod-dry-run
 npm run prod-run
 npm run job-health
 npm run job-health:strict
+npm run business-story-memory
 ```
 
 `dry-run` builds the service and runs the local executable without Supabase writes, migrations, API keys, or LLM calls.
@@ -117,6 +118,8 @@ npm run job-health:strict
 `job-health` is the read-only operator check for rows stored in `public.job_runs`. It requires server-side Supabase credentials and prints RSS, LLM, validation, storage, assignment, and cost-estimate health.
 
 `job-health:strict` is the automation form. It exits nonzero for both `warning` and `critical` states, which is the safer choice for cron/launchd notifications.
+
+`business-story-memory` is a read-only operator report for the Business Story editorial memory. It requires server-side Supabase service-role credentials and prints the last 10 stories, recent mechanisms and industries, blocked entities/companies, blocked strategic angles, and recommended underused mechanisms/industries.
 
 `prod-dry-run` sets the production RSS/LLM source controls with `DRY_RUN=true`. It still requires `OPENAI_API_KEY`, but it never writes to Supabase.
 
@@ -566,8 +569,15 @@ Safety behavior:
 - one language failure is reported as `partial_failed` when at least one other requested language succeeds; set `STRICT_ALL_LANGUAGES=true` to fail the run instead.
 - assignment uses only app `profiles`, `user_preferences`, and enabled `user_topic_preferences`; newsletter-only users are not selected.
 - assignment uses the generated drop matching the user's profile language.
+- Business Stories read `public.business_story_history` before generation. The prompt receives banned entities, companies, mechanisms, industries, and angles plus underused areas. Validation blocks same entity within 180 days, same company within 90 days unless the angle differs, same mechanism within 14 days, more than two uses of the same industry in 14 days, same strategic angle within 30 days, and duplicate title/slug forever. Persistence upserts history by slug/content item so reruns do not duplicate memory rows.
 
 The JSON summary reports `runId`, `operatorSummary`, `metrics`, fetched, processed, generated, stored, users considered, users assigned, failures, skipped users before assignment, incomplete selections, stale item links removed, duplicate input links skipped, validation failures by rule, and cost-estimate availability. Daily-drop assignment is idempotent by user/date: reruns update existing `daily_drops` and replace `daily_drop_items` by slot/position. Content item rows are currently inserted per generation run, so operators should use `runId` metadata to inspect reruns.
+
+Inspect Business Story memory before a production run:
+
+```sh
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run business-story-memory -- --language en --date "$(date +%F)"
+```
 
 Use [../../BACKEND_OPERATIONS.md](../../BACKEND_OPERATIONS.md) for the production runbook, rollback plan, partial-language playbook, and SQL verification queries.
 

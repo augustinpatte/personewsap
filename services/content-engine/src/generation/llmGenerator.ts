@@ -7,6 +7,7 @@ import type {
 } from "../domain.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { DAILY_DROP_JSON_SCHEMA } from "./dailyDropSchema.js";
+import { compactBusinessStoryMemoryForPrompt } from "./editorialMemory.js";
 import { LlmGenerationError, serializeLlmFailure, toLlmGenerationError } from "./llmErrors.js";
 import type { LlmProvider } from "./llmProvider.js";
 import { sanitizeLlmDailyDropPayload } from "./llmSanitizer.js";
@@ -107,7 +108,9 @@ export class LlmContentGenerator implements ContentGenerator {
         const quality = validateDailyDropQuality(payload, {
           articles: request.articles,
           productionStrict: request.productionStrict ?? readProductionContentStrict(),
-          rssOnly: request.articles.every((article) => !isSampleUrl(article.url))
+          rssOnly: request.articles.every((article) => !isSampleUrl(article.url)),
+          miniCaseProductTopics: request.miniCaseProductTopics,
+          miniCaseMemory: request.miniCaseMemory?.recentOverall
         });
         const issues = [
           ...validateDailyDropPayload(payload),
@@ -177,7 +180,7 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
         items: [
           `${request.newsletterArticleCount} newsletter_article items`,
           "1 business_story item",
-          "1 mini_case item",
+          `${request.miniCaseProductTopics?.length ?? 1} mini_case item(s), one per requested mini_case_product_topics entry`,
           "1 concept item"
         ],
         schema_notes: [
@@ -203,7 +206,43 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
         "Ground factual claims in the supplied sources only.",
         "Do not invent URLs, dates, authors, institutions, numbers, or quotes.",
         "Make each item relevant to its topic; do not force a source into the wrong topic.",
-        "For law/compliance, health/pharma, and finance, frame mini-cases as business or compliance decisions. Never provide legal advice, medical advice, diagnosis, treatment guidance, or personalized financial advice."
+        "For law/compliance, health/pharma, and finance, frame mini-cases as business or compliance decisions. Never provide legal advice, medical advice, diagnosis, treatment guidance, or personalized financial advice.",
+        "For mini_case, obey editorial memory: do not repeat banned scenario_type, concept_tested, decision_type, question_pattern, titles, or slugs. Use exactly 3 MCQ questions with instant feedback.",
+        "For business_story, obey editorial memory: do not repeat banned entities, companies, mechanisms, industries, strategic angles, titles, or slugs. Prefer underused industries, mechanisms, entity types, geographies, and time periods."
+      ],
+      mini_case_anti_repeat_rules: [
+        "No same scenario_type within 10 days.",
+        "No same concept_tested within 7 days.",
+        "No same decision_type within 5 days.",
+        "No same topic more than 2 days in a row globally if avoidable.",
+        "No same question_pattern within 14 days.",
+        "No same title or slug ever."
+      ],
+      mini_case_rotation_context: {
+        selected_topics: request.miniCaseProductTopics ?? [],
+        banned_recent_scenario_types: request.miniCaseMemory?.bannedScenarioTypes ?? [],
+        banned_recent_concepts: request.miniCaseMemory?.bannedConcepts ?? [],
+        banned_recent_decision_types: request.miniCaseMemory?.bannedDecisionTypes ?? [],
+        banned_recent_question_patterns: request.miniCaseMemory?.bannedQuestionPatterns ?? [],
+        recent_titles_to_avoid: request.miniCaseMemory?.recentTitles ?? [],
+        allowed_topic_framing: request.miniCaseMemory?.allowedFraming ?? {},
+        forbidden_advice_language: [
+          "law_compliance is business/compliance/legal-risk education only, never personal legal advice.",
+          "health_pharma is pharma, healthcare business, public-health, trial, access, regulation, or operations education only, never diagnosis or treatment advice.",
+          "stock_market is market education only, never buy/sell instructions."
+        ],
+        ux_contract: [
+          "Each mini-case contains context/introduction, problem to solve, exactly 3 MCQ questions, immediate feedback for each answer, a computable score from 0/3 to 3/3, and a final short takeaway.",
+          "Question 1: method/framework. Question 2: technical/practical application. Question 3: conclusion/decision."
+        ]
+      },
+      business_story_anti_repeat_rules: [
+        "No same entity_name within 180 days.",
+        "No same main_company within 90 days unless the strategic_angle is clearly different.",
+        "No same key_mechanism within 14 days.",
+        "No same industry more than twice in 14 days.",
+        "No same strategic_angle within 30 days.",
+        "No same title or slug ever."
       ],
       banned_phrases: BANNED_EDITORIAL_PHRASES,
       stronger_writing_examples: STRONG_WRITING_EXAMPLES,
@@ -217,8 +256,10 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
         drop_date: request.dropDate,
         language: request.language,
         newsletter_topics: request.newsletterTopics,
-        newsletter_article_count: request.newsletterArticleCount
+        newsletter_article_count: request.newsletterArticleCount,
+        mini_case_product_topics: request.miniCaseProductTopics ?? []
       },
+      business_story_editorial_memory: compactBusinessStoryMemoryForPrompt(request.businessStoryMemory),
       allowed_source_urls: allowedSourceUrls,
       source_material: sources
     },
@@ -281,8 +322,9 @@ function validateComposition(payload: DailyDropPayload, request: GenerationReque
     issues.push({ path: "items", message: `Expected 1 business_story item, received ${businessStoryCount}.` });
   }
 
-  if (miniCaseCount !== 1) {
-    issues.push({ path: "items", message: `Expected 1 mini_case item, received ${miniCaseCount}.` });
+  const expectedMiniCaseCount = request.miniCaseProductTopics?.length ?? 1;
+  if (miniCaseCount !== expectedMiniCaseCount) {
+    issues.push({ path: "items", message: `Expected ${expectedMiniCaseCount} mini_case item(s), received ${miniCaseCount}.` });
   }
 
   if (conceptCount !== 1) {
@@ -290,7 +332,7 @@ function validateComposition(payload: DailyDropPayload, request: GenerationReque
   }
 
   payload.items.forEach((item, index) => {
-    if (item.topic && !requestedTopics.has(item.topic)) {
+    if (item.content_type !== "mini_case" && item.topic && !requestedTopics.has(item.topic)) {
       issues.push({
         path: `items.${index}.topic`,
         message: `Topic ${item.topic} is outside requested topics: ${request.newsletterTopics.join(", ")}.`

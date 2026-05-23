@@ -7,12 +7,28 @@ import {
   type DailyDropPayload,
   type DailyDropSlot,
   type GeneratedContentItem,
+  type BusinessStoryEditorialMemoryEntry,
+  type BusinessStoryEntityType,
+  type BusinessStoryMemoryContext,
   type Language,
   type MiniCaseTopicId,
   type RankedArticle,
   type TopicId,
   type UserDailyDropPreference
 } from "../domain.js";
+import { buildBusinessStoryEditorialMemory, buildBusinessStoryMemoryContext } from "../generation/editorialMemory.js";
+import {
+  buildMiniCaseMemoryContext,
+  miniCaseMemoryFromItem,
+  type MiniCaseEditorialMemoryRecord,
+  type MiniCaseMemoryContext
+} from "../miniCase/editorialMemory.js";
+import type {
+  MiniCaseConcept,
+  MiniCaseDecisionType,
+  MiniCaseQuestionPattern,
+  MiniCaseScenarioType
+} from "../miniCase/taxonomy.js";
 import { normalizeUrl, sha256 } from "../utils/hash.js";
 import {
   assertDailyPayloadSourcesArePersistable,
@@ -68,6 +84,45 @@ type ContentItemRow = {
 
 type ContentItemDedupRow = {
   id: string;
+};
+
+type BusinessStoryHistoryRow = {
+  id: string;
+  content_item_id: string | null;
+  title: string;
+  slug: string;
+  entity_name: string;
+  entity_type: BusinessStoryEntityType;
+  main_company: string;
+  companies_mentioned: string[];
+  industry: string;
+  key_mechanism: string;
+  secondary_mechanisms: string[];
+  strategic_angle: string;
+  core_takeaway: string;
+  year_period: string;
+  language: Language;
+  published_date: string;
+  created_at: string;
+};
+
+type MiniCaseHistoryRow = {
+  id: string;
+  content_item_id: string | null;
+  title: string;
+  slug: string;
+  topic: MiniCaseTopicId;
+  scenario_type: MiniCaseScenarioType;
+  decision_type: MiniCaseDecisionType;
+  concept_tested: MiniCaseConcept;
+  mechanism: string;
+  difficulty: string;
+  question_pattern: MiniCaseQuestionPattern;
+  correct_answer_pattern: string;
+  core_takeaway: string;
+  published_date: string;
+  language: Language;
+  created_at: string;
 };
 
 type PersistTestContentItemRow = {
@@ -281,6 +336,16 @@ export class ContentRepository {
       table: "content_item_sources",
       action: "preflight select content item sources",
       columns: "content_item_id"
+    });
+    await this.assertTableReadable({
+      table: "business_story_history",
+      action: "preflight select business story editorial memory",
+      columns: "id"
+    });
+    await this.assertTableReadable({
+      table: "mini_case_history",
+      action: "preflight select mini-case editorial memory",
+      columns: "id"
     });
 
     const { data, error } = await this.supabase.from("topics").select("id").in("id", topics);
@@ -748,6 +813,71 @@ export class ContentRepository {
     }
   }
 
+  async upsertBusinessStoryHistory(entry: BusinessStoryEditorialMemoryEntry): Promise<void> {
+    const { error } = await this.supabase
+      .from("business_story_history")
+      .upsert(
+        {
+          content_item_id: entry.content_item_id,
+          title: entry.title,
+          slug: entry.slug,
+          entity_name: entry.entity_name,
+          entity_type: entry.entity_type,
+          main_company: entry.main_company,
+          companies_mentioned: entry.companies_mentioned,
+          industry: entry.industry,
+          key_mechanism: entry.key_mechanism,
+          secondary_mechanisms: entry.secondary_mechanisms,
+          strategic_angle: entry.strategic_angle,
+          core_takeaway: entry.core_takeaway,
+          year_period: entry.year_period,
+          language: entry.language,
+          published_date: entry.published_date
+        },
+        { onConflict: "slug" }
+      );
+
+    if (error) {
+      throwPersistenceError({
+        table: "business_story_history",
+        action: "upsert business story editorial memory",
+        error
+      });
+    }
+  }
+
+  async upsertMiniCaseHistory(entry: MiniCaseEditorialMemoryRecord): Promise<void> {
+    const { error } = await this.supabase
+      .from("mini_case_history")
+      .upsert(
+        {
+          content_item_id: entry.content_item_id,
+          title: entry.title,
+          slug: entry.slug,
+          topic: entry.topic,
+          scenario_type: entry.scenario_type,
+          decision_type: entry.decision_type,
+          concept_tested: entry.concept_tested,
+          mechanism: entry.mechanism,
+          difficulty: entry.difficulty,
+          question_pattern: entry.question_pattern,
+          correct_answer_pattern: entry.correct_answer_pattern,
+          core_takeaway: entry.core_takeaway,
+          published_date: entry.published_date,
+          language: entry.language
+        },
+        { onConflict: "slug" }
+      );
+
+    if (error) {
+      throwPersistenceError({
+        table: "mini_case_history",
+        action: "upsert mini-case editorial memory",
+        error
+      });
+    }
+  }
+
   async storeDailyPayload(input: {
     payload: DailyDropPayload;
     articles: RankedArticle[];
@@ -803,6 +933,25 @@ export class ContentRepository {
         if (!existingContentItemId) {
           await this.insertContentItemSources(sourceLinks);
         }
+        if (item.content_type === "business_story") {
+          await this.upsertBusinessStoryHistory(
+            buildBusinessStoryEditorialMemory({
+              item,
+              contentItemId,
+              publishedDate: input.payload.drop_date
+            })
+          );
+        }
+        if (item.content_type === "mini_case") {
+          const memory = miniCaseMemoryFromItem({
+            item,
+            contentItemId,
+            publishedDate: input.payload.drop_date
+          });
+          if (memory) {
+            await this.upsertMiniCaseHistory(memory);
+          }
+        }
         await this.completeGenerationRun(runId, sha256(JSON.stringify(item)), input.contentStatus === "published" ? "published" : "generated");
         storedItems.push({
           item,
@@ -817,6 +966,101 @@ export class ContentRepository {
     }
 
     return storedItems;
+  }
+
+  async listBusinessStoryMemoryContext(input: {
+    language: Language;
+    dropDate: string;
+  }): Promise<BusinessStoryMemoryContext> {
+    const { data, error } = await this.supabase
+      .from("business_story_history")
+      .select(
+        "id,content_item_id,title,slug,entity_name,entity_type,main_company,companies_mentioned,industry,key_mechanism,secondary_mechanisms,strategic_angle,core_takeaway,year_period,language,published_date,created_at"
+      )
+      .eq("language", input.language)
+      .lte("published_date", input.dropDate)
+      .order("published_date", { ascending: false })
+      .limit(180)
+      .returns<BusinessStoryHistoryRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "business_story_history",
+        action: "select business story editorial memory",
+        error
+      });
+    }
+
+    return buildBusinessStoryMemoryContext({
+      entries: (data ?? []).map(mapBusinessStoryHistoryRow),
+      dropDate: input.dropDate,
+      language: input.language
+    });
+  }
+
+  async listMiniCaseMemoryContext(input: {
+    language: Language;
+    dropDate: string;
+  }): Promise<MiniCaseMemoryContext> {
+    const { data, error } = await this.supabase
+      .from("mini_case_history")
+      .select(
+        "id,content_item_id,title,slug,topic,scenario_type,decision_type,concept_tested,mechanism,difficulty,question_pattern,correct_answer_pattern,core_takeaway,published_date,language,created_at"
+      )
+      .eq("language", input.language)
+      .lte("published_date", input.dropDate)
+      .order("published_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(60)
+      .returns<MiniCaseHistoryRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "mini_case_history",
+        action: "select mini-case editorial memory",
+        error
+      });
+    }
+
+    return buildMiniCaseMemoryContext({
+      records: (data ?? []).map(mapMiniCaseHistoryRow),
+      dropDate: input.dropDate
+    });
+  }
+
+  async listBusinessStoryHistoryReport(input: {
+    language?: Language;
+    dropDate: string;
+    limit: number;
+  }): Promise<BusinessStoryMemoryContext> {
+    let query = this.supabase
+      .from("business_story_history")
+      .select(
+        "id,content_item_id,title,slug,entity_name,entity_type,main_company,companies_mentioned,industry,key_mechanism,secondary_mechanisms,strategic_angle,core_takeaway,year_period,language,published_date,created_at"
+      )
+      .lte("published_date", input.dropDate)
+      .order("published_date", { ascending: false })
+      .limit(Math.max(180, input.limit));
+
+    if (input.language) {
+      query = query.eq("language", input.language);
+    }
+
+    const { data, error } = await query.returns<BusinessStoryHistoryRow[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "business_story_history",
+        action: "select business story history report",
+        error
+      });
+    }
+
+    return buildBusinessStoryMemoryContext({
+      entries: (data ?? []).map(mapBusinessStoryHistoryRow),
+      dropDate: input.dropDate,
+      language: input.language
+    });
   }
 
   async listUserDailyDropPreferences(language: Language): Promise<UserDailyDropPreference[]> {
@@ -1619,6 +1863,49 @@ function normalizeMiniCasePreferenceTopicId(value: string | null): MiniCaseTopic
     default:
       return null;
   }
+}
+
+function mapBusinessStoryHistoryRow(row: BusinessStoryHistoryRow): BusinessStoryEditorialMemoryEntry {
+  return {
+    id: row.id,
+    content_item_id: row.content_item_id,
+    title: row.title,
+    slug: row.slug,
+    entity_name: row.entity_name,
+    entity_type: row.entity_type,
+    main_company: row.main_company,
+    companies_mentioned: row.companies_mentioned ?? [],
+    industry: row.industry,
+    key_mechanism: row.key_mechanism,
+    secondary_mechanisms: row.secondary_mechanisms ?? [],
+    strategic_angle: row.strategic_angle,
+    core_takeaway: row.core_takeaway,
+    year_period: row.year_period,
+    language: row.language,
+    published_date: row.published_date,
+    created_at: row.created_at
+  };
+}
+
+function mapMiniCaseHistoryRow(row: MiniCaseHistoryRow): MiniCaseEditorialMemoryRecord {
+  return {
+    id: row.id,
+    content_item_id: row.content_item_id,
+    title: row.title,
+    slug: row.slug,
+    topic: row.topic,
+    scenario_type: row.scenario_type,
+    decision_type: row.decision_type,
+    concept_tested: row.concept_tested,
+    mechanism: row.mechanism,
+    difficulty: row.difficulty,
+    question_pattern: row.question_pattern,
+    correct_answer_pattern: row.correct_answer_pattern,
+    core_takeaway: row.core_takeaway,
+    published_date: row.published_date,
+    language: row.language,
+    created_at: row.created_at
+  };
 }
 
 function normalizeNewsletterArticleCount(value: number | null): number {

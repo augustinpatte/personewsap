@@ -28,6 +28,7 @@
     "content:health": "npm --prefix services/content-engine run health --",
     "content:job-health": "npm --prefix services/content-engine run job-health --",
     "content:job-health:strict": "npm --prefix services/content-engine run job-health -- --strict",
+    "content:business-story-memory": "npm --prefix services/content-engine run business-story-memory --",
     "content:debug-users": "npm --prefix services/content-engine run debug-users --",
     "content:env:check": "node scripts/content-engine-env.mjs check",
     "content:debug-users:local": "node scripts/content-engine-env.mjs debug-users",

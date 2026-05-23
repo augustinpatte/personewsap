@@ -30,6 +30,17 @@ export const LANGUAGES = ["fr", "en"] as const;
 export const CONTENT_TYPES = ["newsletter_article", "business_story", "mini_case", "concept", "quick_quiz"] as const;
 export const DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
 export const CONTENT_DIFFICULTIES = ["easy", "medium", "hard"] as const;
+export const BUSINESS_STORY_ENTITY_TYPES = [
+  "founder",
+  "ceo",
+  "investor",
+  "company",
+  "product",
+  "crisis",
+  "acquisition",
+  "strategy",
+  "other"
+] as const;
 
 export type TopicId = (typeof TOPIC_IDS)[number];
 export type MiniCaseTopicId = (typeof MINI_CASE_TOPIC_IDS)[number];
@@ -38,6 +49,7 @@ export type Language = (typeof LANGUAGES)[number];
 export type ContentType = (typeof CONTENT_TYPES)[number];
 export type DailyDropSlot = (typeof DAILY_DROP_SLOTS)[number];
 export type ContentDifficulty = (typeof CONTENT_DIFFICULTIES)[number];
+export type BusinessStoryEntityType = (typeof BUSINESS_STORY_ENTITY_TYPES)[number];
 export type ContentStatus = "draft" | "review" | "published" | "archived";
 export type DailyDropStatus = "generated" | "published" | "read" | "archived";
 export type PreferenceFrequency = "daily" | "weekdays" | "weekly";
@@ -111,19 +123,54 @@ export type BusinessStory = BaseGeneratedItem & {
   outcome: string;
   lesson: string;
   body_md: string;
+  editorial_memory?: BusinessStoryEditorialMemoryFields;
+};
+
+export type BusinessStoryEditorialMemoryFields = {
+  entity_name: string;
+  entity_type: BusinessStoryEntityType;
+  main_company: string;
+  companies_mentioned: string[];
+  industry: string;
+  key_mechanism: string;
+  secondary_mechanisms: string[];
+  strategic_angle: string;
+  core_takeaway: string;
+  year_period: string;
 };
 
 export type MiniCaseChallenge = BaseGeneratedItem & {
   content_type: "mini_case";
   slot: "mini_case";
   topic: TopicId;
+  product_topic: MiniCaseTopicId;
+  scenario_type: string;
+  decision_type: string;
+  concept_tested: string;
+  mechanism: string;
+  question_pattern: string;
+  correct_answer_pattern: string;
+  core_takeaway: string;
   difficulty: ContentDifficulty;
   context: string;
   challenge: string;
   constraints: string[];
   question: string;
+  questions: Array<{
+    id: string;
+    role: "method_framework" | "technical_application" | "conclusion_decision";
+    question: string;
+    options: Array<{
+      id: string;
+      text: string;
+      is_correct: boolean;
+      feedback_correct: string;
+      feedback_incorrect: string;
+    }>;
+  }>;
   expected_reasoning: string[];
   sample_answer: string;
+  conclusion: string;
   body_md: string;
 };
 
@@ -148,6 +195,30 @@ export type DailyDropPayload = {
   prompt_version: string;
   generator_version: string;
   items: GeneratedContentItem[];
+};
+
+export type BusinessStoryEditorialMemoryEntry = BusinessStoryEditorialMemoryFields & {
+  id?: string;
+  content_item_id: string | null;
+  title: string;
+  slug: string;
+  language: Language;
+  published_date: string;
+  created_at?: string;
+};
+
+export type BusinessStoryMemoryContext = {
+  recentStories: BusinessStoryEditorialMemoryEntry[];
+  bannedEntities: string[];
+  bannedCompanies: string[];
+  recentMechanisms: string[];
+  recentIndustries: string[];
+  recentStrategicAngles: string[];
+  underusedIndustries: string[];
+  underusedMechanisms: string[];
+  underusedEntityTypes: BusinessStoryEntityType[];
+  underusedGeographies: string[];
+  underusedTimePeriods: string[];
 };
 
 export type UserDailyDropPreference = {

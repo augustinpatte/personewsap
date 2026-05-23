@@ -1,8 +1,10 @@
 import {
+  MINI_CASE_TOPIC_IDS,
   TOPIC_IDS,
   type DailyDropPayload,
   type DailyDropSlot,
   type Language,
+  type MiniCaseTopicId,
   type TopicId,
   type UserDailyDropPreference,
   isLanguage,
@@ -73,6 +75,11 @@ type OperatorSummary = {
   deduplication: {
     contentItemsReused: number;
     activeDedupKeyUniqueIndexRequired: boolean;
+  };
+  miniCase: {
+    generatedTopics: MiniCaseTopicId[];
+    fallbackReasons: Record<string, number>;
+    selectedTopicCounts: Record<string, number>;
   };
   costEstimate: {
     available: boolean;
@@ -173,6 +180,7 @@ export type DailyJobOutput = {
     generatedItems: number;
     storedItems: number;
     deduplicatedContentItems: number;
+    generatedMiniCaseTopics: MiniCaseTopicId[];
     usersConsidered: number;
     usersAssigned: number;
     usersCreated: number;
@@ -182,6 +190,8 @@ export type DailyJobOutput = {
     usersSkippedIncompleteSelection: number;
     staleDailyDropItemsRemoved: number;
     duplicateDailyDropItemsSkipped: number;
+    miniCaseFallbackReasons: Record<string, number>;
+    miniCaseSelectedTopicCounts: Record<string, number>;
     assignmentSkippedReason: string | null;
     errorReason: LlmFailureReason | null;
     error: string | null;
@@ -474,6 +484,21 @@ async function runDailyJobLanguage(input: {
   }
 
   const generationStartedAt = Date.now();
+  const businessStoryMemory = repository
+    ? await repository.listBusinessStoryMemoryContext({
+        language,
+        dropDate: options.dropDate
+      })
+    : undefined;
+  const miniCaseMemory = repository
+    ? await repository.listMiniCaseMemoryContext({
+        language,
+        dropDate: options.dropDate
+      })
+    : undefined;
+  const miniCaseProductTopics = repository
+    ? await loadMiniCaseProductTopicsForGeneration(repository, language)
+    : [...MINI_CASE_TOPIC_IDS];
   const payload = await runStage(
     "generation",
     {
@@ -481,7 +506,12 @@ async function runDailyJobLanguage(input: {
       test_run_id: testRunId,
       language,
       generator: options.useLlm ? "llm" : "dry-run",
-      source_articles: rankedArticles.length
+      source_articles: rankedArticles.length,
+      business_story_memory_available: Boolean(businessStoryMemory),
+      business_story_recent_count: businessStoryMemory?.recentStories.length ?? 0,
+      mini_case_memory_available: Boolean(miniCaseMemory),
+      mini_case_recent_count: miniCaseMemory?.recentOverall.length ?? 0,
+      mini_case_product_topics: miniCaseProductTopics
     },
     async () =>
       assembleDailyDropPayload(
@@ -490,7 +520,10 @@ async function runDailyJobLanguage(input: {
           language,
           articles: rankedArticles,
           newsletterTopics: options.topics,
-          newsletterArticleCount: options.newsletterArticleCount
+          newsletterArticleCount: options.newsletterArticleCount,
+          miniCaseProductTopics,
+          miniCaseMemory,
+          businessStoryMemory
         })
     ),
     { logPrefix: options.logPrefix }
@@ -510,7 +543,10 @@ async function runDailyJobLanguage(input: {
     async () => {
       assertValidDailyDropPayload(jobPayload, {
         articles: rankedArticles,
-        rssOnly: options.liveRssOnly
+        rssOnly: options.liveRssOnly,
+        miniCaseProductTopics,
+        miniCaseMemory: miniCaseMemory?.recentOverall,
+        businessStoryMemory
       });
       assertStrictProductionPayload(jobPayload, options);
     },
@@ -631,6 +667,7 @@ async function runDailyJobLanguage(input: {
     generatedItems: jobPayload.items.length,
     storedItems: storedItems.length,
     deduplicatedContentItems: countDeduplicatedContentItems(storedItems),
+    generatedMiniCaseTopics: generatedMiniCaseTopics(jobPayload),
     usersConsidered: assignment.usersConsidered,
     usersAssigned: assignment.usersAssigned,
     usersCreated: assignment.usersCreated,
@@ -640,6 +677,8 @@ async function runDailyJobLanguage(input: {
     usersSkippedIncompleteSelection: assignment.usersSkippedIncompleteSelection,
     staleDailyDropItemsRemoved: assignment.staleDailyDropItemsRemoved,
     duplicateDailyDropItemsSkipped: assignment.duplicateDailyDropItemsSkipped,
+    miniCaseFallbackReasons: assignment.miniCaseFallbackReasons,
+    miniCaseSelectedTopicCounts: assignment.miniCaseSelectedTopicCounts,
     assignmentSkippedReason: assignment.assignmentSkippedReason,
     errorReason: null,
     error: null,
@@ -684,6 +723,8 @@ async function assignStoredDropToUsers(input: {
   usersSkippedIncompleteSelection: number;
   staleDailyDropItemsRemoved: number;
   duplicateDailyDropItemsSkipped: number;
+  miniCaseFallbackReasons: Record<string, number>;
+  miniCaseSelectedTopicCounts: Record<string, number>;
   assignmentSkippedReason: string | null;
 }> {
   assertAssignableStoredItems(input.storedItems, input.language);
@@ -738,14 +779,22 @@ async function assignStoredDropToUsers(input: {
   let usersSkippedIncompleteSelection = 0;
   let staleDailyDropItemsRemoved = 0;
   let duplicateDailyDropItemsSkipped = 0;
+  const miniCaseFallbackReasons: Record<string, number> = {};
+  const miniCaseSelectedTopicCounts: Record<string, number> = {};
 
   for (const preference of candidates) {
     const existingDrop = existingDrops.get(preference.user_id);
 
-    const selection = selectDailyDropItemsForUser(preference, input.storedItems);
+    const selection = selectDailyDropItemsForUser(preference, input.storedItems, {
+      dropDate: input.dropDate
+    });
     const completedSelection = completeSelection(selection.items, input.storedItems);
     const itemIds = completedSelection.items;
     const miniCaseItem = itemIds.find((item) => item.slot === "mini_case");
+    incrementCount(miniCaseFallbackReasons, selection.diagnostics.miniCase.fallbackReason);
+    if (selection.diagnostics.miniCase.selectedTopicId) {
+      incrementCount(miniCaseSelectedTopicCounts, selection.diagnostics.miniCase.selectedTopicId);
+    }
 
     logProgress("assignment topic selection", {
       user_id: preference.user_id,
@@ -851,8 +900,26 @@ async function assignStoredDropToUsers(input: {
     usersSkippedIncompleteSelection,
     staleDailyDropItemsRemoved,
     duplicateDailyDropItemsSkipped,
+    miniCaseFallbackReasons,
+    miniCaseSelectedTopicCounts,
     assignmentSkippedReason: null
   };
+}
+
+async function loadMiniCaseProductTopicsForGeneration(
+  repository: ContentRepository,
+  language: Language
+): Promise<MiniCaseTopicId[]> {
+  const selection = await repository.listUserDailyDropPreferenceSelection(language);
+  const topics = new Set<MiniCaseTopicId>();
+
+  for (const preference of selection.preferences) {
+    for (const topic of preference.mini_case_topics) {
+      topics.add(topic.topic_id);
+    }
+  }
+
+  return topics.size > 0 ? Array.from(topics).sort() : [...MINI_CASE_TOPIC_IDS];
 }
 
 function skippedAssignment(reason: string): {
@@ -865,6 +932,8 @@ function skippedAssignment(reason: string): {
   usersSkippedIncompleteSelection: number;
   staleDailyDropItemsRemoved: number;
   duplicateDailyDropItemsSkipped: number;
+  miniCaseFallbackReasons: Record<string, number>;
+  miniCaseSelectedTopicCounts: Record<string, number>;
   assignmentSkippedReason: string;
 } {
   return {
@@ -877,6 +946,8 @@ function skippedAssignment(reason: string): {
     usersSkippedIncompleteSelection: 0,
     staleDailyDropItemsRemoved: 0,
     duplicateDailyDropItemsSkipped: 0,
+    miniCaseFallbackReasons: {},
+    miniCaseSelectedTopicCounts: {},
     assignmentSkippedReason: reason
   };
 }
@@ -897,6 +968,7 @@ function emptyFailedLanguageResult(
     generatedItems: 0,
     storedItems: 0,
     deduplicatedContentItems: 0,
+    generatedMiniCaseTopics: [],
     usersConsidered: 0,
     usersAssigned: 0,
     usersCreated: 0,
@@ -906,6 +978,8 @@ function emptyFailedLanguageResult(
     usersSkippedIncompleteSelection: 0,
     staleDailyDropItemsRemoved: 0,
     duplicateDailyDropItemsSkipped: 0,
+    miniCaseFallbackReasons: {},
+    miniCaseSelectedTopicCounts: {},
     assignmentSkippedReason: null,
     errorReason,
     error,
@@ -919,6 +993,33 @@ function emptyFailedLanguageResult(
 
 function countDeduplicatedContentItems(storedItems: StoredItems): number {
   return storedItems.filter((item) => item.reused_existing_content_item).length;
+}
+
+function generatedMiniCaseTopics(payload: DailyDropPayload): MiniCaseTopicId[] {
+  return Array.from(
+    new Set(
+      payload.items
+        .filter((item): item is Extract<DailyDropPayload["items"][number], { content_type: "mini_case" }> => item.content_type === "mini_case")
+        .map((item) => item.product_topic)
+        .filter((topic): topic is MiniCaseTopicId => MINI_CASE_TOPIC_IDS.includes(topic as MiniCaseTopicId))
+    )
+  );
+}
+
+function mergeCountRecords(records: Array<Record<string, number>>): Record<string, number> {
+  const merged: Record<string, number> = {};
+
+  for (const record of records) {
+    for (const [key, value] of Object.entries(record)) {
+      merged[key] = (merged[key] ?? 0) + value;
+    }
+  }
+
+  return merged;
+}
+
+function incrementCount(record: Record<string, number>, key: string): void {
+  record[key] = (record[key] ?? 0) + 1;
 }
 
 function summarizeLanguageResults(results: DailyJobLanguageResult[]): DailyJobTestOutput["summary"] {
@@ -1288,6 +1389,11 @@ function buildOperatorSummary(
     deduplication: {
       contentItemsReused: summary.totalDeduplicatedContentItems,
       activeDedupKeyUniqueIndexRequired: true
+    },
+    miniCase: {
+      generatedTopics: Array.from(new Set(languageResults.flatMap((result) => result.generatedMiniCaseTopics))),
+      fallbackReasons: mergeCountRecords(languageResults.map((result) => result.miniCaseFallbackReasons)),
+      selectedTopicCounts: mergeCountRecords(languageResults.map((result) => result.miniCaseSelectedTopicCounts))
     },
     costEstimate: {
       available: metrics.estimated_cost_available,

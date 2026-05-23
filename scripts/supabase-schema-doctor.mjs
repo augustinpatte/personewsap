@@ -22,6 +22,8 @@ const SUPPORTING_TABLES = [
   "generation_runs",
   "job_runs",
   "content_item_sources",
+  "business_story_history",
+  "mini_case_history",
   "mini_case_responses",
   "push_tokens"
 ];
@@ -287,6 +289,42 @@ async function runStaticMigrationAudit() {
     sql,
     /alter\s+table\s+public\.profiles[\s\S]+drop\s+column\s+if\s+exists\s+first_name[\s\S]+drop\s+column\s+if\s+exists\s+last_name[\s\S]+drop\s+column\s+if\s+exists\s+birth_year/i,
     "migration removes unused profile name and birth-year fields"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+table\s+if\s+not\s+exists\s+public\.business_story_history[\s\S]+entity_name[\s\S]+entity_type[\s\S]+key_mechanism[\s\S]+strategic_angle[\s\S]+core_takeaway/i,
+    "migration creates business-story editorial memory"
+  );
+
+  assertRegex(
+    sql,
+    /business_story_history_entity_type_check[\s\S]+founder[\s\S]+ceo[\s\S]+investor[\s\S]+company[\s\S]+product[\s\S]+crisis[\s\S]+acquisition[\s\S]+strategy[\s\S]+other/i,
+    "migration constrains business-story entity types"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+unique\s+index\s+if\s+not\s+exists\s+business_story_history_slug_unique[\s\S]+on\s+public\.business_story_history\s*\(\s*slug\s*\)/i,
+    "migration prevents duplicate business-story slugs"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+table\s+if\s+not\s+exists\s+public\.mini_case_history[\s\S]+scenario_type[\s\S]+decision_type[\s\S]+concept_tested[\s\S]+question_pattern[\s\S]+core_takeaway/i,
+    "migration creates mini-case editorial memory"
+  );
+
+  assertRegex(
+    sql,
+    /mini_case_history_topic_check[\s\S]+finance_economy[\s\S]+stock_market[\s\S]+ai[\s\S]+law_compliance[\s\S]+health_pharma[\s\S]+engineering_operations/i,
+    "migration constrains mini-case product topics"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+unique\s+index\s+if\s+not\s+exists\s+mini_case_history_slug_unique[\s\S]+on\s+public\.mini_case_history\s*\(\s*slug\s*\)/i,
+    "migration prevents duplicate mini-case slugs"
   );
 
   assertRegex(

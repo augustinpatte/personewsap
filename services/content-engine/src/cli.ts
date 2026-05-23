@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { parseAssignTestUsersOptions, runAssignTestUsers } from "./cli/assignTestUsers.js";
+import { parseBusinessStoryMemoryOptions, runBusinessStoryMemory } from "./cli/businessStoryMemory.js";
 import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
 import { parseDailyJobOptions, runDailyJob } from "./cli/dailyJob.js";
 import { parseDailyJobTestOptions, runDailyJobTest } from "./cli/dailyJobTest.js";
@@ -78,6 +79,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "business-story-memory") {
+    const output = await runBusinessStoryMemory(parseBusinessStoryMemoryOptions(args));
+    writeJson(output, { redactIdentifiers: true });
+    return;
+  }
+
   if (command === "debug-users") {
     const output = await runDebugUsers(parseDebugUsersOptions(args));
     writeJson(output, { redactIdentifiers: true });
@@ -117,6 +124,7 @@ Commands:
   daily-job               Production daily scheduler command. Writes require explicit production env confirmation.
   daily-job-test          Generate, publish, and assign a limited marked test daily drop.
   job-health              Read production job_runs health summary with service-role credentials.
+  business-story-memory   Read-only editorial memory report for Business Stories.
   debug-users             Read-only daily-job-test user eligibility diagnostic.
   personalize-test        Assign already-published content from app user preferences.
   rss-check               Fetch live RSS only, without LLM or Supabase persistence.
@@ -132,6 +140,7 @@ Options:
   --since YYYY-MM-DD      For rss-check, reject older dated feed items.
   --limit-per-source 5    For rss-check/RSS, cap items kept from each feed.
   --limit 5               For job-health, max recent job_runs rows to read.
+  --limit 180             For business-story-memory, max memory rows to inspect.
   --strict                For job-health, make warning states fail automation.
   --stale-minutes 90      For job-health, mark running job_runs older than this critical.
   --source-article-limit 6 For llm-proof, cap ranked articles sent to the LLM.

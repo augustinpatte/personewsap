@@ -1,3 +1,7 @@
+import {
+  MINI_CASE_TOPIC_IDS,
+  miniCaseTopicToContentTopics
+} from "../domain.js";
 import type {
   BusinessStory,
   DailyDropPayload,
@@ -9,6 +13,14 @@ import type {
   RankedArticle,
   TopicId
 } from "../domain.js";
+import {
+  MINI_CASE_CONCEPTS,
+  MINI_CASE_CORRECT_ANSWER_PATTERNS,
+  MINI_CASE_DECISION_TYPES,
+  MINI_CASE_QUESTION_PATTERNS,
+  MINI_CASE_SCENARIO_TYPES
+} from "../miniCase/taxonomy.js";
+import { normalizeMemoryKey } from "./editorialMemory.js";
 import { GENERATOR_VERSION, PROMPT_VERSION } from "./prompts.js";
 import type { ContentGenerator, GenerationRequest } from "./types.js";
 
@@ -149,6 +161,76 @@ function sourceUrls(articles: RankedArticle[]): string[] {
   return Array.from(new Set(articles.map((article) => article.url))).slice(0, 4);
 }
 
+function buildMiniCaseQuestions(
+  language: Language,
+  conceptTested: string,
+  watchSignalText: string
+): MiniCaseChallenge["questions"] {
+  return [
+    {
+      id: "q1",
+      role: "method_framework",
+      question: languageLine(
+        language,
+        `Which framework should you use first to test ${conceptTested}?`,
+        `Quel cadre utiliser d'abord pour tester ${conceptTested} ?`
+      ),
+      options: [
+        correctOption("a", languageLine(language, "Separate the sourced fact, decision owner, and next signal.", "Separer le fait source, le responsable de decision et le prochain signal.")),
+        wrongOption("b", languageLine(language, "Turn the update into an immediate recommendation.", "Transformer l'actualite en recommandation immediate."))
+      ]
+    },
+    {
+      id: "q2",
+      role: "technical_application",
+      question: languageLine(language, "Which signal best tests the practical impact?", "Quel signal teste le mieux l'impact pratique ?"),
+      options: [
+        correctOption("a", watchSignalText),
+        wrongOption("b", languageLine(language, "A louder headline with the same facts.", "Un titre plus bruyant avec les memes faits."))
+      ]
+    },
+    {
+      id: "q3",
+      role: "conclusion_decision",
+      question: languageLine(language, "What is the strongest conclusion?", "Quelle est la conclusion la plus solide ?"),
+      options: [
+        correctOption("a", languageLine(language, "Wait for the named signal before escalating the decision.", "Attendre le signal nomme avant d'escalader la decision.")),
+        wrongOption("b", languageLine(language, "Assume the source proves every downstream consequence.", "Supposer que la source prouve toutes les consequences."))
+      ]
+    }
+  ];
+}
+
+function correctOption(id: string, text: string): MiniCaseChallenge["questions"][number]["options"][number] {
+  return {
+    id,
+    text,
+    is_correct: true,
+    feedback_correct: "Correct: this keeps the decision tied to evidence.",
+    feedback_incorrect: "Incorrect: this option is the intended evidence-backed answer."
+  };
+}
+
+function wrongOption(id: string, text: string): MiniCaseChallenge["questions"][number]["options"][number] {
+  return {
+    id,
+    text,
+    is_correct: false,
+    feedback_correct: "Correct to reject: this answer overreaches beyond the source.",
+    feedback_incorrect: "Not quite: this skips the evidence discipline the case is testing."
+  };
+}
+
+function pickRotating<T extends string>(values: readonly T[], offset: number, banned: readonly T[] = []): T {
+  const allowed = values.filter((value) => !banned.includes(value));
+  const source = allowed.length > 0 ? allowed : values;
+  return source[offset % source.length];
+}
+
+function pickPreferred(values: readonly string[] | undefined, fallback: string): string {
+  return values?.find((value) => value.trim().length > 0) ?? fallback;
+}
+
 function topicLabel(topic: TopicId, language: Language = "en"): string {
   return TOPIC_LABELS[topic][language];
 }
@@ -249,7 +331,7 @@ export class StructuredContentGenerator implements ContentGenerator {
   async generateDailyDrop(request: GenerationRequest): Promise<DailyDropPayload> {
     const newsletter = this.generateNewsletter(request);
     const businessStory = this.generateBusinessStory(request);
-    const miniCase = this.generateMiniCase(request);
+    const miniCases = this.generateMiniCases(request);
     const concept = this.generateConcept(request);
 
     return {
@@ -257,7 +339,7 @@ export class StructuredContentGenerator implements ContentGenerator {
       language: request.language,
       prompt_version: PROMPT_VERSION,
       generator_version: GENERATOR_VERSION,
-      items: [...newsletter, businessStory, miniCase, concept]
+      items: [...newsletter, businessStory, ...miniCases, concept]
     };
   }
 
@@ -308,12 +390,20 @@ export class StructuredContentGenerator implements ContentGenerator {
   }
 
   private generateBusinessStory(request: GenerationRequest): BusinessStory {
-    const article = this.pickArticle(request, ["business", "finance", "tech_ai"]);
+    const article = this.pickBusinessStoryArticle(request);
     const setup = sentence(article);
     const label = topicLabel(article.topic, request.language);
     const watch = watchSignal(article.topic, request.language);
+    const keyMechanism = pickPreferred(
+      request.businessStoryMemory?.underusedMechanisms,
+      topicEdge(article.topic, request.language)
+    );
+    const industry = pickPreferred(
+      request.businessStoryMemory?.underusedIndustries,
+      article.topic === "tech_ai" ? "software" : article.topic === "finance" ? "finance" : "consumer"
+    );
 
-    return {
+    const story: BusinessStory = {
       content_type: "business_story",
       slot: "business_story",
       topic: article.topic,
@@ -362,19 +452,85 @@ export class StructuredContentGenerator implements ContentGenerator {
         sourceLine(article)
       ].join("\n\n"),
       source_urls: [article.url],
+      editorial_memory: {
+        entity_name: article.publisher,
+        entity_type: "company",
+        main_company: article.publisher,
+        companies_mentioned: [article.publisher],
+        industry,
+        key_mechanism: keyMechanism,
+        secondary_mechanisms: request.businessStoryMemory?.underusedMechanisms
+          .filter((mechanism) => mechanism !== keyMechanism)
+          .slice(0, 3) ?? [],
+        strategic_angle: languageLine(
+          request.language,
+          `${keyMechanism}: turn one constraint into one owner and one metric.`,
+          `${keyMechanism} : transformer une contrainte en un responsable et une metrique.`
+        ),
+        core_takeaway: languageLine(
+          request.language,
+          "Find the constraint before judging the strategy.",
+          "Trouver la contrainte avant de juger la strategie."
+        ),
+        year_period: article.published_at?.slice(0, 4) ?? request.dropDate.slice(0, 4)
+      },
       version: 1
     };
+
+    return story;
   }
 
-  private generateMiniCase(request: GenerationRequest): MiniCaseChallenge {
-    const article = this.pickArticle(request, request.newsletterTopics);
+  private pickBusinessStoryArticle(request: GenerationRequest): RankedArticle {
+    const banned = new Set([
+      ...(request.businessStoryMemory?.bannedEntities ?? []),
+      ...(request.businessStoryMemory?.bannedCompanies ?? [])
+    ].map(normalizeMemoryKey));
+    const candidates = request.articles
+      .filter((article) => article.language === request.language)
+      .filter((article) => ["business", "finance", "tech_ai"].includes(article.topic))
+      .filter((article) => !banned.has(normalizeMemoryKey(article.publisher)));
+
+    return candidates[0] ?? this.pickArticle(request, ["business", "finance", "tech_ai"]);
+  }
+
+  private generateMiniCases(request: GenerationRequest): MiniCaseChallenge[] {
+    const productTopics = request.miniCaseProductTopics?.length
+      ? request.miniCaseProductTopics
+      : [MINI_CASE_TOPIC_IDS[0]];
+
+    return productTopics.map((productTopic, index) => {
+      const contentTopics = miniCaseTopicToContentTopics(productTopic);
+      const article = this.pickArticle(request, contentTopics);
+      return this.generateMiniCase(request, productTopic, article, index);
+    });
+  }
+
+  private generateMiniCase(
+    request: GenerationRequest,
+    productTopic: (typeof MINI_CASE_TOPIC_IDS)[number],
+    article: RankedArticle,
+    index: number
+  ): MiniCaseChallenge {
     const label = topicLabel(article.topic, request.language);
     const watch = watchSignal(article.topic, request.language);
+    const scenarioType = pickRotating(MINI_CASE_SCENARIO_TYPES, index, request.miniCaseMemory?.bannedScenarioTypes);
+    const decisionType = pickRotating(MINI_CASE_DECISION_TYPES, index, request.miniCaseMemory?.bannedDecisionTypes);
+    const conceptTested = pickRotating(MINI_CASE_CONCEPTS, index, request.miniCaseMemory?.bannedConcepts);
+    const questionPattern = pickRotating(MINI_CASE_QUESTION_PATTERNS, index, request.miniCaseMemory?.bannedQuestionPatterns);
+    const correctAnswerPattern = pickRotating(MINI_CASE_CORRECT_ANSWER_PATTERNS, index);
 
     return {
       content_type: "mini_case",
       slot: "mini_case",
       topic: article.topic,
+      product_topic: productTopic,
+      scenario_type: scenarioType,
+      decision_type: decisionType,
+      concept_tested: conceptTested,
+      mechanism: languageLine(request.language, `The active mechanism is ${conceptTested} under a ${scenarioType} constraint.`, `Le mecanisme actif est ${conceptTested} sous une contrainte de type ${scenarioType}.`),
+      question_pattern: questionPattern,
+      correct_answer_pattern: correctAnswerPattern,
+      core_takeaway: languageLine(request.language, `Use ${conceptTested} to choose the next evidence-backed step, not to overreact to one source.`, `Utilise ${conceptTested} pour choisir la prochaine etape fondee sur les preuves, pas pour surreagir a une seule source.`),
       language: request.language,
       title: languageLine(request.language, `Mini-case: brief the ${label} move`, `Mini-cas : briefer le mouvement ${label}`),
       difficulty: "medium",
@@ -392,6 +548,7 @@ export class StructuredContentGenerator implements ContentGenerator {
         "Would you recommend acting now, waiting for one signal, or narrowing the scope of the decision?",
         "Recommanderais-tu d'agir maintenant, d'attendre un signal, ou de reduire le perimetre de la decision ?"
       ),
+      questions: buildMiniCaseQuestions(request.language, conceptTested, watch),
       expected_reasoning: [
         languageLine(request.language, `State the sourced fact from ${article.published_at?.slice(0, 10) ?? request.dropDate}.`, `Enonce le fait source du ${article.published_at?.slice(0, 10) ?? request.dropDate}.`),
         languageLine(request.language, "Identify who has less room to maneuver after the update.", "Identifie qui a moins de marge de manoeuvre apres l'actualite."),
@@ -401,6 +558,11 @@ export class StructuredContentGenerator implements ContentGenerator {
         request.language,
         `I would wait for one confirming signal before committing resources. The sourced fact is ${sentence(article)} The judgment is whether that changes behavior; I would test it through ${watch}.`,
         `J'attendrais un signal de confirmation avant d'engager des ressources. Le fait source est le suivant : ${sentence(article)} Le jugement porte sur le changement de comportement; je le testerais avec ${watch}.`
+      ),
+      conclusion: languageLine(
+        request.language,
+        `Final takeaway: separate the sourced fact from the recommendation, then use ${watch} to update the decision.`,
+        `A retenir : separe le fait source de la recommandation, puis utilise ${watch} pour mettre a jour la decision.`
       ),
       body_md: [
         sentence(article),

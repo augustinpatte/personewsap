@@ -62,18 +62,26 @@ export class DailyContentJob {
         limitPerTopic: 10
       });
       const rankedArticles = processArticles(rawArticles).filter((article) => article.language === language);
+      const businessStoryMemory = persistenceRepository
+        ? await persistenceRepository.listBusinessStoryMemoryContext({
+            language,
+            dropDate: options.dropDate
+          })
+        : undefined;
       const payload = assembleDailyDropPayload(
         await this.generator.generateDailyDrop({
           dropDate: options.dropDate,
           language,
           articles: rankedArticles,
           newsletterTopics: topics,
-          newsletterArticleCount: options.newsletterArticleCount ?? 8
+          newsletterArticleCount: options.newsletterArticleCount ?? 8,
+          businessStoryMemory
         })
       );
 
       assertValidDailyDropPayload(payload, {
-        articles: rankedArticles
+        articles: rankedArticles,
+        businessStoryMemory
       });
 
       let storedItems = 0;
@@ -91,7 +99,9 @@ export class DailyContentJob {
         const dropStatus: DailyDropStatus = options.publish ? "published" : "generated";
 
         for (const preference of preferences) {
-          const selection = selectDailyDropItemsForUser(preference, stored);
+          const selection = selectDailyDropItemsForUser(preference, stored, {
+            dropDate: options.dropDate
+          });
           const missingSlots = missingRequiredSlots(selection.items);
           console.info("[content-engine] assignment topic selection", {
             user_id: redactIdentifier(preference.user_id),

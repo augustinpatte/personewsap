@@ -50,6 +50,8 @@ export const CONTENT_TYPE_PROMPTS = {
     "- Make the operator's trade-off explicit: growth vs margin, trust vs speed, distribution vs control, regulation vs expansion, scarcity vs demand.",
     "- Name the observable signal that would prove the strategy is working or failing.",
     "- Favor pricing power, distribution, regulation, incentives, operational leverage, market entry, or trust mechanics.",
+    "- Include editorial_memory with entity_name, entity_type, main_company, companies_mentioned, industry, key_mechanism, secondary_mechanisms, strategic_angle, core_takeaway, and year_period.",
+    "- Treat editorial_memory as long-term freshness metadata: make it specific enough that the next run can avoid repeating the same entity, company, mechanism, industry, and angle.",
     "- Use dates and sources. Distinguish known facts from interpretation.",
     "- source_urls must contain only exact URLs supplied to you. body_md must repeat the exact URL and source date.",
     "- Do not provide investment recommendations."
@@ -57,10 +59,14 @@ export const CONTENT_TYPE_PROMPTS = {
   mini_case: [
     "Mini-case challenge:",
     "- Create a practical decision exercise, not academic trivia.",
-    "- Give a tight context, one decision or recommendation to make, constraints, a question, expected reasoning, and a sample answer.",
+    "- Give a tight context/introduction, a problem to solve, constraints, expected reasoning, a sample answer, conclusion, and a final short takeaway.",
+    "- Include product_topic, scenario_type, decision_type, concept_tested, mechanism, question_pattern, correct_answer_pattern, and core_takeaway.",
+    "- Include exactly 3 MCQ questions in questions: Question 1 tests method/framework, Question 2 tests technical/practical application, Question 3 tests conclusion/decision.",
+    "- Every MCQ option must include is_correct plus feedback_correct and feedback_incorrect so a score can be computed from 0/3 to 3/3.",
     "- The sample answer should separate facts from judgment, make one recommendation, and name the observable signal that would change the answer.",
     "- Frame the case like an internship brief: what decision is on the table, what constraint matters, and what evidence is still missing.",
     "- Use source-backed facts only. Avoid pretending the user has private data.",
+    "- law_compliance is business/compliance/legal-risk education, not personal legal advice. health_pharma is pharma/healthcare/public-health decision education, not medical diagnosis or medical advice.",
     "- source_urls must contain only exact URLs supplied to you. body_md must repeat the exact URL and source date.",
     "- Keep difficulty realistic for an ambitious student or junior analyst."
   ].join("\n"),

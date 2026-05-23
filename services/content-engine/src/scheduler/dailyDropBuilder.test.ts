@@ -165,6 +165,14 @@ function miniCase(topic: TopicId, contentItemId: string): StoredContentSelection
       language: "en",
       title: `${topic} mini-case`,
       topic,
+      product_topic: topic === "law" ? "law_compliance" : topic === "medicine" ? "health_pharma" : topic === "tech_ai" ? "ai" : topic === "engineering" ? "engineering_operations" : "finance_economy",
+      scenario_type: "capital_allocation",
+      decision_type: "choose_next_step",
+      concept_tested: "opportunity_cost",
+      mechanism: "A practical constraint changes the next step.",
+      question_pattern: "framework_then_apply_then_decide",
+      correct_answer_pattern: "evidence_before_action",
+      core_takeaway: "Choose the next step only after naming the strongest signal.",
       source_urls: [],
       version: 1,
       difficulty: "medium",
@@ -172,8 +180,38 @@ function miniCase(topic: TopicId, contentItemId: string): StoredContentSelection
       challenge: "Choose the next move.",
       constraints: ["Use only the supplied facts."],
       question: "What should the team do?",
+      questions: [
+        {
+          id: "q1",
+          role: "method_framework",
+          question: "Which method applies?",
+          options: [
+            { id: "a", text: "Name the constraint.", is_correct: true, feedback_correct: "Correct.", feedback_incorrect: "This is the intended answer." },
+            { id: "b", text: "Guess quickly.", is_correct: false, feedback_correct: "Correct to reject.", feedback_incorrect: "This overreaches." }
+          ]
+        },
+        {
+          id: "q2",
+          role: "technical_application",
+          question: "Which signal matters?",
+          options: [
+            { id: "a", text: "The strongest evidence.", is_correct: true, feedback_correct: "Correct.", feedback_incorrect: "This is the intended answer." },
+            { id: "b", text: "Noise.", is_correct: false, feedback_correct: "Correct to reject.", feedback_incorrect: "This overreaches." }
+          ]
+        },
+        {
+          id: "q3",
+          role: "conclusion_decision",
+          question: "What is the decision?",
+          options: [
+            { id: "a", text: "Wait for evidence.", is_correct: true, feedback_correct: "Correct.", feedback_incorrect: "This is the intended answer." },
+            { id: "b", text: "Act without evidence.", is_correct: false, feedback_correct: "Correct to reject.", feedback_incorrect: "This overreaches." }
+          ]
+        }
+      ],
       expected_reasoning: ["Name the trade-off."],
       sample_answer: "Act after checking the strongest signal.",
+      conclusion: "Use the evidence signal before escalating the decision.",
       body_md: "A short mini-case body."
     } satisfies GeneratedContentItem
   };

@@ -213,6 +213,7 @@ function businessStoryMetadata(item: BusinessStory): Record<string, unknown> {
     decision: item.decision,
     outcome: item.outcome,
     lesson: item.lesson,
+    editorial_memory: item.editorial_memory ?? null,
     source_urls: item.source_urls
   };
 }
@@ -220,12 +221,22 @@ function businessStoryMetadata(item: BusinessStory): Record<string, unknown> {
 function miniCaseMetadata(item: MiniCaseChallenge): Record<string, unknown> {
   return {
     slot: item.slot,
+    product_topic: item.product_topic,
+    scenario_type: item.scenario_type,
+    decision_type: item.decision_type,
+    concept_tested: item.concept_tested,
+    mechanism: item.mechanism,
+    question_pattern: item.question_pattern,
+    correct_answer_pattern: item.correct_answer_pattern,
+    core_takeaway: item.core_takeaway,
     context: item.context,
     challenge: item.challenge,
     constraints: item.constraints,
     question: item.question,
+    questions: item.questions,
     expected_reasoning: item.expected_reasoning,
     sample_answer: item.sample_answer,
+    conclusion: item.conclusion,
     source_urls: item.source_urls
   };
 }

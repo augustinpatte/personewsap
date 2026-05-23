@@ -113,6 +113,37 @@ Stored in `job_runs.operator_summary`:
 - idempotency notes
 - content item deduplication reuse count
 - rerun recommendation and recovery hints
+- mini-case generated topics, assignment fallback reasons, and selected-topic counts
+
+## Mini-Case Editorial Rotation
+
+Mini-cases use `public.mini_case_history` as persistent editorial memory. The table is service-role only and stores the generated case title/slug, product topic, scenario type, decision type, concept tested, mechanism, question pattern, answer pattern, takeaway, language, and published date.
+
+Production generation must avoid:
+
+- same `scenario_type` within 10 days
+- same `concept_tested` within 7 days
+- same `decision_type` within 5 days
+- same `question_pattern` within 14 days
+- same title/slug ever
+
+Mini-case product topics are exactly:
+
+- `finance_economy`
+- `stock_market`
+- `ai`
+- `law_compliance`
+- `health_pharma`
+- `engineering_operations`
+
+Assignment uses `user_mini_case_topic_preferences` only. Newsletter topics must not influence mini-case selection. For users with multiple mini-case topics, assignment rotates deterministically from `user_id + drop_date`, then falls back only within the user's enabled mini-case topics. If no valid case exists for those topics, the mini-case slot is skipped and logged.
+
+Operator output to inspect:
+
+- `operatorSummary.miniCase.generatedTopics`
+- `operatorSummary.miniCase.fallbackReasons`
+- `operatorSummary.miniCase.selectedTopicCounts`
+- `latestRun.operator_summary.mini_case` from `content:job-health`
 
 ## Daily Operator Check
 

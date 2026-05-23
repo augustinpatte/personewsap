@@ -78,6 +78,11 @@ type JobHealthRunSummary = {
     rerun_recommendation: string | null;
     failures: string[];
     recovery_hints: string[];
+    mini_case: {
+      generated_topics: string[];
+      fallback_reasons: Record<string, number>;
+      selected_topic_counts: Record<string, number>;
+    };
     cost_estimate_available: boolean | null;
     cost_estimate_usd: number | null;
     cost_estimate_reason: string | null;
@@ -296,6 +301,11 @@ function toRunSummary(row: JobRunRow): JobHealthRunSummary {
       rerun_recommendation: readString(operatorSummary.rerunRecommendation),
       failures: readStringArray(operatorSummary.failures),
       recovery_hints: readStringArray(operatorSummary.recoveryHints),
+      mini_case: {
+        generated_topics: readStringArray(readRecord(operatorSummary.miniCase).generatedTopics),
+        fallback_reasons: readNumberRecord(readRecord(readRecord(operatorSummary.miniCase).fallbackReasons)),
+        selected_topic_counts: readNumberRecord(readRecord(readRecord(operatorSummary.miniCase).selectedTopicCounts))
+      },
       cost_estimate_available: readBoolean(readRecord(operatorSummary.costEstimate).available),
       cost_estimate_usd: readNumber(readRecord(operatorSummary.costEstimate).estimatedUsd),
       cost_estimate_reason: readString(readRecord(operatorSummary.costEstimate).reason)

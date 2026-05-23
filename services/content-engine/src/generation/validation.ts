@@ -2,6 +2,8 @@ import {
   CONTENT_TYPES,
   MINI_CASE_TOPIC_IDS,
   TOPIC_IDS,
+  type BusinessStory,
+  type BusinessStoryMemoryContext,
   type ContentType,
   type DailyDropPayload,
   type GeneratedContentItem,
@@ -9,6 +11,21 @@ import {
   type RankedArticle,
   type TopicId
 } from "../domain.js";
+import {
+  buildBusinessStoryEditorialMemory,
+  daysBetween,
+  normalizeMemoryKey,
+  slugify
+} from "./editorialMemory.js";
+import type { MiniCaseEditorialMemoryRecord } from "../miniCase/editorialMemory.js";
+import {
+  isApprovedMiniCaseProductTopic,
+  isMiniCaseConcept,
+  isMiniCaseCorrectAnswerPattern,
+  isMiniCaseDecisionType,
+  isMiniCaseQuestionPattern,
+  isMiniCaseScenarioType
+} from "../miniCase/taxonomy.js";
 
 export type ValidationIssue = {
   path: string;
@@ -25,6 +42,8 @@ export type ContentQualityOptions = {
   newsletterProductTopics?: string[];
   miniCaseProductTopics?: string[];
   miniCaseAllowedPreferenceTopicIds?: string[];
+  miniCaseMemory?: MiniCaseEditorialMemoryRecord[];
+  businessStoryMemory?: BusinessStoryMemoryContext;
 };
 
 export type ContentQualityDiagnostics = {
@@ -289,6 +308,8 @@ export function validateDailyDropQuality(
     issues.push(...validateSourceFreshness(item, path, sourceByUrl, payload.drop_date, maxSourceAgeDays, strict));
     issues.push(...validateUnsupportedSpecificClaims(item, path, sourceByUrl, strict));
     issues.push(...validateItemProductTopicMapping(item, path, options, strict));
+    issues.push(...validateMiniCaseUxAndRotation(item, path, payload.drop_date, options, strict));
+    issues.push(...validateBusinessStoryEditorialMemory(item, path, payload.drop_date, options, strict));
   });
 
   issues.push(...validateRepeatedTemplatePhrases(payload, strict));
@@ -981,6 +1002,246 @@ function validateItemProductTopicMapping(
   return [];
 }
 
+function validateMiniCaseUxAndRotation(
+  item: GeneratedContentItem,
+  path: string,
+  dropDate: string,
+  options: ContentQualityOptions,
+  strict: boolean
+): ValidationIssue[] {
+  if (item.content_type !== "mini_case") {
+    return [];
+  }
+
+  const issues: ValidationIssue[] = [];
+  const productTopic = readItemString(item.product_topic);
+  const scenarioType = readItemString(item.scenario_type);
+  const decisionType = readItemString(item.decision_type);
+  const conceptTested = readItemString(item.concept_tested);
+  const questionPattern = readItemString(item.question_pattern);
+  const correctAnswerPattern = readItemString(item.correct_answer_pattern);
+
+  if (!productTopic || !isApprovedMiniCaseProductTopic(productTopic)) {
+    issues.push(qualityIssue({
+      path: `${path}.product_topic`,
+      code: "invalid_mini_case_product_topic",
+      message: `Mini-case product_topic must be one of: ${Object.keys(MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS).join(", ")}.`,
+      strict
+    }));
+  }
+
+  if (!scenarioType || !isMiniCaseScenarioType(scenarioType)) {
+    issues.push(qualityIssue({ path: `${path}.scenario_type`, code: "invalid_mini_case_scenario_type", message: "Mini-case scenario_type is missing or unsupported.", strict }));
+  }
+  if (!decisionType || !isMiniCaseDecisionType(decisionType)) {
+    issues.push(qualityIssue({ path: `${path}.decision_type`, code: "invalid_mini_case_decision_type", message: "Mini-case decision_type is missing or unsupported.", strict }));
+  }
+  if (!conceptTested || !isMiniCaseConcept(conceptTested)) {
+    issues.push(qualityIssue({ path: `${path}.concept_tested`, code: "invalid_mini_case_concept", message: "Mini-case concept_tested is missing or unsupported.", strict }));
+  }
+  if (!questionPattern || !isMiniCaseQuestionPattern(questionPattern)) {
+    issues.push(qualityIssue({ path: `${path}.question_pattern`, code: "invalid_mini_case_question_pattern", message: "Mini-case question_pattern is missing or unsupported.", strict }));
+  }
+  if (!correctAnswerPattern || !isMiniCaseCorrectAnswerPattern(correctAnswerPattern)) {
+    issues.push(qualityIssue({ path: `${path}.correct_answer_pattern`, code: "invalid_mini_case_answer_pattern", message: "Mini-case correct_answer_pattern is missing or unsupported.", strict }));
+  }
+
+  issues.push(...validateMiniCaseQuestions(item, path, strict));
+  issues.push(...validateMiniCaseConclusion(item, path, strict));
+  issues.push(...validateMiniCaseCooldowns(item, path, dropDate, options.miniCaseMemory ?? [], strict));
+
+  return issues;
+}
+
+function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content_type: "mini_case" }>, path: string, strict: boolean): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const questions = Array.isArray(item.questions) ? item.questions : [];
+  const expectedRoles = ["method_framework", "technical_application", "conclusion_decision"];
+
+  if (questions.length !== 3) {
+    issues.push(qualityIssue({ path: `${path}.questions`, code: "mini_case_mcq_count_invalid", message: "Mini-case must contain exactly 3 MCQ questions.", strict }));
+  }
+
+  questions.forEach((question, questionIndex) => {
+    if (question.role !== expectedRoles[questionIndex]) {
+      issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.role`, code: "mini_case_mcq_role_invalid", message: `Question ${questionIndex + 1} must use role ${expectedRoles[questionIndex]}.`, strict }));
+    }
+
+    if (!question.question || question.question.trim().length < 12) {
+      issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.question`, code: "mini_case_mcq_question_missing", message: "Each MCQ question needs a concrete prompt.", strict }));
+    }
+
+    if (!Array.isArray(question.options) || question.options.length < 2) {
+      issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options`, code: "mini_case_mcq_options_missing", message: "Each MCQ question needs answer options.", strict }));
+      return;
+    }
+
+    const correctCount = question.options.filter((option) => option.is_correct).length;
+    if (correctCount !== 1) {
+      issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options`, code: "mini_case_mcq_correct_count_invalid", message: "Each MCQ question needs exactly one correct answer so score can be computed from 0/3 to 3/3.", strict }));
+    }
+
+    question.options.forEach((option, optionIndex) => {
+      if (!option.text || !option.feedback_correct || !option.feedback_incorrect) {
+        issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options.${optionIndex}`, code: "mini_case_mcq_feedback_missing", message: "Each answer option needs text plus correct and incorrect instant feedback.", strict }));
+      }
+    });
+  });
+
+  return issues;
+}
+
+function validateMiniCaseConclusion(item: Extract<GeneratedContentItem, { content_type: "mini_case" }>, path: string, strict: boolean): ValidationIssue[] {
+  const conclusion = `${readItemString(item.conclusion) ?? ""} ${readItemString(item.core_takeaway) ?? ""}`.trim();
+  if (wordCount(conclusion) < 12 || GENERIC_AI_PHRASES.some((phrase) => normalizeForPhraseCheck(conclusion).includes(phrase))) {
+    return [
+      qualityIssue({
+        path: `${path}.conclusion`,
+        code: "mini_case_conclusion_missing",
+        message: "Mini-case conclusion/final takeaway is missing, too short, or generic.",
+        strict
+      })
+    ];
+  }
+  return [];
+}
+
+function validateMiniCaseCooldowns(
+  item: Extract<GeneratedContentItem, { content_type: "mini_case" }>,
+  path: string,
+  dropDate: string,
+  memory: MiniCaseEditorialMemoryRecord[],
+  strict: boolean
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const titleSlug = normalizeStoryTitle(item.title);
+
+  for (const record of memory) {
+    const age = daysBetweenDates(record.published_date, dropDate);
+    if (normalizeStoryTitle(record.title) === titleSlug || record.slug === titleSlug) {
+      issues.push(qualityIssue({ path: `${path}.title`, code: "mini_case_title_repeated", message: "Mini-case title/slug was already used.", strict }));
+    }
+    if (age <= 10 && record.scenario_type === item.scenario_type) {
+      issues.push(qualityIssue({ path: `${path}.scenario_type`, code: "mini_case_scenario_cooldown", message: `scenario_type ${item.scenario_type} was used within 10 days.`, strict }));
+    }
+    if (age <= 7 && record.concept_tested === item.concept_tested) {
+      issues.push(qualityIssue({ path: `${path}.concept_tested`, code: "mini_case_concept_cooldown", message: `concept_tested ${item.concept_tested} was used within 7 days.`, strict }));
+    }
+    if (age <= 5 && record.decision_type === item.decision_type) {
+      issues.push(qualityIssue({ path: `${path}.decision_type`, code: "mini_case_decision_cooldown", message: `decision_type ${item.decision_type} was used within 5 days.`, strict }));
+    }
+    if (age <= 14 && record.question_pattern === item.question_pattern) {
+      issues.push(qualityIssue({ path: `${path}.question_pattern`, code: "mini_case_question_pattern_cooldown", message: `question_pattern ${item.question_pattern} was used within 14 days.`, strict }));
+    }
+  }
+
+  return issues;
+}
+
+function validateBusinessStoryEditorialMemory(
+  item: GeneratedContentItem,
+  path: string,
+  dropDate: string,
+  options: ContentQualityOptions,
+  strict: boolean
+): ValidationIssue[] {
+  if (item.content_type !== "business_story" || !options.businessStoryMemory) {
+    return [];
+  }
+
+  const issues: ValidationIssue[] = [];
+  const current = buildBusinessStoryEditorialMemory({
+    item: item as BusinessStory,
+    contentItemId: null,
+    publishedDate: dropDate
+  });
+  const currentEntity = normalizeMemoryKey(current.entity_name);
+  const currentCompany = normalizeMemoryKey(current.main_company);
+  const currentMechanism = normalizeMemoryKey(current.key_mechanism);
+  const currentIndustry = normalizeMemoryKey(current.industry);
+  const currentAngle = normalizeMemoryKey(current.strategic_angle);
+  const currentSlug = slugify(current.title);
+  const currentTakeawayTokens = memoryTokens(current.core_takeaway);
+  const recent = options.businessStoryMemory.recentStories;
+  const industryUses14Days = recent.filter((entry) => {
+    const age = daysBetween(entry.published_date, dropDate);
+    return age >= 0 && age <= 14 && normalizeMemoryKey(entry.industry) === currentIndustry;
+  });
+
+  if (industryUses14Days.length >= 2) {
+    issues.push(qualityIssue({
+      path: `${path}.editorial_memory.industry`,
+      code: "business_story_industry_overused",
+      message: `Business-story industry "${current.industry}" was already used ${industryUses14Days.length} times in the last 14 days.`,
+      strict
+    }));
+  }
+
+  for (const entry of recent) {
+    const age = daysBetween(entry.published_date, dropDate);
+    const sameEntity = normalizeMemoryKey(entry.entity_name) === currentEntity;
+    const sameCompany = normalizeMemoryKey(entry.main_company) === currentCompany;
+    const sameMechanism = normalizeMemoryKey(entry.key_mechanism) === currentMechanism;
+    const sameAngle = normalizeMemoryKey(entry.strategic_angle) === currentAngle;
+
+    if (slugify(entry.title) === currentSlug || entry.slug === currentSlug) {
+      issues.push(qualityIssue({
+        path: `${path}.title`,
+        code: "business_story_title_repeated",
+        message: `Business-story title/slug already exists in editorial memory: ${currentSlug}.`,
+        strict
+      }));
+    }
+
+    if (age >= 0 && age <= 180 && sameEntity) {
+      issues.push(qualityIssue({
+        path: `${path}.editorial_memory.entity_name`,
+        code: "business_story_entity_cooldown",
+        message: `Business-story entity "${current.entity_name}" was used ${age} day(s) ago; cooldown is 180 days.`,
+        strict
+      }));
+    }
+
+    if (age >= 0 && age <= 90 && sameCompany && !clearlyDifferentAngle(current.strategic_angle, entry.strategic_angle)) {
+      issues.push(qualityIssue({
+        path: `${path}.editorial_memory.main_company`,
+        code: "business_story_company_cooldown",
+        message: `Business-story main company "${current.main_company}" was used ${age} day(s) ago without a clearly different angle; cooldown is 90 days.`,
+        strict
+      }));
+    }
+
+    if (age >= 0 && age <= 14 && sameMechanism) {
+      issues.push(qualityIssue({
+        path: `${path}.editorial_memory.key_mechanism`,
+        code: "business_story_mechanism_cooldown",
+        message: `Business-story mechanism "${current.key_mechanism}" was used ${age} day(s) ago; cooldown is 14 days.`,
+        strict
+      }));
+    }
+
+    if (age >= 0 && age <= 30 && sameAngle) {
+      issues.push(qualityIssue({
+        path: `${path}.editorial_memory.strategic_angle`,
+        code: "business_story_angle_cooldown",
+        message: `Business-story strategic angle "${current.strategic_angle}" was used ${age} day(s) ago; cooldown is 30 days.`,
+        strict
+      }));
+    }
+
+    if (age >= 0 && age <= 90 && jaccard(currentTakeawayTokens, memoryTokens(entry.core_takeaway)) >= 0.72) {
+      issues.push(qualityIssue({
+        path: `${path}.editorial_memory.core_takeaway`,
+        code: "business_story_takeaway_similarity",
+        message: `Business-story core takeaway is too similar to recent story "${entry.title}".`,
+        strict
+      }));
+    }
+  }
+
+  return issues;
+}
+
 function validateTitleReflectsTopic(
   item: GeneratedContentItem,
   path: string,
@@ -1091,6 +1352,30 @@ function summarizeQualityChecks(issues: ValidationIssue[]): ContentQualityDiagno
     "invalid_mini_case_preference_topic",
     "newsletter_topic_mismatch",
     "mini_case_preference_topic_mismatch",
+    "invalid_mini_case_scenario_type",
+    "invalid_mini_case_decision_type",
+    "invalid_mini_case_concept",
+    "invalid_mini_case_question_pattern",
+    "invalid_mini_case_answer_pattern",
+    "mini_case_mcq_count_invalid",
+    "mini_case_mcq_role_invalid",
+    "mini_case_mcq_question_missing",
+    "mini_case_mcq_options_missing",
+    "mini_case_mcq_correct_count_invalid",
+    "mini_case_mcq_feedback_missing",
+    "mini_case_conclusion_missing",
+    "mini_case_title_repeated",
+    "mini_case_scenario_cooldown",
+    "mini_case_concept_cooldown",
+    "mini_case_decision_cooldown",
+    "mini_case_question_pattern_cooldown",
+    "business_story_entity_cooldown",
+    "business_story_company_cooldown",
+    "business_story_mechanism_cooldown",
+    "business_story_industry_overused",
+    "business_story_angle_cooldown",
+    "business_story_title_repeated",
+    "business_story_takeaway_similarity",
     "source_topic_mismatch",
     "concept_missing_topic_anchor",
     "concept_example_source_mismatch",
@@ -1233,6 +1518,15 @@ function parseDateOnly(value: string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function daysBetweenDates(leftDate: string, rightDate: string): number {
+  const left = parseDateOnly(leftDate);
+  const right = parseDateOnly(rightDate);
+  if (!left || !right) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  return dateDiffDays(left, right);
+}
+
 function dateDiffDays(left: Date, right: Date): number {
   const msPerDay = 24 * 60 * 60 * 1000;
   return Math.floor((right.getTime() - left.getTime()) / msPerDay);
@@ -1248,6 +1542,10 @@ function wordCount(value: string): number {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
+function readItemString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
 function productTopicsToContentTopics(
   topics: string[],
   mapping: Record<string, readonly TopicId[]>
@@ -1259,6 +1557,51 @@ function productTopicsToContentTopics(
 
 function isKnownMiniCaseProductTopic(value: string): value is MiniCaseTopicId | keyof typeof MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS {
   return MINI_CASE_TOPIC_IDS.includes(value as MiniCaseTopicId) || value in MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS;
+}
+
+function clearlyDifferentAngle(current: string, previous: string): boolean {
+  return jaccard(memoryTokens(current), memoryTokens(previous)) < 0.35;
+}
+
+function memoryTokens(value: string): Set<string> {
+  const stopWords = new Set([
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "this",
+    "that",
+    "into",
+    "one",
+    "une",
+    "des",
+    "les",
+    "pour",
+    "avec",
+    "dans",
+    "plus",
+    "moins",
+    "decision",
+    "strategy",
+    "business"
+  ]);
+
+  return new Set(
+    normalizeMemoryKey(value)
+      .split(" ")
+      .filter((token) => token.length >= 4 && !stopWords.has(token))
+  );
+}
+
+function jaccard(left: Set<string>, right: Set<string>): number {
+  if (left.size === 0 || right.size === 0) {
+    return 0;
+  }
+
+  const intersection = [...left].filter((token) => right.has(token)).length;
+  const union = new Set([...left, ...right]).size;
+  return union === 0 ? 0 : intersection / union;
 }
 
 function extractSentences(value: string): string[] {

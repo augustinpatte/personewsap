@@ -1,4 +1,5 @@
-import type { DailyDropPayload, Language, RankedArticle, TopicId } from "../domain.js";
+import type { BusinessStoryMemoryContext, DailyDropPayload, Language, MiniCaseTopicId, RankedArticle, TopicId } from "../domain.js";
+import type { MiniCaseMemoryContext } from "../miniCase/editorialMemory.js";
 
 export type GenerationRequest = {
   dropDate: string;
@@ -6,6 +7,9 @@ export type GenerationRequest = {
   articles: RankedArticle[];
   newsletterTopics: TopicId[];
   newsletterArticleCount: number;
+  miniCaseProductTopics?: MiniCaseTopicId[];
+  miniCaseMemory?: MiniCaseMemoryContext;
+  businessStoryMemory?: BusinessStoryMemoryContext;
   productionStrict?: boolean;
 };
 

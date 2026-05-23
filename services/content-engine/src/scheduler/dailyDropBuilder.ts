@@ -55,7 +55,8 @@ export function assembleDailyDropPayload(payload: DailyDropPayload): DailyDropPa
 
 export function selectDailyDropItemsForUser(
   preference: UserDailyDropPreference,
-  storedItems: StoredContentSelection[]
+  storedItems: StoredContentSelection[],
+  options: { dropDate?: string } = {}
 ): UserDailyDropSelection {
   const selected: UserDailyDropSelection["items"] = [];
   const sortedTopicPlan = [...preference.topics].sort(compareTopicPreferences);
@@ -92,7 +93,7 @@ export function selectDailyDropItemsForUser(
     addFirstSlot(selected, sortedStoredItems, "business_story");
   }
   const miniCaseDiagnostic = preference.modules.mini_case
-    ? addMiniCaseSlot(selected, sortedStoredItems, preference)
+    ? addMiniCaseSlot(selected, sortedStoredItems, preference, options)
     : {
         requestedTopicId: null,
         allowedTopicIds: [],
@@ -147,9 +148,10 @@ function addFirstSlot(
 function addMiniCaseSlot(
   selected: UserDailyDropSelection["items"],
   storedItems: StoredContentSelection[],
-  preference: UserDailyDropPreference
+  preference: UserDailyDropPreference,
+  options: { dropDate?: string } = {}
 ): MiniCaseSelectionDiagnostic {
-  const allowedTopicIds = getMiniCaseTopicIds(preference);
+  const allowedTopicIds = getMiniCaseTopicIds(preference, options.dropDate);
   const requestedTopicId = allowedTopicIds[0] ?? null;
   let fallbackReason: MiniCaseSelectionDiagnostic["fallbackReason"] = "none";
 
@@ -162,8 +164,8 @@ function addMiniCaseSlot(
     const match = storedItems.find(
       (stored) =>
         stored.item.slot === "mini_case" &&
-        stored.item.topic !== null &&
-        contentTopicIds.includes(stored.item.topic)
+        ((stored.item.content_type === "mini_case" && stored.item.product_topic === topicId) ||
+          (stored.item.topic !== null && contentTopicIds.includes(stored.item.topic)))
     );
 
     if (!match) {
@@ -196,12 +198,19 @@ function addMiniCaseSlot(
   };
 }
 
-function getMiniCaseTopicIds(preference: UserDailyDropPreference): MiniCaseTopicId[] {
-  return uniqueMiniCaseTopicIds(
+function getMiniCaseTopicIds(preference: UserDailyDropPreference, dropDate?: string): MiniCaseTopicId[] {
+  const topicIds = uniqueMiniCaseTopicIds(
     [...preference.mini_case_topics]
       .sort(compareMiniCaseTopicPreferences)
       .map((topic) => topic.topic_id)
   );
+
+  if (!dropDate || topicIds.length <= 1) {
+    return topicIds;
+  }
+
+  const start = stableIndex(`${preference.user_id}:${dropDate}`, topicIds.length);
+  return [...topicIds.slice(start), ...topicIds.slice(0, start)];
 }
 
 function uniqueMiniCaseTopicIds(topicIds: MiniCaseTopicId[]): MiniCaseTopicId[] {
@@ -261,4 +270,12 @@ function slotOrder(slot: DailyDropSlot): number {
   };
 
   return order[slot];
+}
+
+function stableIndex(value: string, modulo: number): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash % modulo;
 }

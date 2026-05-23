@@ -1,4 +1,4 @@
-import type { DailyDropPayload, GeneratedContentItem, RankedArticle } from "../domain.js";
+import type { BusinessStoryMemoryContext, DailyDropPayload, GeneratedContentItem, RankedArticle } from "../domain.js";
 import { sanitizeLlmDailyDropPayload } from "../generation/llmSanitizer.js";
 import {
   assertValidDailyDropPayload,
@@ -191,6 +191,45 @@ export function runQualityProof(): QualityProofOutput {
       ].join("\n\n")),
       ["high_stakes_personal_advice"],
       [FINANCE_SOURCE, TECH_SOURCE]
+    ),
+    expectRejected(
+      "mini-case MCQ schema is incomplete",
+      withMiniCaseQuestions([]),
+      ["mini_case_mcq_count_invalid"],
+      [FINANCE_SOURCE, TECH_SOURCE],
+      { miniCaseProductTopics: ["finance_economy"] }
+    ),
+    expectRejected(
+      "mini-case repeats a recent scenario and concept",
+      basePayload(),
+      ["mini_case_scenario_cooldown", "mini_case_concept_cooldown"],
+      [FINANCE_SOURCE, TECH_SOURCE],
+      {
+        miniCaseProductTopics: ["finance_economy"],
+        miniCaseMemory: [{
+          content_item_id: null,
+          title: "Older case",
+          slug: "older-case",
+          topic: "finance_economy",
+          scenario_type: "portfolio_risk",
+          decision_type: "choose_next_step",
+          concept_tested: "risk_adjusted_return",
+          mechanism: "Market risk changes the next step.",
+          difficulty: "medium",
+          question_pattern: "framework_then_apply_then_decide",
+          correct_answer_pattern: "evidence_before_action",
+          core_takeaway: "Wait for evidence.",
+          published_date: SOURCE_DATE,
+          language: "en"
+        }]
+      }
+    ),
+    expectRejected(
+      "business story repeats recent company and mechanism",
+      basePayload(),
+      ["business_story_company_cooldown", "business_story_mechanism_cooldown"],
+      [FINANCE_SOURCE, TECH_SOURCE],
+      { businessStoryMemory: repeatedBusinessStoryMemory() }
     )
   ];
 
@@ -386,7 +425,53 @@ function businessStoryItem(): GeneratedContentItem {
     lesson: "Compute constraints can become strategy constraints before the demo changes.",
     body_md: sourceBackedBody(TECH_SOURCE_URL, "Tech/AI"),
     source_urls: [TECH_SOURCE_URL],
+    editorial_memory: {
+      entity_name: "Reputable Tech Desk",
+      entity_type: "company",
+      main_company: "Reputable Tech Desk",
+      companies_mentioned: ["Reputable Tech Desk"],
+      industry: "software",
+      key_mechanism: "capacity allocation",
+      secondary_mechanisms: ["operational bottleneck"],
+      strategic_angle: "Capacity allocation turns technical scarcity into customer promise risk.",
+      core_takeaway: "Compute constraints can become strategy constraints before the demo changes.",
+      year_period: "2020s"
+    },
     version: 1
+  };
+}
+
+function repeatedBusinessStoryMemory(): BusinessStoryMemoryContext {
+  return {
+    recentStories: [
+      {
+        content_item_id: "00000000-0000-0000-0000-000000000001",
+        title: "Why capacity allocation already shaped a cloud rollout",
+        slug: "why-capacity-allocation-already-shaped-a-cloud-rollout",
+        entity_name: "Another Team",
+        entity_type: "company",
+        main_company: "Reputable Tech Desk",
+        companies_mentioned: ["Reputable Tech Desk"],
+        industry: "software",
+        key_mechanism: "capacity allocation",
+        secondary_mechanisms: ["operational bottleneck"],
+        strategic_angle: "Capacity allocation turns technical scarcity into customer promise risk.",
+        core_takeaway: "Compute constraints can become strategy constraints before the demo changes.",
+        year_period: "2020s",
+        language: "en",
+        published_date: SOURCE_DATE
+      }
+    ],
+    bannedEntities: [],
+    bannedCompanies: ["Reputable Tech Desk"],
+    recentMechanisms: ["capacity allocation"],
+    recentIndustries: ["software"],
+    recentStrategicAngles: ["Capacity allocation turns technical scarcity into customer promise risk."],
+    underusedIndustries: ["industrial"],
+    underusedMechanisms: ["pricing power"],
+    underusedEntityTypes: ["product"],
+    underusedGeographies: ["Europe"],
+    underusedTimePeriods: ["2010s"]
   };
 }
 
@@ -397,16 +482,72 @@ function miniCaseItem(): GeneratedContentItem {
     topic: "finance",
     language: "en",
     title: "Mini-case: brief the market risk move",
+    product_topic: "finance_economy",
+    scenario_type: "portfolio_risk",
+    decision_type: "choose_next_step",
+    concept_tested: "risk_adjusted_return",
+    mechanism: "Market risk changes the next evidence-backed decision.",
+    question_pattern: "framework_then_apply_then_decide",
+    correct_answer_pattern: "evidence_before_action",
+    core_takeaway: "Separate the sourced fact from the recommendation and wait for the signal that changes the decision.",
     difficulty: "medium",
     context: "Oil prices rose after a supply disruption changed inflation and market risk expectations.",
     challenge: "Prepare a five-minute brief for a team deciding whether market risk deserves action this week.",
     constraints: ["Use only sourced facts", "name the decision owner", "watch funding costs and inflation expectations"],
     question: "Would you act now, wait for one signal, or narrow the decision?",
+    questions: miniCaseQuestions(),
     expected_reasoning: ["State the sourced fact from 2026-04-29", "Name who has less room to maneuver", "Choose one signal to watch"],
     sample_answer: "I would wait for one confirming signal because the sourced fact changes risk expectations, not the whole budget yet.",
+    conclusion: "Final takeaway: use risk-adjusted return to decide which signal would justify action.",
     body_md: sourceBackedBody(FINANCE_SOURCE_URL, "Finance"),
     source_urls: [FINANCE_SOURCE_URL],
     version: 1
+  };
+}
+
+function miniCaseQuestions(): Extract<GeneratedContentItem, { content_type: "mini_case" }>["questions"] {
+  return [
+    {
+      id: "q1",
+      role: "method_framework",
+      question: "Which framework should you use first?",
+      options: [
+        miniCaseOption("a", "Separate sourced fact, owner, and signal.", true),
+        miniCaseOption("b", "Make an immediate recommendation.", false)
+      ]
+    },
+    {
+      id: "q2",
+      role: "technical_application",
+      question: "Which signal matters most?",
+      options: [
+        miniCaseOption("a", "Funding costs and inflation expectations.", true),
+        miniCaseOption("b", "A louder headline.", false)
+      ]
+    },
+    {
+      id: "q3",
+      role: "conclusion_decision",
+      question: "What should the team do?",
+      options: [
+        miniCaseOption("a", "Wait for the signal before escalating.", true),
+        miniCaseOption("b", "Treat one source as a complete forecast.", false)
+      ]
+    }
+  ];
+}
+
+function miniCaseOption(
+  id: string,
+  text: string,
+  isCorrect: boolean
+): Extract<GeneratedContentItem, { content_type: "mini_case" }>["questions"][number]["options"][number] {
+  return {
+    id,
+    text,
+    is_correct: isCorrect,
+    feedback_correct: isCorrect ? "Correct: this keeps the case tied to evidence." : "Correct to reject: this answer overreaches.",
+    feedback_incorrect: isCorrect ? "Incorrect: this is the evidence-backed option." : "Incorrect: this overreaches beyond the source."
   };
 }
 
@@ -492,6 +633,17 @@ function withMiniCaseBody(body: string): DailyDropPayload {
   payload.items[2] = {
     ...payload.items[2],
     body_md: body
+  } as GeneratedContentItem;
+  return payload;
+}
+
+function withMiniCaseQuestions(
+  questions: Extract<GeneratedContentItem, { content_type: "mini_case" }>["questions"]
+): DailyDropPayload {
+  const payload = basePayload();
+  payload.items[2] = {
+    ...payload.items[2],
+    questions
   } as GeneratedContentItem;
   return payload;
 }
