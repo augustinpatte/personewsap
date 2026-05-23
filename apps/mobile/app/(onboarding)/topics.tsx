@@ -1,58 +1,103 @@
 import { Redirect, useRouter, type Href } from "expo-router";
+import { useState } from "react";
+import { Alert } from "react-native";
 
+import { useAuth } from "../../src/features/auth";
 import {
+  clearStoredOnboardingDraft,
   getOnboardingCopy,
   localizeOptions,
+  MODULE_OPTIONS,
   OnboardingScaffold,
+  saveOnboardingPreferences,
   SelectableCard,
-  TOPIC_OPTIONS,
   useOnboarding
 } from "../../src/features/onboarding";
 import { trackAnalyticsEvent } from "../../src/lib/analytics";
+import { getUserFacingError } from "../../src/lib/userFacingErrors";
 
-const articleCountHref = "/(onboarding)/article-count" as Href;
+const newsletterTopicsHref = "/(onboarding)/newsletter-topics" as Href;
+const miniCaseTopicsHref = "/(onboarding)/mini-case-topics" as Href;
 
-export default function TopicsScreen() {
+export default function ModuleSelectionScreen() {
   const router = useRouter();
-  const { state, toggleTopic } = useOnboarding();
+  const { refreshAuthState } = useAuth();
+  const { state, toggleModule } = useOnboarding();
+  const [saving, setSaving] = useState(false);
   const copy = getOnboardingCopy(state.language);
-  const topicOptions = localizeOptions(TOPIC_OPTIONS, state.language);
+  const moduleOptions = localizeOptions(MODULE_OPTIONS, state.language);
 
   if (!state.language) {
     return <Redirect href="/(onboarding)/language" />;
   }
 
+  const nextHref = state.enabledModules.includes("newsletter")
+    ? newsletterTopicsHref
+    : miniCaseTopicsHref;
+
+  const savePreferences = async () => {
+    setSaving(true);
+
+    const result = await saveOnboardingPreferences(state);
+
+    setSaving(false);
+
+    if (!result.ok) {
+      trackAnalyticsEvent("error_viewed", {
+        language: state.language ?? undefined
+      });
+      const userFacingError = getUserFacingError(result.error, state.language, "onboarding");
+      Alert.alert(userFacingError.title, userFacingError.message);
+      return;
+    }
+
+    trackAnalyticsEvent("onboarding_completed", {
+      language: state.language ?? undefined
+    });
+    await clearStoredOnboardingDraft();
+    await refreshAuthState();
+    router.replace("/(tabs)/today");
+  };
+
   return (
     <OnboardingScaffold
-      description={copy.topics.description}
+      description={copy.modules.description}
       footerNote={
-        state.selectedTopics.length > 0
-          ? copy.topics.selectedFooter(state.selectedTopics.length)
-          : copy.topics.emptyFooter
+        state.enabledModules.length > 0
+          ? copy.modules.selectedFooter(state.enabledModules.length)
+          : copy.modules.emptyFooter
       }
-      primaryDisabled={state.selectedTopics.length === 0}
-      primaryLabel={copy.common.continue}
-      onPrimaryPress={() => router.push(articleCountHref)}
-      progressLabel={copy.step(2, 4)}
+      primaryDisabled={saving || state.enabledModules.length === 0}
+      primaryLabel={
+        !state.enabledModules.includes("newsletter") && !state.enabledModules.includes("mini_case")
+          ? saving
+            ? copy.articleCount.saving
+            : copy.articleCount.save
+          : copy.common.continue
+      }
+      primaryLoading={saving}
+      onPrimaryPress={() => {
+        if (!state.enabledModules.includes("newsletter") && !state.enabledModules.includes("mini_case")) {
+          void savePreferences();
+          return;
+        }
+
+        router.push(nextHref);
+      }}
+      progressLabel={copy.step(2, 5)}
       secondaryLabel={copy.common.back}
       onSecondaryPress={() => router.back()}
       step={2}
-      title={copy.topics.title}
-      totalSteps={4}
+      title={copy.modules.title}
+      totalSteps={5}
     >
-      {topicOptions.map((option) => (
+      {moduleOptions.map((option) => (
         <SelectableCard
           description={option.description}
           key={option.id}
           label={option.label}
-          onPress={() => {
-            toggleTopic(option.id);
-            trackAnalyticsEvent("topic_preference_updated", {
-              language: state.language ?? undefined,
-              topic: option.backendTopicId
-            });
-          }}
-          selected={state.selectedTopics.includes(option.id)}
+          onPress={() => toggleModule(option.id)}
+          selected={state.enabledModules.includes(option.id)}
           selectedBadge={copy.common.selected}
           unselectedBadge={copy.common.notSelected}
         />

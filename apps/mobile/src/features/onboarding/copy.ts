@@ -20,6 +20,14 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           emptyFooter: "Choose one language to continue.",
           backToLogin: "Back to login"
         },
+        modules: {
+          title: "Choose your daily modules",
+          description:
+            "Pick the formats you want in your five-minute daily drop.",
+          selectedFooter: (count: number) =>
+            `${count} module${count === 1 ? "" : "s"} selected`,
+          emptyFooter: "Choose at least one module to continue."
+        },
         topics: {
           title: "Which newsletter topics do you want?",
           description:
@@ -68,6 +76,14 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           selectedFooter: "Tu pourras changer la langue plus tard dans Compte.",
           emptyFooter: "Choisis une langue pour continuer.",
           backToLogin: "Retour à la connexion"
+        },
+        modules: {
+          title: "Choisis tes modules quotidiens",
+          description:
+            "Sélectionne les formats que tu veux dans ta mise à jour quotidienne de cinq minutes.",
+          selectedFooter: (count: number) =>
+            `${count} module${count > 1 ? "s" : ""} sélectionné${count > 1 ? "s" : ""}`,
+          emptyFooter: "Choisis au moins un module pour continuer."
         },
         topics: {
           title: "Quels sujets veux-tu dans ta newsletter ?",

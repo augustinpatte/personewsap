@@ -10,14 +10,12 @@ export const TOPIC_IDS = [
 ] as const;
 
 export const MINI_CASE_TOPIC_IDS = [
-  "law",
   "finance_economy",
-  "artificial_intelligence",
   "stock_market",
-  "engineering",
-  "health",
-  "entrepreneurship",
-  "career"
+  "ai",
+  "law_compliance",
+  "health_pharma",
+  "engineering_operations"
 ] as const;
 
 export const GOAL_IDS = [
@@ -162,6 +160,11 @@ export type UserDailyDropPreference = {
     topic_id: MiniCaseTopicId;
     position: number | null;
   }>;
+  modules: {
+    newsletter: boolean;
+    business_story: boolean;
+    mini_case: boolean;
+  };
   topics: Array<{
     topic_id: TopicId;
     articles_count: number;
@@ -179,14 +182,12 @@ export function isMiniCaseTopicId(value: string): value is MiniCaseTopicId {
 
 export function miniCaseTopicToContentTopics(topicId: MiniCaseTopicId): TopicId[] {
   const mapping: Record<MiniCaseTopicId, TopicId[]> = {
-    law: ["law"],
     finance_economy: ["finance"],
-    artificial_intelligence: ["tech_ai"],
-    stock_market: ["business", "finance"],
-    engineering: ["engineering"],
-    health: ["medicine"],
-    entrepreneurship: ["business"],
-    career: ["business"]
+    stock_market: ["finance", "business"],
+    ai: ["tech_ai"],
+    law_compliance: ["law"],
+    health_pharma: ["medicine"],
+    engineering_operations: ["engineering"]
   };
 
   return mapping[topicId];

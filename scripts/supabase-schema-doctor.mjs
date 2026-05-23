@@ -273,8 +273,14 @@ async function runStaticMigrationAudit() {
 
   assertRegex(
     sql,
-    /user_mini_case_topic_preferences_topic_id_check[\s\S]+law[\s\S]+finance_economy[\s\S]+artificial_intelligence[\s\S]+stock_market[\s\S]+engineering[\s\S]+health[\s\S]+entrepreneurship[\s\S]+career/i,
-    "migration constrains mini-case preferences to product mini-case topic IDs"
+    /user_mini_case_topic_preferences_topic_id_check[\s\S]+finance_economy[\s\S]+stock_market[\s\S]+ai[\s\S]+law_compliance[\s\S]+health_pharma[\s\S]+engineering_operations/i,
+    "migration constrains mini-case preferences to six product mini-case topic IDs"
+  );
+
+  assertRegex(
+    sql,
+    /alter\s+table\s+public\.user_preferences[\s\S]+add\s+column\s+(if\s+not\s+exists\s+)?newsletter_enabled\s+boolean[\s\S]+add\s+column\s+(if\s+not\s+exists\s+)?business_stories_enabled\s+boolean[\s\S]+add\s+column\s+(if\s+not\s+exists\s+)?mini_cases_enabled\s+boolean/i,
+    "migration stores enabled daily modules on user_preferences"
   );
 
   assertRegex(

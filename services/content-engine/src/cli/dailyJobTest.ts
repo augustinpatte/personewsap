@@ -4,6 +4,7 @@ import {
   type DailyDropSlot,
   type Language,
   type TopicId,
+  type UserDailyDropPreference,
   isLanguage,
   isTopicId
 } from "../domain.js";
@@ -777,14 +778,15 @@ async function assignStoredDropToUsers(input: {
       }, input.logPrefix);
     }
 
-    if (!hasRequiredSlots(itemIds)) {
+    const requiredSlots = requiredSlotsForPreference(preference);
+    if (!hasRequiredSlots(itemIds, requiredSlots)) {
       usersSkippedIncompleteSelection += 1;
       logProgress("assignment skipped incomplete selection", {
         user_id: preference.user_id,
         drop_date: input.dropDate,
         language: input.language,
         selected_items: itemIds.length,
-        missing_slots: missingRequiredSlots(itemIds),
+        missing_slots: missingRequiredSlots(itemIds, requiredSlots),
         topic_preferences: preference.topics.map((topic) => ({
           topic_id: topic.topic_id,
           articles_count: topic.articles_count,
@@ -1039,19 +1041,30 @@ function assertAssignableStoredItems(storedItems: StoredItems, language: Languag
 function hasRequiredSlots(
   itemIds: Array<{
     slot: DailyDropSlot;
-  }>
+  }>,
+  requiredSlots: readonly DailyDropSlot[] = REQUIRED_SLOTS
 ): boolean {
   const slots = new Set(itemIds.map((item) => item.slot));
-  return REQUIRED_SLOTS.every((slot) => slots.has(slot));
+  return requiredSlots.every((slot) => slots.has(slot));
 }
 
 function missingRequiredSlots(
   itemIds: Array<{
     slot: DailyDropSlot;
-  }>
+  }>,
+  requiredSlots: readonly DailyDropSlot[] = REQUIRED_SLOTS
 ): DailyDropSlot[] {
   const slots = new Set(itemIds.map((item) => item.slot));
-  return REQUIRED_SLOTS.filter((slot) => !slots.has(slot));
+  return requiredSlots.filter((slot) => !slots.has(slot));
+}
+
+function requiredSlotsForPreference(preference: UserDailyDropPreference): DailyDropSlot[] {
+  return [
+    preference.modules.newsletter ? "newsletter" : null,
+    preference.modules.business_story ? "business_story" : null,
+    preference.modules.mini_case ? "mini_case" : null,
+    "concept"
+  ].filter((slot): slot is DailyDropSlot => Boolean(slot));
 }
 
 async function runStage<T>(

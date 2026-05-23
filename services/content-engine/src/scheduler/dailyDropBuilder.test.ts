@@ -24,23 +24,23 @@ describe("selectDailyDropItemsForUser mini-case personalization", () => {
 
   it("selects the explicit law mini-case topic even when law is not a newsletter topic", () => {
     const selection = selectDailyDropItemsForUser(
-      preferenceWithTopics(["finance"], "law"),
+      preferenceWithTopics(["finance"], "law_compliance"),
       [miniCase("finance", "finance-mini-case"), miniCase("law", "law-mini-case")]
     );
 
     expect(selectedMiniCaseId(selection.items)).toBe("law-mini-case");
-    expect(selection.diagnostics.miniCase.allowedTopicIds).toEqual(["law"]);
+    expect(selection.diagnostics.miniCase.allowedTopicIds).toEqual(["law_compliance"]);
     expect(selection.diagnostics.miniCase.fallbackReason).toBe("none");
   });
 
   it("falls back deterministically within mini-case topics when selected mini-case content is missing", () => {
     const selection = selectDailyDropItemsForUser(
-      preferenceWithMiniCaseTopics(["business"], ["health", "finance_economy", "law"]),
+      preferenceWithMiniCaseTopics(["business"], ["health_pharma", "finance_economy", "law_compliance"]),
       [miniCase("finance", "finance-mini-case"), miniCase("law", "law-mini-case")]
     );
 
     expect(selectedMiniCaseId(selection.items)).toBe("finance-mini-case");
-    expect(selection.diagnostics.miniCase.allowedTopicIds).toEqual(["health", "finance_economy", "law"]);
+    expect(selection.diagnostics.miniCase.allowedTopicIds).toEqual(["health_pharma", "finance_economy", "law_compliance"]);
     expect(selection.diagnostics.miniCase.fallbackReason).toBe("selected_topic_content_missing");
   });
 
@@ -57,12 +57,12 @@ describe("selectDailyDropItemsForUser mini-case personalization", () => {
 
   it("does not pick an unrelated mini-case outside the user's mini-case topics", () => {
     const selection = selectDailyDropItemsForUser(
-      preferenceWithTopics(["business"], "health"),
+      preferenceWithTopics(["business"], "health_pharma"),
       [miniCase("finance", "finance-mini-case"), miniCase("law", "law-mini-case")]
     );
 
     expect(selectedMiniCaseId(selection.items)).toBeUndefined();
-    expect(selection.diagnostics.miniCase.allowedTopicIds).toEqual(["health"]);
+    expect(selection.diagnostics.miniCase.allowedTopicIds).toEqual(["health_pharma"]);
     expect(selection.diagnostics.miniCase.fallbackReason).toBe("no_mini_case_for_allowed_topics");
   });
 });
@@ -70,7 +70,7 @@ describe("selectDailyDropItemsForUser mini-case personalization", () => {
 describe("selectDailyDropItemsForUser newsletter personalization", () => {
   it("only selects newsletter articles from newsletter topic preferences", () => {
     const selection = selectDailyDropItemsForUser(
-      preferenceWithTopics(["sport_business", "finance", "tech_ai"], "law"),
+      preferenceWithTopics(["sport_business", "finance", "tech_ai"], "law_compliance"),
       [
         newsletter("engineering", "engineering-newsletter"),
         newsletter("finance", "finance-newsletter"),
@@ -108,6 +108,11 @@ function preferenceWithTopics(
     goal: "understand_world",
     frequency: "daily",
     newsletter_article_count: topicIds.length,
+    modules: {
+      newsletter: true,
+      business_story: true,
+      mini_case: true
+    },
     mini_case_topics: miniCaseTopicId
       ? [{ topic_id: miniCaseTopicId, position: 1 }]
       : [],

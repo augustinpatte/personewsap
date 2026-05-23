@@ -379,44 +379,64 @@ export function TodayDailyDropScreen() {
           />
         ) : (
           <>
-            <NewsletterSection
-              articles={drop.items.newsletter}
-              completed={completedModules.has("newsletter")}
-              interactionState={interactionState}
-              language={activeLanguage}
-              onComplete={() => completeModule(drop.items.newsletter)}
-              onInteraction={handleInteraction}
-              pendingInteractionIds={pendingInteractionIds}
-            />
-            <BusinessStorySection
-              story={drop.items.business_story}
-              completed={completedModules.has("business_story")}
-              interactionState={interactionState}
-              language={activeLanguage}
-              onComplete={() => completeModule([drop.items.business_story])}
-              onInteraction={handleInteraction}
-              pendingInteractionIds={pendingInteractionIds}
-            />
-            <MiniCaseSection
-              challenge={drop.items.mini_case}
-              completed={completedModules.has("mini_case")}
-              interactionState={interactionState}
-              language={activeLanguage}
-              showSampleAnswer={showSampleAnswer}
-              onComplete={() => completeModule([drop.items.mini_case])}
-              onInteraction={handleInteraction}
-              onToggleSampleAnswer={() => setShowSampleAnswer((isVisible) => !isVisible)}
-              pendingInteractionIds={pendingInteractionIds}
-            />
-            <ConceptSection
-              concept={drop.items.concept}
-              completed={completedModules.has("concept")}
-              interactionState={interactionState}
-              language={activeLanguage}
-              onComplete={() => completeModule([drop.items.concept])}
-              onInteraction={handleInteraction}
-              pendingInteractionIds={pendingInteractionIds}
-            />
+            {drop.items.newsletter.length > 0 ? (
+              <NewsletterSection
+                articles={drop.items.newsletter}
+                completed={completedModules.has("newsletter")}
+                interactionState={interactionState}
+                language={activeLanguage}
+                onComplete={() => completeModule(drop.items.newsletter)}
+                onInteraction={handleInteraction}
+                pendingInteractionIds={pendingInteractionIds}
+              />
+            ) : null}
+            {drop.items.business_story ? (
+              <BusinessStorySection
+                story={drop.items.business_story}
+                completed={completedModules.has("business_story")}
+                interactionState={interactionState}
+                language={activeLanguage}
+                onComplete={() => {
+                  if (drop.items.business_story) {
+                    void completeModule([drop.items.business_story]);
+                  }
+                }}
+                onInteraction={handleInteraction}
+                pendingInteractionIds={pendingInteractionIds}
+              />
+            ) : null}
+            {drop.items.mini_case ? (
+              <MiniCaseSection
+                challenge={drop.items.mini_case}
+                completed={completedModules.has("mini_case")}
+                interactionState={interactionState}
+                language={activeLanguage}
+                showSampleAnswer={showSampleAnswer}
+                onComplete={() => {
+                  if (drop.items.mini_case) {
+                    void completeModule([drop.items.mini_case]);
+                  }
+                }}
+                onInteraction={handleInteraction}
+                onToggleSampleAnswer={() => setShowSampleAnswer((isVisible) => !isVisible)}
+                pendingInteractionIds={pendingInteractionIds}
+              />
+            ) : null}
+            {drop.items.concept ? (
+              <ConceptSection
+                concept={drop.items.concept}
+                completed={completedModules.has("concept")}
+                interactionState={interactionState}
+                language={activeLanguage}
+                onComplete={() => {
+                  if (drop.items.concept) {
+                    void completeModule([drop.items.concept]);
+                  }
+                }}
+                onInteraction={handleInteraction}
+                pendingInteractionIds={pendingInteractionIds}
+              />
+            ) : null}
             <CompletionState
               allItems={allItems}
               isComplete={isComplete}
@@ -642,7 +662,7 @@ function DropSlotOverview({
           tone={getDataModeTone(source)}
         />
       </View>
-      {moduleOrder.map((moduleId) => (
+      {moduleOrder.filter((moduleId) => getModuleItemCount(drop, moduleId) > 0).map((moduleId) => (
         <SlotOverviewRow
           completed={completedModules.has(moduleId)}
           count={getModuleItemCount(drop, moduleId)}
@@ -1336,7 +1356,9 @@ function getModuleItems(
     return drop.items.newsletter;
   }
 
-  return [drop.items[moduleId]];
+  const item = drop.items[moduleId];
+
+  return item ? [item] : [];
 }
 
 function getSourceCount(item: DailyDropContentItem) {
@@ -1672,14 +1694,14 @@ function getTodayCopy(language: ContentLanguage) {
           culture_media: "Culture"
         },
         miniCaseTopics: {
-          business: "Entrepreneurship",
-          finance: "Finance & Economy",
+          business: "Stock Market",
+          finance: "Finance / Economy",
           tech_ai: "Artificial Intelligence",
-          law: "Law",
-          medicine: "Health",
-          engineering: "Engineering",
-          sport_business: "Sport",
-          culture_media: "Culture"
+          law: "Law / Compliance",
+          medicine: "Health / Pharma",
+          engineering: "Engineering / Operations",
+          sport_business: "Stock Market",
+          culture_media: "Artificial Intelligence"
         },
         useItLikeThis: "Use it like this",
         whyItMatters: "Why it matters"
@@ -1832,14 +1854,14 @@ function getTodayCopy(language: ContentLanguage) {
           culture_media: "Culture"
         },
         miniCaseTopics: {
-          business: "Entrepreneuriat",
-          finance: "Finance & économie",
+          business: "Marché actions",
+          finance: "Finance / Économie",
           tech_ai: "Intelligence artificielle",
-          law: "Droit",
-          medicine: "Santé",
-          engineering: "Ingénierie",
-          sport_business: "Sport",
-          culture_media: "Culture"
+          law: "Droit / Conformité",
+          medicine: "Santé / Pharma",
+          engineering: "Ingénierie / Opérations",
+          sport_business: "Marché actions",
+          culture_media: "Intelligence artificielle"
         },
         useItLikeThis: "À utiliser comme ça",
         whyItMatters: "Pourquoi c'est important"

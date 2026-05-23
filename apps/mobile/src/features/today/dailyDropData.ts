@@ -402,7 +402,7 @@ function assembleTodayDrop(
   const miniCase = items.find(isMiniCaseChallenge);
   const concept = items.find(isKeyConcept);
 
-  if (!businessStory || !miniCase || !concept) {
+  if (newsletter.length === 0 && !businessStory && !miniCase && !concept) {
     return null;
   }
 

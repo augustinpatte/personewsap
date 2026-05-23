@@ -203,7 +203,7 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
         "Ground factual claims in the supplied sources only.",
         "Do not invent URLs, dates, authors, institutions, numbers, or quotes.",
         "Make each item relevant to its topic; do not force a source into the wrong topic.",
-        "For law, medicine, and finance, explain context and uncertainty without personalized advice."
+        "For law/compliance, health/pharma, and finance, frame mini-cases as business or compliance decisions. Never provide legal advice, medical advice, diagnosis, treatment guidance, or personalized financial advice."
       ],
       banned_phrases: BANNED_EDITORIAL_PHRASES,
       stronger_writing_examples: STRONG_WRITING_EXAMPLES,

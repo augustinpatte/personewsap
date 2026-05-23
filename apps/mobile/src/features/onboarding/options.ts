@@ -53,8 +53,8 @@ export const NEWSLETTER_TOPIC_IDS = [
   "finance_economy",
   "stock_market",
   "automotive",
-  "pharmaceutical",
-  "artificial_intelligence",
+  "pharma",
+  "ai",
   "culture"
 ] as const;
 
@@ -66,14 +66,22 @@ export const NEWSLETTER_TO_BACKEND_TOPIC_ID = {
   finance_economy: "finance",
   stock_market: "business",
   automotive: "engineering",
-  pharmaceutical: "medicine",
-  artificial_intelligence: "tech_ai",
+  pharma: "medicine",
+  ai: "tech_ai",
   culture: "culture_media"
 } as const satisfies Record<NewsletterTopicId, TopicId>;
 
 export type NewsletterTopicOption = OnboardingOption<NewsletterTopicId> & {
   backendTopicId: TopicId;
 };
+
+export const ONBOARDING_MODULE_IDS = [
+  "newsletter",
+  "business_story",
+  "mini_case"
+] as const;
+
+export type OnboardingModuleId = (typeof ONBOARDING_MODULE_IDS)[number];
 
 export const MIN_NEWSLETTER_ARTICLES_PER_TOPIC = 1;
 export const MAX_NEWSLETTER_ARTICLES_PER_TOPIC = 3;
@@ -89,28 +97,72 @@ export type NewsletterTopicPreferenceRow = {
 };
 
 export const MINI_CASE_TOPIC_IDS = [
-  "law",
   "finance_economy",
-  "artificial_intelligence",
   "stock_market",
-  "engineering",
-  "health",
-  "entrepreneurship",
-  "career"
+  "ai",
+  "law_compliance",
+  "health_pharma",
+  "engineering_operations"
 ] as const;
 
 export type MiniCaseTopicId = (typeof MINI_CASE_TOPIC_IDS)[number];
 
 export const MINI_CASE_TO_BACKEND_TOPIC_ID = {
-  law: "law",
   finance_economy: "finance",
-  artificial_intelligence: "tech_ai",
-  stock_market: "business",
-  engineering: "engineering",
-  health: "medicine",
-  entrepreneurship: "business",
-  career: "business"
+  stock_market: "finance",
+  ai: "tech_ai",
+  law_compliance: "law",
+  health_pharma: "medicine",
+  engineering_operations: "engineering"
 } as const satisfies Record<MiniCaseTopicId, TopicId>;
+
+export const MODULE_OPTIONS: Array<OnboardingOption<OnboardingModuleId>> = [
+  {
+    id: "newsletter",
+    label: "Newsletter",
+    description: "A tight set of daily news signals.",
+    translations: {
+      en: {
+        label: "Newsletter",
+        description: "A tight set of daily news signals."
+      },
+      fr: {
+        label: "Newsletter",
+        description: "Un ensemble clair de signaux d'actualité."
+      }
+    }
+  },
+  {
+    id: "business_story",
+    label: "Business Stories",
+    description: "One short business lesson from a real situation.",
+    translations: {
+      en: {
+        label: "Business Stories",
+        description: "One short business lesson from a real situation."
+      },
+      fr: {
+        label: "Histoires business",
+        description: "Une leçon business courte tirée d'une situation réelle."
+      }
+    }
+  },
+  {
+    id: "mini_case",
+    label: "Mini Cases",
+    description: "Practice decision-making with concise cases.",
+    translations: {
+      en: {
+        label: "Mini Cases",
+        description: "Practice decision-making with concise cases."
+      },
+      fr: {
+        label: "Mini-cas",
+        description: "Entraîne ta prise de décision avec des cas courts."
+      }
+    }
+  }
+];
 
 export type MiniCaseTopicOption = OnboardingOption<MiniCaseTopicId> & {
   backendTopicId: TopicId;
@@ -208,8 +260,8 @@ export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
     }
   },
   {
-    id: "pharmaceutical",
-    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.pharmaceutical,
+    id: "pharma",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.pharma,
     label: "Pharmaceutical Industry",
     description: "Drugmakers, biotech, clinical evidence, access, regulation, and safety.",
     translations: {
@@ -224,8 +276,8 @@ export const TOPIC_OPTIONS: NewsletterTopicOption[] = [
     }
   },
   {
-    id: "artificial_intelligence",
-    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.artificial_intelligence,
+    id: "ai",
+    backendTopicId: NEWSLETTER_TO_BACKEND_TOPIC_ID.ai,
     label: "Artificial Intelligence",
     description: "AI models, platforms, product bets, compute, regulation, and adoption.",
     translations: {
@@ -261,35 +313,27 @@ export const MINI_CASE_TOPIC_OPTIONS: MiniCaseTopicOption[] = MINI_CASE_TOPIC_ID
   const copy = {
     finance_economy: {
       en: ["Finance / Economy", "Budget trade-offs, risk, rates, valuation, and capital choices."],
-      fr: ["Finance / économie", "Arbitrages de budget, risque, taux, valorisation et choix de capital."]
-    },
-    law: {
-      en: ["Law", "Rules, liability, compliance, negotiations, and institutional constraints."],
-      fr: ["Droit", "Règles, responsabilité, conformité, négociations et contraintes institutionnelles."]
-    },
-    artificial_intelligence: {
-      en: ["Artificial Intelligence", "AI adoption, product choices, platforms, data, and regulation."],
-      fr: ["Intelligence artificielle", "Adoption de l'IA, choix produit, plateformes, données et régulation."]
-    },
-    engineering: {
-      en: ["Engineering", "Systems, infrastructure, manufacturing, constraints, and reliability."],
-      fr: ["Ingénierie", "Systèmes, infrastructure, industrie, contraintes et fiabilité."]
+      fr: ["Finance / Économie", "Arbitrages de budget, risque, taux, valorisation et choix de capital."]
     },
     stock_market: {
       en: ["Stock Market", "Valuation, earnings, investor reactions, risk, and market timing."],
-      fr: ["Bourse", "Valorisation, résultats, réactions d'investisseurs, risque et timing de marché."]
+      fr: ["Marché actions", "Valorisation, résultats, réactions d'investisseurs, risque et timing de marché."]
     },
-    health: {
-      en: ["Health", "Clinical evidence, health systems, safety, access, and ethics."],
-      fr: ["Santé", "Preuves cliniques, systèmes de santé, sécurité, accès et éthique."]
+    ai: {
+      en: ["Artificial Intelligence", "AI adoption, product choices, platforms, data, and regulation."],
+      fr: ["Intelligence artificielle", "Adoption de l'IA, choix produit, plateformes, données et régulation."]
     },
-    entrepreneurship: {
-      en: ["Entrepreneurship", "Strategy, pricing, operations, growth, and market positioning."],
-      fr: ["Entrepreneuriat", "Stratégie, prix, opérations, croissance et positionnement de marché."]
+    law_compliance: {
+      en: ["Law / Compliance", "Rules, liability, compliance, negotiations, and institutional constraints."],
+      fr: ["Droit / Conformité", "Règles, responsabilité, conformité, négociations et contraintes institutionnelles."]
     },
-    career: {
-      en: ["Career", "Workplace choices, skills, negotiation, leadership, and career moves."],
-      fr: ["Carrière", "Choix professionnels, compétences, négociation, leadership et trajectoires."]
+    health_pharma: {
+      en: ["Health / Pharma", "Clinical evidence, health systems, safety, access, and pharma strategy."],
+      fr: ["Santé / Pharma", "Preuves cliniques, systèmes de santé, sécurité, accès et stratégie pharma."]
+    },
+    engineering_operations: {
+      en: ["Engineering / Operations", "Systems, infrastructure, manufacturing, constraints, and reliability."],
+      fr: ["Ingénierie / Opérations", "Systèmes, infrastructure, production, contraintes et fiabilité."]
     }
   } satisfies Record<MiniCaseTopicId, Record<Language, [string, string]>>;
 
@@ -342,21 +386,21 @@ export function mapMiniCaseTopicToBackendTopic(topicId: MiniCaseTopicId): TopicI
 export function mapBackendTopicToMiniCaseTopic(topicId: TopicId): MiniCaseTopicId | null {
   switch (topicId) {
     case "law":
-      return "law";
+      return "law_compliance";
     case "finance":
       return "finance_economy";
     case "tech_ai":
-      return "artificial_intelligence";
+      return "ai";
     case "business":
-      return "entrepreneurship";
+      return "stock_market";
     case "medicine":
-      return "health";
+      return "health_pharma";
     case "engineering":
-      return "engineering";
+      return "engineering_operations";
     case "sport_business":
-      return "entrepreneurship";
+      return "stock_market";
     case "culture_media":
-      return "career";
+      return "ai";
     default:
       return null;
   }
@@ -369,24 +413,76 @@ export function clampNewsletterArticleCount(count: number) {
   );
 }
 
-export function normalizeNewsletterTopics(topicIds: readonly NewsletterTopicId[]) {
-  return topicIds.filter(
-    (topicId, index, topics) =>
-      isNewsletterTopicId(topicId) && topics.indexOf(topicId) === index
+export function normalizeNewsletterTopics(topicIds: readonly string[]) {
+  const normalizedTopicIds = topicIds
+    .map((topicId) => normalizeNewsletterTopicId(topicId))
+    .filter((topicId): topicId is NewsletterTopicId => Boolean(topicId));
+
+  return normalizedTopicIds.filter(
+    (topicId, index, topics) => topics.indexOf(topicId) === index
   );
+}
+
+function normalizeNewsletterTopicId(topicId: string): NewsletterTopicId | null {
+  if (isNewsletterTopicId(topicId)) {
+    return topicId;
+  }
+
+  if (topicId === "pharmaceutical") {
+    return "pharma";
+  }
+
+  if (topicId === "artificial_intelligence") {
+    return "ai";
+  }
+
+  return null;
 }
 
 export function isMiniCaseTopicId(value: string): value is MiniCaseTopicId {
   return MINI_CASE_TOPIC_IDS.includes(value as MiniCaseTopicId);
 }
 
-export function normalizeMiniCaseTopics(topicIds: readonly MiniCaseTopicId[]) {
-  return topicIds
-    .filter(
-      (topicId, index, topics) =>
-        isMiniCaseTopicId(topicId) && topics.indexOf(topicId) === index
-    )
+export function normalizeMiniCaseTopics(topicIds: readonly string[]) {
+  const normalizedTopicIds = topicIds
+    .map((topicId) => normalizeMiniCaseTopicId(topicId))
+    .filter((topicId): topicId is MiniCaseTopicId => Boolean(topicId));
+
+  return normalizedTopicIds
+    .filter((topicId, index, topics) => topics.indexOf(topicId) === index)
     .slice(0, MAX_MINI_CASE_TOPICS);
+}
+
+function normalizeMiniCaseTopicId(topicId: string): MiniCaseTopicId | null {
+  if (isMiniCaseTopicId(topicId)) {
+    return topicId;
+  }
+
+  switch (topicId) {
+    case "finance":
+      return "finance_economy";
+    case "tech_ai":
+    case "artificial_intelligence":
+      return "ai";
+    case "medicine":
+    case "health":
+      return "health_pharma";
+    case "law":
+      return "law_compliance";
+    case "engineering":
+      return "engineering_operations";
+    case "business":
+    case "market":
+    case "sport_business":
+    case "entrepreneurship":
+      return "stock_market";
+    case "culture_media":
+      return "ai";
+    case "career":
+      return "engineering_operations";
+    default:
+      return null;
+  }
 }
 
 export function buildNewsletterTopicPreferenceRows({

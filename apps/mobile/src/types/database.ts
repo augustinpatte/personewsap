@@ -19,14 +19,12 @@ export type TopicId =
   | "culture_media";
 
 export type MiniCaseTopicId =
-  | "law"
   | "finance_economy"
-  | "artificial_intelligence"
   | "stock_market"
-  | "engineering"
-  | "health"
-  | "entrepreneurship"
-  | "career";
+  | "ai"
+  | "law_compliance"
+  | "health_pharma"
+  | "engineering_operations";
 
 export type GoalId =
   | "understand_world"
@@ -95,6 +93,9 @@ export type Database = {
           user_id: string;
           goal: GoalId;
           frequency: PreferenceFrequency;
+          newsletter_enabled: boolean;
+          business_stories_enabled: boolean;
+          mini_cases_enabled: boolean;
           newsletter_article_count: number;
           mini_case_topic_id: TopicId | null;
           notifications_enabled: boolean;
@@ -106,6 +107,9 @@ export type Database = {
           user_id: string;
           goal?: GoalId;
           frequency?: PreferenceFrequency;
+          newsletter_enabled?: boolean;
+          business_stories_enabled?: boolean;
+          mini_cases_enabled?: boolean;
           newsletter_article_count?: number;
           mini_case_topic_id?: TopicId | null;
           notifications_enabled?: boolean;
@@ -117,6 +121,9 @@ export type Database = {
           user_id?: string;
           goal?: GoalId;
           frequency?: PreferenceFrequency;
+          newsletter_enabled?: boolean;
+          business_stories_enabled?: boolean;
+          mini_cases_enabled?: boolean;
           newsletter_article_count?: number;
           mini_case_topic_id?: TopicId | null;
           notifications_enabled?: boolean;

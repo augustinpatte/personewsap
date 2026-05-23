@@ -14,10 +14,12 @@ import {
   mapMiniCaseTopicToBackendTopic,
   mapNewsletterTopicToBackendTopic,
   MAX_MINI_CASE_TOPICS,
+  MODULE_OPTIONS,
   MINI_CASE_TOPIC_OPTIONS,
   SelectableCard,
   TOPIC_OPTIONS,
   type MiniCaseTopicId,
+  type OnboardingModuleId,
   type NewsletterTopicId
 } from "../onboarding";
 import {
@@ -58,6 +60,10 @@ export function PreferencesEditor({
   );
   const topicOptions = useMemo(
     () => localizeOptions(TOPIC_OPTIONS, uiLanguage),
+    [uiLanguage]
+  );
+  const moduleOptions = useMemo(
+    () => localizeOptions(MODULE_OPTIONS, uiLanguage),
     [uiLanguage]
   );
   const miniCaseTopicOptions = useMemo(
@@ -168,6 +174,24 @@ export function PreferencesEditor({
         ...current,
         selectedTopics,
         articlesPerTopic
+      });
+    });
+    setStatusMessage(null);
+    setErrorMessage(null);
+  }, []);
+
+  const toggleModule = useCallback((moduleId: OnboardingModuleId) => {
+    setDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const isEnabled = current.enabledModules.includes(moduleId);
+      return normalizeEditablePreferences({
+        ...current,
+        enabledModules: isEnabled
+          ? current.enabledModules.filter((enabledModuleId) => enabledModuleId !== moduleId)
+          : [...current.enabledModules, moduleId]
       });
     });
     setStatusMessage(null);
@@ -306,6 +330,7 @@ export function PreferencesEditor({
       <PreferenceSummary
         copy={copy}
         miniCaseTopicOptions={miniCaseTopicOptions}
+        moduleOptions={moduleOptions}
         preferences={draft}
         topicOptions={topicOptions}
         totalArticleCount={totalArticleCount}
@@ -323,6 +348,28 @@ export function PreferencesEditor({
         ))}
       </PreferenceGroup>
 
+      <PreferenceGroup title={copy.modules}>
+        <AppText color="muted" variant="caption">
+          {copy.modulesHelp}
+        </AppText>
+        {moduleOptions.map((option) => (
+          <SelectableCard
+            description={option.description}
+            key={option.id}
+            label={option.label}
+            onPress={() => toggleModule(option.id)}
+            selected={draft.enabledModules.includes(option.id)}
+            selectedBadge={copy.selected}
+            unselectedBadge={copy.notSelected}
+          />
+        ))}
+        {draft.enabledModules.length === 0 ? (
+          <AppText color="danger" variant="body">
+            {copy.missingModule}
+          </AppText>
+        ) : null}
+      </PreferenceGroup>
+
       <PreferenceGroup title={copy.topics}>
         <AppText color="muted" variant="caption">
           {copy.topicsHelp}
@@ -338,7 +385,7 @@ export function PreferencesEditor({
             unselectedBadge={copy.notSelected}
           />
         ))}
-        {draft.selectedTopics.length === 0 ? (
+        {draft.enabledModules.includes("newsletter") && draft.selectedTopics.length === 0 ? (
           <AppText color="danger" variant="body">
             {copy.missingNewsletterTopic}
           </AppText>
@@ -366,7 +413,7 @@ export function PreferencesEditor({
             />
           );
         })}
-        {draft.miniCaseTopics.length === 0 ? (
+        {draft.enabledModules.includes("mini_case") && draft.miniCaseTopics.length === 0 ? (
           <AppText color="danger" variant="body">
             {copy.missingMiniCaseTopic}
           </AppText>
@@ -416,8 +463,9 @@ export function PreferencesEditor({
             saving ||
             loading ||
             !hasChanges ||
-            draft.selectedTopics.length === 0 ||
-            draft.miniCaseTopics.length === 0
+            draft.enabledModules.length === 0 ||
+            (draft.enabledModules.includes("newsletter") && draft.selectedTopics.length === 0) ||
+            (draft.enabledModules.includes("mini_case") && draft.miniCaseTopics.length === 0)
           }
           label={saving ? copy.saving : copy.saveChanges}
           loading={saving}
@@ -432,16 +480,21 @@ export function PreferencesEditor({
 function PreferenceSummary({
   copy,
   miniCaseTopicOptions,
+  moduleOptions,
   preferences,
   topicOptions,
   totalArticleCount
 }: {
   copy: ReturnType<typeof getPreferencesCopy>;
   miniCaseTopicOptions: Array<(typeof MINI_CASE_TOPIC_OPTIONS)[number]>;
+  moduleOptions: Array<(typeof MODULE_OPTIONS)[number]>;
   preferences: EditablePreferences;
   topicOptions: Array<(typeof TOPIC_OPTIONS)[number]>;
   totalArticleCount: number;
 }) {
+  const moduleLabels = preferences.enabledModules
+    .map((moduleId) => moduleOptions.find((moduleOption) => moduleOption.id === moduleId)?.label)
+    .filter((label): label is string => Boolean(label));
   const topicLabels = preferences.selectedTopics
     .map((topicId) => topicOptions.find((topic) => topic.id === topicId)?.label)
     .filter((label): label is string => Boolean(label));
@@ -456,6 +509,14 @@ function PreferenceSummary({
         </AppText>
         <AppText variant="bodyStrong">
           {formatLanguageName(preferences.language, preferences.language)}
+        </AppText>
+      </View>
+      <View style={styles.summaryRow}>
+        <AppText color="muted" variant="caption">
+          {copy.modules}
+        </AppText>
+        <AppText style={styles.summaryValue} variant="bodyStrong">
+          {moduleLabels.length > 0 ? moduleLabels.join(", ") : copy.missingModule}
         </AppText>
       </View>
       <View style={styles.summaryRow}>
@@ -502,6 +563,7 @@ function serializePreferences(preferences: EditablePreferences) {
 
   return JSON.stringify({
     language: normalized.language,
+    enabledModules: normalized.enabledModules,
     selectedTopics: normalized.selectedTopics,
     miniCaseTopics: normalized.miniCaseTopics,
     articlesPerTopic: normalized.articlesPerTopic
@@ -524,6 +586,8 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         saved:
           "Saved. Future daily drops will use these preferences.",
         language: "Language",
+        modules: "Modules",
+        modulesHelp: "Choose which daily formats stay active.",
         topics: "Newsletter topics",
         topicsHelp:
           "Choose one to eight topics for newsletter articles.",
@@ -532,6 +596,7 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
           "Choose one to three topics for practical mini-cases. This stays separate from newsletter topics.",
         articleCounts: "Newsletter depth",
         missingNewsletterTopic: "Select at least one newsletter topic to save preferences.",
+        missingModule: "Select at least one module to save preferences.",
         missingMiniCaseTopic: "Select at least one mini-case topic to save preferences.",
         limitReached: "Limit reached",
         selected: "Selected",
@@ -559,6 +624,8 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         saved:
           "Enregistré. Les prochaines mises à jour utiliseront ces préférences.",
         language: "Langue",
+        modules: "Modules",
+        modulesHelp: "Choisis les formats quotidiens qui restent actifs.",
         topics: "Sujets newsletter",
         topicsHelp:
           "Choisis un à huit sujets pour les articles newsletter.",
@@ -567,6 +634,7 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
           "Choisis un à trois sujets pour les mini-cas pratiques. Ce choix reste séparé des sujets newsletter.",
         articleCounts: "Profondeur newsletter",
         missingNewsletterTopic: "Sélectionne au moins un sujet newsletter pour enregistrer les préférences.",
+        missingModule: "Sélectionne au moins un module pour enregistrer les préférences.",
         missingMiniCaseTopic: "Sélectionne au moins un sujet mini-cas pour enregistrer les préférences.",
         limitReached: "Limite atteinte",
         selected: "Sélectionné",

@@ -49,12 +49,12 @@ export default function LanguageScreen() {
       primaryDisabled={!state.language}
       primaryLabel={copy.common.continue}
       onPrimaryPress={() => router.push("/(onboarding)/topics")}
-      progressLabel={copy.step(1, 4)}
+      progressLabel={copy.step(1, 5)}
       secondaryLabel={copy.language.backToLogin}
       onSecondaryPress={returnToLogin}
       step={1}
       title={copy.language.title}
-      totalSteps={4}
+      totalSteps={5}
     >
       {languageOptions.map((option) => (
         <SelectableCard
@@ -79,13 +79,21 @@ function getResumeHref(state: ReturnType<typeof useOnboarding>["state"]): Href |
     return null;
   }
 
-  if (state.selectedTopics.length === 0) {
+  if (state.enabledModules.length === 0) {
     return "/(onboarding)/topics" as Href;
   }
 
-  if (!state.newsletterConfigurationComplete) {
+  if (state.enabledModules.includes("newsletter") && state.selectedTopics.length === 0) {
+    return "/(onboarding)/newsletter-topics" as Href;
+  }
+
+  if (state.enabledModules.includes("newsletter") && !state.newsletterConfigurationComplete) {
     return "/(onboarding)/article-count" as Href;
   }
 
-  return "/(onboarding)/mini-case-topics" as Href;
+  if (state.enabledModules.includes("mini_case")) {
+    return "/(onboarding)/mini-case-topics" as Href;
+  }
+
+  return "/(onboarding)/topics" as Href;
 }

@@ -41,6 +41,7 @@ export type MiniCaseSelectionDiagnostic = {
   fallbackReason:
     | "none"
     | "missing_mini_case_topic_preferences"
+    | "mini_case_module_disabled"
     | "selected_topic_content_missing"
     | "no_mini_case_for_allowed_topics";
 };
@@ -62,31 +63,42 @@ export function selectDailyDropItemsForUser(
   const newsletterAssignedItems: NewsletterSelectionDiagnostic["assignedItems"] = [];
   let newsletterPosition = 0;
 
-  for (const topic of sortedTopicPlan) {
-    const matches = sortedStoredItems.filter(
-      (stored) => stored.item.content_type === "newsletter_article" && stored.item.topic === topic.topic_id
-    );
+  if (preference.modules.newsletter) {
+    for (const topic of sortedTopicPlan) {
+      const matches = sortedStoredItems.filter(
+        (stored) => stored.item.content_type === "newsletter_article" && stored.item.topic === topic.topic_id
+      );
 
-    for (const match of matches.slice(0, topic.articles_count)) {
-      if (newsletterPosition >= preference.newsletter_article_count) {
-        break;
+      for (const match of matches.slice(0, topic.articles_count)) {
+        if (newsletterPosition >= preference.newsletter_article_count) {
+          break;
+        }
+
+        selected.push({
+          contentItemId: match.content_item_id,
+          slot: "newsletter",
+          position: newsletterPosition
+        });
+        newsletterAssignedItems.push({
+          contentItemId: match.content_item_id,
+          topicId: topic.topic_id
+        });
+        newsletterPosition += 1;
       }
-
-      selected.push({
-        contentItemId: match.content_item_id,
-        slot: "newsletter",
-        position: newsletterPosition
-      });
-      newsletterAssignedItems.push({
-        contentItemId: match.content_item_id,
-        topicId: topic.topic_id
-      });
-      newsletterPosition += 1;
     }
   }
 
-  addFirstSlot(selected, sortedStoredItems, "business_story");
-  const miniCaseDiagnostic = addMiniCaseSlot(selected, sortedStoredItems, preference);
+  if (preference.modules.business_story) {
+    addFirstSlot(selected, sortedStoredItems, "business_story");
+  }
+  const miniCaseDiagnostic = preference.modules.mini_case
+    ? addMiniCaseSlot(selected, sortedStoredItems, preference)
+    : {
+        requestedTopicId: null,
+        allowedTopicIds: [],
+        selectedTopicId: null,
+        fallbackReason: "mini_case_module_disabled" as const
+      };
   addFirstSlot(selected, sortedStoredItems, "concept");
 
   return {

@@ -157,6 +157,9 @@ type AppUserPreferenceRow = {
   user_id: string;
   goal: string | null;
   frequency: string | null;
+  newsletter_enabled: boolean | null;
+  business_stories_enabled: boolean | null;
+  mini_cases_enabled: boolean | null;
   newsletter_article_count: number | null;
 };
 
@@ -871,7 +874,13 @@ export class ContentRepository {
         .filter((topic) => topic.enabled !== false)
         .filter((topic) => isTopicId(topic.topic_id ?? ""));
 
-      if (enabledTopics.length === 0) {
+      const modules = {
+        newsletter: preference.newsletter_enabled !== false,
+        business_story: preference.business_stories_enabled !== false,
+        mini_case: preference.mini_cases_enabled !== false
+      };
+
+      if (modules.newsletter && enabledTopics.length === 0) {
         skippedUsers.push({
           user_id: profile.id,
           reason: "missing_enabled_user_topic_preferences",
@@ -892,7 +901,7 @@ export class ContentRepository {
           Boolean(topic.topic_id)
         );
 
-      if (enabledMiniCaseTopics.length === 0) {
+      if (modules.mini_case && enabledMiniCaseTopics.length === 0) {
         skippedUsers.push({
           user_id: profile.id,
           reason: "missing_enabled_user_mini_case_preferences",
@@ -909,6 +918,7 @@ export class ContentRepository {
         goal: String(preference.goal ?? "become_sharper_daily") as UserDailyDropPreference["goal"],
         frequency: String(preference.frequency ?? "daily") as UserDailyDropPreference["frequency"],
         newsletter_article_count: normalizeNewsletterArticleCount(preference.newsletter_article_count),
+        modules,
         mini_case_topics: enabledMiniCaseTopics.map((topic) => ({
           topic_id: topic.topic_id,
           position: topic.position === null || topic.position === undefined ? null : Number(topic.position)
@@ -1065,7 +1075,7 @@ export class ContentRepository {
 
     const { data, error } = await this.supabase
       .from("user_preferences")
-      .select("user_id,goal,frequency,newsletter_article_count")
+      .select("user_id,goal,frequency,newsletter_enabled,business_stories_enabled,mini_cases_enabled,newsletter_article_count")
       .in("user_id", uniqueUserIds)
       .returns<AppUserPreferenceRow[]>();
 
@@ -1570,26 +1580,42 @@ function normalizeMiniCasePreferenceTopicId(value: string | null): MiniCaseTopic
   }
 
   if (!isTopicId(value)) {
-    return null;
+    switch (value) {
+      case "ai":
+      case "law_compliance":
+      case "health_pharma":
+      case "engineering_operations":
+      case "finance_economy":
+      case "stock_market":
+        return value;
+      case "artificial_intelligence":
+        return "ai";
+      case "health":
+        return "health_pharma";
+      case "market":
+        return "stock_market";
+      default:
+        return null;
+    }
   }
 
   switch (value) {
     case "law":
-      return "law";
+      return "law_compliance";
     case "finance":
       return "finance_economy";
     case "tech_ai":
-      return "artificial_intelligence";
+      return "ai";
     case "business":
       return "stock_market";
     case "medicine":
-      return "health";
+      return "health_pharma";
     case "engineering":
-      return "engineering";
+      return "engineering_operations";
     case "sport_business":
-      return "entrepreneurship";
+      return "stock_market";
     case "culture_media":
-      return "career";
+      return "ai";
     default:
       return null;
   }

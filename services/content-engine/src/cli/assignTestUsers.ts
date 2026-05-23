@@ -115,7 +115,7 @@ export async function runAssignTestUsers(
 
     const itemIds = selectTestContentForPreference(preference, contentGroup.contentItems);
 
-    if (!hasRequiredSlots(itemIds)) {
+    if (!hasRequiredSlots(itemIds, requiredSlotsForPreference(preference))) {
       usersSkippedIncompleteSelection += 1;
       logProgress("assignment skipped incomplete selection", {
         user_id: preference.user_id,
@@ -315,32 +315,38 @@ function selectTestContentForPreference(
   const sortedTopics = [...preference.topics].sort((left, right) => (left.position ?? 99) - (right.position ?? 99));
   let newsletterPosition = 0;
 
-  for (const topic of sortedTopics) {
-    const matches = contentItems.filter((item) => {
-      return item.slot === "newsletter" && item.topic === topic.topic_id;
-    });
-
-    for (const match of matches.slice(0, topic.articles_count)) {
-      if (newsletterPosition >= preference.newsletter_article_count) {
-        break;
-      }
-
-      selected.push({
-        contentItemId: match.contentItemId,
-        slot: "newsletter",
-        position: newsletterPosition
+  if (preference.modules.newsletter) {
+    for (const topic of sortedTopics) {
+      const matches = contentItems.filter((item) => {
+        return item.slot === "newsletter" && item.topic === topic.topic_id;
       });
-      newsletterPosition += 1;
+
+      for (const match of matches.slice(0, topic.articles_count)) {
+        if (newsletterPosition >= preference.newsletter_article_count) {
+          break;
+        }
+
+        selected.push({
+          contentItemId: match.contentItemId,
+          slot: "newsletter",
+          position: newsletterPosition
+        });
+        newsletterPosition += 1;
+      }
     }
   }
 
-  addFirstSlot(selected, contentItems, "business_story");
-  addFirstSlot(
-    selected,
-    contentItems,
-    "mini_case",
-    getMiniCaseContentTopicIds(preference)
-  );
+  if (preference.modules.business_story) {
+    addFirstSlot(selected, contentItems, "business_story");
+  }
+  if (preference.modules.mini_case) {
+    addFirstSlot(
+      selected,
+      contentItems,
+      "mini_case",
+      getMiniCaseContentTopicIds(preference)
+    );
+  }
   addFirstSlot(selected, contentItems, "concept");
 
   return selected;
@@ -391,10 +397,20 @@ function getMiniCaseContentTopicIds(
 function hasRequiredSlots(
   itemIds: Array<{
     slot: DailyDropSlot;
-  }>
+  }>,
+  slotsRequired: readonly DailyDropSlot[] = requiredSlots
 ): boolean {
   const slots = new Set(itemIds.map((item) => item.slot));
-  return requiredSlots.every((slot) => slots.has(slot));
+  return slotsRequired.every((slot) => slots.has(slot));
+}
+
+function requiredSlotsForPreference(preference: UserDailyDropPreference): DailyDropSlot[] {
+  return [
+    preference.modules.newsletter ? "newsletter" : null,
+    preference.modules.business_story ? "business_story" : null,
+    preference.modules.mini_case ? "mini_case" : null,
+    "concept"
+  ].filter((slot): slot is DailyDropSlot => Boolean(slot));
 }
 
 function latestCreatedAt(items: AssignableTestContentItem[]): string {

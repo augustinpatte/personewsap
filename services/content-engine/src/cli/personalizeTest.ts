@@ -101,7 +101,7 @@ export async function runPersonalizeTest(options: PersonalizeTestOptions): Promi
 
     const itemIds = selectPublishedContentForPreference(preference, contentItems);
 
-    if (!hasRequiredSlots(itemIds)) {
+    if (!hasRequiredSlots(itemIds, requiredSlotsForPreference(preference))) {
       skippedUsers.push({
         user_id: preference.user_id,
         reason: "not enough published content for selected language/topics"
@@ -240,32 +240,38 @@ function selectPublishedContentForPreference(
   const sortedTopics = [...preference.topics].sort((left, right) => (left.position ?? 99) - (right.position ?? 99));
   let newsletterPosition = 0;
 
-  for (const topic of sortedTopics) {
-    const matches = matchingLanguageItems.filter((item) => {
-      return item.slot === "newsletter" && item.topic === topic.topic_id;
-    });
-
-    for (const match of matches.slice(0, topic.articles_count)) {
-      if (newsletterPosition >= preference.newsletter_article_count) {
-        break;
-      }
-
-      selected.push({
-        contentItemId: match.contentItemId,
-        slot: "newsletter",
-        position: newsletterPosition
+  if (preference.modules.newsletter) {
+    for (const topic of sortedTopics) {
+      const matches = matchingLanguageItems.filter((item) => {
+        return item.slot === "newsletter" && item.topic === topic.topic_id;
       });
-      newsletterPosition += 1;
+
+      for (const match of matches.slice(0, topic.articles_count)) {
+        if (newsletterPosition >= preference.newsletter_article_count) {
+          break;
+        }
+
+        selected.push({
+          contentItemId: match.contentItemId,
+          slot: "newsletter",
+          position: newsletterPosition
+        });
+        newsletterPosition += 1;
+      }
     }
   }
 
-  addFirstSlot(selected, matchingLanguageItems, "business_story", sortedTopics.map((topic) => topic.topic_id));
-  addFirstSlot(
-    selected,
-    matchingLanguageItems,
-    "mini_case",
-    getMiniCaseContentTopicIds(preference)
-  );
+  if (preference.modules.business_story) {
+    addFirstSlot(selected, matchingLanguageItems, "business_story", sortedTopics.map((topic) => topic.topic_id));
+  }
+  if (preference.modules.mini_case) {
+    addFirstSlot(
+      selected,
+      matchingLanguageItems,
+      "mini_case",
+      getMiniCaseContentTopicIds(preference)
+    );
+  }
   addFirstSlot(selected, matchingLanguageItems, "concept", sortedTopics.map((topic) => topic.topic_id));
 
   return selected;
@@ -316,10 +322,20 @@ function getMiniCaseContentTopicIds(
 function hasRequiredSlots(
   itemIds: Array<{
     slot: DailyDropSlot;
-  }>
+  }>,
+  requiredSlots: readonly DailyDropSlot[] = REQUIRED_SLOTS
 ): boolean {
   const slots = new Set(itemIds.map((item) => item.slot));
-  return REQUIRED_SLOTS.every((slot) => slots.has(slot));
+  return requiredSlots.every((slot) => slots.has(slot));
+}
+
+function requiredSlotsForPreference(preference: UserDailyDropPreference): DailyDropSlot[] {
+  return [
+    preference.modules.newsletter ? "newsletter" : null,
+    preference.modules.business_story ? "business_story" : null,
+    preference.modules.mini_case ? "mini_case" : null,
+    "concept"
+  ].filter((slot): slot is DailyDropSlot => Boolean(slot));
 }
 
 function readPositiveIntegerOption(args: string[], name: string): number | null {

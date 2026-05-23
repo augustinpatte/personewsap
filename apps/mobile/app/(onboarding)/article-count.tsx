@@ -1,15 +1,21 @@
 import { Redirect, useRouter, type Href } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Alert } from "react-native";
 
 import { EmptyState } from "../../src/components";
+import { useAuth } from "../../src/features/auth";
 import {
   ArticleCountRow,
+  clearStoredOnboardingDraft,
   getOnboardingCopy,
   localizeOptions,
   OnboardingScaffold,
+  saveOnboardingPreferences,
   TOPIC_OPTIONS,
   useOnboarding
 } from "../../src/features/onboarding";
+import { trackAnalyticsEvent } from "../../src/lib/analytics";
+import { getUserFacingError } from "../../src/lib/userFacingErrors";
 
 type SelectedTopic = (typeof TOPIC_OPTIONS)[number];
 
@@ -21,7 +27,9 @@ function isSelectedTopic(topic: SelectedTopic | undefined): topic is SelectedTop
 
 export default function ArticleCountScreen() {
   const router = useRouter();
+  const { refreshAuthState } = useAuth();
   const { completeNewsletterConfiguration, setArticleCount, state } = useOnboarding();
+  const [saving, setSaving] = useState(false);
   const copy = getOnboardingCopy(state.language);
   const topicOptions = useMemo(
     () => localizeOptions(TOPIC_OPTIONS, state.language),
@@ -42,6 +50,38 @@ export default function ArticleCountScreen() {
     return <Redirect href="/(onboarding)/language" />;
   }
 
+  if (!state.enabledModules.includes("newsletter")) {
+    return <Redirect href="/(onboarding)/mini-case-topics" />;
+  }
+
+  const savePreferences = async () => {
+    completeNewsletterConfiguration();
+    setSaving(true);
+
+    const result = await saveOnboardingPreferences({
+      ...state,
+      newsletterConfigurationComplete: true
+    });
+
+    setSaving(false);
+
+    if (!result.ok) {
+      trackAnalyticsEvent("error_viewed", {
+        language: state.language ?? undefined
+      });
+      const userFacingError = getUserFacingError(result.error, state.language, "onboarding");
+      Alert.alert(userFacingError.title, userFacingError.message);
+      return;
+    }
+
+    trackAnalyticsEvent("onboarding_completed", {
+      language: state.language ?? undefined
+    });
+    await clearStoredOnboardingDraft();
+    await refreshAuthState();
+    router.replace("/(tabs)/today");
+  };
+
   return (
     <OnboardingScaffold
       description={copy.articleCount.description}
@@ -50,18 +90,30 @@ export default function ArticleCountScreen() {
           ? copy.articleCount.selectedFooter
           : copy.articleCount.emptyFooter
       }
-      primaryDisabled={!hasRequiredPreferences}
-      primaryLabel={copy.common.continue}
+      primaryDisabled={saving || !hasRequiredPreferences}
+      primaryLabel={
+        state.enabledModules.includes("mini_case")
+          ? copy.common.continue
+          : saving
+            ? copy.articleCount.saving
+            : copy.articleCount.save
+      }
+      primaryLoading={saving}
       onPrimaryPress={() => {
         completeNewsletterConfiguration();
-        router.push(miniCaseTopicsHref);
+        if (state.enabledModules.includes("mini_case")) {
+          router.push(miniCaseTopicsHref);
+          return;
+        }
+
+        void savePreferences();
       }}
-      progressLabel={copy.step(3, 4)}
+      progressLabel={copy.step(4, 5)}
       secondaryLabel={copy.common.back}
       onSecondaryPress={() => router.back()}
-      step={3}
+      step={4}
       title={copy.articleCount.title}
-      totalSteps={4}
+      totalSteps={5}
     >
       {selectedTopics.length > 0 ? (
         selectedTopics.map((topic) => (

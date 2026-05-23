@@ -1,6 +1,11 @@
 import type { DailyDropPayload, GeneratedContentItem, RankedArticle } from "../domain.js";
 import { sanitizeLlmDailyDropPayload } from "../generation/llmSanitizer.js";
-import { assertValidDailyDropPayload, validateDailyDropQuality, type ValidationIssue } from "../generation/validation.js";
+import {
+  assertValidDailyDropPayload,
+  validateDailyDropPayload,
+  validateDailyDropQuality,
+  type ValidationIssue
+} from "../generation/validation.js";
 
 type RejectedExample = {
   name: string;
@@ -167,14 +172,25 @@ export function runQualityProof(): QualityProofOutput {
       withNewsletterTopicMismatch(),
       ["newsletter_topic_mismatch"],
       [FINANCE_SOURCE, TECH_SOURCE],
-      { newsletterProductTopics: ["artificial_intelligence"] }
+      { newsletterProductTopics: ["ai"] }
     ),
     expectRejected(
       "mini-case topic does not match allowed user preference topic",
       basePayload(),
       ["mini_case_preference_topic_mismatch"],
       [FINANCE_SOURCE, TECH_SOURCE],
-      { miniCaseAllowedPreferenceTopicIds: ["health"] }
+      { miniCaseAllowedPreferenceTopicIds: ["health_pharma"] }
+    ),
+    expectRejected(
+      "mini-case gives high-stakes legal or medical advice",
+      withMiniCaseBody([
+        "Oil prices rose after a supply disruption changed inflation and market risk expectations.",
+        "This is legal advice for your case and you should sue immediately before any operator reviews the facts.",
+        "A product-safe mini-case must instead frame law and health topics as business, compliance, evidence, or access decisions.",
+        `Source: Reputable Markets Desk, published ${SOURCE_DATE}, retrieved ${RETRIEVED_DATE}. ${FINANCE_SOURCE_URL}`
+      ].join("\n\n")),
+      ["high_stakes_personal_advice"],
+      [FINANCE_SOURCE, TECH_SOURCE]
     )
   ];
 
@@ -270,6 +286,7 @@ function expectRejected(
   articles: RankedArticle[],
   extraOptions: Parameters<typeof validateDailyDropQuality>[1] = {}
 ): RejectedExample {
+  const structuralIssues = validateDailyDropPayload(payload);
   const diagnostics = validateDailyDropQuality(payload, {
     articles,
     rssOnly: true,
@@ -293,7 +310,13 @@ function expectRejected(
     throw new Error(`Quality proof failed: ${name} was accepted.`);
   }
 
-  const observedCodes = Array.from(new Set(diagnostics.issues.map((issue) => issue.code).filter(isString)));
+  const observedCodes = Array.from(
+    new Set(
+      [...structuralIssues, ...diagnostics.issues]
+        .map((issue) => issue.code)
+        .filter(isString)
+    )
+  );
   const missingCodes = expectedCodes.filter((code) => !observedCodes.includes(code));
   if (missingCodes.length > 0) {
     throw new Error(`Quality proof failed: ${name} did not report expected code(s): ${missingCodes.join(", ")}.`);
@@ -460,6 +483,15 @@ function withNewsletterGenericFiller(): DailyDropPayload {
       "Placeholder content says very little about the actual finance mechanism, market risk, source fact, or decision owner.",
       `Source: Reputable Markets Desk, published ${SOURCE_DATE}, retrieved ${RETRIEVED_DATE}. ${FINANCE_SOURCE_URL}`
     ].join("\n\n")
+  } as GeneratedContentItem;
+  return payload;
+}
+
+function withMiniCaseBody(body: string): DailyDropPayload {
+  const payload = basePayload();
+  payload.items[2] = {
+    ...payload.items[2],
+    body_md: body
   } as GeneratedContentItem;
   return payload;
 }

@@ -319,7 +319,7 @@ export function flattenDailyDropItems(
     drop.items.business_story,
     drop.items.mini_case,
     drop.items.concept
-  ];
+  ].filter((item): item is DailyDropContentItem => Boolean(item));
 }
 
 export function getMockSourcesForItem(item: {

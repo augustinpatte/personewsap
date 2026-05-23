@@ -12,14 +12,17 @@ import {
   mapMiniCaseTopicToBackendTopic,
   MAX_MINI_CASE_TOPICS,
   MIN_MINI_CASE_TOPICS,
+  ONBOARDING_MODULE_IDS,
   normalizeMiniCaseTopics,
   normalizeNewsletterTopics,
   type MiniCaseTopicId,
+  type OnboardingModuleId,
   type NewsletterTopicId
 } from "../onboarding/options";
 
 export type EditablePreferences = {
   language: Language;
+  enabledModules: OnboardingModuleId[];
   selectedTopics: NewsletterTopicId[];
   miniCaseTopics: MiniCaseTopicId[];
   articlesPerTopic: Partial<Record<NewsletterTopicId, number>>;
@@ -35,6 +38,7 @@ type SavePreferencesResult =
 
 const DEFAULT_PREFERENCES: EditablePreferences = {
   language: "en",
+  enabledModules: ["newsletter", "business_story", "mini_case"],
   selectedTopics: [],
   miniCaseTopics: [],
   articlesPerTopic: {}
@@ -91,7 +95,7 @@ export async function loadEditablePreferences(
 
     const { data: userPreferences, error: userPreferencesError } = await supabase
       .from("user_preferences")
-      .select("mini_case_topic_id")
+      .select("newsletter_enabled,business_stories_enabled,mini_cases_enabled,mini_case_topic_id")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -165,6 +169,7 @@ export async function loadEditablePreferences(
       ok: true,
       preferences: normalizeEditablePreferences({
         language: profile?.language ?? DEFAULT_PREFERENCES.language,
+        enabledModules: normalizeEnabledModules(userPreferences),
         selectedTopics,
         miniCaseTopics,
         articlesPerTopic
@@ -200,7 +205,23 @@ export async function saveEditablePreferences(
 
   const normalized = normalizeEditablePreferences(preferences);
 
-  if (normalized.selectedTopics.length === 0) {
+  if (normalized.enabledModules.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code: "missing_modules",
+        message: localized(
+          {
+            en: "Choose at least one daily module before saving preferences.",
+            fr: "Choisis au moins un module quotidien avant d'enregistrer les préférences."
+          },
+          normalized.language
+        )
+      }
+    };
+  }
+
+  if (normalized.enabledModules.includes("newsletter") && normalized.selectedTopics.length === 0) {
     return {
       ok: false,
       error: {
@@ -217,8 +238,9 @@ export async function saveEditablePreferences(
   }
 
   if (
-    normalized.miniCaseTopics.length < MIN_MINI_CASE_TOPICS ||
-    normalized.miniCaseTopics.length > MAX_MINI_CASE_TOPICS
+    normalized.enabledModules.includes("mini_case") &&
+    (normalized.miniCaseTopics.length < MIN_MINI_CASE_TOPICS ||
+      normalized.miniCaseTopics.length > MAX_MINI_CASE_TOPICS)
   ) {
     return {
       ok: false,
@@ -265,7 +287,12 @@ export async function saveEditablePreferences(
 
     const userPreferencesResult = await upsertUserPreferences({
       newsletterArticleCount,
-      primaryMiniCaseTopicId: mapMiniCaseTopicToBackendTopic(normalized.miniCaseTopics[0]),
+      businessStoriesEnabled: normalized.enabledModules.includes("business_story"),
+      miniCasesEnabled: normalized.enabledModules.includes("mini_case"),
+      newsletterEnabled: normalized.enabledModules.includes("newsletter"),
+      primaryMiniCaseTopicId: normalized.miniCaseTopics[0]
+        ? mapMiniCaseTopicToBackendTopic(normalized.miniCaseTopics[0])
+        : null,
       userId
     });
 
@@ -364,9 +391,11 @@ export async function saveEditablePreferences(
 export function normalizeEditablePreferences(preferences: EditablePreferences): EditablePreferences {
   const selectedTopics = normalizeNewsletterTopics(preferences.selectedTopics);
   const miniCaseTopics = normalizeMiniCaseTopics(preferences.miniCaseTopics);
+  const enabledModules = normalizeEnabledModuleIds(preferences.enabledModules);
 
   return {
     ...preferences,
+    enabledModules,
     selectedTopics,
     miniCaseTopics,
     articlesPerTopic: Object.fromEntries(
@@ -429,12 +458,33 @@ function normalizeStoredMiniCaseTopicId(value: string | null): MiniCaseTopicId |
     return value;
   }
 
+  switch (value) {
+    case "ai":
+    case "law_compliance":
+    case "health_pharma":
+    case "engineering_operations":
+    case "finance_economy":
+    case "stock_market":
+      return value;
+    case "artificial_intelligence":
+      return "ai";
+    case "health":
+      return "health_pharma";
+    case "market":
+      return "stock_market";
+    default:
+      break;
+  }
+
   return mapBackendTopicToMiniCaseTopic(value as TopicId);
 }
 
 async function upsertUserPreferences(input: {
+  businessStoriesEnabled: boolean;
+  miniCasesEnabled: boolean;
+  newsletterEnabled: boolean;
   newsletterArticleCount: number;
-  primaryMiniCaseTopicId: TopicId;
+  primaryMiniCaseTopicId: TopicId | null;
   userId: string;
 }) {
   if (!supabase) {
@@ -449,7 +499,10 @@ async function upsertUserPreferences(input: {
 
   const result = await supabase.from("user_preferences").upsert({
     user_id: input.userId,
+    business_stories_enabled: input.businessStoriesEnabled,
+    mini_cases_enabled: input.miniCasesEnabled,
     mini_case_topic_id: input.primaryMiniCaseTopicId,
+    newsletter_enabled: input.newsletterEnabled,
     newsletter_article_count: input.newsletterArticleCount
   });
 
@@ -465,8 +518,39 @@ async function upsertUserPreferences(input: {
 
   return supabase.from("user_preferences").upsert({
     user_id: input.userId,
+    business_stories_enabled: input.businessStoriesEnabled,
+    mini_cases_enabled: input.miniCasesEnabled,
+    newsletter_enabled: input.newsletterEnabled,
     newsletter_article_count: input.newsletterArticleCount
   });
+}
+
+function normalizeEnabledModules(
+  userPreferences:
+    | {
+        newsletter_enabled?: boolean | null;
+        business_stories_enabled?: boolean | null;
+        mini_cases_enabled?: boolean | null;
+      }
+    | null
+    | undefined
+): OnboardingModuleId[] {
+  if (!userPreferences) {
+    return DEFAULT_PREFERENCES.enabledModules;
+  }
+
+  return normalizeEnabledModuleIds([
+    userPreferences.newsletter_enabled === false ? null : "newsletter",
+    userPreferences.business_stories_enabled === false ? null : "business_story",
+    userPreferences.mini_cases_enabled === false ? null : "mini_case"
+  ].filter((moduleId): moduleId is OnboardingModuleId => Boolean(moduleId)));
+}
+
+function normalizeEnabledModuleIds(moduleIds: readonly OnboardingModuleId[]) {
+  return moduleIds.filter(
+    (moduleId, index, modules) =>
+      ONBOARDING_MODULE_IDS.includes(moduleId) && modules.indexOf(moduleId) === index
+  );
 }
 
 function isMissingColumnError(error: unknown, columnName: string): boolean {

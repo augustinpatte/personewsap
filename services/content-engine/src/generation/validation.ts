@@ -134,22 +134,18 @@ export const NEWSLETTER_PRODUCT_TOPIC_TO_CONTENT_TOPICS = {
   finance_economy: ["finance"],
   stock_market: ["business", "finance"],
   automotive: ["engineering"],
-  pharmaceutical: ["medicine"],
-  artificial_intelligence: ["tech_ai"],
+  pharma: ["medicine"],
+  ai: ["tech_ai"],
   culture: ["culture_media"]
 } as const satisfies Record<string, readonly TopicId[]>;
 
 export const MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS = {
-  law: ["law"],
   finance_economy: ["finance"],
-  artificial_intelligence: ["tech_ai"],
-  stock_market: ["business", "finance"],
-  engineering: ["engineering"],
-  health: ["medicine"],
-  entrepreneurship: ["business"],
-  career: ["business"],
-  sport_business: ["sport_business"],
-  culture_media: ["culture_media"]
+  stock_market: ["finance", "business"],
+  ai: ["tech_ai"],
+  law_compliance: ["law"],
+  health_pharma: ["medicine"],
+  engineering_operations: ["engineering"]
 } as const satisfies Record<string, readonly TopicId[]>;
 
 export const BANNED_EDITORIAL_PHRASES = [
@@ -182,6 +178,10 @@ const HIGH_STAKES_ADVICE_PATTERNS = [
   /\bstart taking\b/i,
   /\btreatment plan\b/i,
   /\blegal advice for your case\b/i,
+  /\bmedical advice\b/i,
+  /\blegal advice\b/i,
+  /\bconsult your doctor\b/i,
+  /\bconsult a lawyer\b/i,
   /\byou should sue\b/i,
   /\byou should plead\b/i
 ];
@@ -334,7 +334,12 @@ function validateGeneratedItem(item: GeneratedContentItem, path: string): Valida
 
   for (const pattern of HIGH_STAKES_ADVICE_PATTERNS) {
     if (pattern.test(fullText)) {
-      issues.push({ path, message: "High-stakes personal advice pattern detected." });
+      issues.push({
+        path,
+        code: "high_stakes_personal_advice",
+        message: "High-stakes personal medical, legal, or financial advice pattern detected.",
+        severity: "error"
+      });
     }
   }
 
@@ -1092,6 +1097,7 @@ function summarizeQualityChecks(issues: ValidationIssue[]): ContentQualityDiagno
     "body_too_short",
     "generic_filler",
     "title_topic_mismatch",
+    "high_stakes_personal_advice",
     "repeated_template_phrase"
   ];
 

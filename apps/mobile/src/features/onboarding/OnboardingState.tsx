@@ -16,14 +16,17 @@ import {
   isMiniCaseTopicId,
   isNewsletterTopicId,
   MAX_MINI_CASE_TOPICS,
+  ONBOARDING_MODULE_IDS,
   normalizeMiniCaseTopics,
   normalizeNewsletterTopics,
   type MiniCaseTopicId,
+  type OnboardingModuleId,
   type NewsletterTopicId
 } from "./options";
 
 export type OnboardingState = {
   language: Language | null;
+  enabledModules: OnboardingModuleId[];
   selectedTopics: NewsletterTopicId[];
   selectedMiniCaseTopics: MiniCaseTopicId[];
   articlesPerTopic: Partial<Record<NewsletterTopicId, number>>;
@@ -35,6 +38,7 @@ type OnboardingContextValue = {
   restoredFromStorage: boolean;
   state: OnboardingState;
   setLanguage: (language: Language) => void;
+  toggleModule: (moduleId: OnboardingModuleId) => void;
   toggleTopic: (topicId: NewsletterTopicId) => void;
   toggleMiniCaseTopic: (topicId: MiniCaseTopicId) => void;
   setArticleCount: (topicId: NewsletterTopicId, count: number) => void;
@@ -44,6 +48,7 @@ type OnboardingContextValue = {
 type OnboardingAction =
   | { type: "restoreState"; state: OnboardingState }
   | { type: "setLanguage"; language: Language }
+  | { type: "toggleModule"; moduleId: OnboardingModuleId }
   | { type: "toggleTopic"; topicId: NewsletterTopicId }
   | { type: "toggleMiniCaseTopic"; topicId: MiniCaseTopicId }
   | { type: "setArticleCount"; topicId: NewsletterTopicId; count: number }
@@ -53,6 +58,7 @@ const ONBOARDING_DRAFT_STORAGE_KEY = "personewsap:onboarding-draft:v1";
 
 const initialState: OnboardingState = {
   language: null,
+  enabledModules: [],
   selectedTopics: [],
   selectedMiniCaseTopics: [],
   articlesPerTopic: {},
@@ -70,6 +76,19 @@ function onboardingReducer(
       return action.state;
     case "setLanguage":
       return { ...state, language: action.language };
+    case "toggleModule": {
+      if (!ONBOARDING_MODULE_IDS.includes(action.moduleId)) {
+        return state;
+      }
+
+      const isEnabled = state.enabledModules.includes(action.moduleId);
+      return {
+        ...state,
+        enabledModules: isEnabled
+          ? state.enabledModules.filter((moduleId) => moduleId !== action.moduleId)
+          : [...state.enabledModules, action.moduleId]
+      };
+    }
     case "toggleTopic": {
       if (!isNewsletterTopicId(action.topicId)) {
         return state;
@@ -201,6 +220,10 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
     dispatch({ type: "toggleTopic", topicId });
   }, []);
 
+  const toggleModule = useCallback((moduleId: OnboardingModuleId) => {
+    dispatch({ type: "toggleModule", moduleId });
+  }, []);
+
   const toggleMiniCaseTopic = useCallback((topicId: MiniCaseTopicId) => {
     dispatch({ type: "toggleMiniCaseTopic", topicId });
   }, []);
@@ -219,6 +242,7 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
       restoredFromStorage,
       state,
       setLanguage,
+      toggleModule,
       toggleTopic,
       toggleMiniCaseTopic,
       setArticleCount,
@@ -231,6 +255,7 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
       setArticleCount,
       setLanguage,
       state,
+      toggleModule,
       toggleMiniCaseTopic,
       toggleTopic
     ]
@@ -251,11 +276,13 @@ function normalizeStoredOnboardingState(storedValue: string | null): OnboardingS
   try {
     const parsed = JSON.parse(storedValue) as Partial<OnboardingState>;
     const language = parsed.language === "fr" || parsed.language === "en" ? parsed.language : null;
+    const enabledModules = normalizeModuleIds(parsed.enabledModules ?? []);
     const selectedTopics = normalizeNewsletterTopics(parsed.selectedTopics ?? []);
     const selectedMiniCaseTopics = normalizeMiniCaseTopics(parsed.selectedMiniCaseTopics ?? []);
 
     return {
       language,
+      enabledModules,
       selectedTopics,
       selectedMiniCaseTopics,
       newsletterConfigurationComplete:
@@ -270,6 +297,13 @@ function normalizeStoredOnboardingState(storedValue: string | null): OnboardingS
   } catch {
     return null;
   }
+}
+
+function normalizeModuleIds(moduleIds: readonly OnboardingModuleId[]) {
+  return moduleIds.filter(
+    (moduleId, index, modules) =>
+      ONBOARDING_MODULE_IDS.includes(moduleId) && modules.indexOf(moduleId) === index
+  );
 }
 
 export function useOnboarding() {

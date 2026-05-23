@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Alert } from "react-native";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useRouter, type Href } from "expo-router";
 
 import { useAuth } from "../../src/features/auth";
 import {
@@ -30,12 +30,20 @@ export default function MiniCaseTopicsScreen() {
     return <Redirect href="/(onboarding)/language" />;
   }
 
-  if (state.selectedTopics.length === 0) {
+  if (state.enabledModules.length === 0) {
     return <Redirect href="/(onboarding)/topics" />;
   }
 
-  if (!state.newsletterConfigurationComplete) {
+  if (state.enabledModules.includes("newsletter") && state.selectedTopics.length === 0) {
+    return <Redirect href={"/(onboarding)/newsletter-topics" as Href} />;
+  }
+
+  if (state.enabledModules.includes("newsletter") && !state.newsletterConfigurationComplete) {
     return <Redirect href="/(onboarding)/article-count" />;
+  }
+
+  if (!state.enabledModules.includes("mini_case")) {
+    return <Redirect href="/(onboarding)/topics" />;
   }
 
   const savePreferences = async () => {
@@ -76,12 +84,12 @@ export default function MiniCaseTopicsScreen() {
       primaryLabel={saving ? copy.miniCaseTopics.saving : copy.miniCaseTopics.save}
       primaryLoading={saving}
       onPrimaryPress={savePreferences}
-      progressLabel={copy.step(4, 4)}
+      progressLabel={copy.step(5, 5)}
       secondaryLabel={copy.common.back}
       onSecondaryPress={() => router.back()}
-      step={4}
+      step={5}
       title={copy.miniCaseTopics.title}
-      totalSteps={4}
+      totalSteps={5}
     >
       {miniCaseTopicOptions.map((option) => {
         const selected = state.selectedMiniCaseTopics.includes(option.id);

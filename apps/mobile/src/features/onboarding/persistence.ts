@@ -27,6 +27,8 @@ export async function saveOnboardingPreferences(
   const language = state.language;
   const selectedTopics = normalizeNewsletterTopics(state.selectedTopics);
   const selectedMiniCaseTopics = normalizeMiniCaseTopics(state.selectedMiniCaseTopics);
+  const newsletterEnabled = state.enabledModules.includes("newsletter");
+  const miniCasesEnabled = state.enabledModules.includes("mini_case");
 
   if (!client) {
     logOnboardingProof("onboarding_save_failed", {
@@ -52,10 +54,11 @@ export async function saveOnboardingPreferences(
 
   if (
     !language ||
-    selectedTopics.length === 0 ||
-    !state.newsletterConfigurationComplete ||
-    selectedMiniCaseTopics.length < MIN_MINI_CASE_TOPICS ||
-    selectedMiniCaseTopics.length > MAX_MINI_CASE_TOPICS
+    state.enabledModules.length === 0 ||
+    (newsletterEnabled && (selectedTopics.length === 0 || !state.newsletterConfigurationComplete)) ||
+    (miniCasesEnabled &&
+      (selectedMiniCaseTopics.length < MIN_MINI_CASE_TOPICS ||
+        selectedMiniCaseTopics.length > MAX_MINI_CASE_TOPICS))
   ) {
     logOnboardingProof("onboarding_save_failed", {
       reason: "incomplete_onboarding"
@@ -68,7 +71,7 @@ export async function saveOnboardingPreferences(
         message: localized(
           {
             en: "Complete newsletter topics, article counts, and mini-case topics before saving.",
-            fr: "Termine les sujets newsletter, le nombre d'articles et les sujets mini-cas avant d'enregistrer."
+            fr: "Termine les modules, sujets et options nécessaires avant d'enregistrer."
           },
           language
         )
@@ -198,8 +201,13 @@ async function saveValidatedOnboardingPreferences(
   });
 
   const preferencesResult = await upsertUserPreferences(client, {
+    businessStoriesEnabled: state.enabledModules.includes("business_story"),
+    miniCasesEnabled: state.enabledModules.includes("mini_case"),
+    newsletterEnabled: state.enabledModules.includes("newsletter"),
     newsletterArticleCount: totalArticleCount,
-    primaryMiniCaseTopicId: mapMiniCaseTopicToBackendTopic(selectedMiniCaseTopics[0]),
+    primaryMiniCaseTopicId: selectedMiniCaseTopics[0]
+      ? mapMiniCaseTopicToBackendTopic(selectedMiniCaseTopics[0])
+      : null,
     userId: user.id
   });
 
@@ -331,14 +339,20 @@ function getDeviceTimezone() {
 async function upsertUserPreferences(
   client: MobileSupabaseClient,
   input: {
+    businessStoriesEnabled: boolean;
+    miniCasesEnabled: boolean;
+    newsletterEnabled: boolean;
     newsletterArticleCount: number;
-    primaryMiniCaseTopicId: TopicId;
+    primaryMiniCaseTopicId: TopicId | null;
     userId: string;
   }
 ) {
   const payload = {
     user_id: input.userId,
+    business_stories_enabled: input.businessStoriesEnabled,
+    mini_cases_enabled: input.miniCasesEnabled,
     mini_case_topic_id: input.primaryMiniCaseTopicId,
+    newsletter_enabled: input.newsletterEnabled,
     newsletter_article_count: input.newsletterArticleCount
   };
   const result = await client.from("user_preferences").upsert(payload);

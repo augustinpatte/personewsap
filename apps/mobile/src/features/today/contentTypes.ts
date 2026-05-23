@@ -102,8 +102,8 @@ export type TodayDailyDrop = {
   estimated_read_minutes: number;
   items: {
     newsletter: NewsletterArticle[];
-    business_story: BusinessStory;
-    mini_case: MiniCaseChallenge;
-    concept: KeyConcept;
+    business_story?: BusinessStory;
+    mini_case?: MiniCaseChallenge;
+    concept?: KeyConcept;
   };
 };
