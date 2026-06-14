@@ -6,7 +6,6 @@ import { AppScreen } from "../../src/components/AppScreen";
 import { AppText } from "../../src/components/AppText";
 import { Card } from "../../src/components/Card";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
-import { ProgressPill } from "../../src/components/ProgressPill";
 import { SecondaryButton } from "../../src/components/SecondaryButton";
 import { tokens } from "../../src/design/tokens";
 import {
@@ -25,13 +24,10 @@ export default function AccountScreen() {
   const router = useRouter();
   const {
     error,
-    isConfigured,
     profileCompleted,
     profileLanguage,
     refreshAuthState,
-    session,
     signOut,
-    status,
     user
   } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -145,16 +141,10 @@ export default function AccountScreen() {
   return (
     <AppScreen>
       <AppScreen.Header>
-        <View style={styles.headerTopline}>
-          <AppText variant="eyebrow">{copy.eyebrow}</AppText>
-          <ProgressPill
-            label={session ? copy.signedIn : copy.signedOut}
-            tone={session ? "success" : "neutral"}
-          />
-        </View>
         <View style={styles.headerCopy}>
+          <AppText color="muted" variant="eyebrow">{copy.eyebrow}</AppText>
           <AppText variant="title">{copy.title}</AppText>
-          <AppText variant="body">
+          <AppText color="muted" variant="body">
             {copy.description}
           </AppText>
         </View>
@@ -162,17 +152,9 @@ export default function AccountScreen() {
 
       <AppScreen.Body>
         <Card elevated padding="lg" style={styles.heroCard}>
-          <View style={styles.cardTopline}>
-            <AppText variant="subtitle">{user?.email ?? copy.noActiveUser}</AppText>
-            <ProgressPill
-              label={profileCompleted ? copy.ready : onboardingLabel(status, profileLanguage)}
-              tone={profileCompleted ? "success" : "warning"}
-            />
-          </View>
+          <AppText variant="subtitle">{user?.email ?? copy.noActiveUser}</AppText>
           <AppText color="muted" variant="body">
-            {profileCompleted
-              ? copy.complete
-              : copy.finishOnboarding}
+            {profileCompleted ? copy.complete : copy.finishOnboarding}
           </AppText>
           <InfoRow
             label={copy.dailyDropLanguage}
@@ -192,19 +174,6 @@ export default function AccountScreen() {
           refreshKey={preferencesRefreshKey}
           userId={user?.id ?? null}
         />
-
-        <Card tone="muted">
-          <View style={styles.connectionCard}>
-            <AppText variant="subtitle">{copy.connectionTitle}</AppText>
-            <AppText color="muted" variant="body">
-              {isConfigured ? copy.connectionReady : copy.connectionUnavailable}
-            </AppText>
-            <ProgressPill
-              label={isConfigured ? copy.configured : copy.unavailable}
-              tone={isConfigured ? "success" : "warning"}
-            />
-          </View>
-        </Card>
 
         <Card tone="muted">
           <View style={styles.connectionCard}>
@@ -295,18 +264,6 @@ export default function AccountScreen() {
   );
 }
 
-function onboardingLabel(status: string, language: string | null) {
-  if (status === "needsOnboarding") {
-    return localized({ en: "Needs onboarding", fr: "Onboarding requis" }, language === "fr" ? "fr" : "en");
-  }
-
-  if (status === "loading") {
-    return localized({ en: "Checking", fr: "Vérification" }, language === "fr" ? "fr" : "en");
-  }
-
-  return localized({ en: "Not complete", fr: "Incomplet" }, language === "fr" ? "fr" : "en");
-}
-
 function InfoRow({
   label,
   monospace = false,
@@ -340,23 +297,15 @@ function getAccountCopy(language: string | null) {
   return localized(
     {
       en: {
-        eyebrow: "Account",
-        title: "Settings",
+        eyebrow: "Profile",
+        title: "Your account",
         description:
-          "Manage your PersoNewsAP account and check that your daily learning setup is ready.",
-        signedIn: "Signed in",
-        signedOut: "Signed out",
+          "Your reading language, notifications, and privacy — all in one quiet place.",
         noActiveUser: "No active user",
-        ready: "Ready",
         complete:
-          "Your setup is complete. Today will show your assigned drop when one is available.",
-        finishOnboarding: "Finish onboarding to unlock your daily drop.",
-        dailyDropLanguage: "Daily drop language",
-        connectionTitle: "Account connection",
-        connectionReady: "Your account features are available.",
-        connectionUnavailable: "Account features are unavailable right now.",
-        unavailable: "Unavailable",
-        configured: "Ready",
+          "Your setup is complete. Today will show your edition when one is available.",
+        finishOnboarding: "Finish onboarding to unlock your daily edition.",
+        dailyDropLanguage: "Reading language",
         refresh: "Refresh",
         logOut: "Log out",
         privacyTitle: "Privacy and data",
@@ -377,23 +326,15 @@ function getAccountCopy(language: string | null) {
         confirmDeletion: "Request deletion"
       },
       fr: {
-        eyebrow: "Compte",
-        title: "Réglages",
+        eyebrow: "Profil",
+        title: "Votre compte",
         description:
-          "Gère ton compte PersoNewsAP et vérifie que ta mise à jour quotidienne est prête.",
-        signedIn: "Connecté",
-        signedOut: "Déconnecté",
+          "Votre langue de lecture, vos notifications et votre confidentialité, réunies dans un même endroit calme.",
         noActiveUser: "Aucun utilisateur actif",
-        ready: "Prêt",
         complete:
-          "Ta configuration est terminée. L'écran Aujourd'hui affichera une mise à jour assignée dès qu'elle sera disponible.",
-        finishOnboarding: "Termine la configuration pour débloquer ta mise à jour quotidienne.",
-        dailyDropLanguage: "Langue de la mise à jour",
-        connectionTitle: "Connexion du compte",
-        connectionReady: "Les fonctions de ton compte sont disponibles.",
-        connectionUnavailable: "Les fonctions de compte sont indisponibles pour le moment.",
-        unavailable: "Indisponible",
-        configured: "Prêt",
+          "Votre configuration est terminée. L'écran Aujourd'hui affichera votre édition dès qu'elle sera disponible.",
+        finishOnboarding: "Terminez la configuration pour débloquer votre édition quotidienne.",
+        dailyDropLanguage: "Langue de lecture",
         refresh: "Actualiser",
         logOut: "Se déconnecter",
         privacyTitle: "Confidentialité et données",
@@ -422,23 +363,11 @@ const styles = StyleSheet.create({
   actions: {
     gap: tokens.space.md
   },
-  headerTopline: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
-  },
   headerCopy: {
     gap: tokens.space.sm
   },
   heroCard: {
     gap: tokens.space.lg
-  },
-  cardTopline: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
   },
   connectionCard: {
     gap: tokens.space.sm

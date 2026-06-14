@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -8,17 +8,7 @@ import {
   type ViewStyle
 } from "react-native";
 
-import { TOPICS, type TopicId } from "../../src/constants/product";
-import {
-  AppScreen,
-  AppText,
-  Card,
-  DataModeBanner,
-  EmptyState,
-  ProgressPill,
-  SecondaryButton,
-  SectionHeader
-} from "../../src/components";
+import { AppScreen, AppText, EmptyState } from "../../src/components";
 import { tokens } from "../../src/design/tokens";
 import { useAuth } from "../../src/features/auth";
 import { fetchLibraryDrops, type LibraryDropSummary, type LibraryItemSummary } from "../../src/features/library";
@@ -27,12 +17,10 @@ import { trackAnalyticsEvent } from "../../src/lib/analytics";
 import type { DataFallbackReason, DataFetchSource } from "../../src/lib/dataState";
 import { localized } from "../../src/lib/i18n";
 import { getAuthSession, type NormalizedSupabaseError } from "../../src/lib/supabase";
-import { getUserFacingError } from "../../src/lib/userFacingErrors";
 import { mockLibraryDrops, mockLibraryItems } from "../../src/mocks";
 import type { Language } from "../../src/types/domain";
 
 type ContentFilterId = "all" | "newsletter" | "business_story" | "mini_case" | "concept";
-type TopicFilterId = "all" | TopicId;
 type LibraryFallbackReason = DataFallbackReason | "missing_auth_session";
 
 type LibraryLoadState = {
@@ -62,23 +50,10 @@ const contentFilters: Array<{
   { id: "concept", contentTypes: ["key_concept"] }
 ];
 
-const topicFilterIds: TopicFilterId[] = ["all", ...TOPICS.map((topic) => topic.id)];
-
-const archiveSlots: Array<{
-  id: ContentFilterId;
-  contentTypes: ContentType[];
-}> = [
-  { id: "newsletter", contentTypes: ["newsletter_article"] },
-  { id: "business_story", contentTypes: ["business_story"] },
-  { id: "mini_case", contentTypes: ["mini_case"] },
-  { id: "concept", contentTypes: ["key_concept"] }
-];
-
 export default function LibraryScreen() {
   const { profileLanguage } = useAuth();
   const [activeContentFilter, setActiveContentFilter] =
     useState<ContentFilterId>("all");
-  const [activeTopicFilter, setActiveTopicFilter] = useState<TopicFilterId>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loadState, setLoadState] = useState<LibraryLoadState>({
     drops: mockLibraryDrops,
@@ -145,6 +120,16 @@ export default function LibraryScreen() {
   const libraryDrops = loadState.drops;
   const libraryItems = useMemo(() => getItemsForDrops(libraryDrops), [libraryDrops]);
 
+  const stats = useMemo(() => {
+    const completed = libraryItems.filter((item) => item.is_completed);
+
+    return {
+      editions: libraryDrops.length,
+      readings: completed.filter((item) => item.content_type !== "mini_case").length,
+      cases: completed.filter((item) => item.content_type === "mini_case").length
+    };
+  }, [libraryDrops, libraryItems]);
+
   const selectedContentTypes = useMemo(
     () =>
       contentFilters.find((filter) => filter.id === activeContentFilter)
@@ -156,8 +141,6 @@ export default function LibraryScreen() {
     () =>
       libraryItems.filter((item) => {
         const matchesContentType = selectedContentTypes.includes(item.content_type);
-        const matchesTopic =
-          activeTopicFilter === "all" || item.topic === activeTopicFilter;
         const normalizedQuery = searchQuery.trim().toLowerCase();
         const matchesSearch =
           normalizedQuery.length === 0 ||
@@ -165,9 +148,9 @@ export default function LibraryScreen() {
           getContentTypeLabel(item.content_type, uiLanguage).toLowerCase().includes(normalizedQuery) ||
           (item.topic ? getTopicLabel(item.topic, uiLanguage).toLowerCase().includes(normalizedQuery) : false);
 
-        return matchesContentType && matchesTopic && matchesSearch;
+        return matchesContentType && matchesSearch;
       }),
-    [activeTopicFilter, libraryItems, searchQuery, selectedContentTypes, uiLanguage]
+    [libraryItems, searchQuery, selectedContentTypes, uiLanguage]
   );
 
   const filteredDrops = useMemo(() => {
@@ -184,29 +167,24 @@ export default function LibraryScreen() {
   }, [filteredItems]);
 
   const savedItems = useMemo(
-    () => libraryItems.filter((item) => item.is_saved).slice(0, 3),
+    () => libraryItems.filter((item) => item.is_saved).slice(0, 4),
     [libraryItems]
   );
   const hasActiveFilters =
-    activeContentFilter !== "all" || activeTopicFilter !== "all" || searchQuery.trim().length > 0;
+    activeContentFilter !== "all" || searchQuery.trim().length > 0;
 
   const clearFilters = () => {
     setActiveContentFilter("all");
-    setActiveTopicFilter("all");
     setSearchQuery("");
   };
 
   return (
     <AppScreen contentStyle={styles.screen}>
       <AppScreen.Header>
-        <View style={styles.headerTopline}>
-          <AppText variant="eyebrow">{copy.eyebrow}</AppText>
-          <ProgressPill
-            label={getDataModeLabel(loadState.source, uiLanguage)}
-            tone={getDataModeTone(loadState.source)}
-          />
-        </View>
         <View style={styles.headerCopy}>
+          <AppText color="muted" variant="eyebrow">
+            {copy.eyebrow}
+          </AppText>
           <AppText variant="display">{copy.title}</AppText>
           <AppText color="muted" variant="body">
             {copy.description}
@@ -215,26 +193,35 @@ export default function LibraryScreen() {
       </AppScreen.Header>
 
       <AppScreen.Body>
-        <LibraryDataStateBanner
-          language={uiLanguage}
-          loadState={loadState}
-          onRetry={() => {
-            void loadLibraryDrops();
-          }}
-        />
+        <View style={styles.statStrip}>
+          <Stat label={copy.statEditions} value={stats.editions} />
+          <View style={styles.statDivider} />
+          <Stat label={copy.statReadings} value={stats.readings} />
+          <View style={styles.statDivider} />
+          <Stat label={copy.statCases} value={stats.cases} />
+        </View>
 
-        <Card padding="md" style={styles.controls}>
-          <View style={styles.controlsHeader}>
-            <View style={styles.controlsCopy}>
-              <AppText variant="bodyStrong">{copy.findTitle}</AppText>
-              <AppText color="muted" variant="caption">
-                {copy.findDescription}
-              </AppText>
+        {savedItems.length > 0 ? (
+          <View style={styles.shelf}>
+            <AppText color="muted" variant="eyebrow">
+              {copy.savedEyebrow}
+            </AppText>
+            <View style={styles.shelfList}>
+              {savedItems.map((item) => (
+                <View key={item.id} style={styles.shelfRow}>
+                  <AppText numberOfLines={1} variant="bodyStrong">
+                    {item.title}
+                  </AppText>
+                  <AppText color="muted" variant="caption">
+                    {getContentTypeLabel(item.content_type, uiLanguage)}
+                  </AppText>
+                </View>
+              ))}
             </View>
-            {hasActiveFilters ? (
-              <SecondaryButton label={copy.clear} onPress={clearFilters} style={styles.clearButton} />
-            ) : null}
           </View>
+        ) : null}
+
+        <View style={styles.controls}>
           <TextInput
             accessibilityLabel={copy.searchAccessibility}
             onChangeText={setSearchQuery}
@@ -244,8 +231,7 @@ export default function LibraryScreen() {
             style={styles.searchInput}
             value={searchQuery}
           />
-
-          <FilterRail label={copy.showFilter}>
+          <View style={styles.filterChips}>
             {contentFilters.map((filter) => (
               <FilterChip
                 active={activeContentFilter === filter.id}
@@ -254,32 +240,13 @@ export default function LibraryScreen() {
                 onPress={() => setActiveContentFilter(filter.id)}
               />
             ))}
-          </FilterRail>
-
-          <FilterRail label={copy.topicFilter}>
-            {topicFilterIds.map((filterId) => (
-              <FilterChip
-                active={activeTopicFilter === filterId}
-                key={filterId}
-                label={filterId === "all" ? copy.allTopics : getTopicLabel(filterId, uiLanguage)}
-                onPress={() => setActiveTopicFilter(filterId)}
-              />
-            ))}
-          </FilterRail>
-        </Card>
-
-        <SavedItemsPlaceholder language={uiLanguage} savedItems={savedItems} />
+          </View>
+        </View>
 
         <View style={styles.archiveSection}>
-          <SectionHeader
-            description={copy.matchingSummary(filteredItems.length, filteredDrops.length)}
-            eyebrow={copy.archiveEyebrow}
-            title={copy.archiveTitle}
-          />
-
           {filteredDrops.length > 0 ? (
             filteredDrops.map((drop) => (
-              <ArchiveDropCard
+              <ArchiveDropGroup
                 drop={drop}
                 items={itemsByDropId[drop.drop_id] ?? []}
                 key={drop.drop_id}
@@ -294,149 +261,15 @@ export default function LibraryScreen() {
                   ? copy.filteredEmptyDescription
                   : copy.archiveEmptyDescription
               }
-              eyebrow={copy.noResultsEyebrow}
+              eyebrow={hasActiveFilters ? copy.noResultsEyebrow : undefined}
               onActionPress={hasActiveFilters ? clearFilters : undefined}
-              title={copy.filteredEmptyTitle}
+              title={hasActiveFilters ? copy.filteredEmptyTitle : copy.archiveEmptyTitle}
             />
           )}
         </View>
       </AppScreen.Body>
     </AppScreen>
   );
-}
-
-function LibraryDataStateBanner({
-  language,
-  loadState,
-  onRetry
-}: {
-  language: Language;
-  loadState: LibraryLoadState;
-  onRetry: () => void;
-}) {
-  const copy = getLibraryCopy(language);
-
-  if (loadState.status === "loading") {
-    return (
-      <DataModeBanner
-        description={copy.loadingDescription}
-        mode="checking"
-        statusLabel={copy.checkingStatus}
-        title={copy.loadingTitle}
-      />
-    );
-  }
-
-  if (loadState.source === "supabase") {
-    return (
-      <DataModeBanner
-        description={copy.liveArchiveDescription}
-        detail={copy.dropCount(loadState.drops.length)}
-        mode="live"
-        statusLabel={copy.readyStatus}
-        title={copy.liveArchiveTitle}
-      />
-    );
-  }
-
-  if (loadState.source === "cache") {
-    return (
-      <DataModeBanner
-        actionLabel={copy.retryLiveArchive}
-        description={copy.cachedArchiveDescription}
-        detail={copy.dropCount(loadState.drops.length)}
-        mode="cache"
-        onActionPress={onRetry}
-        statusLabel={copy.savedCopyStatus}
-        title={copy.cachedArchiveTitle}
-      />
-    );
-  }
-
-  if (loadState.fallbackReason === "network_unavailable") {
-    const userFacingError = getUserFacingError(
-      loadState.error,
-      language,
-      "library"
-    );
-
-    return (
-      <DataModeBanner
-        actionLabel={copy.retryLiveArchive}
-        description={`${userFacingError.message} ${copy.previewArchiveFallback}`}
-        mode="preview"
-        onActionPress={onRetry}
-        statusLabel={copy.sampleStatus}
-        title={userFacingError.title}
-      />
-    );
-  }
-
-  if (loadState.fallbackReason === "supabase_error") {
-    const userFacingError = getUserFacingError(
-      loadState.error,
-      language,
-      "library"
-    );
-
-    return (
-      <DataModeBanner
-        actionLabel={copy.retryLiveArchive}
-        description={`${userFacingError.message} ${copy.previewArchiveFallback}`}
-        mode="preview"
-        onActionPress={onRetry}
-        statusLabel={copy.sampleStatus}
-        title={userFacingError.title}
-      />
-    );
-  }
-
-  if (loadState.fallbackReason === "missing_supabase_config") {
-    const userFacingError = getUserFacingError(
-      loadState.error,
-      language,
-      "library"
-    );
-
-    return (
-      <DataModeBanner
-        actionLabel={copy.retryLiveArchive}
-        description={`${userFacingError.message} ${copy.previewArchiveFallback}`}
-        mode="preview"
-        onActionPress={onRetry}
-        statusLabel={copy.sampleStatus}
-        title={userFacingError.title}
-      />
-    );
-  }
-
-  if (loadState.fallbackReason === "no_supabase_data") {
-    return (
-      <DataModeBanner
-        actionLabel={copy.checkAgain}
-        description={copy.noLiveArchiveDescription}
-        mode="preview"
-        onActionPress={onRetry}
-        statusLabel={copy.sampleStatus}
-        title={copy.noLiveArchiveTitle}
-      />
-    );
-  }
-
-  if (loadState.fallbackReason === "missing_auth_session") {
-    return (
-      <DataModeBanner
-        actionLabel={copy.retrySessionCheck}
-        description={copy.noSessionDescription}
-        mode="preview"
-        onActionPress={onRetry}
-        statusLabel={copy.sampleStatus}
-        title={copy.noSessionTitle}
-      />
-    );
-  }
-
-  return null;
 }
 
 function getItemsForDrops(drops: LibraryDropSummary[]) {
@@ -449,44 +282,13 @@ function getItemsForDrops(drops: LibraryDropSummary[]) {
   });
 }
 
-function getDataModeLabel(source: DataFetchSource, language: Language) {
-  const copy = getLibraryCopy(language);
-
-  if (source === "supabase") {
-    return copy.liveArchiveTitle;
-  }
-
-  if (source === "cache") {
-    return copy.cachedArchiveTitle;
-  }
-
-  return copy.previewArchiveTitle;
-}
-
-function getDataModeTone(source: DataFetchSource): "success" | "warning" | "neutral" {
-  if (source === "supabase") {
-    return "success";
-  }
-
-  if (source === "cache") {
-    return "warning";
-  }
-
-  return "neutral";
-}
-
-type FilterRailProps = {
-  label: string;
-  children: ReactNode;
-};
-
-function FilterRail({ label, children }: FilterRailProps) {
+function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <View style={styles.filterRail}>
-      <AppText color="muted" variant="caption">
+    <View style={styles.stat}>
+      <AppText variant="title">{value}</AppText>
+      <AppText color="muted" variant="eyebrow">
         {label}
       </AppText>
-      <View style={styles.filterChips}>{children}</View>
     </View>
   );
 }
@@ -522,149 +324,61 @@ function FilterChip({ active, label, onPress, style }: FilterChipProps) {
   );
 }
 
-type SavedItemsPlaceholderProps = {
-  language: Language;
-  savedItems: LibraryItemSummary[];
-};
-
-function SavedItemsPlaceholder({ language, savedItems }: SavedItemsPlaceholderProps) {
-  const copy = getLibraryCopy(language);
-
-  return (
-    <Card padding="md" tone="muted">
-      <SectionHeader
-        description={copy.savedDescription}
-        eyebrow={copy.savedEyebrow}
-        title={copy.savedTitle}
-      />
-
-      {savedItems.length > 0 ? (
-        <View style={styles.savedItems}>
-          {savedItems.map((item) => (
-            <View key={item.id} style={styles.savedItemRow}>
-              <View style={styles.savedItemCopy}>
-                <AppText numberOfLines={1} variant="bodyStrong">
-                  {item.title}
-                </AppText>
-                <AppText color="muted" variant="caption">
-                  {getContentTypeLabel(item.content_type, language)} / {formatArchiveDate(item.drop_date, language)}
-                </AppText>
-              </View>
-              <ProgressPill label={copy.savedPill} tone="accent" />
-            </View>
-          ))}
-        </View>
-      ) : (
-        <EmptyState
-          description={copy.savedEmptyDescription}
-          title={copy.savedEmptyTitle}
-        />
-      )}
-    </Card>
-  );
-}
-
-type ArchiveDropCardProps = {
+type ArchiveDropGroupProps = {
   drop: LibraryDropSummary;
   items: LibraryItemSummary[];
   language: Language;
 };
 
-function ArchiveDropCard({ drop, items, language }: ArchiveDropCardProps) {
-  const copy = getLibraryCopy(language);
-  const completionValue =
-    drop.item_count > 0 ? drop.completed_item_count / drop.item_count : 0;
-  const slotCounts = getArchiveSlotCounts(items);
+function ArchiveDropGroup({ drop, items, language }: ArchiveDropGroupProps) {
+  const topicLine = drop.topics
+    .map((topic) => getTopicLabel(topic, language))
+    .join(" · ");
 
   return (
-    <Card elevated padding="md" style={styles.dropCard}>
+    <View style={styles.dropGroup}>
       <View style={styles.dropHeader}>
-        <View style={styles.dropTitleGroup}>
+        <AppText color="muted" variant="eyebrow">
+          {formatArchiveDate(drop.drop_date, language)}
+        </AppText>
+        <AppText variant="subtitle">{drop.title}</AppText>
+        {topicLine.length > 0 ? (
           <AppText color="muted" variant="caption">
-            {copy.dropDateLabel} / {formatArchiveDate(drop.drop_date, language)} / {drop.language.toUpperCase()}
+            {topicLine}
           </AppText>
-          <AppText variant="subtitle">{drop.title}</AppText>
-        </View>
-        <ProgressPill
-          label={`${drop.completed_item_count}/${drop.item_count}`}
-          tone={drop.completed_item_count === drop.item_count ? "success" : "warning"}
-          value={completionValue}
-        />
-      </View>
-
-      <View style={styles.topicRow}>
-        {drop.topics.map((topic) => (
-          <View key={topic} style={styles.topicTag}>
-            <AppText color="accentInk" variant="caption">
-              {getTopicLabel(topic, language)}
-            </AppText>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.slotCoverage}>
-        {archiveSlots.map((slot) => {
-          const count = slotCounts[slot.id] ?? 0;
-
-          return (
-            <View key={slot.id} style={styles.slotCoverageItem}>
-              <AppText color={count > 0 ? "accentInk" : "muted"} variant="caption">
-                {copy.contentFilters[slot.id]}
-              </AppText>
-              <ProgressPill
-                label={count > 0 ? `${count}` : copy.missing}
-                tone={count > 0 ? "accent" : "neutral"}
-              />
-            </View>
-          );
-        })}
+        ) : null}
       </View>
 
       <View style={styles.itemList}>
         {items.map((item) => (
           <View key={item.id} style={styles.itemRow}>
+            <View
+              style={[
+                styles.itemDot,
+                item.is_completed ? styles.itemDotComplete : null
+              ]}
+            />
             <View style={styles.itemCopy}>
-              <AppText color="muted" variant="caption">
-                {getContentTypeLabel(item.content_type, language)}
-                {item.topic ? ` / ${getTopicLabel(item.topic, language)}` : ""}
-              </AppText>
-              <AppText numberOfLines={2} variant="bodyStrong">
+              <AppText numberOfLines={2} variant="body">
                 {item.title}
               </AppText>
-            </View>
-            <View style={styles.itemMeta}>
-              {item.is_saved ? <ProgressPill label={copy.savedPill} tone="accent" /> : null}
-              {item.is_completed ? <ProgressPill label={copy.donePill} tone="success" /> : null}
+              <AppText color="muted" variant="caption">
+                {getContentTypeLabel(item.content_type, language)}
+                {item.topic ? ` · ${getTopicLabel(item.topic, language)}` : ""}
+              </AppText>
             </View>
           </View>
         ))}
       </View>
-    </Card>
+    </View>
   );
-}
-
-function getArchiveSlotCounts(items: LibraryItemSummary[]): Partial<Record<ContentFilterId, number>> {
-  return items.reduce<Partial<Record<ContentFilterId, number>>>((counts, item) => {
-    const slot = archiveSlots.find((candidate) =>
-      candidate.contentTypes.includes(item.content_type)
-    );
-
-    if (!slot) {
-      return counts;
-    }
-
-    return {
-      ...counts,
-      [slot.id]: (counts[slot.id] ?? 0) + 1
-    };
-  }, {});
 }
 
 function getContentTypeLabel(contentType: ContentType, language: Language) {
   return getLibraryCopy(language).contentTypes[contentType];
 }
 
-function getTopicLabel(topic: LibraryItemSummary["topic"], language: Language): string {
+function getTopicLabel(topic: LibraryItemSummary["topic"] | LibraryDropSummary["topics"][number], language: Language): string {
   const copy = getLibraryCopy(language);
 
   if (!topic) {
@@ -681,7 +395,7 @@ function getTopicLabel(topic: LibraryItemSummary["topic"], language: Language): 
 function formatArchiveDate(date: string, language: Language): string {
   return new Intl.DateTimeFormat(language, {
     day: "numeric",
-    month: "short"
+    month: "long"
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
@@ -689,18 +403,10 @@ function getLibraryCopy(language: Language) {
   return localized(
     {
       en: {
-        allTopics: "All topics",
         archiveEmptyDescription:
-          "Completed and assigned drops will appear here by date after your first assigned daily drop.",
-        archiveEyebrow: "Archive",
-        archiveTitle: "Daily drops by date",
-        cachedArchiveDescription:
-          "The latest archive check is unavailable, so the app is showing the last archive kept in memory.",
-        cachedArchiveTitle: "Cached archive",
+          "Each daily brief you read settles here, so you can return to it whenever you like.",
+        archiveEmptyTitle: "Your shelf is still filling",
         careerTopic: "Career",
-        checkAgain: "Check again",
-        checkingStatus: "Checking",
-        clear: "Clear",
         clearFilters: "Clear filters",
         contentFilters: {
           all: "All",
@@ -715,52 +421,20 @@ function getLibraryCopy(language: Language) {
           mini_case: "Mini-case",
           key_concept: "Concept"
         },
-        description:
-          "Return to previous daily briefings, saved ideas, and completed practice.",
-        donePill: "Done",
-        dropCount: (count: number) => `${count} drop${count === 1 ? "" : "s"}`,
-        dropDateLabel: "Drop date",
-        eyebrow: "Library",
+        description: "Everything you've read and worked through, kept in one quiet place.",
+        eyebrow: "Your library",
         filteredEmptyDescription:
-          "Your archive is still here. Clear filters or search for a broader topic.",
-        filteredEmptyTitle: "No archived drop matches these filters",
-        findDescription:
-          "Filter by format, topic, or title. The archive stays finite: past daily drops only.",
-        findTitle: "Find a past lesson",
+          "Nothing matches that just yet. Clear the filters to see everything again.",
+        filteredEmptyTitle: "No match",
         generalTopic: "General",
-        liveArchiveDescription: "These archived drops are assigned to this account.",
-        liveArchiveTitle: "Account archive",
-        loadingDescription:
-          "Looking for assigned past drops. Existing archive content stays visible while the app checks your account.",
-        loadingTitle: "Loading archive",
-        matchingSummary: (items: number, drops: number) =>
-          `${items} matching item${items === 1 ? "" : "s"} across ${drops} daily drop${drops === 1 ? "" : "s"}.`,
-        missing: "Missing",
-        noLiveArchiveDescription:
-          "No archived daily drops are assigned to this account yet. Sample archive content is shown below.",
-        noLiveArchiveTitle: "No account archive yet",
         noResultsEyebrow: "No results",
-        noSessionDescription:
-          "Sign in to load your archived daily drops. Sample archive content is shown below.",
-        noSessionTitle: "No active session",
-        previewArchiveFallback: "The app is showing sample archive content for now.",
-        previewArchiveTitle: "Sample archive",
-        readyStatus: "Ready",
-        retryLiveArchive: "Try again",
-        retrySessionCheck: "Retry session check",
-        savedDescription: "A quiet shelf for the pieces worth revisiting.",
-        savedEmptyDescription: "Saved articles, mini-cases, and concepts will appear here.",
-        savedEmptyTitle: "Nothing saved yet",
-        savedEyebrow: "Saved",
-        savedPill: "Saved",
-        savedCopyStatus: "Saved copy",
-        sampleStatus: "Sample",
-        savedTitle: "Saved items",
-        searchAccessibility: "Search library",
-        searchPlaceholder: "Search archive",
-        showFilter: "Show",
-        title: "Past drops",
-        topicFilter: "Topic",
+        savedEyebrow: "Worth revisiting",
+        searchAccessibility: "Search your library",
+        searchPlaceholder: "Search",
+        statCases: "Cases",
+        statEditions: "Editions",
+        statReadings: "Readings",
+        title: "What you've learned",
         topics: {
           business: "Stock Market",
           finance: "Finance & Economy",
@@ -773,18 +447,10 @@ function getLibraryCopy(language: Language) {
         }
       },
       fr: {
-        allTopics: "Tous les sujets",
         archiveEmptyDescription:
-          "Les mises à jour terminées et assignées apparaîtront ici par date après ton premier brief quotidien en direct.",
-        archiveEyebrow: "Archives",
-        archiveTitle: "Mises à jour par date",
-        cachedArchiveDescription:
-          "La dernière vérification des archives est indisponible, donc l'app affiche la dernière archive gardée en mémoire.",
-        cachedArchiveTitle: "Archive en cache",
+          "Chaque brief que vous lisez se range ici, pour y revenir quand vous le souhaitez.",
+        archiveEmptyTitle: "Votre bibliothèque se remplit",
         careerTopic: "Carrière",
-        checkAgain: "Vérifier à nouveau",
-        checkingStatus: "Vérification",
-        clear: "Effacer",
         clearFilters: "Effacer les filtres",
         contentFilters: {
           all: "Tout",
@@ -799,52 +465,20 @@ function getLibraryCopy(language: Language) {
           mini_case: "Mini-cas",
           key_concept: "Concept"
         },
-        description:
-          "Retrouve tes briefings précédents, tes idées sauvegardées et tes exercices terminés.",
-        donePill: "Terminé",
-        dropCount: (count: number) => `${count} mise${count > 1 ? "s" : ""} à jour`,
-        dropDateLabel: "Date",
-        eyebrow: "Bibliothèque",
+        description: "Tout ce que vous avez lu et travaillé, réuni dans un même endroit calme.",
+        eyebrow: "Votre bibliothèque",
         filteredEmptyDescription:
-          "Ton archive est toujours là. Efface les filtres ou cherche un sujet plus large.",
-        filteredEmptyTitle: "Aucune mise à jour ne correspond à ces filtres",
-        findDescription:
-          "Filtre par format, sujet ou titre. L'archive reste finie : uniquement les mises à jour passées.",
-        findTitle: "Retrouver une leçon",
+          "Rien ne correspond pour l'instant. Effacez les filtres pour tout revoir.",
+        filteredEmptyTitle: "Aucun résultat",
         generalTopic: "Général",
-        liveArchiveDescription: "Ces archives sont assignées à ce compte.",
-        liveArchiveTitle: "Archive du compte",
-        loadingDescription:
-          "Recherche des mises à jour passées assignées. L'archive existante reste visible pendant la vérification du compte.",
-        loadingTitle: "Chargement de l'archive",
-        matchingSummary: (items: number, drops: number) =>
-          `${items} élément${items > 1 ? "s" : ""} correspondant${items > 1 ? "s" : ""} dans ${drops} mise${drops > 1 ? "s" : ""} à jour.`,
-        missing: "Manquant",
-        noLiveArchiveDescription:
-          "Aucune archive en direct n'est encore assignée à ce compte. Une archive d'exemple s'affiche ci-dessous.",
-        noLiveArchiveTitle: "Aucune archive de compte",
         noResultsEyebrow: "Aucun résultat",
-        noSessionDescription:
-          "Connecte-toi pour charger tes mises à jour archivées. Une archive d'exemple s'affiche ci-dessous.",
-        noSessionTitle: "Aucune session active",
-        previewArchiveFallback: "L'app affiche une archive d'exemple pour le moment.",
-        previewArchiveTitle: "Archive d'exemple",
-        readyStatus: "Prêt",
-        retryLiveArchive: "Réessayer",
-        retrySessionCheck: "Revérifier la session",
-        savedDescription: "Un espace calme pour les éléments à revoir.",
-        savedEmptyDescription: "Les articles, mini-cas et concepts sauvegardés apparaîtront ici.",
-        savedEmptyTitle: "Rien de sauvegardé pour l'instant",
-        savedEyebrow: "Sauvegardés",
-        savedPill: "Sauvegardé",
-        savedCopyStatus: "Copie disponible",
-        sampleStatus: "Exemple",
-        savedTitle: "Éléments sauvegardés",
+        savedEyebrow: "À revoir",
         searchAccessibility: "Rechercher dans la bibliothèque",
-        searchPlaceholder: "Rechercher dans l'archive",
-        showFilter: "Afficher",
-        title: "Mises à jour passées",
-        topicFilter: "Sujet",
+        searchPlaceholder: "Rechercher",
+        statCases: "Cas",
+        statEditions: "Éditions",
+        statReadings: "Lectures",
+        title: "Ce que vous avez appris",
         topics: {
           business: "Marché actions",
           finance: "Finance & économie",
@@ -865,36 +499,41 @@ const styles = StyleSheet.create({
   screen: {
     paddingBottom: tokens.space.xxl
   },
-  headerTopline: {
+  headerCopy: {
+    gap: tokens.space.sm
+  },
+  statStrip: {
+    alignItems: "center",
+    flexDirection: "row"
+  },
+  stat: {
+    alignItems: "center",
+    flex: 1,
+    gap: tokens.space.xs
+  },
+  statDivider: {
+    backgroundColor: tokens.color.border,
+    height: 40,
+    width: 1
+  },
+  shelf: {
+    gap: tokens.space.md
+  },
+  shelfList: {
+    gap: tokens.space.sm
+  },
+  shelfRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: tokens.space.md,
     justifyContent: "space-between"
   },
-  headerCopy: {
-    gap: tokens.space.sm
-  },
   controls: {
-    gap: tokens.space.lg
-  },
-  controlsHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
-  },
-  controlsCopy: {
-    flex: 1,
-    gap: tokens.space.xs
-  },
-  clearButton: {
-    minHeight: 44,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm
+    gap: tokens.space.md
   },
   searchInput: {
     backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.borderStrong,
+    borderColor: tokens.color.border,
     borderRadius: tokens.radius.md,
     borderWidth: 1,
     color: tokens.color.ink,
@@ -902,9 +541,6 @@ const styles = StyleSheet.create({
     minHeight: 50,
     paddingHorizontal: tokens.space.lg,
     paddingVertical: tokens.space.md
-  },
-  filterRail: {
-    gap: tokens.space.sm
   },
   filterChips: {
     flexDirection: "row",
@@ -916,7 +552,7 @@ const styles = StyleSheet.create({
     borderColor: tokens.color.border,
     borderRadius: tokens.radius.pill,
     borderWidth: 1,
-    minHeight: 44,
+    minHeight: 40,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm
   },
@@ -927,84 +563,40 @@ const styles = StyleSheet.create({
   filterChipPressed: {
     backgroundColor: tokens.color.surfaceMuted
   },
-  savedItems: {
-    gap: tokens.space.sm
-  },
-  savedItemRow: {
-    alignItems: "center",
-    backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between",
-    padding: tokens.space.md
-  },
-  savedItemCopy: {
-    flex: 1,
-    gap: tokens.space.xs
-  },
   archiveSection: {
-    gap: tokens.space.md
+    gap: tokens.space.xl
   },
-  dropCard: {
-    gap: tokens.space.lg
-  },
-  dropHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
-  },
-  dropTitleGroup: {
-    flex: 1,
-    gap: tokens.space.xs
-  },
-  topicRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: tokens.space.sm
-  },
-  topicTag: {
-    backgroundColor: tokens.color.accentSoft,
-    borderRadius: tokens.radius.pill,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.xs
-  },
-  slotCoverage: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: tokens.space.sm
-  },
-  slotCoverageItem: {
-    backgroundColor: tokens.color.backgroundRaised,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    gap: tokens.space.xs,
-    minWidth: 132,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm
-  },
-  itemList: {
+  dropGroup: {
     borderTopColor: tokens.color.border,
     borderTopWidth: 1,
-    gap: tokens.space.md,
-    paddingTop: tokens.space.md
+    gap: tokens.space.lg,
+    paddingTop: tokens.space.lg
+  },
+  dropHeader: {
+    gap: tokens.space.xs
+  },
+  itemList: {
+    gap: tokens.space.lg
   },
   itemRow: {
-    alignItems: "flex-start",
     flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
+    gap: tokens.space.md
+  },
+  itemDot: {
+    backgroundColor: tokens.color.surface,
+    borderColor: tokens.color.borderStrong,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    height: 8,
+    marginTop: 7,
+    width: 8
+  },
+  itemDotComplete: {
+    backgroundColor: tokens.color.ink,
+    borderColor: tokens.color.ink
   },
   itemCopy: {
     flex: 1,
-    gap: tokens.space.xs
-  },
-  itemMeta: {
-    alignItems: "flex-end",
     gap: tokens.space.xs
   }
 });
