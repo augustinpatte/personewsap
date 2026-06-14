@@ -61,6 +61,15 @@ export type BusinessStory = BaseContentItem & {
   lesson: string;
 };
 
+export type MiniCaseOptionOutcome = "best" | "viable" | "weak";
+
+export type MiniCaseOption = {
+  id: string;
+  label: string;
+  outcome: MiniCaseOptionOutcome;
+  feedback: string;
+};
+
 export type MiniCaseChallenge = BaseContentItem & {
   content_type: "mini_case";
   slot: "mini_case";
@@ -70,6 +79,7 @@ export type MiniCaseChallenge = BaseContentItem & {
   challenge: string;
   constraints: string[];
   question: string;
+  options?: MiniCaseOption[];
   expected_reasoning: string[];
   sample_answer: string;
 };

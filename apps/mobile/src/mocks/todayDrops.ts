@@ -146,6 +146,39 @@ export const mockTodayDailyDrops = [
         ],
         question:
           "What would you change before launch, and what would you postpone?",
+        options: [
+          {
+            id: "ship-core-cut-scoring",
+            label:
+              "Ship summaries and flashcards, add consent and deletion, and cut behavioral scoring from the beta.",
+            outcome: "best",
+            feedback:
+              "This is the strongest call. You keep the product useful, respect the one-week budget, and remove the feature that carries the real risk."
+          },
+          {
+            id: "scoring-behind-flag",
+            label:
+              "Ship everything but hide scoring behind a flag that is off by default.",
+            outcome: "viable",
+            feedback:
+              "Defensible, but an off-by-default flag still ships the riskiest code and the data path behind it. For a two-week beta it is cleaner to remove scoring entirely."
+          },
+          {
+            id: "delay-for-lawyer",
+            label: "Delay the whole beta until you can hire a lawyer.",
+            outcome: "weak",
+            feedback:
+              "Too cautious. You lose weeks of learning for a risk you can largely engineer around now with consent, deletion, and a one-page risk note."
+          },
+          {
+            id: "launch-everything",
+            label:
+              "Launch every feature, collect all the data, and fix compliance only if users complain.",
+            outcome: "weak",
+            feedback:
+              "This is the expensive path. Reacting to complaints about sensitive data is exactly how a small team ends up in real trouble."
+          }
+        ],
         expected_reasoning: [
           "Separate low-risk summarization from any feature that profiles students.",
           "Add clear user consent and recording notices before processing audio.",
@@ -266,6 +299,39 @@ export const mockTodayDailyDrops = [
         ],
         question:
           "Que changes-tu avant le lancement, et que repousses-tu ?",
+        options: [
+          {
+            id: "ship-core-cut-scoring",
+            label:
+              "Lancer le resume et les flashcards, ajouter consentement et suppression, et retirer le scoring comportemental de la beta.",
+            outcome: "best",
+            feedback:
+              "C'est le meilleur choix. Tu gardes un produit utile, tu respectes la semaine de budget et tu retires la fonctionnalite qui porte le vrai risque."
+          },
+          {
+            id: "scoring-behind-flag",
+            label:
+              "Tout lancer mais cacher le scoring derriere un flag desactive par defaut.",
+            outcome: "viable",
+            feedback:
+              "Defendable, mais un flag desactive par defaut embarque quand meme le code le plus risque et son traitement de donnees. Pour une beta de deux semaines, mieux vaut retirer le scoring."
+          },
+          {
+            id: "delay-for-lawyer",
+            label: "Repousser toute la beta jusqu'a pouvoir recruter un juriste.",
+            outcome: "weak",
+            feedback:
+              "Trop prudent. Tu perds des semaines d'apprentissage pour un risque que tu peux largement encadrer maintenant avec consentement, suppression et une note risque d'une page."
+          },
+          {
+            id: "launch-everything",
+            label:
+              "Tout lancer, collecter toutes les donnees, et corriger la conformite seulement si des utilisateurs se plaignent.",
+            outcome: "weak",
+            feedback:
+              "C'est le chemin couteux. Reagir aux plaintes sur des donnees sensibles, c'est exactement ainsi qu'une petite equipe finit dans une vraie difficulte."
+          }
+        ],
         expected_reasoning: [
           "Separer le resume a faible risque de toute fonctionnalite qui profilerait les etudiants.",
           "Ajouter un consentement clair et des notices avant le traitement audio.",
