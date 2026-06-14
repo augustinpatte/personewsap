@@ -201,6 +201,24 @@ function MiniCaseQuizFlow({
     const selectedOption =
       currentQuestion.options.find((option) => option.id === selectedId) ?? null;
     const isCorrect = selectedOption?.outcome === "best";
+    const bestOption =
+      currentQuestion.options.find((option) => option.outcome === "best") ?? null;
+    const caseReasoning = challenge.expected_reasoning[0];
+    const whyCorrect =
+      firstNonEmpty(
+        selectedOption?.feedback,
+        currentQuestion.explanation,
+        challenge.final_takeaway,
+        caseReasoning
+      ) ?? copy.feedbackFallback;
+    const whyWrong = firstNonEmpty(selectedOption?.feedback);
+    const whyBest =
+      firstNonEmpty(
+        bestOption?.feedback,
+        currentQuestion.explanation,
+        challenge.final_takeaway,
+        caseReasoning
+      ) ?? copy.feedbackFallback;
 
     return (
       <View style={styles.quiz}>
@@ -268,22 +286,30 @@ function MiniCaseQuizFlow({
             <AppText color={isCorrect ? "success" : "danger"} variant="eyebrow">
               {isCorrect ? copy.correct : copy.incorrect}
             </AppText>
-            <AppText style={styles.feedbackBody} variant="read">
-              {selectedOption.feedback}
-            </AppText>
-            {!isCorrect ? (
-              <View style={styles.correctAnswer}>
-                <AppText color="muted" variant="caption">
-                  {copy.correctAnswer}
-                </AppText>
-                <AppText variant="bodyStrong">{bestOptionLabel(currentQuestion)}</AppText>
-              </View>
-            ) : null}
-            {currentQuestion.explanation ? (
-              <AppText color="inkSoft" style={styles.feedbackBody} variant="read">
-                {currentQuestion.explanation}
+            {isCorrect ? (
+              <AppText style={styles.feedbackBody} variant="read">
+                {whyCorrect}
               </AppText>
-            ) : null}
+            ) : (
+              <>
+                {whyWrong ? (
+                  <AppText style={styles.feedbackBody} variant="read">
+                    {whyWrong}
+                  </AppText>
+                ) : null}
+                {bestOption ? (
+                  <View style={styles.correctAnswer}>
+                    <AppText color="muted" variant="caption">
+                      {copy.correctAnswer}
+                    </AppText>
+                    <AppText variant="bodyStrong">{bestOption.label}</AppText>
+                    <AppText color="inkSoft" style={styles.feedbackBody} variant="read">
+                      {whyBest}
+                    </AppText>
+                  </View>
+                ) : null}
+              </>
+            )}
           </Animated.View>
         ) : null}
       </View>
@@ -539,8 +565,14 @@ function roleLabelFor(role: MiniCaseQuestionRole, copy: ReaderCopy) {
   return copy.roleConclusion;
 }
 
-function bestOptionLabel(question: MiniCaseQuestion) {
-  return question.options.find((option) => option.outcome === "best")?.label ?? "";
+function firstNonEmpty(...values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+  return null;
 }
 
 const styles = StyleSheet.create({
