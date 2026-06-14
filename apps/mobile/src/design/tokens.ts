@@ -1,27 +1,32 @@
+import { Platform } from "react-native";
+
+const serifFamily =
+  Platform.select({ ios: "Georgia", android: "serif", default: "Georgia" }) ?? "Georgia";
+
 export const tokens = {
   color: {
-    background: "#F6F3EC",
-    backgroundRaised: "#FBFAF7",
-    surface: "#FFFFFF",
-    surfaceMuted: "#F1EEE7",
-    ink: "#111827",
-    inkSoft: "#334155",
-    muted: "#667085",
-    mutedSoft: "#98A2B3",
-    border: "#E3DED3",
-    borderStrong: "#CCC4B6",
+    background: "#F5F1E8",
+    backgroundRaised: "#FBF8F1",
+    surface: "#FCFAF4",
+    surfaceMuted: "#EFEBE1",
+    ink: "#1C1A16",
+    inkSoft: "#4A463D",
+    muted: "#6E685C",
+    mutedSoft: "#A39C8C",
+    border: "#E6E0D3",
+    borderStrong: "#D2CABA",
     accent: "#0F5B5F",
     accentPressed: "#0A4649",
-    accentSoft: "#E5F1EF",
-    accentInk: "#073B3D",
-    gold: "#B88932",
-    goldSoft: "#F5EAD6",
-    success: "#1B8A5A",
-    successSoft: "#E4F4EC",
-    warning: "#B66A00",
-    warningSoft: "#FFF0D8",
-    danger: "#B42318",
-    dangerSoft: "#FDE8E5",
+    accentSoft: "#E7EFEC",
+    accentInk: "#0B4144",
+    gold: "#9C7B3F",
+    goldSoft: "#EFE7D6",
+    success: "#3F7A5B",
+    successSoft: "#E6EEE7",
+    warning: "#94703A",
+    warningSoft: "#EFE7D6",
+    danger: "#9B3D33",
+    dangerSoft: "#F1E3DF",
     white: "#FFFFFF",
     black: "#000000",
     transparent: "transparent"
@@ -38,9 +43,9 @@ export const tokens = {
   radius: {
     xs: 4,
     sm: 6,
-    md: 8,
-    lg: 14,
-    xl: 20,
+    md: 10,
+    lg: 16,
+    xl: 22,
     pill: 999
   },
   typography: {
@@ -48,36 +53,43 @@ export const tokens = {
       regular: "System",
       medium: "System",
       semibold: "System",
-      bold: "System"
+      bold: "System",
+      serif: serifFamily
     },
     size: {
       eyebrow: 11,
-      caption: 12,
+      caption: 13,
       label: 14,
       body: 16,
       bodyLarge: 18,
-      subtitle: 20,
-      title: 32,
-      display: 38
+      read: 17,
+      lede: 19,
+      subtitle: 21,
+      quote: 23,
+      title: 30,
+      display: 36
     },
     lineHeight: {
       eyebrow: 14,
-      caption: 16,
+      caption: 18,
       label: 18,
-      body: 23,
+      body: 24,
       bodyLarge: 26,
-      subtitle: 27,
-      title: 37,
-      display: 44
+      read: 27,
+      lede: 28,
+      subtitle: 28,
+      quote: 31,
+      title: 36,
+      display: 42
     },
     weight: {
       regular: "400",
       medium: "500",
       semibold: "600",
-      bold: "800"
+      bold: "700"
     },
-    bodyLineHeight: 23,
-    titleLineHeight: 37
+    bodyLineHeight: 24,
+    titleLineHeight: 36
   },
   shadow: {
     none: {
@@ -85,18 +97,18 @@ export const tokens = {
       elevation: 0
     },
     sm: {
-      shadowColor: "#111827",
-      shadowOpacity: 0.05,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
+      shadowColor: "#1C1A16",
+      shadowOpacity: 0.04,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
       elevation: 1
     },
     md: {
-      shadowColor: "#111827",
-      shadowOpacity: 0.08,
-      shadowRadius: 20,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: 3
+      shadowColor: "#1C1A16",
+      shadowOpacity: 0.06,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 2
     }
   }
 } as const;

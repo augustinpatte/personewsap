@@ -13,6 +13,9 @@ type AppTextVariant =
   | "display"
   | "title"
   | "subtitle"
+  | "lede"
+  | "read"
+  | "quote"
   | "body"
   | "bodyStrong"
   | "label"
@@ -59,20 +62,46 @@ const styles = StyleSheet.create({
     letterSpacing: 0
   },
   display: {
+    fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.display,
     fontWeight: tokens.typography.weight.bold,
+    letterSpacing: -0.4,
     lineHeight: tokens.typography.lineHeight.display
   },
   title: {
+    fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.title,
     fontWeight: tokens.typography.weight.bold,
+    letterSpacing: -0.3,
     lineHeight: tokens.typography.lineHeight.title
   },
   subtitle: {
-    color: tokens.color.inkSoft,
+    color: tokens.color.ink,
+    fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.subtitle,
     fontWeight: tokens.typography.weight.semibold,
     lineHeight: tokens.typography.lineHeight.subtitle
+  },
+  lede: {
+    color: tokens.color.inkSoft,
+    fontFamily: tokens.typography.family.serif,
+    fontSize: tokens.typography.size.lede,
+    fontWeight: tokens.typography.weight.regular,
+    lineHeight: tokens.typography.lineHeight.lede
+  },
+  read: {
+    color: tokens.color.ink,
+    fontFamily: tokens.typography.family.serif,
+    fontSize: tokens.typography.size.read,
+    fontWeight: tokens.typography.weight.regular,
+    lineHeight: tokens.typography.lineHeight.read
+  },
+  quote: {
+    color: tokens.color.ink,
+    fontFamily: tokens.typography.family.serif,
+    fontSize: tokens.typography.size.quote,
+    fontWeight: tokens.typography.weight.medium,
+    lineHeight: tokens.typography.lineHeight.quote
   },
   body: {
     color: tokens.color.inkSoft,
@@ -98,9 +127,10 @@ const styles = StyleSheet.create({
     lineHeight: tokens.typography.lineHeight.caption
   },
   eyebrow: {
-    color: tokens.color.accent,
+    color: tokens.color.muted,
     fontSize: tokens.typography.size.eyebrow,
-    fontWeight: tokens.typography.weight.bold,
+    fontWeight: tokens.typography.weight.semibold,
+    letterSpacing: 1.4,
     lineHeight: tokens.typography.lineHeight.eyebrow,
     textTransform: "uppercase"
   }
