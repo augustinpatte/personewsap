@@ -18,6 +18,11 @@ import type {
   MiniCaseQuestion,
   MiniCaseQuestionRole
 } from "../contentTypes";
+import {
+  readMiniCaseResponse,
+  writeMiniCaseResponse,
+  type MiniCaseResponseRecord
+} from "../miniCaseResponses";
 import { ReaderScaffold } from "./ReaderScaffold";
 
 type Phase = "decide" | "feedback" | "debrief";
@@ -58,13 +63,63 @@ export function MiniCaseReader({ caseId }: { caseId: string }) {
 }
 
 function MiniCaseFlow({ challenge }: { challenge: MiniCaseChallenge }) {
+  const router = useRouter();
+  const { language, isItemComplete } = useDailyDrop();
+  const copy = getReaderCopy(language);
   const questions = challenge.questions ?? [];
 
-  if (questions.length > 0) {
-    return <MiniCaseQuizFlow challenge={challenge} questions={questions} />;
+  // Capture completion once, when the reader opens. If the user finishes the
+  // case in this session, completion flips to true mid-flow — but the mode must
+  // not swap out from under them, so the decision stays frozen until reopen.
+  const [openedCompleted] = useState(() => isItemComplete(challenge.id));
+  const [savedResponse, setSavedResponse] = useState<
+    MiniCaseResponseRecord | null | undefined
+  >(openedCompleted ? undefined : null);
+
+  useEffect(() => {
+    if (!openedCompleted) {
+      return;
+    }
+
+    let active = true;
+    void readMiniCaseResponse(challenge.id).then((record) => {
+      if (active) {
+        setSavedResponse(record);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [challenge.id, openedCompleted]);
+
+  if (questions.length === 0) {
+    return <MiniCaseLegacyFlow challenge={challenge} />;
   }
 
-  return <MiniCaseLegacyFlow challenge={challenge} />;
+  if (openedCompleted) {
+    if (savedResponse === undefined) {
+      return (
+        <ReaderScaffold
+          closeLabel={copy.close}
+          eyebrow={copy.caseEyebrow}
+          onClose={() => router.back()}
+        >
+          <CaseIntro challenge={challenge} copy={copy} language={language} />
+        </ReaderScaffold>
+      );
+    }
+
+    return (
+      <MiniCaseReviewFlow
+        challenge={challenge}
+        questions={questions}
+        response={savedResponse}
+      />
+    );
+  }
+
+  return <MiniCaseQuizFlow challenge={challenge} questions={questions} />;
 }
 
 function CaseIntro({
@@ -149,10 +204,21 @@ function MiniCaseQuizFlow({
   );
 
   useEffect(() => {
-    if (showResults && !isItemComplete(challenge.id)) {
+    if (!showResults) {
+      return;
+    }
+
+    if (!isItemComplete(challenge.id)) {
       void markItemsComplete([challenge]);
     }
-  }, [challenge, isItemComplete, markItemsComplete, showResults]);
+
+    void writeMiniCaseResponse(challenge.id, {
+      selections,
+      score,
+      total,
+      completedAt: new Date().toISOString()
+    });
+  }, [challenge, isItemComplete, markItemsComplete, score, selections, showResults, total]);
 
   const onSelect = (option: MiniCaseOption) => {
     if (answered) {
@@ -200,25 +266,6 @@ function MiniCaseQuizFlow({
     const stepLabel = copy.questionStep(index + 1, total);
     const selectedOption =
       currentQuestion.options.find((option) => option.id === selectedId) ?? null;
-    const isCorrect = selectedOption?.outcome === "best";
-    const bestOption =
-      currentQuestion.options.find((option) => option.outcome === "best") ?? null;
-    const caseReasoning = challenge.expected_reasoning[0];
-    const whyCorrect =
-      firstNonEmpty(
-        selectedOption?.feedback,
-        currentQuestion.explanation,
-        challenge.final_takeaway,
-        caseReasoning
-      ) ?? copy.feedbackFallback;
-    const whyWrong = firstNonEmpty(selectedOption?.feedback);
-    const whyBest =
-      firstNonEmpty(
-        bestOption?.feedback,
-        currentQuestion.explanation,
-        challenge.final_takeaway,
-        caseReasoning
-      ) ?? copy.feedbackFallback;
 
     return (
       <View style={styles.quiz}>
@@ -283,33 +330,12 @@ function MiniCaseQuizFlow({
               }
             ]}
           >
-            <AppText color={isCorrect ? "success" : "danger"} variant="eyebrow">
-              {isCorrect ? copy.correct : copy.incorrect}
-            </AppText>
-            {isCorrect ? (
-              <AppText style={styles.feedbackBody} variant="read">
-                {whyCorrect}
-              </AppText>
-            ) : (
-              <>
-                {whyWrong ? (
-                  <AppText style={styles.feedbackBody} variant="read">
-                    {whyWrong}
-                  </AppText>
-                ) : null}
-                {bestOption ? (
-                  <View style={styles.correctAnswer}>
-                    <AppText color="muted" variant="caption">
-                      {copy.correctAnswer}
-                    </AppText>
-                    <AppText variant="bodyStrong">{bestOption.label}</AppText>
-                    <AppText color="inkSoft" style={styles.feedbackBody} variant="read">
-                      {whyBest}
-                    </AppText>
-                  </View>
-                ) : null}
-              </>
-            )}
+            <QuestionFeedback
+              challenge={challenge}
+              copy={copy}
+              question={currentQuestion}
+              selectedOption={selectedOption}
+            />
           </Animated.View>
         ) : null}
       </View>
@@ -372,13 +398,261 @@ function MiniCaseQuizFlow({
   }
 }
 
+// Shared explanation block used by both the live quiz and read-only review.
+// Surfaces a concise confirmation when correct, a miss + the strongest answer
+// when wrong, and only the strongest answer when no pick was recorded.
+function QuestionFeedback({
+  challenge,
+  copy,
+  question,
+  selectedOption
+}: {
+  challenge: MiniCaseChallenge;
+  copy: ReaderCopy;
+  question: MiniCaseQuestion;
+  selectedOption: MiniCaseOption | null;
+}) {
+  const bestOption = question.options.find((option) => option.outcome === "best") ?? null;
+  const isCorrect = selectedOption != null && selectedOption.outcome === "best";
+
+  const whyBest =
+    firstNonEmpty(
+      bestOption?.feedback,
+      question.explanation,
+      challenge.final_takeaway,
+      challenge.expected_reasoning[0]
+    ) ?? copy.feedbackFallback;
+
+  if (isCorrect) {
+    const whyCorrect =
+      firstNonEmpty(
+        selectedOption?.feedback,
+        question.explanation,
+        challenge.final_takeaway,
+        challenge.expected_reasoning[0]
+      ) ?? copy.feedbackFallback;
+
+    return (
+      <>
+        <AppText color="success" variant="eyebrow">
+          {copy.correct}
+        </AppText>
+        <AppText style={styles.feedbackBody} variant="read">
+          {whyCorrect}
+        </AppText>
+      </>
+    );
+  }
+
+  if (!selectedOption) {
+    return (
+      <>
+        <AppText color="success" variant="eyebrow">
+          {copy.correctAnswer}
+        </AppText>
+        {bestOption ? (
+          <AppText style={styles.feedbackBody} variant="read">
+            {bestOption.label}
+          </AppText>
+        ) : null}
+        <AppText color="inkSoft" variant="read">
+          {whyBest}
+        </AppText>
+      </>
+    );
+  }
+
+  const whyWrong = firstNonEmpty(selectedOption.feedback) ?? copy.feedbackFallback;
+
+  return (
+    <>
+      <AppText color="danger" variant="eyebrow">
+        {copy.incorrect}
+      </AppText>
+      <AppText style={styles.feedbackBody} variant="read">
+        {whyWrong}
+      </AppText>
+      {bestOption ? (
+        <View style={styles.correctAnswer}>
+          <AppText color="success" variant="eyebrow">
+            {copy.correctAnswer}
+          </AppText>
+          <AppText style={styles.feedbackBody} variant="read">
+            {bestOption.label}
+          </AppText>
+          <AppText color="inkSoft" variant="read">
+            {whyBest}
+          </AppText>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+// Read-only replay of a completed multi-question case. Options are plain Views
+// (never selectable), the saved score is shown as-is, and navigation lets the
+// reader move freely between questions. Nothing here can re-answer or rescore.
+function MiniCaseReviewFlow({
+  challenge,
+  questions,
+  response
+}: {
+  challenge: MiniCaseChallenge;
+  questions: MiniCaseQuestion[];
+  // null when the case was completed before responses were persisted (or storage
+  // was cleared): review still replays the model answers, just without a score.
+  response: MiniCaseResponseRecord | null;
+}) {
+  const router = useRouter();
+  const { language } = useDailyDrop();
+  const copy = getReaderCopy(language);
+
+  const [index, setIndex] = useState(0);
+  const total = questions.length;
+  const currentQuestion = questions[index];
+  const selectedId = response?.selections[currentQuestion.id] ?? null;
+  const selectedOption =
+    currentQuestion.options.find((option) => option.id === selectedId) ?? null;
+  const roleLabel = currentQuestion.role ? roleLabelFor(currentQuestion.role, copy) : null;
+  const stepLabel = copy.questionStep(index + 1, total);
+
+  return (
+    <ReaderScaffold
+      closeLabel={copy.close}
+      eyebrow={copy.caseEyebrow}
+      footer={<PrimaryButton label={copy.back} onPress={() => router.back()} />}
+      onClose={() => router.back()}
+    >
+      <CaseIntro challenge={challenge} copy={copy} language={language} />
+
+      <View style={styles.reviewBanner}>
+        <AppText color="inkSoft" variant="read">
+          {copy.reviewBanner}
+        </AppText>
+        {response ? (
+          <AppText color="muted" variant="eyebrow">
+            {`${copy.scoreEyebrow} · ${copy.scoreValue(response.score, response.total)}`}
+          </AppText>
+        ) : null}
+      </View>
+
+      <View style={styles.reviewNav}>
+        {questions.map((question, questionIndex) => {
+          const active = questionIndex === index;
+          return (
+            <Pressable
+              accessibilityRole="button"
+              key={question.id}
+              onPress={() => setIndex(questionIndex)}
+              style={[styles.reviewNavItem, active ? styles.reviewNavItemActive : null]}
+            >
+              <AppText color={active ? "ink" : "muted"} variant="label">
+                {copy.reviewQuestion(questionIndex + 1)}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.quiz}>
+        <View style={styles.quizHeader}>
+          <AppText color="muted" variant="eyebrow">
+            {roleLabel ? `${stepLabel} · ${roleLabel}` : stepLabel}
+          </AppText>
+          <AppText variant="subtitle">{currentQuestion.prompt}</AppText>
+        </View>
+
+        <View style={styles.options}>
+          {currentQuestion.options.map((option, optionIndex) => {
+            const isSelected = option.id === selectedId;
+            const isBest = option.outcome === "best";
+            const showWrong = isSelected && !isBest;
+
+            return (
+              <View
+                key={option.id}
+                style={[
+                  styles.option,
+                  isBest ? styles.optionBest : null,
+                  showWrong ? styles.optionWrong : null,
+                  !isBest && !isSelected ? styles.optionDimmed : null
+                ]}
+              >
+                <View style={styles.optionMarker}>
+                  <AppText
+                    color={isBest ? "success" : showWrong ? "danger" : "muted"}
+                    variant="label"
+                  >
+                    {String.fromCharCode(65 + optionIndex)}
+                  </AppText>
+                </View>
+                <AppText style={styles.optionLabel} variant="body">
+                  {option.label}
+                </AppText>
+                {isSelected ? (
+                  <View style={styles.optionTag}>
+                    <AppText color="muted" variant="caption">
+                      {copy.yourAnswer}
+                    </AppText>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.feedback}>
+          <QuestionFeedback
+            challenge={challenge}
+            copy={copy}
+            question={currentQuestion}
+            selectedOption={selectedOption}
+          />
+        </View>
+      </View>
+
+      <View style={styles.results}>
+        {challenge.expected_reasoning.length > 0 ? (
+          <View style={styles.debriefBlock}>
+            <AppText color="muted" variant="eyebrow">
+              {copy.keyMoves}
+            </AppText>
+            {challenge.expected_reasoning.map((point, pointIndex) => (
+              <View key={pointIndex} style={styles.constraintRow}>
+                <View style={styles.bullet} />
+                <AppText style={styles.constraintText} variant="read">
+                  {point}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.debriefBlock}>
+          <AppText color="muted" variant="eyebrow">
+            {copy.takeaway}
+          </AppText>
+          <AppText variant="read">
+            {challenge.final_takeaway ?? challenge.sample_answer}
+          </AppText>
+        </View>
+      </View>
+    </ReaderScaffold>
+  );
+}
+
 function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
   const router = useRouter();
   const { language, isItemComplete, markItemsComplete } = useDailyDrop();
   const copy = getReaderCopy(language);
 
   const hasOptions = Boolean(challenge.options && challenge.options.length > 0);
-  const [phase, setPhase] = useState<Phase>("decide");
+  // A completed legacy case reopens straight into its debrief: read-only, with
+  // the strongest option highlighted since single-question cases never recorded
+  // a per-option pick.
+  const [phase, setPhase] = useState<Phase>(
+    isItemComplete(challenge.id) ? "debrief" : "decide"
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const reveal = useRef(new Animated.Value(0)).current;
 
@@ -447,7 +721,8 @@ function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
           const isSelected = option.id === selectedId;
           const locked = phase !== "decide";
           const palette = outcomeColors[option.outcome];
-          const showColor = locked && isSelected;
+          const showColor =
+            locked && (isSelected || (selectedId === null && option.outcome === "best"));
 
           return (
             <Pressable
@@ -698,5 +973,31 @@ const styles = StyleSheet.create({
   },
   debriefBlock: {
     gap: tokens.space.sm
+  },
+  reviewBanner: {
+    backgroundColor: tokens.color.surfaceMuted,
+    borderRadius: tokens.radius.md,
+    gap: tokens.space.xs,
+    marginTop: tokens.space.xl,
+    padding: tokens.space.lg
+  },
+  reviewNav: {
+    flexDirection: "row",
+    gap: tokens.space.sm,
+    marginTop: tokens.space.lg
+  },
+  reviewNavItem: {
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.sm
+  },
+  reviewNavItemActive: {
+    backgroundColor: tokens.color.surfaceMuted,
+    borderColor: tokens.color.borderStrong
+  },
+  optionTag: {
+    marginLeft: tokens.space.sm
   }
 });
