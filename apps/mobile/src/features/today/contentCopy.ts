@@ -123,7 +123,29 @@ export function getReaderCopy(language: ContentLanguage) {
         debrief: "Debrief",
         keyMoves: "What a sharp answer covers",
         reference: "A reference answer",
-        finishCase: "Finish the case"
+        finishCase: "Finish the case",
+        // multi-question case
+        questionStep: (current: number, total: number) => `Question ${current} of ${total}`,
+        roleMethod: "Method",
+        roleApplication: "Application",
+        roleConclusion: "Conclusion",
+        correct: "Correct",
+        incorrect: "Not quite",
+        correctAnswer: "Best answer",
+        next: "Continue",
+        seeScore: "See your score",
+        scoreEyebrow: "Your score",
+        scoreValue: (score: number, total: number) => `${score}/${total}`,
+        scoreMessage: (score: number, total: number) => {
+          if (score === total) {
+            return "Sharp judgment from start to finish.";
+          }
+          if (score >= Math.ceil(total / 2)) {
+            return "A solid read — one or two calls worth revisiting.";
+          }
+          return "Worth a second look at the reasoning below.";
+        },
+        takeaway: "The takeaway"
       },
       fr: {
         close: "Retour",
@@ -151,7 +173,29 @@ export function getReaderCopy(language: ContentLanguage) {
         debrief: "Débrief",
         keyMoves: "Ce qu'une bonne réponse couvre",
         reference: "Une réponse de référence",
-        finishCase: "Terminer le cas"
+        finishCase: "Terminer le cas",
+        // multi-question case
+        questionStep: (current: number, total: number) => `Question ${current} sur ${total}`,
+        roleMethod: "Méthode",
+        roleApplication: "Application",
+        roleConclusion: "Conclusion",
+        correct: "Correct",
+        incorrect: "Pas tout à fait",
+        correctAnswer: "Meilleure réponse",
+        next: "Continuer",
+        seeScore: "Voir votre score",
+        scoreEyebrow: "Votre score",
+        scoreValue: (score: number, total: number) => `${score}/${total}`,
+        scoreMessage: (score: number, total: number) => {
+          if (score === total) {
+            return "Un jugement net du début à la fin.";
+          }
+          if (score >= Math.ceil(total / 2)) {
+            return "Bonne lecture — une ou deux décisions à revoir.";
+          }
+          return "Le raisonnement ci-dessous mérite un second regard.";
+        },
+        takeaway: "À retenir"
       }
     },
     language

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
-import { AppText, PrimaryButton, ProgressPill, SecondaryButton } from "../../components";
+import { AppText, PrimaryButton, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { trackAnalyticsEvent } from "../../lib/analytics";
-import { formatLanguageName, localized } from "../../lib/i18n";
+import { localized } from "../../lib/i18n";
 import { getUserFacingErrorMessage } from "../../lib/userFacingErrors";
 import type { Language } from "../../types/domain";
 import {
@@ -36,6 +36,8 @@ type PreferencesEditorProps = {
   onSaved?: () => Promise<void> | void;
 };
 
+type PreferencesTab = "newsletter" | "mini_case";
+
 export function PreferencesEditor({
   userId,
   refreshKey,
@@ -48,6 +50,7 @@ export function PreferencesEditor({
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<PreferencesTab>("newsletter");
   // Tracks how many loads have completed. A save increments this on start;
   // if the counter has advanced during the save's async work, a fresher load
   // already committed state and the save result should not overwrite it.
@@ -127,15 +130,6 @@ export function PreferencesEditor({
         .map((topicId) => miniCaseTopicOptions.find((option) => option.id === topicId))
         .filter((topic): topic is (typeof MINI_CASE_TOPIC_OPTIONS)[number] => Boolean(topic)) ?? [],
     [draft?.miniCaseTopics, miniCaseTopicOptions]
-  );
-
-  const totalArticleCount = useMemo(
-    () =>
-      draft?.selectedTopics.reduce(
-        (total, topicId) => total + (draft.articlesPerTopic[topicId] ?? 1),
-        0
-      ) ?? 0,
-    [draft]
   );
 
   const hasChanges = useMemo(() => {
@@ -306,35 +300,17 @@ export function PreferencesEditor({
     );
   }
 
+  const newsletterNeedsAttention =
+    draft.enabledModules.includes("newsletter") && draft.selectedTopics.length === 0;
+  const miniCaseNeedsAttention =
+    draft.enabledModules.includes("mini_case") && draft.miniCaseTopics.length === 0;
+
   return (
     <View style={styles.section}>
-      <View style={styles.sectionTopline}>
-        <View style={styles.sectionCopy}>
-          <AppText variant="subtitle">{copy.title}</AppText>
-          <AppText color="muted" variant="body">
-            {copy.description}
-          </AppText>
-        </View>
-        <ProgressPill
-          label={loading ? copy.refreshing : copy.articlePill(totalArticleCount)}
-          tone={loading ? "warning" : "neutral"}
-        />
+      <View style={styles.header}>
+        <AppText variant="subtitle">{copy.title}</AppText>
+        {loading ? <ActivityIndicator color={tokens.color.accent} size="small" /> : null}
       </View>
-
-      {loading ? (
-        <AppText color="muted" variant="caption">
-          {copy.refreshingDetail}
-        </AppText>
-      ) : null}
-
-      <PreferenceSummary
-        copy={copy}
-        miniCaseTopicOptions={miniCaseTopicOptions}
-        moduleOptions={moduleOptions}
-        preferences={draft}
-        topicOptions={topicOptions}
-        totalArticleCount={totalArticleCount}
-      />
 
       <PreferenceGroup title={copy.language}>
         {languageOptions.map((option) => (
@@ -370,78 +346,101 @@ export function PreferencesEditor({
         ) : null}
       </PreferenceGroup>
 
-      <PreferenceGroup title={copy.topics}>
-        <AppText color="muted" variant="caption">
-          {copy.topicsHelp}
-        </AppText>
-        {topicOptions.map((option) => (
-          <SelectableCard
-            description={option.description}
-            key={option.id}
-            label={option.label}
-            onPress={() => toggleNewsletterTopic(option.id)}
-            selected={draft.selectedTopics.includes(option.id)}
-            selectedBadge={copy.selected}
-            unselectedBadge={copy.notSelected}
-          />
-        ))}
-        {draft.enabledModules.includes("newsletter") && draft.selectedTopics.length === 0 ? (
-          <AppText color="danger" variant="body">
-            {copy.missingNewsletterTopic}
-          </AppText>
-        ) : null}
-      </PreferenceGroup>
+      <SegmentedControl
+        onChange={setActiveTab}
+        options={[
+          {
+            id: "newsletter",
+            label: copy.newsletterTab,
+            attention: newsletterNeedsAttention
+          },
+          {
+            id: "mini_case",
+            label: copy.miniCaseTab,
+            attention: miniCaseNeedsAttention
+          }
+        ]}
+        value={activeTab}
+      />
 
-      <PreferenceGroup title={copy.miniCaseTopics}>
-        <AppText color="muted" variant="caption">
-          {copy.miniCaseTopicsHelp}
-        </AppText>
-        {miniCaseTopicOptions.map((option) => {
-          const selected = draft.miniCaseTopics.includes(option.id);
-          const disabled = !selected && draft.miniCaseTopics.length >= MAX_MINI_CASE_TOPICS;
+      {activeTab === "newsletter" ? (
+        <View style={styles.tabBody}>
+          <PreferenceGroup title={copy.topics}>
+            <AppText color="muted" variant="caption">
+              {copy.topicsHelp}
+            </AppText>
+            {topicOptions.map((option) => (
+              <SelectableCard
+                description={option.description}
+                key={option.id}
+                label={option.label}
+                onPress={() => toggleNewsletterTopic(option.id)}
+                selected={draft.selectedTopics.includes(option.id)}
+                selectedBadge={copy.selected}
+                unselectedBadge={copy.notSelected}
+              />
+            ))}
+            {newsletterNeedsAttention ? (
+              <AppText color="danger" variant="body">
+                {copy.missingNewsletterTopic}
+              </AppText>
+            ) : null}
+          </PreferenceGroup>
 
-          return (
-            <SelectableCard
-              description={option.description}
-              disabled={disabled}
-              key={option.id}
-              label={option.label}
-              onPress={() => toggleMiniCaseTopic(option.id)}
-              selected={selected}
-              selectedBadge={copy.selected}
-              unselectedBadge={disabled ? copy.limitReached : copy.notSelected}
-            />
-          );
-        })}
-        {draft.enabledModules.includes("mini_case") && draft.miniCaseTopics.length === 0 ? (
-          <AppText color="danger" variant="body">
-            {copy.missingMiniCaseTopic}
-          </AppText>
-        ) : (
-          <AppText color="muted" variant="caption">
-            {copy.miniCaseSelectedFooter(selectedMiniCaseTopicOptions.length)}
-          </AppText>
-        )}
-      </PreferenceGroup>
+          <PreferenceGroup title={copy.articleCounts}>
+            {selectedTopicOptions.length > 0 ? (
+              selectedTopicOptions.map((topic) => (
+                <ArticleCountRow
+                  count={draft.articlesPerTopic[topic.id] ?? 1}
+                  countLabel={copy.countLabel(draft.articlesPerTopic[topic.id] ?? 1)}
+                  description={topic.description}
+                  key={topic.id}
+                  label={topic.label}
+                  onChange={(count) => setArticleCount(topic.id, count)}
+                />
+              ))
+            ) : (
+              <AppText color="muted" variant="caption">
+                {copy.depthEmpty}
+              </AppText>
+            )}
+          </PreferenceGroup>
+        </View>
+      ) : (
+        <View style={styles.tabBody}>
+          <PreferenceGroup title={copy.miniCaseTopics}>
+            <AppText color="muted" variant="caption">
+              {copy.miniCaseTopicsHelp}
+            </AppText>
+            {miniCaseTopicOptions.map((option) => {
+              const selected = draft.miniCaseTopics.includes(option.id);
+              const disabled = !selected && draft.miniCaseTopics.length >= MAX_MINI_CASE_TOPICS;
 
-      <PreferenceGroup title={copy.articleCounts}>
-        {selectedTopicOptions.length > 0 ? (
-          selectedTopicOptions.map((topic) => (
-            <ArticleCountRow
-              count={draft.articlesPerTopic[topic.id] ?? 1}
-              countLabel={copy.countLabel(draft.articlesPerTopic[topic.id] ?? 1)}
-              description={topic.description}
-              key={topic.id}
-              label={topic.label}
-              onChange={(count) => setArticleCount(topic.id, count)}
-            />
-          ))
-        ) : (
-          <AppText color="danger" variant="body">
-            {copy.missingNewsletterTopic}
-          </AppText>
-        )}
-      </PreferenceGroup>
+              return (
+                <SelectableCard
+                  description={option.description}
+                  disabled={disabled}
+                  key={option.id}
+                  label={option.label}
+                  onPress={() => toggleMiniCaseTopic(option.id)}
+                  selected={selected}
+                  selectedBadge={copy.selected}
+                  unselectedBadge={disabled ? copy.limitReached : copy.notSelected}
+                />
+              );
+            })}
+            {miniCaseNeedsAttention ? (
+              <AppText color="danger" variant="body">
+                {copy.missingMiniCaseTopic}
+              </AppText>
+            ) : (
+              <AppText color="muted" variant="caption">
+                {copy.miniCaseSelectedFooter(selectedMiniCaseTopicOptions.length)}
+              </AppText>
+            )}
+          </PreferenceGroup>
+        </View>
+      )}
 
       {errorMessage ? <AppText color="danger" variant="body">{errorMessage}</AppText> : null}
       {statusMessage ? <AppText color="accent" variant="bodyStrong">{statusMessage}</AppText> : null}
@@ -477,72 +476,35 @@ export function PreferencesEditor({
   );
 }
 
-function PreferenceSummary({
-  copy,
-  miniCaseTopicOptions,
-  moduleOptions,
-  preferences,
-  topicOptions,
-  totalArticleCount
+function SegmentedControl({
+  onChange,
+  options,
+  value
 }: {
-  copy: ReturnType<typeof getPreferencesCopy>;
-  miniCaseTopicOptions: Array<(typeof MINI_CASE_TOPIC_OPTIONS)[number]>;
-  moduleOptions: Array<(typeof MODULE_OPTIONS)[number]>;
-  preferences: EditablePreferences;
-  topicOptions: Array<(typeof TOPIC_OPTIONS)[number]>;
-  totalArticleCount: number;
+  onChange: (id: PreferencesTab) => void;
+  options: Array<{ id: PreferencesTab; label: string; attention?: boolean }>;
+  value: PreferencesTab;
 }) {
-  const moduleLabels = preferences.enabledModules
-    .map((moduleId) => moduleOptions.find((moduleOption) => moduleOption.id === moduleId)?.label)
-    .filter((label): label is string => Boolean(label));
-  const topicLabels = preferences.selectedTopics
-    .map((topicId) => topicOptions.find((topic) => topic.id === topicId)?.label)
-    .filter((label): label is string => Boolean(label));
-  const miniCaseTopicLabels = preferences.miniCaseTopics
-    .map((topicId) => miniCaseTopicOptions.find((topic) => topic.id === topicId)?.label)
-    .filter((label): label is string => Boolean(label));
   return (
-    <View style={styles.summaryPanel}>
-      <View style={styles.summaryRow}>
-        <AppText color="muted" variant="caption">
-          {copy.language}
-        </AppText>
-        <AppText variant="bodyStrong">
-          {formatLanguageName(preferences.language, preferences.language)}
-        </AppText>
-      </View>
-      <View style={styles.summaryRow}>
-        <AppText color="muted" variant="caption">
-          {copy.modules}
-        </AppText>
-        <AppText style={styles.summaryValue} variant="bodyStrong">
-          {moduleLabels.length > 0 ? moduleLabels.join(", ") : copy.missingModule}
-        </AppText>
-      </View>
-      <View style={styles.summaryRow}>
-        <AppText color="muted" variant="caption">
-          {copy.topics}
-        </AppText>
-        <AppText style={styles.summaryValue} variant="bodyStrong">
-          {topicLabels.length > 0 ? topicLabels.join(", ") : copy.missingNewsletterTopic}
-        </AppText>
-      </View>
-      <View style={styles.summaryRow}>
-        <AppText color="muted" variant="caption">
-          {copy.miniCaseTopics}
-        </AppText>
-        <AppText style={styles.summaryValue} variant="bodyStrong">
-          {miniCaseTopicLabels.length > 0
-            ? miniCaseTopicLabels.join(", ")
-            : copy.missingMiniCaseTopic}
-        </AppText>
-      </View>
-      <View style={styles.summaryRow}>
-        <AppText color="muted" variant="caption">
-          {copy.articleCounts}
-        </AppText>
-        <AppText variant="bodyStrong">{copy.summaryArticles(totalArticleCount)}</AppText>
-      </View>
+    <View accessibilityRole="tablist" style={styles.segment}>
+      {options.map((option) => {
+        const active = option.id === value;
+
+        return (
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            key={option.id}
+            onPress={() => onChange(option.id)}
+            style={[styles.segmentItem, active && styles.segmentItemActive]}
+          >
+            <AppText color={active ? "ink" : "muted"} variant="label">
+              {option.label}
+            </AppText>
+            {option.attention ? <View style={styles.segmentDot} /> : null}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -575,26 +537,21 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
     {
       en: {
         title: "Preferences",
-        description:
-          "Changes apply to future daily drops. Today's drop may already be generated.",
         signIn: "Sign in to edit your daily drop preferences.",
         loading: "Loading preferences...",
         tryAgain: "Try again",
-        refreshing: "Refreshing",
-        refreshingDetail:
-          "Refreshing settings. Last loaded choices stay editable while the app checks your account.",
-        saved:
-          "Saved. Future daily drops will use these preferences.",
+        saved: "Saved. Future daily drops will use these preferences.",
         language: "Language",
         modules: "Modules",
         modulesHelp: "Choose which daily formats stay active.",
+        newsletterTab: "Newsletter",
+        miniCaseTab: "Mini cases",
         topics: "Newsletter topics",
-        topicsHelp:
-          "Choose one to eight topics for newsletter articles.",
+        topicsHelp: "Pick one to eight topics.",
+        articleCounts: "Articles per topic",
+        depthEmpty: "Pick a newsletter topic to set how many articles you get.",
         miniCaseTopics: "Mini-case topics",
-        miniCaseTopicsHelp:
-          "Choose one to three topics for practical mini-cases. This stays separate from newsletter topics.",
-        articleCounts: "Newsletter depth",
+        miniCaseTopicsHelp: "Pick up to three. Kept separate from your newsletter.",
         missingNewsletterTopic: "Select at least one newsletter topic to save preferences.",
         missingModule: "Select at least one module to save preferences.",
         missingMiniCaseTopic: "Select at least one mini-case topic to save preferences.",
@@ -604,35 +561,27 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         reset: "Reset",
         saving: "Saving...",
         saveChanges: "Save changes",
-        articlePill: (count: number) => `${count} article${count === 1 ? "" : "s"}`,
         countLabel: (count: number) => `${count} per drop`,
         miniCaseSelectedFooter: (count: number) =>
-          `${count}/3 mini-case topic${count === 1 ? "" : "s"} selected`,
-        summaryArticles: (count: number) =>
-          `${count} article${count === 1 ? "" : "s"} · daily`
+          `${count}/3 mini-case topic${count === 1 ? "" : "s"} selected`
       },
       fr: {
         title: "Préférences",
-        description:
-          "Les changements s'appliquent aux prochaines mises à jour quotidiennes. Celle d'aujourd'hui peut déjà être générée.",
         signIn: "Connecte-toi pour modifier tes préférences de mise à jour quotidienne.",
         loading: "Chargement des préférences...",
         tryAgain: "Réessayer",
-        refreshing: "Actualisation",
-        refreshingDetail:
-          "Actualisation des réglages. Les derniers choix chargés restent modifiables pendant la vérification.",
-        saved:
-          "Enregistré. Les prochaines mises à jour utiliseront ces préférences.",
+        saved: "Enregistré. Les prochaines mises à jour utiliseront ces préférences.",
         language: "Langue",
         modules: "Modules",
         modulesHelp: "Choisis les formats quotidiens qui restent actifs.",
+        newsletterTab: "Newsletter",
+        miniCaseTab: "Mini-cas",
         topics: "Sujets newsletter",
-        topicsHelp:
-          "Choisis un à huit sujets pour les articles newsletter.",
+        topicsHelp: "Choisis un à huit sujets.",
+        articleCounts: "Articles par sujet",
+        depthEmpty: "Choisis un sujet newsletter pour régler le nombre d'articles.",
         miniCaseTopics: "Sujets mini-cas",
-        miniCaseTopicsHelp:
-          "Choisis un à trois sujets pour les mini-cas pratiques. Ce choix reste séparé des sujets newsletter.",
-        articleCounts: "Profondeur newsletter",
+        miniCaseTopicsHelp: "Choisis jusqu'à trois sujets. Distinct de ta newsletter.",
         missingNewsletterTopic: "Sélectionne au moins un sujet newsletter pour enregistrer les préférences.",
         missingModule: "Sélectionne au moins un module pour enregistrer les préférences.",
         missingMiniCaseTopic: "Sélectionne au moins un sujet mini-cas pour enregistrer les préférences.",
@@ -642,12 +591,9 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         reset: "Réinitialiser",
         saving: "Enregistrement...",
         saveChanges: "Enregistrer",
-        articlePill: (count: number) => `${count} article${count > 1 ? "s" : ""}`,
         countLabel: (count: number) => `${count} par jour`,
         miniCaseSelectedFooter: (count: number) =>
-          `${count}/3 sujet${count > 1 ? "s" : ""} mini-cas sélectionné${count > 1 ? "s" : ""}`,
-        summaryArticles: (count: number) =>
-          `${count} article${count > 1 ? "s" : ""} · quotidien`
+          `${count}/3 sujet${count > 1 ? "s" : ""} mini-cas sélectionné${count > 1 ? "s" : ""}`
       }
     },
     language
@@ -743,35 +689,50 @@ const styles = StyleSheet.create({
   groupTitle: {
     textTransform: "uppercase"
   },
+  header: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.space.sm,
+    justifyContent: "space-between"
+  },
   loadingSection: {
     alignItems: "center",
     paddingVertical: tokens.space.xl
   },
-  summaryPanel: {
-    backgroundColor: tokens.color.backgroundRaised,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    gap: tokens.space.md,
-    padding: tokens.space.md
-  },
-  summaryRow: {
-    gap: tokens.space.xs
-  },
-  summaryValue: {
-    flexShrink: 1
-  },
   section: {
     gap: tokens.space.lg
   },
-  sectionCopy: {
-    flex: 1,
-    gap: tokens.space.xs
-  },
-  sectionTopline: {
-    alignItems: "flex-start",
+  segment: {
+    backgroundColor: tokens.color.surfaceMuted,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
     flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
+    gap: tokens.space.xs,
+    padding: tokens.space.xs
+  },
+  segmentDot: {
+    backgroundColor: tokens.color.warning,
+    borderRadius: tokens.radius.pill,
+    height: 6,
+    width: 6
+  },
+  segmentItem: {
+    alignItems: "center",
+    borderColor: tokens.color.transparent,
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: tokens.space.xs,
+    justifyContent: "center",
+    paddingVertical: tokens.space.sm
+  },
+  segmentItemActive: {
+    backgroundColor: tokens.color.background,
+    borderColor: tokens.color.borderStrong
+  },
+  tabBody: {
+    gap: tokens.space.lg
   }
 });

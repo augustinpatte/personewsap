@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 
@@ -10,10 +10,18 @@ import {
   getTopicLabel
 } from "../contentCopy";
 import { useDailyDrop } from "../DailyDropContext";
-import type { MiniCaseChallenge, MiniCaseOption, MiniCaseOptionOutcome } from "../contentTypes";
+import type {
+  ContentLanguage,
+  MiniCaseChallenge,
+  MiniCaseOption,
+  MiniCaseOptionOutcome,
+  MiniCaseQuestion,
+  MiniCaseQuestionRole
+} from "../contentTypes";
 import { ReaderScaffold } from "./ReaderScaffold";
 
 type Phase = "decide" | "feedback" | "debrief";
+type ReaderCopy = ReturnType<typeof getReaderCopy>;
 
 const outcomeColors: Record<
   MiniCaseOptionOutcome,
@@ -50,6 +58,295 @@ export function MiniCaseReader({ caseId }: { caseId: string }) {
 }
 
 function MiniCaseFlow({ challenge }: { challenge: MiniCaseChallenge }) {
+  const questions = challenge.questions ?? [];
+
+  if (questions.length > 0) {
+    return <MiniCaseQuizFlow challenge={challenge} questions={questions} />;
+  }
+
+  return <MiniCaseLegacyFlow challenge={challenge} />;
+}
+
+function CaseIntro({
+  challenge,
+  copy,
+  language
+}: {
+  challenge: MiniCaseChallenge;
+  copy: ReaderCopy;
+  language: ContentLanguage;
+}) {
+  return (
+    <>
+      <AppText color="muted" variant="eyebrow">
+        {`${getTopicLabel(challenge.topic, language)} · ${getDifficultyLabel(
+          challenge.difficulty,
+          language
+        )}`}
+      </AppText>
+
+      <AppText style={styles.title} variant="title">
+        {challenge.title}
+      </AppText>
+
+      <View style={styles.situation}>
+        <AppText color="muted" variant="eyebrow">
+          {copy.context}
+        </AppText>
+        <AppText variant="read">{challenge.context}</AppText>
+      </View>
+
+      {challenge.constraints.length > 0 ? (
+        <View style={styles.constraints}>
+          <AppText color="muted" variant="eyebrow">
+            {copy.constraints}
+          </AppText>
+          {challenge.constraints.map((constraint, index) => (
+            <View key={index} style={styles.constraintRow}>
+              <View style={styles.bullet} />
+              <AppText color="inkSoft" style={styles.constraintText} variant="body">
+                {constraint}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+function MiniCaseQuizFlow({
+  challenge,
+  questions
+}: {
+  challenge: MiniCaseChallenge;
+  questions: MiniCaseQuestion[];
+}) {
+  const router = useRouter();
+  const { language, isItemComplete, markItemsComplete } = useDailyDrop();
+  const copy = getReaderCopy(language);
+
+  const [index, setIndex] = useState(0);
+  const [selections, setSelections] = useState<Record<string, string>>({});
+  const [showResults, setShowResults] = useState(false);
+  const reveal = useRef(new Animated.Value(0)).current;
+
+  const total = questions.length;
+  const currentQuestion = questions[index];
+  const selectedId = selections[currentQuestion.id] ?? null;
+  const answered = selectedId !== null;
+  const isLast = index >= total - 1;
+
+  const score = useMemo(
+    () =>
+      questions.reduce((runningScore, question) => {
+        const best = question.options.find((option) => option.outcome === "best");
+        return best && selections[question.id] === best.id
+          ? runningScore + 1
+          : runningScore;
+      }, 0),
+    [questions, selections]
+  );
+
+  useEffect(() => {
+    if (showResults && !isItemComplete(challenge.id)) {
+      void markItemsComplete([challenge]);
+    }
+  }, [challenge, isItemComplete, markItemsComplete, showResults]);
+
+  const onSelect = (option: MiniCaseOption) => {
+    if (answered) {
+      return;
+    }
+    setSelections((current) => ({ ...current, [currentQuestion.id]: option.id }));
+    reveal.setValue(0);
+    Animated.timing(reveal, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true
+    }).start();
+  };
+
+  const onAdvance = () => {
+    if (isLast) {
+      setShowResults(true);
+      return;
+    }
+    setIndex((current) => current + 1);
+    reveal.setValue(0);
+  };
+
+  const onFinish = async () => {
+    if (!isItemComplete(challenge.id)) {
+      await markItemsComplete([challenge]);
+    }
+    router.back();
+  };
+
+  return (
+    <ReaderScaffold
+      closeLabel={copy.close}
+      eyebrow={copy.caseEyebrow}
+      footer={renderFooter()}
+      onClose={() => router.back()}
+    >
+      <CaseIntro challenge={challenge} copy={copy} language={language} />
+      {showResults ? renderResults() : renderQuestion()}
+    </ReaderScaffold>
+  );
+
+  function renderQuestion() {
+    const roleLabel = currentQuestion.role ? roleLabelFor(currentQuestion.role, copy) : null;
+    const stepLabel = copy.questionStep(index + 1, total);
+    const selectedOption =
+      currentQuestion.options.find((option) => option.id === selectedId) ?? null;
+    const isCorrect = selectedOption?.outcome === "best";
+
+    return (
+      <View style={styles.quiz}>
+        <View style={styles.quizHeader}>
+          <AppText color="muted" variant="eyebrow">
+            {roleLabel ? `${stepLabel} · ${roleLabel}` : stepLabel}
+          </AppText>
+          <AppText variant="subtitle">{currentQuestion.prompt}</AppText>
+        </View>
+
+        <View style={styles.options}>
+          {currentQuestion.options.map((option, optionIndex) => {
+            const isSelected = option.id === selectedId;
+            const isBest = option.outcome === "best";
+            const showBest = answered && isBest;
+            const showWrong = answered && isSelected && !isBest;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                disabled={answered}
+                key={option.id}
+                onPress={() => onSelect(option)}
+                style={({ pressed }) => [
+                  styles.option,
+                  pressed && !answered ? styles.optionPressed : null,
+                  showBest ? styles.optionBest : null,
+                  showWrong ? styles.optionWrong : null,
+                  answered && !isSelected && !isBest ? styles.optionDimmed : null
+                ]}
+              >
+                <View style={styles.optionMarker}>
+                  <AppText
+                    color={showBest ? "success" : showWrong ? "danger" : "muted"}
+                    variant="label"
+                  >
+                    {String.fromCharCode(65 + optionIndex)}
+                  </AppText>
+                </View>
+                <AppText style={styles.optionLabel} variant="body">
+                  {option.label}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {answered && selectedOption ? (
+          <Animated.View
+            style={[
+              styles.feedback,
+              {
+                opacity: reveal,
+                transform: [
+                  {
+                    translateY: reveal.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [8, 0]
+                    })
+                  }
+                ]
+              }
+            ]}
+          >
+            <AppText color={isCorrect ? "success" : "danger"} variant="eyebrow">
+              {isCorrect ? copy.correct : copy.incorrect}
+            </AppText>
+            <AppText style={styles.feedbackBody} variant="read">
+              {selectedOption.feedback}
+            </AppText>
+            {!isCorrect ? (
+              <View style={styles.correctAnswer}>
+                <AppText color="muted" variant="caption">
+                  {copy.correctAnswer}
+                </AppText>
+                <AppText variant="bodyStrong">{bestOptionLabel(currentQuestion)}</AppText>
+              </View>
+            ) : null}
+            {currentQuestion.explanation ? (
+              <AppText color="inkSoft" style={styles.feedbackBody} variant="read">
+                {currentQuestion.explanation}
+              </AppText>
+            ) : null}
+          </Animated.View>
+        ) : null}
+      </View>
+    );
+  }
+
+  function renderResults() {
+    return (
+      <View style={styles.results}>
+        <View style={styles.scoreBlock}>
+          <AppText color="muted" variant="eyebrow">
+            {copy.scoreEyebrow}
+          </AppText>
+          <AppText style={styles.scoreValue} variant="display">
+            {copy.scoreValue(score, total)}
+          </AppText>
+          <AppText color="inkSoft" variant="read">
+            {copy.scoreMessage(score, total)}
+          </AppText>
+        </View>
+
+        {challenge.expected_reasoning.length > 0 ? (
+          <View style={styles.debriefBlock}>
+            <AppText color="muted" variant="eyebrow">
+              {copy.keyMoves}
+            </AppText>
+            {challenge.expected_reasoning.map((point, pointIndex) => (
+              <View key={pointIndex} style={styles.constraintRow}>
+                <View style={styles.bullet} />
+                <AppText style={styles.constraintText} variant="read">
+                  {point}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.debriefBlock}>
+          <AppText color="muted" variant="eyebrow">
+            {copy.takeaway}
+          </AppText>
+          <AppText variant="read">
+            {challenge.final_takeaway ?? challenge.sample_answer}
+          </AppText>
+        </View>
+      </View>
+    );
+  }
+
+  function renderFooter() {
+    if (showResults) {
+      return <PrimaryButton label={copy.finishCase} onPress={onFinish} />;
+    }
+
+    if (!answered) {
+      return null;
+    }
+
+    return <PrimaryButton label={isLast ? copy.seeScore : copy.next} onPress={onAdvance} />;
+  }
+}
+
+function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
   const router = useRouter();
   const { language, isItemComplete, markItemsComplete } = useDailyDrop();
   const copy = getReaderCopy(language);
@@ -96,39 +393,7 @@ function MiniCaseFlow({ challenge }: { challenge: MiniCaseChallenge }) {
       footer={renderFooter()}
       onClose={() => router.back()}
     >
-      <AppText color="muted" variant="eyebrow">
-        {`${getTopicLabel(challenge.topic, language)} · ${getDifficultyLabel(
-          challenge.difficulty,
-          language
-        )}`}
-      </AppText>
-
-      <AppText style={styles.title} variant="title">
-        {challenge.title}
-      </AppText>
-
-      <View style={styles.situation}>
-        <AppText color="muted" variant="eyebrow">
-          {copy.context}
-        </AppText>
-        <AppText variant="read">{challenge.context}</AppText>
-      </View>
-
-      {challenge.constraints.length > 0 ? (
-        <View style={styles.constraints}>
-          <AppText color="muted" variant="eyebrow">
-            {copy.constraints}
-          </AppText>
-          {challenge.constraints.map((constraint, index) => (
-            <View key={index} style={styles.constraintRow}>
-              <View style={styles.bullet} />
-              <AppText color="inkSoft" style={styles.constraintText} variant="body">
-                {constraint}
-              </AppText>
-            </View>
-          ))}
-        </View>
-      ) : null}
+      <CaseIntro challenge={challenge} copy={copy} language={language} />
 
       <View style={styles.question}>
         <AppText color="muted" variant="eyebrow">
@@ -264,6 +529,20 @@ function MiniCaseFlow({ challenge }: { challenge: MiniCaseChallenge }) {
   }
 }
 
+function roleLabelFor(role: MiniCaseQuestionRole, copy: ReaderCopy) {
+  if (role === "method") {
+    return copy.roleMethod;
+  }
+  if (role === "application") {
+    return copy.roleApplication;
+  }
+  return copy.roleConclusion;
+}
+
+function bestOptionLabel(question: MiniCaseQuestion) {
+  return question.options.find((option) => option.outcome === "best")?.label ?? "";
+}
+
 const styles = StyleSheet.create({
   title: {
     marginTop: tokens.space.md
@@ -289,6 +568,16 @@ const styles = StyleSheet.create({
   },
   constraintText: {
     flex: 1
+  },
+  quiz: {
+    borderTopColor: tokens.color.borderStrong,
+    borderTopWidth: 1,
+    gap: tokens.space.lg,
+    marginTop: tokens.space.xl,
+    paddingTop: tokens.space.xl
+  },
+  quizHeader: {
+    gap: tokens.space.sm
   },
   question: {
     borderTopColor: tokens.color.borderStrong,
@@ -316,6 +605,14 @@ const styles = StyleSheet.create({
   optionPressed: {
     backgroundColor: tokens.color.surfaceMuted
   },
+  optionBest: {
+    backgroundColor: tokens.color.successSoft,
+    borderColor: tokens.color.success
+  },
+  optionWrong: {
+    backgroundColor: tokens.color.dangerSoft,
+    borderColor: tokens.color.danger
+  },
   optionDimmed: {
     opacity: 0.45
   },
@@ -341,6 +638,24 @@ const styles = StyleSheet.create({
   },
   feedbackBody: {
     color: tokens.color.ink
+  },
+  correctAnswer: {
+    gap: tokens.space.xs,
+    marginTop: tokens.space.xs
+  },
+  results: {
+    borderTopColor: tokens.color.border,
+    borderTopWidth: 1,
+    gap: tokens.space.xl,
+    marginTop: tokens.space.xl,
+    paddingTop: tokens.space.xl
+  },
+  scoreBlock: {
+    alignItems: "flex-start",
+    gap: tokens.space.sm
+  },
+  scoreValue: {
+    marginTop: tokens.space.xs
   },
   debrief: {
     borderTopColor: tokens.color.border,

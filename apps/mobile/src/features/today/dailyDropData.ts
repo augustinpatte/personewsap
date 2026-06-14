@@ -21,6 +21,10 @@ import type {
   DailyDropContentItem,
   KeyConcept,
   MiniCaseChallenge,
+  MiniCaseOption,
+  MiniCaseOptionOutcome,
+  MiniCaseQuestion,
+  MiniCaseQuestionRole,
   NewsletterArticle,
   SourceMetadata,
   TodayDailyDrop
@@ -491,7 +495,9 @@ function mapDailyDropContentItem(
       context: readString(metadata, "context", contentItem.body_md),
       difficulty: mapDifficulty(contentItem.difficulty),
       expected_reasoning: readStringArray(metadata, "expected_reasoning"),
+      final_takeaway: readString(metadata, "final_takeaway") || undefined,
       question: readString(metadata, "question"),
+      questions: readMiniCaseQuestions(metadata),
       sample_answer: readString(metadata, "sample_answer"),
       slot: "mini_case",
       topic: readTopic(metadata, "topic", contentItem.topic_id)
@@ -583,6 +589,87 @@ function readStringArray(metadata: Record<string, unknown>, key: string): string
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string")
     : [];
+}
+
+const miniCaseOutcomes: readonly MiniCaseOptionOutcome[] = ["best", "viable", "weak"];
+const miniCaseRoles: readonly MiniCaseQuestionRole[] = ["method", "application", "conclusion"];
+
+function readMiniCaseQuestions(
+  metadata: Record<string, unknown>
+): MiniCaseQuestion[] | undefined {
+  const value = metadata["questions"];
+
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const questions = value
+    .map((entry, index) => parseMiniCaseQuestion(entry, index))
+    .filter((question): question is MiniCaseQuestion => question !== null);
+
+  return questions.length > 0 ? questions : undefined;
+}
+
+function parseMiniCaseQuestion(value: unknown, index: number): MiniCaseQuestion | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const prompt = typeof value.prompt === "string" ? value.prompt.trim() : "";
+
+  if (prompt.length === 0) {
+    return null;
+  }
+
+  const options = Array.isArray(value.options)
+    ? value.options
+        .map((option, optionIndex) => parseMiniCaseOption(option, optionIndex))
+        .filter((option): option is MiniCaseOption => option !== null)
+    : [];
+
+  if (options.length < 2) {
+    return null;
+  }
+
+  return {
+    id:
+      typeof value.id === "string" && value.id.trim().length > 0
+        ? value.id
+        : `question-${index + 1}`,
+    prompt,
+    options,
+    role: miniCaseRoles.includes(value.role as MiniCaseQuestionRole)
+      ? (value.role as MiniCaseQuestionRole)
+      : undefined,
+    explanation:
+      typeof value.explanation === "string" && value.explanation.trim().length > 0
+        ? value.explanation
+        : undefined
+  };
+}
+
+function parseMiniCaseOption(value: unknown, index: number): MiniCaseOption | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const label = typeof value.label === "string" ? value.label.trim() : "";
+
+  if (label.length === 0) {
+    return null;
+  }
+
+  return {
+    id:
+      typeof value.id === "string" && value.id.trim().length > 0
+        ? value.id
+        : `option-${index + 1}`,
+    label,
+    outcome: miniCaseOutcomes.includes(value.outcome as MiniCaseOptionOutcome)
+      ? (value.outcome as MiniCaseOptionOutcome)
+      : "viable",
+    feedback: typeof value.feedback === "string" ? value.feedback : ""
+  };
 }
 
 function readTopic(

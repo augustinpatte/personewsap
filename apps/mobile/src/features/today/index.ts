@@ -9,6 +9,8 @@ export type {
   MiniCaseChallenge,
   MiniCaseOption,
   MiniCaseOptionOutcome,
+  MiniCaseQuestion,
+  MiniCaseQuestionRole,
   NewsletterArticle,
   SourceMetadata,
   TodayDailyDrop

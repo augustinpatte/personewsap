@@ -2,7 +2,6 @@ export { AppScreen, AppScreenBody, AppScreenFooter, AppScreenHeader } from "./Ap
 export { AppErrorBoundary } from "./AppErrorBoundary";
 export { AppText } from "./AppText";
 export { Card } from "./Card";
-export { DataModeBanner } from "./DataModeBanner";
 export { EmptyState } from "./EmptyState";
 export { PlaceholderScreen } from "./PlaceholderScreen";
 export { PrimaryButton } from "./PrimaryButton";

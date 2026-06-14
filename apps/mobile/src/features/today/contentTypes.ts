@@ -70,6 +70,16 @@ export type MiniCaseOption = {
   feedback: string;
 };
 
+export type MiniCaseQuestionRole = "method" | "application" | "conclusion";
+
+export type MiniCaseQuestion = {
+  id: string;
+  role?: MiniCaseQuestionRole;
+  prompt: string;
+  options: MiniCaseOption[];
+  explanation?: string;
+};
+
 export type MiniCaseChallenge = BaseContentItem & {
   content_type: "mini_case";
   slot: "mini_case";
@@ -80,8 +90,10 @@ export type MiniCaseChallenge = BaseContentItem & {
   constraints: string[];
   question: string;
   options?: MiniCaseOption[];
+  questions?: MiniCaseQuestion[];
   expected_reasoning: string[];
   sample_answer: string;
+  final_takeaway?: string;
 };
 
 export type KeyConcept = BaseContentItem & {
