@@ -1,6 +1,7 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { tokens } from "../design/tokens";
+import { useThemeColors, type ThemeColors } from "../design/theme";
 import { AppText } from "./AppText";
 
 type ProgressPillTone = "neutral" | "accent" | "success" | "warning";
@@ -12,28 +13,35 @@ type ProgressPillProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-const toneStyles = {
-  neutral: {
-    backgroundColor: tokens.color.surfaceMuted,
-    foregroundColor: tokens.color.inkSoft,
-    trackColor: tokens.color.border
-  },
-  accent: {
-    backgroundColor: tokens.color.accentSoft,
-    foregroundColor: tokens.color.accentInk,
-    trackColor: tokens.color.accent
-  },
-  success: {
-    backgroundColor: tokens.color.successSoft,
-    foregroundColor: tokens.color.success,
-    trackColor: tokens.color.success
-  },
-  warning: {
-    backgroundColor: tokens.color.warningSoft,
-    foregroundColor: tokens.color.warning,
-    trackColor: tokens.color.warning
-  }
-} as const;
+function toneStylesFor(
+  c: ThemeColors
+): Record<
+  ProgressPillTone,
+  { backgroundColor: string; foregroundColor: string; trackColor: string }
+> {
+  return {
+    neutral: {
+      backgroundColor: c.surfaceMuted,
+      foregroundColor: c.inkSoft,
+      trackColor: c.border
+    },
+    accent: {
+      backgroundColor: c.accentSoft,
+      foregroundColor: c.accentInk,
+      trackColor: c.accent
+    },
+    success: {
+      backgroundColor: c.successSoft,
+      foregroundColor: c.success,
+      trackColor: c.success
+    },
+    warning: {
+      backgroundColor: c.warningSoft,
+      foregroundColor: c.warning,
+      trackColor: c.warning
+    }
+  };
+}
 
 export function ProgressPill({
   label,
@@ -41,8 +49,9 @@ export function ProgressPill({
   tone = "accent",
   style
 }: ProgressPillProps) {
+  const colors = useThemeColors();
   const clampedValue = typeof value === "number" ? Math.min(Math.max(value, 0), 1) : undefined;
-  const toneStyle = toneStyles[tone];
+  const toneStyle = toneStylesFor(colors)[tone];
 
   return (
     <View style={[styles.pill, { backgroundColor: toneStyle.backgroundColor }, style]}>
@@ -50,7 +59,7 @@ export function ProgressPill({
         {label}
       </AppText>
       {typeof clampedValue === "number" ? (
-        <View style={styles.track}>
+        <View style={[styles.track, { backgroundColor: colors.border }]}>
           <View
             style={[
               styles.fill,
@@ -78,7 +87,6 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.space.xs
   },
   track: {
-    backgroundColor: tokens.color.white,
     borderRadius: tokens.radius.pill,
     height: 4,
     overflow: "hidden",

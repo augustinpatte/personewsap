@@ -22,6 +22,7 @@ import type { NormalizedSupabaseError } from "../../lib/supabase";
 import { getUserFacingError } from "../../lib/userFacingErrors";
 import type { Language } from "../../types/domain";
 import { tokens } from "../../design/tokens";
+import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useAuth } from "./AuthProvider";
 
 type AuthMode = "login" | "signup";
@@ -45,6 +46,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<NormalizedSupabaseError | null>(null);
+  const styles = useThemedStyles(createStyles);
 
   const isSignup = mode === "signup";
   const copy = getAuthFormCopy(profileLanguage);
@@ -270,6 +272,7 @@ function AuthErrorMessage({
   error: NormalizedSupabaseError;
   language: Language | null | undefined;
 }) {
+  const styles = useThemedStyles(createStyles);
   const userFacingError = getUserFacingError(error, language, "auth");
 
   return (
@@ -353,60 +356,64 @@ type LabeledInputProps = ComponentProps<typeof TextInput> & {
 };
 
 function LabeledInput({ label, style, ...inputProps }: LabeledInputProps) {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.field}>
       <AppText variant="label">{label}</AppText>
       <TextInput
         {...inputProps}
-        placeholderTextColor={tokens.color.mutedSoft}
+        placeholderTextColor={colors.mutedSoft}
         style={[styles.input, style]}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1
-  },
-  card: {
-    gap: tokens.space.lg
-  },
-  copy: {
-    gap: tokens.space.sm
-  },
-  fields: {
-    gap: tokens.space.md
-  },
-  inlineState: {
-    padding: tokens.space.lg
-  },
-  field: {
-    gap: tokens.space.sm
-  },
-  input: {
-    backgroundColor: tokens.color.backgroundRaised,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    color: tokens.color.ink,
-    fontSize: tokens.typography.size.body,
-    minHeight: 52,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.md
-  },
-  actions: {
-    gap: tokens.space.sm
-  },
-  privacyNotice: {
-    textAlign: "center"
-  },
-  errorBox: {
-    backgroundColor: tokens.color.dangerSoft,
-    borderColor: tokens.color.danger,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    gap: tokens.space.xs,
-    padding: tokens.space.md
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    keyboard: {
+      flex: 1
+    },
+    card: {
+      gap: tokens.space.lg
+    },
+    copy: {
+      gap: tokens.space.sm
+    },
+    fields: {
+      gap: tokens.space.md
+    },
+    inlineState: {
+      padding: tokens.space.lg
+    },
+    field: {
+      gap: tokens.space.sm
+    },
+    input: {
+      backgroundColor: c.backgroundRaised,
+      borderColor: c.border,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      color: c.ink,
+      fontSize: tokens.typography.size.body,
+      minHeight: 52,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.md
+    },
+    actions: {
+      gap: tokens.space.sm
+    },
+    privacyNotice: {
+      textAlign: "center"
+    },
+    errorBox: {
+      backgroundColor: c.dangerSoft,
+      borderColor: c.danger,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      gap: tokens.space.xs,
+      padding: tokens.space.md
+    }
+  });

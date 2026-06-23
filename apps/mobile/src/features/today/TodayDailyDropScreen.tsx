@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppScreen, AppText, Card, EmptyState } from "../../components";
 import { tokens } from "../../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { localized } from "../../lib/i18n";
 import {
   estimateReadMinutes,
@@ -41,6 +42,7 @@ export function TodayDailyDropScreen() {
     markItemsComplete,
     reload
   } = useDailyDrop();
+  const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
 
   const newsletter = drop.items.newsletter;
@@ -117,6 +119,8 @@ export function TodayDailyDropScreen() {
 }
 
 function EditionProgress({ value }: { value: number }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.progressTrack}>
       <View style={[styles.progressFill, { width: `${Math.round(value * 100)}%` }]} />
@@ -125,6 +129,8 @@ function EditionProgress({ value }: { value: number }) {
 }
 
 function Kicker({ label, meta }: { label: string; meta?: string }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.kicker}>
       <AppText variant="eyebrow">{label}</AppText>
@@ -146,6 +152,8 @@ function ModuleFooter({
   completedLabel: string;
   openLabel: string;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   if (completed) {
     return (
       <View style={styles.statusRow}>
@@ -180,6 +188,7 @@ function NewsletterLead({
   language: ContentLanguage;
   onOpen: (id: string) => void;
 }) {
+  const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
   const [lead, ...rest] = articles;
 
@@ -248,6 +257,7 @@ function BusinessStoryFeature({
   onOpen: () => void;
   story: BusinessStory;
 }) {
+  const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
 
   return (
@@ -293,6 +303,7 @@ function MiniCaseInvitation({
   language: ContentLanguage;
   onOpen: () => void;
 }) {
+  const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
 
   return (
@@ -339,6 +350,7 @@ function ConceptNote({
   language: ContentLanguage;
   onKeep: () => void;
 }) {
+  const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
 
   return (
@@ -371,6 +383,7 @@ function ConceptNote({
 }
 
 function CompletionNote({ language }: { language: ContentLanguage }) {
+  const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
 
   return (
@@ -386,6 +399,7 @@ function CompletionNote({ language }: { language: ContentLanguage }) {
 }
 
 function Monogram({ label }: { label: string }) {
+  const styles = useThemedStyles(createStyles);
   const initial = label.trim().charAt(0).toUpperCase() || "•";
 
   return (
@@ -453,113 +467,114 @@ function getTodayCopy(language: ContentLanguage) {
   );
 }
 
-const styles = StyleSheet.create({
-  screenContent: {
-    gap: tokens.space.xl,
-    paddingBottom: tokens.space.xxl
-  },
-  masthead: {
-    gap: tokens.space.sm
-  },
-  progressTrack: {
-    backgroundColor: tokens.color.surfaceMuted,
-    borderRadius: tokens.radius.pill,
-    height: 3,
-    marginTop: tokens.space.sm,
-    overflow: "hidden"
-  },
-  progressFill: {
-    backgroundColor: tokens.color.accent,
-    borderRadius: tokens.radius.pill,
-    height: "100%"
-  },
-  kicker: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.sm,
-    justifyContent: "space-between"
-  },
-  pressed: {
-    opacity: 0.7
-  },
-  lead: {
-    borderTopColor: tokens.color.borderStrong,
-    borderTopWidth: 1,
-    gap: tokens.space.lg,
-    paddingTop: tokens.space.lg
-  },
-  leadMain: {
-    gap: tokens.space.sm
-  },
-  leadHeadline: {
-    marginTop: tokens.space.xs
-  },
-  alsoBlock: {
-    borderTopColor: tokens.color.border,
-    borderTopWidth: 1,
-    gap: tokens.space.lg,
-    paddingTop: tokens.space.lg
-  },
-  alsoItem: {
-    gap: tokens.space.xs
-  },
-  storyCard: {
-    gap: tokens.space.md
-  },
-  storyHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.md
-  },
-  storyHeaderCopy: {
-    flex: 1,
-    gap: tokens.space.xs
-  },
-  monogram: {
-    alignItems: "center",
-    borderColor: tokens.color.borderStrong,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    height: 44,
-    justifyContent: "center",
-    width: 44
-  },
-  caseCard: {
-    gap: tokens.space.md
-  },
-  casePrompt: {
-    gap: tokens.space.xs
-  },
-  conceptCard: {
-    gap: tokens.space.sm
-  },
-  completion: {
-    alignItems: "center",
-    borderTopColor: tokens.color.border,
-    borderTopWidth: 1,
-    gap: tokens.space.xs,
-    paddingTop: tokens.space.xl
-  },
-  statusRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.sm,
-    marginTop: tokens.space.sm,
-    minHeight: 32
-  },
-  statusDot: {
-    backgroundColor: tokens.color.accent,
-    borderRadius: tokens.radius.pill,
-    height: 8,
-    width: 8
-  },
-  arrow: {
-    marginLeft: -tokens.space.xs
-  },
-  textAction: {
-    alignSelf: "flex-start",
-    justifyContent: "center",
-    minHeight: 44,
-    paddingVertical: tokens.space.xs
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    screenContent: {
+      gap: tokens.space.xl,
+      paddingBottom: tokens.space.xxl
+    },
+    masthead: {
+      gap: tokens.space.sm
+    },
+    progressTrack: {
+      backgroundColor: c.surfaceMuted,
+      borderRadius: tokens.radius.pill,
+      height: 3,
+      marginTop: tokens.space.sm,
+      overflow: "hidden"
+    },
+    progressFill: {
+      backgroundColor: c.accent,
+      borderRadius: tokens.radius.pill,
+      height: "100%"
+    },
+    kicker: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.sm,
+      justifyContent: "space-between"
+    },
+    pressed: {
+      opacity: 0.7
+    },
+    lead: {
+      borderTopColor: c.borderStrong,
+      borderTopWidth: 1,
+      gap: tokens.space.lg,
+      paddingTop: tokens.space.lg
+    },
+    leadMain: {
+      gap: tokens.space.sm
+    },
+    leadHeadline: {
+      marginTop: tokens.space.xs
+    },
+    alsoBlock: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.lg,
+      paddingTop: tokens.space.lg
+    },
+    alsoItem: {
+      gap: tokens.space.xs
+    },
+    storyCard: {
+      gap: tokens.space.md
+    },
+    storyHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    storyHeaderCopy: {
+      flex: 1,
+      gap: tokens.space.xs
+    },
+    monogram: {
+      alignItems: "center",
+      borderColor: c.borderStrong,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      height: 44,
+      justifyContent: "center",
+      width: 44
+    },
+    caseCard: {
+      gap: tokens.space.md
+    },
+    casePrompt: {
+      gap: tokens.space.xs
+    },
+    conceptCard: {
+      gap: tokens.space.sm
+    },
+    completion: {
+      alignItems: "center",
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.xs,
+      paddingTop: tokens.space.xl
+    },
+    statusRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.sm,
+      marginTop: tokens.space.sm,
+      minHeight: 32
+    },
+    statusDot: {
+      backgroundColor: c.accent,
+      borderRadius: tokens.radius.pill,
+      height: 8,
+      width: 8
+    },
+    arrow: {
+      marginLeft: -tokens.space.xs
+    },
+    textAction: {
+      alignSelf: "flex-start",
+      justifyContent: "center",
+      minHeight: 44,
+      paddingVertical: tokens.space.xs
+    }
+  });

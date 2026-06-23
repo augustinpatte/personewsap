@@ -5,6 +5,11 @@ import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { AppText, EmptyState, PrimaryButton } from "../../../components";
 import { tokens, type ColorToken } from "../../../design/tokens";
 import {
+  useThemeColors,
+  useThemedStyles,
+  type ThemeColors
+} from "../../../design/theme";
+import {
   getDifficultyLabel,
   getReaderCopy,
   getTopicLabel
@@ -131,6 +136,8 @@ function CaseIntro({
   copy: ReaderCopy;
   language: ContentLanguage;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <>
       <AppText color="muted" variant="eyebrow">
@@ -178,6 +185,7 @@ function MiniCaseQuizFlow({
   questions: MiniCaseQuestion[];
 }) {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
   const { language, isItemComplete, markItemsComplete } = useDailyDrop();
   const copy = getReaderCopy(language);
 
@@ -297,12 +305,18 @@ function MiniCaseQuizFlow({
                   answered && !isSelected && !isBest ? styles.optionDimmed : null
                 ]}
               >
-                <View style={styles.optionMarker}>
+                <View
+                  style={[
+                    styles.optionMarker,
+                    showBest ? styles.optionMarkerBest : null,
+                    showWrong ? styles.optionMarkerWrong : null
+                  ]}
+                >
                   <AppText
                     color={showBest ? "success" : showWrong ? "danger" : "muted"}
                     variant="label"
                   >
-                    {String.fromCharCode(65 + optionIndex)}
+                    {showBest ? "✓" : showWrong ? "✕" : String.fromCharCode(65 + optionIndex)}
                   </AppText>
                 </View>
                 <AppText style={styles.optionLabel} variant="body">
@@ -412,6 +426,7 @@ function QuestionFeedback({
   question: MiniCaseQuestion;
   selectedOption: MiniCaseOption | null;
 }) {
+  const styles = useThemedStyles(createStyles);
   const bestOption = question.options.find((option) => option.outcome === "best") ?? null;
   const isCorrect = selectedOption != null && selectedOption.outcome === "best";
 
@@ -504,6 +519,7 @@ function MiniCaseReviewFlow({
   response: MiniCaseResponseRecord | null;
 }) {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
   const { language } = useDailyDrop();
   const copy = getReaderCopy(language);
 
@@ -578,12 +594,18 @@ function MiniCaseReviewFlow({
                   !isBest && !isSelected ? styles.optionDimmed : null
                 ]}
               >
-                <View style={styles.optionMarker}>
+                <View
+                  style={[
+                    styles.optionMarker,
+                    isBest ? styles.optionMarkerBest : null,
+                    showWrong ? styles.optionMarkerWrong : null
+                  ]}
+                >
                   <AppText
                     color={isBest ? "success" : showWrong ? "danger" : "muted"}
                     variant="label"
                   >
-                    {String.fromCharCode(65 + optionIndex)}
+                    {isBest ? "✓" : showWrong ? "✕" : String.fromCharCode(65 + optionIndex)}
                   </AppText>
                 </View>
                 <AppText style={styles.optionLabel} variant="body">
@@ -643,6 +665,8 @@ function MiniCaseReviewFlow({
 
 function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const colors = useThemeColors();
   const { language, isItemComplete, markItemsComplete } = useDailyDrop();
   const copy = getReaderCopy(language);
 
@@ -735,8 +759,8 @@ function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
                 pressed && !locked ? styles.optionPressed : null,
                 showColor
                   ? {
-                      backgroundColor: tokens.color[palette.fill],
-                      borderColor: tokens.color[palette.border]
+                      backgroundColor: colors[palette.fill],
+                      borderColor: colors[palette.border]
                     }
                   : null,
                 locked && !isSelected ? styles.optionDimmed : null
@@ -850,154 +874,161 @@ function firstNonEmpty(...values: Array<string | null | undefined>): string | nu
   return null;
 }
 
-const styles = StyleSheet.create({
-  title: {
-    marginTop: tokens.space.md
-  },
-  situation: {
-    gap: tokens.space.sm,
-    marginTop: tokens.space.xl
-  },
-  constraints: {
-    gap: tokens.space.sm,
-    marginTop: tokens.space.lg
-  },
-  constraintRow: {
-    flexDirection: "row",
-    gap: tokens.space.md
-  },
-  bullet: {
-    backgroundColor: tokens.color.mutedSoft,
-    borderRadius: tokens.radius.pill,
-    height: 6,
-    marginTop: 9,
-    width: 6
-  },
-  constraintText: {
-    flex: 1
-  },
-  quiz: {
-    borderTopColor: tokens.color.borderStrong,
-    borderTopWidth: 1,
-    gap: tokens.space.lg,
-    marginTop: tokens.space.xl,
-    paddingTop: tokens.space.xl
-  },
-  quizHeader: {
-    gap: tokens.space.sm
-  },
-  question: {
-    borderTopColor: tokens.color.borderStrong,
-    borderTopWidth: 1,
-    gap: tokens.space.sm,
-    marginTop: tokens.space.xl,
-    paddingTop: tokens.space.xl
-  },
-  options: {
-    gap: tokens.space.md,
-    marginTop: tokens.space.lg
-  },
-  option: {
-    alignItems: "center",
-    backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.space.md,
-    minHeight: 60,
-    paddingHorizontal: tokens.space.lg,
-    paddingVertical: tokens.space.md
-  },
-  optionPressed: {
-    backgroundColor: tokens.color.surfaceMuted
-  },
-  optionBest: {
-    backgroundColor: tokens.color.successSoft,
-    borderColor: tokens.color.success
-  },
-  optionWrong: {
-    backgroundColor: tokens.color.dangerSoft,
-    borderColor: tokens.color.danger
-  },
-  optionDimmed: {
-    opacity: 0.45
-  },
-  optionMarker: {
-    alignItems: "center",
-    borderColor: tokens.color.borderStrong,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    height: 28,
-    justifyContent: "center",
-    width: 28
-  },
-  optionLabel: {
-    color: tokens.color.ink,
-    flex: 1
-  },
-  feedback: {
-    borderLeftColor: tokens.color.borderStrong,
-    borderLeftWidth: 2,
-    gap: tokens.space.sm,
-    marginTop: tokens.space.sm,
-    paddingLeft: tokens.space.lg
-  },
-  feedbackBody: {
-    color: tokens.color.ink
-  },
-  correctAnswer: {
-    gap: tokens.space.xs,
-    marginTop: tokens.space.xs
-  },
-  results: {
-    borderTopColor: tokens.color.border,
-    borderTopWidth: 1,
-    gap: tokens.space.xl,
-    marginTop: tokens.space.xl,
-    paddingTop: tokens.space.xl
-  },
-  scoreBlock: {
-    alignItems: "flex-start",
-    gap: tokens.space.sm
-  },
-  scoreValue: {
-    marginTop: tokens.space.xs
-  },
-  debrief: {
-    borderTopColor: tokens.color.border,
-    borderTopWidth: 1,
-    gap: tokens.space.xl,
-    marginTop: tokens.space.xl,
-    paddingTop: tokens.space.xl
-  },
-  debriefBlock: {
-    gap: tokens.space.sm
-  },
-  reviewBanner: {
-    backgroundColor: tokens.color.surfaceMuted,
-    borderRadius: tokens.radius.md,
-    gap: tokens.space.xs,
-    marginTop: tokens.space.xl,
-    padding: tokens.space.lg
-  },
-  reviewNav: {
-    flexDirection: "row",
-    gap: tokens.space.sm,
-    marginTop: tokens.space.lg
-  },
-  reviewNavItem: {
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm
-  },
-  reviewNavItemActive: {
-    backgroundColor: tokens.color.surfaceMuted,
-    borderColor: tokens.color.borderStrong
-  },
-  optionTag: {
-    marginLeft: tokens.space.sm
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    title: {
+      marginTop: tokens.space.md
+    },
+    situation: {
+      gap: tokens.space.sm,
+      marginTop: tokens.space.xl
+    },
+    constraints: {
+      gap: tokens.space.sm,
+      marginTop: tokens.space.lg
+    },
+    constraintRow: {
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    bullet: {
+      backgroundColor: c.mutedSoft,
+      borderRadius: tokens.radius.pill,
+      height: 6,
+      marginTop: 9,
+      width: 6
+    },
+    constraintText: {
+      flex: 1
+    },
+    quiz: {
+      borderTopColor: c.borderStrong,
+      borderTopWidth: 1,
+      gap: tokens.space.lg,
+      marginTop: tokens.space.xl,
+      paddingTop: tokens.space.xl
+    },
+    quizHeader: {
+      gap: tokens.space.sm
+    },
+    question: {
+      borderTopColor: c.borderStrong,
+      borderTopWidth: 1,
+      gap: tokens.space.sm,
+      marginTop: tokens.space.xl,
+      paddingTop: tokens.space.xl
+    },
+    options: {
+      gap: tokens.space.md,
+      marginTop: tokens.space.lg
+    },
+    option: {
+      alignItems: "center",
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: tokens.space.md,
+      minHeight: 60,
+      paddingHorizontal: tokens.space.lg,
+      paddingVertical: tokens.space.md
+    },
+    optionPressed: {
+      backgroundColor: c.surfaceMuted
+    },
+    optionBest: {
+      backgroundColor: c.successSoft,
+      borderColor: c.success
+    },
+    optionWrong: {
+      backgroundColor: c.dangerSoft,
+      borderColor: c.danger
+    },
+    optionDimmed: {
+      opacity: 0.45
+    },
+    optionMarker: {
+      alignItems: "center",
+      borderColor: c.borderStrong,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      height: 28,
+      justifyContent: "center",
+      width: 28
+    },
+    optionMarkerBest: {
+      borderColor: c.success
+    },
+    optionMarkerWrong: {
+      borderColor: c.danger
+    },
+    optionLabel: {
+      color: c.ink,
+      flex: 1
+    },
+    feedback: {
+      borderLeftColor: c.borderStrong,
+      borderLeftWidth: 2,
+      gap: tokens.space.sm,
+      marginTop: tokens.space.sm,
+      paddingLeft: tokens.space.lg
+    },
+    feedbackBody: {
+      color: c.ink
+    },
+    correctAnswer: {
+      gap: tokens.space.xs,
+      marginTop: tokens.space.xs
+    },
+    results: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.xl,
+      marginTop: tokens.space.xl,
+      paddingTop: tokens.space.xl
+    },
+    scoreBlock: {
+      alignItems: "flex-start",
+      gap: tokens.space.sm
+    },
+    scoreValue: {
+      marginTop: tokens.space.xs
+    },
+    debrief: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.xl,
+      marginTop: tokens.space.xl,
+      paddingTop: tokens.space.xl
+    },
+    debriefBlock: {
+      gap: tokens.space.sm
+    },
+    reviewBanner: {
+      backgroundColor: c.surfaceMuted,
+      borderRadius: tokens.radius.md,
+      gap: tokens.space.xs,
+      marginTop: tokens.space.xl,
+      padding: tokens.space.lg
+    },
+    reviewNav: {
+      flexDirection: "row",
+      gap: tokens.space.sm,
+      marginTop: tokens.space.lg
+    },
+    reviewNavItem: {
+      borderColor: c.border,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.sm
+    },
+    reviewNavItemActive: {
+      backgroundColor: c.surfaceMuted,
+      borderColor: c.borderStrong
+    },
+    optionTag: {
+      marginLeft: tokens.space.sm
+    }
+  });

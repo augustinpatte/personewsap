@@ -8,6 +8,7 @@ import {
 } from "react-native";
 
 import { tokens } from "../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../design/theme";
 
 type CardTone = "default" | "muted" | "accent";
 type CardPadding = "none" | "sm" | "md" | "lg";
@@ -29,6 +30,8 @@ export function Card({
   children,
   ...viewProps
 }: CardProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View
       {...viewProps}
@@ -45,34 +48,35 @@ export function Card({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    gap: tokens.space.md
-  },
-  default: {
-    backgroundColor: tokens.color.surface
-  },
-  muted: {
-    backgroundColor: tokens.color.backgroundRaised
-  },
-  accent: {
-    backgroundColor: tokens.color.accentSoft,
-    borderColor: tokens.color.accentSoft
-  },
-  nonePadding: {
-    padding: tokens.space.none
-  },
-  smPadding: {
-    padding: tokens.space.md
-  },
-  mdPadding: {
-    padding: tokens.space.lg
-  },
-  lgPadding: {
-    padding: tokens.space.xl
-  },
-  elevated: tokens.shadow.md
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    base: {
+      borderColor: c.border,
+      borderRadius: tokens.radius.lg,
+      borderWidth: 1,
+      gap: tokens.space.md
+    },
+    default: {
+      backgroundColor: c.surface
+    },
+    muted: {
+      backgroundColor: c.backgroundRaised
+    },
+    accent: {
+      backgroundColor: c.accentSoft,
+      borderColor: c.accentSoft
+    },
+    nonePadding: {
+      padding: tokens.space.none
+    },
+    smPadding: {
+      padding: tokens.space.md
+    },
+    mdPadding: {
+      padding: tokens.space.lg
+    },
+    lgPadding: {
+      padding: tokens.space.xl
+    },
+    elevated: tokens.shadow.md
+  });

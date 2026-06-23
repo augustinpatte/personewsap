@@ -10,6 +10,7 @@ import {
 
 import { AppScreen, AppText, EmptyState } from "../../src/components";
 import { tokens } from "../../src/design/tokens";
+import { useThemeColors, useThemedStyles, type ThemeColors } from "../../src/design/theme";
 import { useAuth } from "../../src/features/auth";
 import { fetchLibraryDrops, type LibraryDropSummary, type LibraryItemSummary } from "../../src/features/library";
 import type { ContentType } from "../../src/features/today";
@@ -64,6 +65,8 @@ export default function LibraryScreen() {
   });
   const uiLanguage = profileLanguage ?? loadState.drops[0]?.language ?? "en";
   const copy = getLibraryCopy(uiLanguage);
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
 
   const loadLibraryDrops = useCallback(
     async (isActive: () => boolean = () => true) => {
@@ -226,7 +229,7 @@ export default function LibraryScreen() {
             accessibilityLabel={copy.searchAccessibility}
             onChangeText={setSearchQuery}
             placeholder={copy.searchPlaceholder}
-            placeholderTextColor={tokens.color.muted}
+            placeholderTextColor={colors.muted}
             returnKeyType="search"
             style={styles.searchInput}
             value={searchQuery}
@@ -283,6 +286,8 @@ function getItemsForDrops(drops: LibraryDropSummary[]) {
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.stat}>
       <AppText variant="title">{value}</AppText>
@@ -301,6 +306,7 @@ type FilterChipProps = {
 };
 
 function FilterChip({ active, label, onPress, style }: FilterChipProps) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -331,6 +337,7 @@ type ArchiveDropGroupProps = {
 };
 
 function ArchiveDropGroup({ drop, items, language }: ArchiveDropGroupProps) {
+  const styles = useThemedStyles(createStyles);
   const topicLine = drop.topics
     .map((topic) => getTopicLabel(topic, language))
     .join(" · ");
@@ -495,108 +502,109 @@ function getLibraryCopy(language: Language) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    paddingBottom: tokens.space.xxl
-  },
-  headerCopy: {
-    gap: tokens.space.sm
-  },
-  statStrip: {
-    alignItems: "center",
-    flexDirection: "row"
-  },
-  stat: {
-    alignItems: "center",
-    flex: 1,
-    gap: tokens.space.xs
-  },
-  statDivider: {
-    backgroundColor: tokens.color.border,
-    height: 40,
-    width: 1
-  },
-  shelf: {
-    gap: tokens.space.md
-  },
-  shelfList: {
-    gap: tokens.space.sm
-  },
-  shelfRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
-  },
-  controls: {
-    gap: tokens.space.md
-  },
-  searchInput: {
-    backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    color: tokens.color.ink,
-    fontSize: tokens.typography.size.body,
-    minHeight: 50,
-    paddingHorizontal: tokens.space.lg,
-    paddingVertical: tokens.space.md
-  },
-  filterChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: tokens.space.sm
-  },
-  filterChip: {
-    backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    minHeight: 40,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm
-  },
-  filterChipActive: {
-    backgroundColor: tokens.color.accentSoft,
-    borderColor: tokens.color.accent
-  },
-  filterChipPressed: {
-    backgroundColor: tokens.color.surfaceMuted
-  },
-  archiveSection: {
-    gap: tokens.space.xl
-  },
-  dropGroup: {
-    borderTopColor: tokens.color.border,
-    borderTopWidth: 1,
-    gap: tokens.space.lg,
-    paddingTop: tokens.space.lg
-  },
-  dropHeader: {
-    gap: tokens.space.xs
-  },
-  itemList: {
-    gap: tokens.space.lg
-  },
-  itemRow: {
-    flexDirection: "row",
-    gap: tokens.space.md
-  },
-  itemDot: {
-    backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.borderStrong,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    height: 8,
-    marginTop: 7,
-    width: 8
-  },
-  itemDotComplete: {
-    backgroundColor: tokens.color.ink,
-    borderColor: tokens.color.ink
-  },
-  itemCopy: {
-    flex: 1,
-    gap: tokens.space.xs
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    screen: {
+      paddingBottom: tokens.space.xxl
+    },
+    headerCopy: {
+      gap: tokens.space.sm
+    },
+    statStrip: {
+      alignItems: "center",
+      flexDirection: "row"
+    },
+    stat: {
+      alignItems: "center",
+      flex: 1,
+      gap: tokens.space.xs
+    },
+    statDivider: {
+      backgroundColor: c.border,
+      height: 40,
+      width: 1
+    },
+    shelf: {
+      gap: tokens.space.md
+    },
+    shelfList: {
+      gap: tokens.space.sm
+    },
+    shelfRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md,
+      justifyContent: "space-between"
+    },
+    controls: {
+      gap: tokens.space.md
+    },
+    searchInput: {
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      color: c.ink,
+      fontSize: tokens.typography.size.body,
+      minHeight: 50,
+      paddingHorizontal: tokens.space.lg,
+      paddingVertical: tokens.space.md
+    },
+    filterChips: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: tokens.space.sm
+    },
+    filterChip: {
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      minHeight: 40,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.sm
+    },
+    filterChipActive: {
+      backgroundColor: c.accentSoft,
+      borderColor: c.accent
+    },
+    filterChipPressed: {
+      backgroundColor: c.surfaceMuted
+    },
+    archiveSection: {
+      gap: tokens.space.xl
+    },
+    dropGroup: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.lg,
+      paddingTop: tokens.space.lg
+    },
+    dropHeader: {
+      gap: tokens.space.xs
+    },
+    itemList: {
+      gap: tokens.space.lg
+    },
+    itemRow: {
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    itemDot: {
+      backgroundColor: c.surface,
+      borderColor: c.borderStrong,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      height: 8,
+      marginTop: 7,
+      width: 8
+    },
+    itemDotComplete: {
+      backgroundColor: c.accent,
+      borderColor: c.accent
+    },
+    itemCopy: {
+      flex: 1,
+      gap: tokens.space.xs
+    }
+  });

@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { AppText, EmptyState, PrimaryButton } from "../../../components";
 import { tokens } from "../../../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../../design/theme";
 import {
   estimateReadMinutes,
   formatDropDate,
@@ -11,10 +12,12 @@ import {
   splitParagraphs
 } from "../contentCopy";
 import { useDailyDrop } from "../DailyDropContext";
+import { DropCapParagraph } from "./DropCapParagraph";
 import { ReaderScaffold } from "./ReaderScaffold";
 
 export function NewsletterReader({ articleId }: { articleId: string }) {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
   const { language, getItemById, isItemComplete, markItemsComplete } = useDailyDrop();
   const copy = getReaderCopy(language);
 
@@ -73,53 +76,53 @@ export function NewsletterReader({ articleId }: { articleId: string }) {
       <View style={styles.rule} />
 
       <View style={styles.body}>
-        {paragraphs.map((paragraph, index) => (
-          <AppText key={index} variant="read">
-            {paragraph}
-          </AppText>
-        ))}
+        {paragraphs.map((paragraph, index) =>
+          index === 0 ? (
+            <DropCapParagraph key={index} text={paragraph} />
+          ) : (
+            <AppText key={index} variant="read">
+              {paragraph}
+            </AppText>
+          )
+        )}
       </View>
 
       <View style={styles.matters}>
-        <AppText color="muted" variant="eyebrow">
+        <AppText color="accentInk" variant="eyebrow">
           {copy.whyItMatters}
         </AppText>
-        <AppText style={styles.mattersBody} variant="quote">
-          {item.why_it_matters}
-        </AppText>
+        <AppText variant="pullQuote">{item.why_it_matters}</AppText>
       </View>
     </ReaderScaffold>
   );
 }
 
-const styles = StyleSheet.create({
-  headline: {
-    marginTop: tokens.space.md
-  },
-  dateline: {
-    marginTop: tokens.space.sm,
-    textTransform: "capitalize"
-  },
-  lede: {
-    marginTop: tokens.space.lg
-  },
-  rule: {
-    backgroundColor: tokens.color.borderStrong,
-    height: 1,
-    marginVertical: tokens.space.xl,
-    width: 48
-  },
-  body: {
-    gap: tokens.space.lg
-  },
-  matters: {
-    borderLeftColor: tokens.color.accent,
-    borderLeftWidth: 2,
-    gap: tokens.space.sm,
-    marginTop: tokens.space.xxl,
-    paddingLeft: tokens.space.lg
-  },
-  mattersBody: {
-    color: tokens.color.ink
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    headline: {
+      marginTop: tokens.space.md
+    },
+    dateline: {
+      marginTop: tokens.space.sm,
+      textTransform: "capitalize"
+    },
+    lede: {
+      marginTop: tokens.space.lg
+    },
+    rule: {
+      backgroundColor: c.borderStrong,
+      height: 1,
+      marginVertical: tokens.space.xl,
+      width: 48
+    },
+    body: {
+      gap: tokens.space.lg
+    },
+    matters: {
+      borderLeftColor: c.accent,
+      borderLeftWidth: 2,
+      gap: tokens.space.md,
+      marginTop: tokens.space.xxl,
+      paddingLeft: tokens.space.lg
+    }
+  });

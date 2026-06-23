@@ -1,6 +1,7 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { tokens } from "../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../design/theme";
 import { AppText } from "./AppText";
 import { PrimaryButton } from "./PrimaryButton";
 import { SecondaryButton } from "./SecondaryButton";
@@ -26,6 +27,8 @@ export function EmptyState({
   onSecondaryActionPress,
   style
 }: EmptyStateProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={[styles.container, style]}>
       <View style={styles.copy}>
@@ -49,21 +52,22 @@ export function EmptyState({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: "stretch",
-    backgroundColor: tokens.color.backgroundRaised,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    gap: tokens.space.lg,
-    padding: tokens.space.xl
-  },
-  copy: {
-    alignItems: "center",
-    gap: tokens.space.sm
-  },
-  actions: {
-    gap: tokens.space.sm
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      alignItems: "stretch",
+      backgroundColor: c.backgroundRaised,
+      borderColor: c.border,
+      borderRadius: tokens.radius.lg,
+      borderWidth: 1,
+      gap: tokens.space.lg,
+      padding: tokens.space.xl
+    },
+    copy: {
+      alignItems: "center",
+      gap: tokens.space.sm
+    },
+    actions: {
+      gap: tokens.space.sm
+    }
+  });

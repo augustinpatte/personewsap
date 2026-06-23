@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { tokens } from "../design/tokens";
+import { useThemeColors, useThemedStyles, type ThemeColors } from "../design/theme";
 import { AppText } from "./AppText";
 
 type PrimaryButtonProps = {
@@ -36,6 +37,8 @@ export function PrimaryButton({
   style
 }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <Pressable
@@ -53,8 +56,8 @@ export function PrimaryButton({
       ]}
     >
       <View style={styles.content}>
-        {loading ? <ActivityIndicator color={tokens.color.white} size="small" /> : leftAccessory}
-        <AppText color="white" style={styles.label} variant="label">
+        {loading ? <ActivityIndicator color={colors.onAccent} size="small" /> : leftAccessory}
+        <AppText color="onAccent" style={styles.label} variant="label">
           {label}
         </AppText>
         {rightAccessory ? <View style={styles.accessory}>{rightAccessory}</View> : null}
@@ -63,33 +66,34 @@ export function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
-  button: {
-    alignItems: "center",
-    backgroundColor: tokens.color.accent,
-    borderRadius: tokens.radius.md,
-    minHeight: 52,
-    justifyContent: "center",
-    paddingHorizontal: tokens.space.lg,
-    paddingVertical: tokens.space.md
-  },
-  pressed: {
-    backgroundColor: tokens.color.accentPressed
-  },
-  disabled: {
-    backgroundColor: tokens.color.mutedSoft
-  },
-  content: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.sm,
-    justifyContent: "center"
-  },
-  label: {
-    textAlign: "center"
-  },
-  accessory: {
-    alignItems: "center",
-    justifyContent: "center"
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    button: {
+      alignItems: "center",
+      backgroundColor: c.accent,
+      borderRadius: tokens.radius.md,
+      minHeight: 52,
+      justifyContent: "center",
+      paddingHorizontal: tokens.space.lg,
+      paddingVertical: tokens.space.md
+    },
+    pressed: {
+      backgroundColor: c.accentPressed
+    },
+    disabled: {
+      backgroundColor: c.mutedSoft
+    },
+    content: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.sm,
+      justifyContent: "center"
+    },
+    label: {
+      textAlign: "center"
+    },
+    accessory: {
+      alignItems: "center",
+      justifyContent: "center"
+    }
+  });

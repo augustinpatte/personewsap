@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText, Card } from "../../components";
 import { tokens } from "../../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import {
   MAX_NEWSLETTER_ARTICLES_PER_TOPIC,
   MIN_NEWSLETTER_ARTICLES_PER_TOPIC
@@ -30,6 +31,8 @@ export function ArticleCountRow({
   countLabel,
   onChange
 }: ArticleCountRowProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Card padding="md">
       <View style={styles.header}>
@@ -56,7 +59,7 @@ export function ArticleCountRow({
               onPress={() => onChange(option)}
               style={[styles.countButton, selected ? styles.selectedCountButton : null]}
             >
-              <AppText color={selected ? "white" : "accentInk"} variant="label">
+              <AppText color={selected ? "onAccent" : "accentInk"} variant="label">
                 {option}
               </AppText>
             </Pressable>
@@ -67,33 +70,34 @@ export function ArticleCountRow({
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: tokens.space.md,
-    justifyContent: "space-between"
-  },
-  copy: {
-    flex: 1,
-    gap: tokens.space.xs
-  },
-  controls: {
-    flexDirection: "row",
-    gap: tokens.space.sm
-  },
-  countButton: {
-    alignItems: "center",
-    backgroundColor: tokens.color.surfaceMuted,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 44,
-    justifyContent: "center"
-  },
-  selectedCountButton: {
-    backgroundColor: tokens.color.accent,
-    borderColor: tokens.color.accent
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    header: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: tokens.space.md,
+      justifyContent: "space-between"
+    },
+    copy: {
+      flex: 1,
+      gap: tokens.space.xs
+    },
+    controls: {
+      flexDirection: "row",
+      gap: tokens.space.sm
+    },
+    countButton: {
+      alignItems: "center",
+      backgroundColor: c.surfaceMuted,
+      borderColor: c.border,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      flex: 1,
+      minHeight: 44,
+      justifyContent: "center"
+    },
+    selectedCountButton: {
+      backgroundColor: c.accent,
+      borderColor: c.accent
+    }
+  });

@@ -1,14 +1,16 @@
 import { Stack } from "expo-router";
 
-import { tokens } from "../../src/design/tokens";
+import { useThemeColors } from "../../src/design";
 
 export default function ReaderLayout() {
+  const colors = useThemeColors();
+
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
-        contentStyle: { backgroundColor: tokens.color.background }
+        contentStyle: { backgroundColor: colors.background }
       }}
     />
   );

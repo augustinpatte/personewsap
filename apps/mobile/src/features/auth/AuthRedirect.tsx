@@ -2,7 +2,7 @@ import { Redirect } from "expo-router";
 import { ActivityIndicator } from "react-native";
 
 import { AppScreen, AppText, Card, PrimaryButton } from "../../components";
-import { tokens } from "../../design/tokens";
+import { useThemeColors } from "../../design/theme";
 import { localized } from "../../lib/i18n";
 import { getUserFacingError } from "../../lib/userFacingErrors";
 import type { Language } from "../../types/domain";
@@ -13,6 +13,7 @@ export function AuthLoadingScreen({
 }: {
   language?: Language | null;
 }) {
+  const colors = useThemeColors();
   const copy = getAuthRedirectCopy(language);
 
   return (
@@ -20,7 +21,7 @@ export function AuthLoadingScreen({
       <Card elevated padding="lg">
         <AppText variant="eyebrow">PersoNewsAP</AppText>
         <AppText variant="title">{copy.loadingTitle}</AppText>
-        <ActivityIndicator color={tokens.color.accent} />
+        <ActivityIndicator color={colors.accent} />
         <AppText color="muted" variant="body">
           {copy.loadingDescription}
         </AppText>

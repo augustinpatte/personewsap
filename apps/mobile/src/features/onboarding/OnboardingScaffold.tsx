@@ -15,6 +15,7 @@ import {
   SecondaryButton
 } from "../../components";
 import { tokens } from "../../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../design/theme";
 
 type OnboardingScaffoldProps = PropsWithChildren<{
   step: number;
@@ -48,6 +49,8 @@ export function OnboardingScaffold({
   contentStyle,
   children
 }: OnboardingScaffoldProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -88,34 +91,35 @@ export function OnboardingScaffold({
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: tokens.color.background,
-    flex: 1
-  },
-  scrollContent: {
-    flexGrow: 1,
-    gap: tokens.space.xl,
-    paddingBottom: tokens.space.lg,
-    paddingHorizontal: tokens.space.lg,
-    paddingTop: tokens.space.xl
-  },
-  header: {
-    gap: tokens.space.sm
-  },
-  copy: {
-    gap: tokens.space.sm
-  },
-  body: {
-    gap: tokens.space.md
-  },
-  footer: {
-    backgroundColor: tokens.color.background,
-    borderTopColor: tokens.color.border,
-    borderTopWidth: 1,
-    gap: tokens.space.sm,
-    paddingBottom: tokens.space.md,
-    paddingHorizontal: tokens.space.lg,
-    paddingTop: tokens.space.md
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    safeArea: {
+      backgroundColor: c.background,
+      flex: 1
+    },
+    scrollContent: {
+      flexGrow: 1,
+      gap: tokens.space.xl,
+      paddingBottom: tokens.space.lg,
+      paddingHorizontal: tokens.space.lg,
+      paddingTop: tokens.space.xl
+    },
+    header: {
+      gap: tokens.space.sm
+    },
+    copy: {
+      gap: tokens.space.sm
+    },
+    body: {
+      gap: tokens.space.md
+    },
+    footer: {
+      backgroundColor: c.background,
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.sm,
+      paddingBottom: tokens.space.md,
+      paddingHorizontal: tokens.space.lg,
+      paddingTop: tokens.space.md
+    }
+  });

@@ -1,12 +1,13 @@
 import { Redirect, Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { tokens } from "../../src/design/tokens";
+import { useTheme } from "../../src/design";
 import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
 import { localized } from "../../src/lib/i18n";
 
 export default function TabsLayout() {
   const { profileLanguage, status } = useAuth();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 16);
   const copy = localized(
@@ -41,11 +42,11 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: tokens.color.ink,
-        tabBarInactiveTintColor: tokens.color.muted,
+        tabBarActiveTintColor: colors.ink,
+        tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
-          backgroundColor: tokens.color.surface,
-          borderTopColor: tokens.color.border,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
           height: 64 + bottomInset,
           paddingBottom: bottomInset,
           paddingTop: 10

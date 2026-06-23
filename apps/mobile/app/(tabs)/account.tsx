@@ -8,6 +8,7 @@ import { Card } from "../../src/components/Card";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { SecondaryButton } from "../../src/components/SecondaryButton";
 import { tokens } from "../../src/design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../src/design/theme";
 import {
   exportAuthenticatedUserData,
   requestAuthenticatedAccountDeletion
@@ -40,6 +41,7 @@ export default function AccountScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteRequestMessage, setDeleteRequestMessage] = useState<string | null>(null);
   const [signOutError, setSignOutError] = useState<NormalizedSupabaseError | null>(null);
+  const styles = useThemedStyles(createStyles);
   const copy = getAccountCopy(profileLanguage);
   const visibleAccountError = signOutError ?? error;
   const userFacingAccountError = visibleAccountError
@@ -275,6 +277,8 @@ function InfoRow({
   selectable?: boolean;
   value: string;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.row}>
       <AppText color="muted" style={styles.rowLabel} variant="caption">
@@ -359,46 +363,47 @@ function getAccountCopy(language: string | null) {
   );
 }
 
-const styles = StyleSheet.create({
-  actions: {
-    gap: tokens.space.md
-  },
-  headerCopy: {
-    gap: tokens.space.sm
-  },
-  heroCard: {
-    gap: tokens.space.lg
-  },
-  connectionCard: {
-    gap: tokens.space.sm
-  },
-  deleteModal: {
-    gap: tokens.space.lg,
-    maxWidth: 420,
-    width: "100%"
-  },
-  linkActions: {
-    gap: tokens.space.sm
-  },
-  modalOverlay: {
-    alignItems: "center",
-    backgroundColor: "rgba(17, 24, 39, 0.44)",
-    flex: 1,
-    justifyContent: "center",
-    padding: tokens.space.lg
-  },
-  monospace: {
-    fontFamily: "Courier",
-    fontSize: 13,
-    lineHeight: 19
-  },
-  row: {
-    gap: tokens.space.xs
-  },
-  rowLabel: {
-    textTransform: "uppercase"
-  },
-  rowValue: {
-    flexShrink: 1
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    actions: {
+      gap: tokens.space.md
+    },
+    headerCopy: {
+      gap: tokens.space.sm
+    },
+    heroCard: {
+      gap: tokens.space.lg
+    },
+    connectionCard: {
+      gap: tokens.space.sm
+    },
+    deleteModal: {
+      gap: tokens.space.lg,
+      maxWidth: 420,
+      width: "100%"
+    },
+    linkActions: {
+      gap: tokens.space.sm
+    },
+    modalOverlay: {
+      alignItems: "center",
+      backgroundColor: c.scrim,
+      flex: 1,
+      justifyContent: "center",
+      padding: tokens.space.lg
+    },
+    monospace: {
+      fontFamily: "Courier",
+      fontSize: 13,
+      lineHeight: 19
+    },
+    row: {
+      gap: tokens.space.xs
+    },
+    rowLabel: {
+      textTransform: "uppercase"
+    },
+    rowValue: {
+      flexShrink: 1
+    }
+  });

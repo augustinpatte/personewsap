@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 import { AppText, PrimaryButton, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
+import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { localized } from "../../lib/i18n";
 import { getUserFacingErrorMessage } from "../../lib/userFacingErrors";
@@ -55,6 +56,8 @@ export function PreferencesEditor({
   // if the counter has advanced during the save's async work, a fresher load
   // already committed state and the save result should not overwrite it.
   const loadGenerationRef = useRef(0);
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
   const uiLanguage = draft?.language ?? saved?.language ?? preferredUiLanguage ?? "en";
   const copy = getPreferencesCopy(uiLanguage);
   const languageOptions = useMemo(
@@ -282,7 +285,7 @@ export function PreferencesEditor({
   if (loading && !draft) {
     return (
       <View style={[styles.section, styles.loadingSection]}>
-        <ActivityIndicator color={tokens.color.accent} />
+        <ActivityIndicator color={colors.accent} />
         <AppText color="muted" variant="body">
           {copy.loading}
         </AppText>
@@ -309,7 +312,7 @@ export function PreferencesEditor({
     <View style={styles.section}>
       <View style={styles.header}>
         <AppText variant="subtitle">{copy.title}</AppText>
-        {loading ? <ActivityIndicator color={tokens.color.accent} size="small" /> : null}
+        {loading ? <ActivityIndicator color={colors.accent} size="small" /> : null}
       </View>
 
       <PreferenceGroup title={copy.language}>
@@ -485,6 +488,8 @@ function SegmentedControl({
   options: Array<{ id: PreferencesTab; label: string; attention?: boolean }>;
   value: PreferencesTab;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View accessibilityRole="tablist" style={styles.segment}>
       {options.map((option) => {
@@ -510,6 +515,8 @@ function SegmentedControl({
 }
 
 function PreferenceGroup({ children, title }: { children: ReactNode; title: string }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.group}>
       <AppText color="muted" style={styles.groupTitle} variant="caption">
@@ -679,60 +686,61 @@ function getChangedMiniCaseTopics(
   return changedTopics;
 }
 
-const styles = StyleSheet.create({
-  actions: {
-    gap: tokens.space.md
-  },
-  group: {
-    gap: tokens.space.md
-  },
-  groupTitle: {
-    textTransform: "uppercase"
-  },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.sm,
-    justifyContent: "space-between"
-  },
-  loadingSection: {
-    alignItems: "center",
-    paddingVertical: tokens.space.xl
-  },
-  section: {
-    gap: tokens.space.lg
-  },
-  segment: {
-    backgroundColor: tokens.color.surfaceMuted,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.space.xs,
-    padding: tokens.space.xs
-  },
-  segmentDot: {
-    backgroundColor: tokens.color.warning,
-    borderRadius: tokens.radius.pill,
-    height: 6,
-    width: 6
-  },
-  segmentItem: {
-    alignItems: "center",
-    borderColor: tokens.color.transparent,
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: "row",
-    gap: tokens.space.xs,
-    justifyContent: "center",
-    paddingVertical: tokens.space.sm
-  },
-  segmentItemActive: {
-    backgroundColor: tokens.color.background,
-    borderColor: tokens.color.borderStrong
-  },
-  tabBody: {
-    gap: tokens.space.lg
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    actions: {
+      gap: tokens.space.md
+    },
+    group: {
+      gap: tokens.space.md
+    },
+    groupTitle: {
+      textTransform: "uppercase"
+    },
+    header: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.sm,
+      justifyContent: "space-between"
+    },
+    loadingSection: {
+      alignItems: "center",
+      paddingVertical: tokens.space.xl
+    },
+    section: {
+      gap: tokens.space.lg
+    },
+    segment: {
+      backgroundColor: c.surfaceMuted,
+      borderColor: c.border,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: tokens.space.xs,
+      padding: tokens.space.xs
+    },
+    segmentDot: {
+      backgroundColor: c.warning,
+      borderRadius: tokens.radius.pill,
+      height: 6,
+      width: 6
+    },
+    segmentItem: {
+      alignItems: "center",
+      borderColor: c.transparent,
+      borderRadius: tokens.radius.sm,
+      borderWidth: 1,
+      flex: 1,
+      flexDirection: "row",
+      gap: tokens.space.xs,
+      justifyContent: "center",
+      paddingVertical: tokens.space.sm
+    },
+    segmentItemActive: {
+      backgroundColor: c.accentSoft,
+      borderColor: c.accent
+    },
+    tabBody: {
+      gap: tokens.space.lg
+    }
+  });

@@ -9,6 +9,7 @@ import {
 } from "react-native";
 
 import { tokens } from "../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../design/theme";
 import { AppText } from "./AppText";
 
 type SecondaryButtonProps = {
@@ -32,6 +33,8 @@ export function SecondaryButton({
   testID,
   style
 }: SecondaryButtonProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel ?? label}
@@ -58,33 +61,34 @@ export function SecondaryButton({
   );
 }
 
-const styles = StyleSheet.create({
-  button: {
-    alignItems: "center",
-    backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.borderStrong,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    minHeight: 52,
-    justifyContent: "center",
-    paddingHorizontal: tokens.space.lg,
-    paddingVertical: tokens.space.md
-  },
-  pressed: {
-    backgroundColor: tokens.color.accentSoft,
-    borderColor: tokens.color.accent
-  },
-  disabled: {
-    backgroundColor: tokens.color.surfaceMuted,
-    borderColor: tokens.color.border
-  },
-  content: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.sm,
-    justifyContent: "center"
-  },
-  label: {
-    textAlign: "center"
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    button: {
+      alignItems: "center",
+      backgroundColor: c.surface,
+      borderColor: c.borderStrong,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      minHeight: 52,
+      justifyContent: "center",
+      paddingHorizontal: tokens.space.lg,
+      paddingVertical: tokens.space.md
+    },
+    pressed: {
+      backgroundColor: c.accentSoft,
+      borderColor: c.accent
+    },
+    disabled: {
+      backgroundColor: c.surfaceMuted,
+      borderColor: c.border
+    },
+    content: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.sm,
+      justifyContent: "center"
+    },
+    label: {
+      textAlign: "center"
+    }
+  });

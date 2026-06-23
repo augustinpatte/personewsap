@@ -3,12 +3,15 @@ import { StyleSheet, View } from "react-native";
 
 import { AppText, EmptyState, PrimaryButton } from "../../../components";
 import { tokens } from "../../../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../../design/theme";
 import { estimateReadMinutes, getReaderCopy } from "../contentCopy";
 import { useDailyDrop } from "../DailyDropContext";
+import { DropCapParagraph } from "./DropCapParagraph";
 import { ReaderScaffold } from "./ReaderScaffold";
 
 export function BusinessStoryReader({ storyId }: { storyId: string }) {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
   const { language, getItemById, isItemComplete, markItemsComplete } = useDailyDrop();
   const copy = getReaderCopy(language);
 
@@ -75,24 +78,27 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
                 {chapter.label}
               </AppText>
             </View>
-            <AppText variant="read">{chapter.body}</AppText>
+            {index === 0 ? (
+              <DropCapParagraph text={chapter.body} />
+            ) : (
+              <AppText variant="read">{chapter.body}</AppText>
+            )}
           </View>
         ))}
       </View>
 
       <View style={styles.lesson}>
-        <AppText color="muted" variant="eyebrow">
+        <AppText color="accentInk" variant="eyebrow">
           {copy.lesson}
         </AppText>
-        <AppText style={styles.lessonBody} variant="quote">
-          {item.lesson}
-        </AppText>
+        <AppText variant="pullQuote">{item.lesson}</AppText>
       </View>
     </ReaderScaffold>
   );
 }
 
 function Monogram({ label }: { label: string }) {
+  const styles = useThemedStyles(createStyles);
   const initial = label.trim().charAt(0).toUpperCase() || "•";
 
   return (
@@ -104,50 +110,48 @@ function Monogram({ label }: { label: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  identity: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.md,
-    marginTop: tokens.space.sm
-  },
-  monogram: {
-    alignItems: "center",
-    borderColor: tokens.color.borderStrong,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    height: 40,
-    justifyContent: "center",
-    width: 40
-  },
-  title: {
-    marginTop: tokens.space.lg
-  },
-  chapters: {
-    gap: tokens.space.xl,
-    marginTop: tokens.space.xl
-  },
-  chapter: {
-    gap: tokens.space.sm
-  },
-  chapterHead: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.md
-  },
-  chapterNumber: {
-    letterSpacing: 1.4
-  },
-  lesson: {
-    backgroundColor: tokens.color.surface,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    gap: tokens.space.sm,
-    marginTop: tokens.space.xxl,
-    padding: tokens.space.xl
-  },
-  lessonBody: {
-    color: tokens.color.ink
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    identity: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md,
+      marginTop: tokens.space.sm
+    },
+    monogram: {
+      alignItems: "center",
+      borderColor: c.borderStrong,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      height: 40,
+      justifyContent: "center",
+      width: 40
+    },
+    title: {
+      marginTop: tokens.space.lg
+    },
+    chapters: {
+      gap: tokens.space.xl,
+      marginTop: tokens.space.xl
+    },
+    chapter: {
+      gap: tokens.space.sm
+    },
+    chapterHead: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    chapterNumber: {
+      letterSpacing: 1.4
+    },
+    lesson: {
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderRadius: tokens.radius.lg,
+      borderWidth: 1,
+      gap: tokens.space.md,
+      marginTop: tokens.space.xxl,
+      padding: tokens.space.xl
+    }
+  });

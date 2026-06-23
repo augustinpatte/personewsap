@@ -7,7 +7,8 @@ import {
   type TextStyle
 } from "react-native";
 
-import { tokens, type ColorToken } from "../design/tokens";
+import { tokens } from "../design/tokens";
+import { useThemeColors, type ThemeColorToken } from "../design/theme";
 
 type AppTextVariant =
   | "display"
@@ -16,16 +17,34 @@ type AppTextVariant =
   | "lede"
   | "read"
   | "quote"
+  | "pullQuote"
   | "body"
   | "bodyStrong"
   | "label"
   | "caption"
   | "eyebrow";
 
+// Each variant carries a default semantic color that is resolved against the
+// active theme at render time. An explicit `color` prop always wins.
+const variantColor: Record<AppTextVariant, ThemeColorToken> = {
+  display: "ink",
+  title: "ink",
+  subtitle: "ink",
+  lede: "inkSoft",
+  read: "ink",
+  quote: "ink",
+  pullQuote: "ink",
+  body: "inkSoft",
+  bodyStrong: "ink",
+  label: "ink",
+  caption: "muted",
+  eyebrow: "muted"
+};
+
 type AppTextProps = PropsWithChildren<
   TextProps & {
     variant?: AppTextVariant;
-    color?: ColorToken;
+    color?: ThemeColorToken;
     align?: TextStyle["textAlign"];
     style?: StyleProp<TextStyle>;
   }
@@ -39,13 +58,16 @@ export function AppText({
   children,
   ...textProps
 }: AppTextProps) {
+  const colors = useThemeColors();
+  const resolvedColor = colors[color ?? variantColor[variant]];
+
   return (
     <Text
       {...textProps}
       style={[
         styles.base,
         styles[variant],
-        color ? { color: tokens.color[color] } : null,
+        { color: resolvedColor },
         align ? { textAlign: align } : null,
         style
       ]}
@@ -55,9 +77,10 @@ export function AppText({
   );
 }
 
+// Structural styles only — no color lives here so the same StyleSheet serves
+// both light and dark. Color is injected per-render from the theme above.
 const styles = StyleSheet.create({
   base: {
-    color: tokens.color.ink,
     fontFamily: tokens.typography.family.regular,
     letterSpacing: 0
   },
@@ -65,7 +88,7 @@ const styles = StyleSheet.create({
     fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.display,
     fontWeight: tokens.typography.weight.bold,
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
     lineHeight: tokens.typography.lineHeight.display
   },
   title: {
@@ -76,41 +99,44 @@ const styles = StyleSheet.create({
     lineHeight: tokens.typography.lineHeight.title
   },
   subtitle: {
-    color: tokens.color.ink,
     fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.subtitle,
     fontWeight: tokens.typography.weight.semibold,
+    letterSpacing: -0.2,
     lineHeight: tokens.typography.lineHeight.subtitle
   },
   lede: {
-    color: tokens.color.inkSoft,
     fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.lede,
     fontWeight: tokens.typography.weight.regular,
     lineHeight: tokens.typography.lineHeight.lede
   },
   read: {
-    color: tokens.color.ink,
     fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.read,
     fontWeight: tokens.typography.weight.regular,
     lineHeight: tokens.typography.lineHeight.read
   },
   quote: {
-    color: tokens.color.ink,
     fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.quote,
     fontWeight: tokens.typography.weight.medium,
     lineHeight: tokens.typography.lineHeight.quote
   },
+  pullQuote: {
+    fontFamily: tokens.typography.family.serif,
+    fontSize: tokens.typography.size.quote,
+    fontStyle: "italic",
+    fontWeight: tokens.typography.weight.medium,
+    letterSpacing: -0.2,
+    lineHeight: tokens.typography.lineHeight.quote
+  },
   body: {
-    color: tokens.color.inkSoft,
     fontSize: tokens.typography.size.body,
     fontWeight: tokens.typography.weight.regular,
     lineHeight: tokens.typography.lineHeight.body
   },
   bodyStrong: {
-    color: tokens.color.ink,
     fontSize: tokens.typography.size.body,
     fontWeight: tokens.typography.weight.semibold,
     lineHeight: tokens.typography.lineHeight.body
@@ -118,19 +144,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: tokens.typography.size.label,
     fontWeight: tokens.typography.weight.semibold,
+    letterSpacing: 0.1,
     lineHeight: tokens.typography.lineHeight.label
   },
   caption: {
-    color: tokens.color.muted,
     fontSize: tokens.typography.size.caption,
     fontWeight: tokens.typography.weight.medium,
+    letterSpacing: 0.1,
     lineHeight: tokens.typography.lineHeight.caption
   },
   eyebrow: {
-    color: tokens.color.muted,
     fontSize: tokens.typography.size.eyebrow,
     fontWeight: tokens.typography.weight.semibold,
-    letterSpacing: 1.4,
+    letterSpacing: 1.5,
     lineHeight: tokens.typography.lineHeight.eyebrow,
     textTransform: "uppercase"
   }

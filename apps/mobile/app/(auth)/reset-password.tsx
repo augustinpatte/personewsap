@@ -17,6 +17,7 @@ import {
   SecondaryButton
 } from "../../src/components";
 import { tokens } from "../../src/design/tokens";
+import { useThemeColors, useThemedStyles, type ThemeColors } from "../../src/design/theme";
 import { useAuth } from "../../src/features/auth";
 import { localized } from "../../src/lib/i18n";
 import {
@@ -38,6 +39,8 @@ export default function ResetPasswordScreen() {
   const [error, setError] = useState<NormalizedSupabaseError | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
   const isRecoverySession = Boolean(session);
   const copy = getResetPasswordCopy(profileLanguage);
   const canRequestReset = useMemo(() => isValidAuthEmail(email), [email]);
@@ -136,7 +139,7 @@ export default function ResetPasswordScreen() {
                   autoComplete="new-password"
                   onChangeText={setPassword}
                   placeholder={copy.passwordPlaceholder}
-                  placeholderTextColor={tokens.color.mutedSoft}
+                  placeholderTextColor={colors.mutedSoft}
                   secureTextEntry
                   style={styles.input}
                   textContentType="newPassword"
@@ -150,7 +153,7 @@ export default function ResetPasswordScreen() {
                   autoComplete="new-password"
                   onChangeText={setConfirmPassword}
                   placeholder={copy.repeatPassword}
-                  placeholderTextColor={tokens.color.mutedSoft}
+                  placeholderTextColor={colors.mutedSoft}
                   returnKeyType="done"
                   secureTextEntry
                   style={styles.input}
@@ -171,7 +174,7 @@ export default function ResetPasswordScreen() {
                 inputMode="email"
                 onChangeText={setEmail}
                 placeholder="you@example.com"
-                placeholderTextColor={tokens.color.mutedSoft}
+                placeholderTextColor={colors.mutedSoft}
                 returnKeyType="send"
                 style={styles.input}
                 textContentType="emailAddress"
@@ -227,6 +230,7 @@ function AuthResetMessage({
   error: NormalizedSupabaseError;
   language: Language | null | undefined;
 }) {
+  const styles = useThemedStyles(createStyles);
   const userFacingError = getUserFacingError(error, language, "password");
 
   return (
@@ -305,53 +309,54 @@ function getResetPasswordCopy(language: Language | null | undefined) {
   );
 }
 
-const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1
-  },
-  card: {
-    gap: tokens.space.lg
-  },
-  copy: {
-    gap: tokens.space.sm
-  },
-  inlineState: {
-    padding: tokens.space.lg
-  },
-  fields: {
-    gap: tokens.space.md
-  },
-  field: {
-    gap: tokens.space.sm
-  },
-  input: {
-    backgroundColor: tokens.color.backgroundRaised,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    color: tokens.color.ink,
-    fontSize: tokens.typography.size.body,
-    minHeight: 52,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.md
-  },
-  actions: {
-    gap: tokens.space.sm
-  },
-  errorBox: {
-    backgroundColor: tokens.color.dangerSoft,
-    borderColor: tokens.color.danger,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    gap: tokens.space.xs,
-    padding: tokens.space.md
-  },
-  successBox: {
-    backgroundColor: tokens.color.successSoft,
-    borderColor: tokens.color.success,
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    gap: tokens.space.xs,
-    padding: tokens.space.md
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    keyboard: {
+      flex: 1
+    },
+    card: {
+      gap: tokens.space.lg
+    },
+    copy: {
+      gap: tokens.space.sm
+    },
+    inlineState: {
+      padding: tokens.space.lg
+    },
+    fields: {
+      gap: tokens.space.md
+    },
+    field: {
+      gap: tokens.space.sm
+    },
+    input: {
+      backgroundColor: c.backgroundRaised,
+      borderColor: c.border,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      color: c.ink,
+      fontSize: tokens.typography.size.body,
+      minHeight: 52,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.md
+    },
+    actions: {
+      gap: tokens.space.sm
+    },
+    errorBox: {
+      backgroundColor: c.dangerSoft,
+      borderColor: c.danger,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      gap: tokens.space.xs,
+      padding: tokens.space.md
+    },
+    successBox: {
+      backgroundColor: c.successSoft,
+      borderColor: c.success,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      gap: tokens.space.xs,
+      padding: tokens.space.md
+    }
+  });

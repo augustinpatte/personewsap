@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { tokens } from "../design/tokens";
+import { useThemeColors } from "../design/theme";
 
 type AppScreenProps = PropsWithChildren<{
   centered?: boolean;
@@ -29,6 +30,7 @@ function AppScreenRoot({
   scrollViewProps,
   children
 }: AppScreenProps) {
+  const colors = useThemeColors();
   const contentStyles = [
     styles.content,
     padded && styles.padded,
@@ -37,7 +39,9 @@ function AppScreenRoot({
   ];
 
   return (
-    <SafeAreaView style={[styles.safeArea, safeAreaStyle]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }, safeAreaStyle]}
+    >
       {scroll ? (
         <ScrollView
           automaticallyAdjustKeyboardInsets
@@ -93,8 +97,7 @@ export const AppScreen = Object.assign(AppScreenRoot, {
 
 const styles = StyleSheet.create({
   safeArea: {
-    flex: 1,
-    backgroundColor: tokens.color.background
+    flex: 1
   },
   content: {
     flexGrow: 1,

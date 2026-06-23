@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "../../../components";
 import { tokens } from "../../../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../../design/theme";
 
 type ReaderScaffoldProps = PropsWithChildren<{
   eyebrow?: string;
@@ -28,6 +29,8 @@ export function ReaderScaffold({
   contentStyle,
   children
 }: ReaderScaffoldProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
       <View style={styles.topBar}>
@@ -63,10 +66,11 @@ export function ReaderScaffold({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: tokens.color.background
+    backgroundColor: c.background
   },
   topBar: {
     alignItems: "center",
@@ -98,10 +102,10 @@ const styles = StyleSheet.create({
     paddingTop: tokens.space.sm
   },
   footer: {
-    borderTopColor: tokens.color.border,
+    borderTopColor: c.border,
     borderTopWidth: 1,
     paddingBottom: tokens.space.sm,
     paddingHorizontal: tokens.space.lg,
     paddingTop: tokens.space.md
   }
-});
+  });

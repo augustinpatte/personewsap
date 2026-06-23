@@ -2,6 +2,7 @@ import type { PropsWithChildren } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { tokens } from "../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../design/theme";
 import { AppScreen } from "./AppScreen";
 import { AppText } from "./AppText";
 import { Card } from "./Card";
@@ -18,6 +19,8 @@ export function PlaceholderScreen({
   description,
   children
 }: PlaceholderScreenProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <AppScreen centered>
       <Card elevated padding="lg" style={styles.panel}>
@@ -32,14 +35,15 @@ export function PlaceholderScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  panel: {
-    gap: tokens.space.md
-  },
-  children: {
-    borderTopColor: tokens.color.border,
-    borderTopWidth: 1,
-    marginTop: tokens.space.lg,
-    paddingTop: tokens.space.lg
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    panel: {
+      gap: tokens.space.md
+    },
+    children: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      marginTop: tokens.space.lg,
+      paddingTop: tokens.space.lg
+    }
+  });

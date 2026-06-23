@@ -6,12 +6,14 @@ import { AppText } from "../src/components/AppText";
 import { Card } from "../src/components/Card";
 import { SecondaryButton } from "../src/components/SecondaryButton";
 import { tokens } from "../src/design/tokens";
+import { useThemedStyles, type ThemeColors } from "../src/design/theme";
 import { useAuth } from "../src/features/auth";
 import { localized } from "../src/lib/i18n";
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
   const { profileLanguage } = useAuth();
+  const styles = useThemedStyles(createStyles);
   const copy = getPrivacyCopy(profileLanguage);
 
   return (
@@ -122,23 +124,24 @@ function getPrivacyCopy(language: string | null) {
   );
 }
 
-const styles = StyleSheet.create({
-  section: {
-    gap: tokens.space.md
-  },
-  line: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: tokens.space.sm
-  },
-  dot: {
-    backgroundColor: tokens.color.accent,
-    borderRadius: tokens.radius.pill,
-    height: 6,
-    marginTop: 8,
-    width: 6
-  },
-  lineText: {
-    flex: 1
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    section: {
+      gap: tokens.space.md
+    },
+    line: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: tokens.space.sm
+    },
+    dot: {
+      backgroundColor: c.accent,
+      borderRadius: tokens.radius.pill,
+      height: 6,
+      marginTop: 8,
+      width: 6
+    },
+    lineText: {
+      flex: 1
+    }
+  });

@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Switch, View } from "react-native";
 
 import { AppText, Card, ProgressPill } from "../../components";
 import { tokens } from "../../design/tokens";
+import { useThemeColors } from "../../design/theme";
 import { formatLanguageName, localized } from "../../lib/i18n";
 import { getUserFacingErrorMessage } from "../../lib/userFacingErrors";
 import type { Language } from "../../types/domain";
@@ -31,6 +32,7 @@ export function NotificationPreferencesCard({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [registrationState, setRegistrationState] =
     useState<NotificationRegistrationState>("not_requested");
+  const colors = useThemeColors();
   const uiLanguage = preferences?.language ?? language ?? "en";
   const copy = getNotificationCopy(uiLanguage);
 
@@ -123,7 +125,7 @@ export function NotificationPreferencesCard({
   if (loading && !preferences) {
     return (
       <Card tone="muted" style={styles.loadingCard}>
-        <ActivityIndicator color={tokens.color.accent} />
+        <ActivityIndicator color={colors.accent} />
         <AppText color="muted" variant="body">
           {copy.loading}
         </AppText>
@@ -144,14 +146,14 @@ export function NotificationPreferencesCard({
         </View>
         <Switch
           disabled={saving || loading || !preferences?.tokenStorageReady}
-          ios_backgroundColor={tokens.color.borderStrong}
+          ios_backgroundColor={colors.borderStrong}
           onValueChange={(nextValue) => {
             void savePreferences(nextValue);
           }}
-          thumbColor={tokens.color.white}
+          thumbColor={colors.white}
           trackColor={{
-            false: tokens.color.borderStrong,
-            true: tokens.color.accent
+            false: colors.borderStrong,
+            true: colors.accent
           }}
           value={enabled}
         />

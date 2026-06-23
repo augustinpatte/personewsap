@@ -3,7 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "react-native";
 
 import { AppErrorBoundary } from "../src/components";
-import { tokens } from "../src/design/tokens";
+import { ThemeProvider, useTheme } from "../src/design";
 import { AuthProvider, useAuth } from "../src/features/auth";
 import { DailyDropProvider } from "../src/features/today";
 import { trackAnalyticsEvent } from "../src/lib/analytics";
@@ -14,14 +14,17 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 function RootNavigator() {
   const { profileLanguage } = useAuth();
+  const { colors, isDark } = useTheme();
 
   return (
     <AppErrorBoundary language={profileLanguage}>
@@ -29,11 +32,11 @@ function RootNavigator() {
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: tokens.color.background }
+            contentStyle: { backgroundColor: colors.background }
           }}
         />
       </DailyDropProvider>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
     </AppErrorBoundary>
   );
 }

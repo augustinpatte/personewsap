@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText, Card, ProgressPill } from "../../components";
 import { tokens } from "../../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../design/theme";
 
 type SelectableCardProps = {
   label: string;
@@ -24,6 +25,7 @@ export function SelectableCard({
   unselectedBadge,
   onPress
 }: SelectableCardProps) {
+  const styles = useThemedStyles(createStyles);
   const selectionBadge = selected ? selectedBadge : unselectedBadge;
 
   return (
@@ -72,45 +74,46 @@ export function SelectableCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderColor: tokens.color.border
-  },
-  selected: {
-    borderColor: tokens.color.accent
-  },
-  pressed: {
-    transform: [{ scale: 0.99 }]
-  },
-  disabled: {
-    opacity: 0.62
-  },
-  row: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.space.md
-  },
-  copy: {
-    flex: 1,
-    gap: tokens.space.xs
-  },
-  check: {
-    alignItems: "center",
-    borderColor: tokens.color.borderStrong,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    height: 22,
-    justifyContent: "center",
-    width: 22
-  },
-  checkSelected: {
-    backgroundColor: tokens.color.accent,
-    borderColor: tokens.color.accent
-  },
-  checkDot: {
-    backgroundColor: tokens.color.white,
-    borderRadius: tokens.radius.pill,
-    height: 7,
-    width: 7
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      borderColor: c.border
+    },
+    selected: {
+      borderColor: c.accent
+    },
+    pressed: {
+      transform: [{ scale: 0.99 }]
+    },
+    disabled: {
+      opacity: 0.62
+    },
+    row: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    copy: {
+      flex: 1,
+      gap: tokens.space.xs
+    },
+    check: {
+      alignItems: "center",
+      borderColor: c.borderStrong,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      height: 22,
+      justifyContent: "center",
+      width: 22
+    },
+    checkSelected: {
+      backgroundColor: c.accent,
+      borderColor: c.accent
+    },
+    checkDot: {
+      backgroundColor: c.onAccent,
+      borderRadius: tokens.radius.pill,
+      height: 7,
+      width: 7
+    }
+  });

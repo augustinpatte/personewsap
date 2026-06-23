@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type PropsWithChildren, type ReactNode } fro
 import { StyleSheet, View } from "react-native";
 
 import { tokens } from "../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../design/theme";
 import { localized } from "../lib/i18n";
 import type { Language } from "../types/domain";
 import { AppText } from "./AppText";
@@ -58,38 +59,58 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
       getBoundaryLanguage(this.props)
     );
 
-    return (
-      <View style={styles.container}>
-        <View style={styles.copy}>
-          <AppText variant="eyebrow">{copy.eyebrow}</AppText>
-          <AppText align="center" variant="title">
-            {copy.title}
-          </AppText>
-          <AppText align="center" color="muted" variant="body">
-            {copy.description}
-          </AppText>
-        </View>
-        <PrimaryButton label={copy.reset} onPress={this.reset} />
-      </View>
-    );
+    return <ErrorFallback copy={copy} onReset={this.reset} />;
   }
+}
+
+type ErrorFallbackCopy = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  reset: string;
+};
+
+function ErrorFallback({
+  copy,
+  onReset
+}: {
+  copy: ErrorFallbackCopy;
+  onReset: () => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.copy}>
+        <AppText variant="eyebrow">{copy.eyebrow}</AppText>
+        <AppText align="center" variant="title">
+          {copy.title}
+        </AppText>
+        <AppText align="center" color="muted" variant="body">
+          {copy.description}
+        </AppText>
+      </View>
+      <PrimaryButton label={copy.reset} onPress={onReset} />
+    </View>
+  );
 }
 
 function getBoundaryLanguage(props: AppErrorBoundaryProps): Language | null {
   return props.language === "fr" || props.language === "en" ? props.language : null;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: "stretch",
-    backgroundColor: tokens.color.background,
-    flex: 1,
-    gap: tokens.space.xl,
-    justifyContent: "center",
-    padding: tokens.space.xl
-  },
-  copy: {
-    alignItems: "center",
-    gap: tokens.space.sm
-  }
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      alignItems: "stretch",
+      backgroundColor: c.background,
+      flex: 1,
+      gap: tokens.space.xl,
+      justifyContent: "center",
+      padding: tokens.space.xl
+    },
+    copy: {
+      alignItems: "center",
+      gap: tokens.space.sm
+    }
+  });
