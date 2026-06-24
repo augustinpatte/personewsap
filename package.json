@@ -24,6 +24,7 @@
     "content:personalize-test": "npm --prefix services/content-engine run personalize-test --",
     "content:daily-job": "npm --prefix services/content-engine run daily-job --",
     "content:daily-job-test": "npm --prefix services/content-engine run daily-job-test --",
+    "content:app-preview-test": "npm --prefix services/content-engine run app-preview-test --",
     "content:assignment-test": "vitest run services/content-engine/src/scheduler/dailyDropBuilder.test.ts",
     "content:health": "npm --prefix services/content-engine run health --",
     "content:job-health": "npm --prefix services/content-engine run job-health --",

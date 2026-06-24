@@ -526,7 +526,7 @@ function getTodayCopy(language: ContentLanguage) {
         completionTitle: "Brief complete",
         completionBody: "You finished today's edition. See you tomorrow.",
         comingSoonTitle: "Today's edition is on its way",
-        comingSoonBody: "It will appear here shortly. Nothing to do — check back in a moment.",
+        comingSoonBody: "This edition is not available in English yet. Nothing to do — check back in a moment.",
         noEdition: {
           accessibilityLabel: "No new edition today",
           title: "No new edition today",
@@ -560,7 +560,7 @@ function getTodayCopy(language: ContentLanguage) {
         completionTitle: "Brief terminé",
         completionBody: "Vous avez terminé l'édition du jour. À demain.",
         comingSoonTitle: "L'édition du jour arrive",
-        comingSoonBody: "Elle apparaîtra ici sous peu. Rien à faire — revenez dans un instant.",
+        comingSoonBody: "Cette édition n'est pas encore disponible en français. Rien à faire — revenez dans un instant.",
         noEdition: {
           accessibilityLabel: "Aucune nouvelle édition aujourd'hui",
           title: "Aucune nouvelle édition aujourd'hui",

@@ -122,7 +122,11 @@ export default function LibraryScreen() {
     source: "mock",
     status: "loading"
   });
-  const uiLanguage = profileLanguage ?? loadState.drops[0]?.language ?? "en";
+  // Language is the single source of truth (profiles.language via AuthProvider).
+  // The library must read and reload in this language so it never lists or opens
+  // content in the previous language after a switch.
+  const activeLanguage: Language = profileLanguage ?? "en";
+  const uiLanguage = activeLanguage;
   const copy = getLibraryCopy(uiLanguage);
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
@@ -151,7 +155,7 @@ export default function LibraryScreen() {
       }
 
       const [result, createdAt] = await Promise.all([
-        fetchLibraryDrops(userId),
+        fetchLibraryDrops(userId, { language: activeLanguage }),
         fetchProfileCreatedAt(userId)
       ]);
 
@@ -166,7 +170,7 @@ export default function LibraryScreen() {
         });
       }
     },
-    []
+    [activeLanguage]
   );
 
   useEffect(() => {

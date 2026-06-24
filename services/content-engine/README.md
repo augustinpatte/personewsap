@@ -673,6 +673,46 @@ npm run daily-job-test -- --languages en
 npm run daily-job-test -- --topics business,finance,tech_ai
 ```
 
+### `app-preview-test` (see engine output in the app)
+
+`dry-run` prints generated content but never persists it (`persisted=false`), so it can never appear in the mobile app. `app-preview-test` is the safe way to actually *see* engine output in the app. It reuses the `daily-job-test` pipeline unchanged but narrows it to a single-user preview and prints how to open the result.
+
+It is fail-closed and requires:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CONFIRM_APP_PREVIEW_TEST=true`
+
+Differences from `daily-job-test`:
+
+- `USER_LIMIT` defaults to **1** and is capped at **5** (a preview can never fan out to all users).
+- It satisfies the `daily-job-test` confirmation internally once `CONFIRM_APP_PREVIEW_TEST=true` is present, so you only set one confirmation flag.
+- It prints an `appPreview` block: `drop_date`, the assigned `user_id` (redacted), the `content_item` ids, the generated content types, and step-by-step instructions to open the drop in the app.
+
+Default single-user preview with deterministic sample content:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_APP_PREVIEW_TEST=true \
+USER_LIMIT=1 \
+npm run app-preview-test -- --language en
+```
+
+LLM/RSS-backed preview:
+
+```sh
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CONFIRM_APP_PREVIEW_TEST=true \
+USE_LLM=true \
+LIVE_RSS_ONLY=true \
+OPENAI_API_KEY=... \
+npm run app-preview-test -- --language en
+```
+
+Content is marked `[TEST daily-job-test]` / `is_test_data:true`; remove it afterwards with `cleanup-test`. Never put `SUPABASE_SERVICE_ROLE_KEY` in `apps/mobile/.env` or any client-side env file.
+
 Safety behavior:
 
 - no Supabase writes happen unless `CONFIRM_DAILY_JOB_TEST=true` and service-role credentials are present

@@ -20,6 +20,7 @@
     "personalize-test": "npm run build && node dist/cli.js personalize-test",
     "daily-job": "npm run build && node dist/cli.js daily-job",
     "daily-job-test": "npm run build && node dist/cli.js daily-job-test",
+    "app-preview-test": "npm run build && node dist/cli.js app-preview-test",
     "health": "npm run job-health --",
     "job-health": "npm run build && node dist/cli.js job-health",
     "job-health:strict": "npm run job-health -- --strict",

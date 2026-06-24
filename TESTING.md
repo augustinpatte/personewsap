@@ -85,13 +85,34 @@ npm run backend:e2e
 
 This proof writes marked test content through `daily-job-test`. Use a local, staging, or disposable Supabase project unless you intentionally want marked test rows in the target project.
 
+## See engine output in the app (preview workflow)
+
+`content:dry-run` prints generated content to the terminal but never persists it (`persisted=false`), so it cannot appear in the mobile app. To actually see engine output in the app, use `content:app-preview-test`. It reuses the safe `daily-job-test` pipeline but assigns just **one** drop (USER_LIMIT defaults to 1, capped at 5) to a single eligible test user, then prints exactly how to open it.
+
+```bash
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+CONFIRM_APP_PREVIEW_TEST=true \
+USER_LIMIT=1 \
+npm run content:app-preview-test -- --language en
+```
+
+Add `USE_LLM=true LIVE_RSS_ONLY=true OPENAI_API_KEY=...` for real LLM/RSS content instead of the deterministic sample generator. The command:
+
+- requires `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `CONFIRM_APP_PREVIEW_TEST=true`; it refuses to write otherwise;
+- marks content with the `[TEST daily-job-test]` title prefix and `is_test_data:true`;
+- prints `appPreview` with `drop_date`, the assigned user id (redacted), the `content_item` ids, the content types, and step-by-step instructions to open the drop in the app;
+- never fans out to all users and never runs a production write path.
+
+Open the app signed in as the assigned test user, go to the Today tab for the printed `drop_date`, and pull to refresh. Clean up afterwards with `content:cleanup-test`.
+
 ## Command Safety Map
 
 | Category | Commands | Writes data? | Intended use |
 | --- | --- | --- | --- |
 | Test commands | `npm run smoke`, `npm run mobile:typecheck`, `npm run content:build`, `npm run content:dry-run` | No | Routine local validation before handoff. |
 | Local no-write commands | `npm run content:llm-run`, `npm run content:llm-proof`, `npm run content:quality-proof`, `npm run content:prod-dry-run`, `npm run content:rss-check`, `npm run supabase:doctor`, `npm run content:debug-users`, `npm run content:health`, `npm run content:business-story-memory` | No | LLM/RSS inspection, static/live read-only schema checks, user eligibility diagnostics, production-shaped dry runs, job health checks, and Business Story editorial-memory inspection. |
-| Local-only dangerous write commands | `npm run backend:e2e`, `npm run backend:e2e:live-rss`, `npm run backend:e2e:llm`, `npm run content:persist-test`, `npm run content:assign-test-users`, `npm run content:personalize-test`, `npm run content:daily-job-test`, `npm run content:cleanup-test` | Yes | Disposable or staging Supabase testing with explicit confirmation flags. |
+| Local-only dangerous write commands | `npm run backend:e2e`, `npm run backend:e2e:live-rss`, `npm run backend:e2e:llm`, `npm run content:persist-test`, `npm run content:assign-test-users`, `npm run content:personalize-test`, `npm run content:daily-job-test`, `npm run content:app-preview-test`, `npm run content:cleanup-test` | Yes | Disposable or staging Supabase testing with explicit confirmation flags. `content:app-preview-test` is the one-user, see-it-in-the-app preview. |
 | Production commands | `npm run content:daily-job`, `npm run content:prod-run` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. Production runs write a `job_runs` summary for `content:job-health`. |
 
 Dangerous write commands require `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the command-specific `CONFIRM_*` flag. Treat them as staging/test tools unless a production owner intentionally accepts test rows in production. `content:daily-job` does not use a test confirmation flag, so run it with `DRY_RUN=true` until the production environment, scheduler, monitoring, source rights, and editorial review workflow are explicitly approved.

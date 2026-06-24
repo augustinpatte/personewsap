@@ -1,6 +1,7 @@
 import {
   MINI_CASE_TOPIC_IDS,
   TOPIC_IDS,
+  type ContentType,
   type DailyDropPayload,
   type DailyDropSlot,
   type Language,
@@ -109,6 +110,20 @@ type AssignmentCompletion = {
   fallbackSlots: DailyDropSlot[];
 };
 
+// A concrete "what landed in the app for whom" record, surfaced so preview-style
+// commands (content:app-preview-test) can tell the operator exactly which drop to
+// open. Additive: existing daily-job-test consumers can ignore it.
+export type AssignedDropPreview = {
+  userId: string;
+  dailyDropId: string;
+  language: Language;
+  items: Array<{
+    slot: DailyDropSlot;
+    contentType: ContentType;
+    contentItemId: string;
+  }>;
+};
+
 export type DailyJobRunOptions = {
   mode: DailyJobMode;
   dropDate: string;
@@ -201,6 +216,7 @@ export type DailyJobOutput = {
     miniCaseFallbackReasons: Record<string, number>;
     miniCaseSelectedTopicCounts: Record<string, number>;
     assignmentSkippedReason: string | null;
+    assignedPreviews: AssignedDropPreview[];
     errorReason: LlmFailureReason | null;
     error: string | null;
     metrics: LanguageJobMetrics;
@@ -796,6 +812,7 @@ async function runDailyJobLanguage(input: {
     miniCaseFallbackReasons: assignment.miniCaseFallbackReasons,
     miniCaseSelectedTopicCounts: assignment.miniCaseSelectedTopicCounts,
     assignmentSkippedReason: assignment.assignmentSkippedReason,
+    assignedPreviews: assignment.assignedPreviews,
     errorReason: null,
     error: null,
     metrics
@@ -842,8 +859,13 @@ async function assignStoredDropToUsers(input: {
   miniCaseFallbackReasons: Record<string, number>;
   miniCaseSelectedTopicCounts: Record<string, number>;
   assignmentSkippedReason: string | null;
+  assignedPreviews: AssignedDropPreview[];
 }> {
   assertAssignableStoredItems(input.storedItems, input.language);
+  const contentTypeByItemId = new Map(
+    input.storedItems.map((stored) => [stored.content_item_id, stored.item.content_type])
+  );
+  const assignedPreviews: AssignedDropPreview[] = [];
   const selection = await input.repository.listUserDailyDropPreferenceSelection(input.language);
   const preferences = selection.preferences;
   const sortedPreferences = [...preferences].sort((left, right) => left.user_id.localeCompare(right.user_id));
@@ -991,6 +1013,17 @@ async function assignStoredDropToUsers(input: {
     staleDailyDropItemsRemoved += assignment.staleItemsRemoved;
     duplicateDailyDropItemsSkipped += assignment.duplicateInputItemsSkipped;
 
+    assignedPreviews.push({
+      userId: preference.user_id,
+      dailyDropId: assignment.dailyDropId,
+      language: input.language,
+      items: itemIds.map((item) => ({
+        slot: item.slot,
+        contentType: contentTypeByItemId.get(item.contentItemId) ?? "newsletter_article",
+        contentItemId: item.contentItemId
+      }))
+    });
+
     logProgress("assignment user completed", {
       user_id: preference.user_id,
       daily_drop_id: assignment.dailyDropId,
@@ -1018,7 +1051,8 @@ async function assignStoredDropToUsers(input: {
     duplicateDailyDropItemsSkipped,
     miniCaseFallbackReasons,
     miniCaseSelectedTopicCounts,
-    assignmentSkippedReason: null
+    assignmentSkippedReason: null,
+    assignedPreviews
   };
 }
 
@@ -1051,6 +1085,7 @@ function skippedAssignment(reason: string): {
   miniCaseFallbackReasons: Record<string, number>;
   miniCaseSelectedTopicCounts: Record<string, number>;
   assignmentSkippedReason: string;
+  assignedPreviews: AssignedDropPreview[];
 } {
   return {
     usersConsidered: 0,
@@ -1064,7 +1099,8 @@ function skippedAssignment(reason: string): {
     duplicateDailyDropItemsSkipped: 0,
     miniCaseFallbackReasons: {},
     miniCaseSelectedTopicCounts: {},
-    assignmentSkippedReason: reason
+    assignmentSkippedReason: reason,
+    assignedPreviews: []
   };
 }
 
@@ -1097,6 +1133,7 @@ function emptyFailedLanguageResult(
     miniCaseFallbackReasons: {},
     miniCaseSelectedTopicCounts: {},
     assignmentSkippedReason: null,
+    assignedPreviews: [],
     errorReason,
     error,
     metrics: buildFailedLanguageJobMetrics({

@@ -10,12 +10,17 @@ import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../li
 import { mockLibraryDrops } from "../../mocks";
 import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
+import type { ContentLanguage } from "../today";
 import { resolveEditionType } from "../today/editionCadence";
 import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
 
 type FetchLibraryDropsOptions = {
   cacheTtlMs?: number;
   limit?: number;
+  // Active reading language. When set, the archive is filtered to this language
+  // so the library never lists or opens content in another language. Also keys
+  // the cache so a language switch never reads stale other-language drops.
+  language?: ContentLanguage;
 };
 
 const archiveDropStatuses = ["published", "read", "archived"] as const;
@@ -116,7 +121,7 @@ export async function fetchLibraryDrops(
 
   try {
     const limit = normalizeLibraryLimit(options.limit);
-    const cacheKey = getLibraryDropsCacheKey(userId, limit);
+    const cacheKey = getLibraryDropsCacheKey(userId, limit, options.language);
     const cachedDrops = getCachedValue<LibraryDropSummary[]>(cacheKey);
 
     if (cachedDrops) {
@@ -129,11 +134,17 @@ export async function fetchLibraryDrops(
       return createCachedResult(cachedDrops);
     }
 
-    const { data: drops, error: dropsError } = await supabase
+    let dropsQuery = supabase
       .from("daily_drops")
       .select(dailyDropSelect)
       .eq("user_id", userId)
-      .in("status", [...archiveDropStatuses])
+      .in("status", [...archiveDropStatuses]);
+
+    if (options.language) {
+      dropsQuery = dropsQuery.eq("language", options.language);
+    }
+
+    const { data: drops, error: dropsError } = await dropsQuery
       .order("drop_date", { ascending: false })
       .limit(limit);
 
@@ -431,8 +442,12 @@ function normalizeLibraryLimit(limit: number | undefined): number {
   return Math.min(Math.max(Math.floor(limit), 1), maxLibraryDropLimit);
 }
 
-function getLibraryDropsCacheKey(userId: string, limit: number): string {
-  return ["library-drops", userId, limit].join(":");
+function getLibraryDropsCacheKey(
+  userId: string,
+  limit: number,
+  language: ContentLanguage | undefined
+): string {
+  return ["library-drops", userId, limit, language ?? "any"].join(":");
 }
 
 function getFallbackReasonForError(error: ReturnType<typeof normalizeSupabaseError>): DataFallbackReason {

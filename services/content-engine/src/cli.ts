@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { parseAppPreviewTestOptions, runAppPreviewTest } from "./cli/appPreviewTest.js";
 import { parseAssignTestUsersOptions, runAssignTestUsers } from "./cli/assignTestUsers.js";
 import { parseBusinessStoryMemoryOptions, runBusinessStoryMemory } from "./cli/businessStoryMemory.js";
 import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
@@ -73,6 +74,14 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "app-preview-test") {
+    // runAppPreviewTest already redacts user identifiers in its output while
+    // keeping content_item ids clear, so write it without the blanket redactor.
+    const output = await runAppPreviewTest(parseAppPreviewTestOptions(args));
+    writeJson(output);
+    return;
+  }
+
   if (command === "job-health") {
     const output = await runJobHealth(parseJobHealthOptions(args));
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
@@ -123,6 +132,7 @@ Commands:
   assign-test-users       Assign existing published test content to app users.
   daily-job               Production daily scheduler command. Writes require explicit production env confirmation.
   daily-job-test          Generate, publish, and assign a limited marked test daily drop.
+  app-preview-test        Generate + persist + assign ONE test drop (USER_LIMIT=1) so engine output is visible in the app.
   job-health              Read production job_runs health summary with service-role credentials.
   business-story-memory   Read-only editorial memory report for Business Stories.
   debug-users             Read-only daily-job-test user eligibility diagnostic.
@@ -178,6 +188,8 @@ Examples:
   PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... npm run daily-job
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true npm run daily-job-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true LANGUAGES=fr,en USER_LIMIT=5 CONTENT_STATUS=published npm run daily-job-test
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_APP_PREVIEW_TEST=true USER_LIMIT=1 npm run app-preview-test -- --language en
+  OPENAI_API_KEY=... USE_LLM=true LIVE_RSS_ONLY=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_APP_PREVIEW_TEST=true npm run app-preview-test -- --language en
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run job-health -- --date 2026-04-26 --strict
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run debug-users -- --language en --date 2026-04-26
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSONALIZE_TEST=true npm run personalize-test
