@@ -35,6 +35,7 @@ type PreferencesEditorProps = {
   refreshKey: number;
   uiLanguage?: Language | null;
   onSaved?: () => Promise<void> | void;
+  onLanguageChange?: (language: Language) => void | Promise<void>;
 };
 
 type PreferencesTab = "newsletter" | "mini_case";
@@ -43,7 +44,8 @@ export function PreferencesEditor({
   userId,
   refreshKey,
   uiLanguage: preferredUiLanguage,
-  onSaved
+  onSaved,
+  onLanguageChange
 }: PreferencesEditorProps) {
   const [draft, setDraft] = useState<EditablePreferences | null>(null);
   const [saved, setSaved] = useState<EditablePreferences | null>(null);
@@ -56,6 +58,11 @@ export function PreferencesEditor({
   // if the counter has advanced during the save's async work, a fresher load
   // already committed state and the save result should not overwrite it.
   const loadGenerationRef = useRef(0);
+  // Held in a ref so the immediate language switch (which changes
+  // preferredUiLanguage) does not re-create loadPreferences and reload the form,
+  // which would discard unsaved topic edits. Only used to localize load errors.
+  const preferredUiLanguageRef = useRef(preferredUiLanguage);
+  preferredUiLanguageRef.current = preferredUiLanguage;
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
   const uiLanguage = draft?.language ?? saved?.language ?? preferredUiLanguage ?? "en";
@@ -93,20 +100,20 @@ export function PreferencesEditor({
     setErrorMessage(null);
     setStatusMessage(null);
 
-    const result = await loadEditablePreferences(userId, preferredUiLanguage ?? null);
+    const result = await loadEditablePreferences(userId, preferredUiLanguageRef.current ?? null);
 
     setLoading(false);
 
     if (!result.ok) {
       setErrorMessage(
-        getUserFacingErrorMessage(result.error, preferredUiLanguage, "preferences")
+        getUserFacingErrorMessage(result.error, preferredUiLanguageRef.current, "preferences")
       );
       return;
     }
 
     setDraft(result.preferences);
     setSaved(result.preferences);
-  }, [preferredUiLanguage, userId]);
+  }, [userId]);
 
   useEffect(() => {
     void loadPreferences();
@@ -148,6 +155,22 @@ export function PreferencesEditor({
     setStatusMessage(null);
     setErrorMessage(null);
   }, []);
+
+  // Language applies immediately and persists on its own (handled by the parent),
+  // so it is separate from the draft Save flow. We also advance `saved.language`
+  // so the change is not flagged as a pending edit, while topic edits stay pending.
+  const selectLanguage = useCallback(
+    (language: Language) => {
+      setDraft((current) =>
+        current ? normalizeEditablePreferences({ ...current, language }) : current
+      );
+      setSaved((current) => (current ? { ...current, language } : current));
+      setStatusMessage(null);
+      setErrorMessage(null);
+      void onLanguageChange?.(language);
+    },
+    [onLanguageChange]
+  );
 
   const toggleNewsletterTopic = useCallback((topicId: NewsletterTopicId) => {
     setDraft((current) => {
@@ -321,7 +344,7 @@ export function PreferencesEditor({
             description={option.description}
             key={option.id}
             label={option.label}
-            onPress={() => patchDraft({ language: option.id })}
+            onPress={() => selectLanguage(option.id)}
             selected={draft.language === option.id}
           />
         ))}

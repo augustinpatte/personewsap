@@ -5,6 +5,7 @@ import type {
   RankedArticle,
   TopicId
 } from "../domain.js";
+import { compactMiniCaseMemoryForPrompt } from "../miniCase/editorialMemory.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { DAILY_DROP_JSON_SCHEMA } from "./dailyDropSchema.js";
 import { compactBusinessStoryMemoryForPrompt } from "./editorialMemory.js";
@@ -260,6 +261,7 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
         mini_case_product_topics: request.miniCaseProductTopics ?? []
       },
       business_story_editorial_memory: compactBusinessStoryMemoryForPrompt(request.businessStoryMemory),
+      mini_case_editorial_memory: compactMiniCaseMemoryForPrompt(request.miniCaseMemory),
       allowed_source_urls: allowedSourceUrls,
       source_material: sources
     },

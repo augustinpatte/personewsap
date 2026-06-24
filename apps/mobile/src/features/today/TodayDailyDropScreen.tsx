@@ -1,7 +1,7 @@
 import { useRouter, type Href } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { AppScreen, AppText, Card, EmptyState } from "../../components";
+import { AppScreen, AppText, Card } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { localized } from "../../lib/i18n";
@@ -13,6 +13,7 @@ import {
   getTopicLabel
 } from "./contentCopy";
 import { useDailyDrop } from "./DailyDropContext";
+import { isEditionDay, nextEditionDate } from "./editionCadence";
 import type {
   BusinessStory,
   ContentLanguage,
@@ -27,6 +28,12 @@ type ReaderKind = "newsletter" | "story" | "mini-case";
 // build the reader href once and keep navigation typed at the call sites.
 function readerHref(kind: ReaderKind, id: string): Href {
   return { pathname: `/(reader)/${kind}/[id]`, params: { id } } as unknown as Href;
+}
+
+type LibraryFilter = "all" | "mini_case";
+
+function libraryHref(filter: LibraryFilter = "all"): Href {
+  return { pathname: "/(tabs)/library", params: { filter } } as unknown as Href;
 }
 
 export function TodayDailyDropScreen() {
@@ -50,6 +57,17 @@ export function TodayDailyDropScreen() {
   const miniCase = drop.items.mini_case;
   const concept = drop.items.concept;
 
+  if (isEmptyDrop) {
+    return (
+      <NoEditionScreen
+        dropDate={drop.drop_date}
+        language={language}
+        onExploreLibrary={(filter) => router.push(libraryHref(filter))}
+        onRefresh={reload}
+      />
+    );
+  }
+
   return (
     <AppScreen
       contentStyle={styles.screenContent}
@@ -61,60 +79,133 @@ export function TodayDailyDropScreen() {
         <AppText color="muted" variant="caption">
           {copy.mastheadStandfirst(drop.estimated_read_minutes)}
         </AppText>
-        {!isEmptyDrop ? <EditionProgress value={progress} /> : null}
+        <EditionProgress value={progress} />
       </View>
 
-      {isEmptyDrop ? (
-        <EmptyState
-          actionLabel={copy.retry}
-          description={copy.emptyBody}
-          onActionPress={reload}
-          title={copy.emptyTitle}
+      {newsletter.length > 0 ? (
+        <NewsletterLead
+          articles={newsletter}
+          isItemComplete={isItemComplete}
+          language={language}
+          onOpen={(id) => router.push(readerHref("newsletter", id))}
         />
-      ) : (
-        <>
-          {newsletter.length > 0 ? (
-            <NewsletterLead
-              articles={newsletter}
-              isItemComplete={isItemComplete}
-              language={language}
-              onOpen={(id) => router.push(readerHref("newsletter", id))}
-            />
-          ) : null}
+      ) : null}
 
-          {story ? (
-            <BusinessStoryFeature
-              completed={isModuleComplete([story])}
-              language={language}
-              onOpen={() => router.push(readerHref("story", story.id))}
-              story={story}
-            />
-          ) : null}
+      {story ? (
+        <BusinessStoryFeature
+          completed={isModuleComplete([story])}
+          language={language}
+          onOpen={() => router.push(readerHref("story", story.id))}
+          story={story}
+        />
+      ) : null}
 
-          {miniCase ? (
-            <MiniCaseInvitation
-              challenge={miniCase}
-              completed={isModuleComplete([miniCase])}
-              language={language}
-              onOpen={() => router.push(readerHref("mini-case", miniCase.id))}
-            />
-          ) : null}
+      {miniCase ? (
+        <MiniCaseInvitation
+          challenge={miniCase}
+          completed={isModuleComplete([miniCase])}
+          language={language}
+          onOpen={() => router.push(readerHref("mini-case", miniCase.id))}
+        />
+      ) : null}
 
-          {concept ? (
-            <ConceptNote
-              completed={isModuleComplete([concept])}
-              concept={concept}
-              language={language}
-              onKeep={() => {
-                void markItemsComplete([concept]);
-              }}
-            />
-          ) : null}
+      {concept ? (
+        <ConceptNote
+          completed={isModuleComplete([concept])}
+          concept={concept}
+          language={language}
+          onKeep={() => {
+            void markItemsComplete([concept]);
+          }}
+        />
+      ) : null}
 
-          {isComplete ? <CompletionNote language={language} /> : null}
-        </>
-      )}
+      {isComplete ? <CompletionNote language={language} /> : null}
     </AppScreen>
+  );
+}
+
+function NoEditionScreen({
+  dropDate,
+  language,
+  onExploreLibrary,
+  onRefresh
+}: {
+  dropDate: string;
+  language: ContentLanguage;
+  onExploreLibrary: (filter: LibraryFilter) => void;
+  onRefresh: () => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const copy = getTodayCopy(language);
+  // A quiet day in the 4×/week cadence is intentional; an edition day with no
+  // drop yet is "on its way". Both stay clean: no error, no sample, no debug text.
+  const editionDay = isEditionDay(dropDate);
+  const upcoming = nextEditionDate(dropDate);
+  const nextLabel =
+    !editionDay && upcoming ? copy.noEdition.nextEdition(formatWeekday(upcoming.date, language)) : null;
+
+  const actions: Array<{ key: string; label: string; onPress: () => void }> = [
+    { key: "saved", label: copy.noEdition.continueSaved, onPress: () => onExploreLibrary("all") },
+    { key: "editions", label: copy.noEdition.reviewEditions, onPress: () => onExploreLibrary("all") },
+    { key: "cases", label: copy.noEdition.reviewCases, onPress: () => onExploreLibrary("mini_case") },
+    { key: "library", label: copy.noEdition.exploreLibrary, onPress: () => onExploreLibrary("all") }
+  ];
+
+  return (
+    <AppScreen
+      contentStyle={styles.screenContent}
+      scrollViewProps={{ accessibilityLabel: copy.noEdition.accessibilityLabel }}
+    >
+      <View style={styles.masthead}>
+        <AppText variant="eyebrow">{formatDropDate(dropDate, language)}</AppText>
+        <AppText variant="title">
+          {editionDay ? copy.comingSoonTitle : copy.noEdition.title}
+        </AppText>
+        <AppText color="muted" variant="read">
+          {editionDay ? copy.comingSoonBody : copy.noEdition.body}
+        </AppText>
+        {nextLabel ? (
+          <AppText color="muted" variant="caption">
+            {nextLabel}
+          </AppText>
+        ) : null}
+      </View>
+
+      <View style={styles.noEditionActions}>
+        {actions.map((action) => (
+          <Pressable
+            accessibilityRole="button"
+            key={action.key}
+            onPress={action.onPress}
+            style={({ pressed }) => (pressed ? styles.pressed : null)}
+          >
+            <Card padding="md" style={styles.noEditionRow} tone="muted">
+              <AppText variant="bodyStrong">{action.label}</AppText>
+              <AppText color="accentInk" variant="label">
+                →
+              </AppText>
+            </Card>
+          </Pressable>
+        ))}
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={onRefresh}
+          style={({ pressed }) => [styles.textAction, pressed ? styles.pressed : null]}
+        >
+          <AppText color="accentInk" variant="label">
+            {copy.retry}
+          </AppText>
+        </Pressable>
+      </View>
+    </AppScreen>
+  );
+}
+
+function formatWeekday(dropDate: string, language: ContentLanguage): string {
+  return new Intl.DateTimeFormat(language, { weekday: "long" }).format(
+    new Date(`${dropDate}T12:00:00Z`)
   );
 }
 
@@ -434,8 +525,18 @@ function getTodayCopy(language: ContentLanguage) {
         minuteCount: (count: number) => `${count} min`,
         completionTitle: "Brief complete",
         completionBody: "You finished today's edition. See you tomorrow.",
-        emptyTitle: "Today's brief will be available soon.",
-        emptyBody: "Check back in a moment — the new edition is on its way.",
+        comingSoonTitle: "Today's edition is on its way",
+        comingSoonBody: "It will appear here shortly. Nothing to do — check back in a moment.",
+        noEdition: {
+          accessibilityLabel: "No new edition today",
+          title: "No new edition today",
+          body: "PersoNews publishes four considered editions a week — Monday, Wednesday, Friday and Sunday. Today is a quiet day by design.",
+          nextEdition: (weekday: string) => `Next edition: ${weekday}.`,
+          continueSaved: "Continue a saved reading",
+          reviewEditions: "Revisit recent editions",
+          reviewCases: "Review completed mini-cases",
+          exploreLibrary: "Explore your library"
+        },
         retry: "Refresh"
       },
       fr: {
@@ -458,8 +559,18 @@ function getTodayCopy(language: ContentLanguage) {
         minuteCount: (count: number) => `${count} min`,
         completionTitle: "Brief terminé",
         completionBody: "Vous avez terminé l'édition du jour. À demain.",
-        emptyTitle: "Le brief du jour arrive bientôt.",
-        emptyBody: "Revenez dans un instant — la nouvelle édition est en chemin.",
+        comingSoonTitle: "L'édition du jour arrive",
+        comingSoonBody: "Elle apparaîtra ici sous peu. Rien à faire — revenez dans un instant.",
+        noEdition: {
+          accessibilityLabel: "Aucune nouvelle édition aujourd'hui",
+          title: "Aucune nouvelle édition aujourd'hui",
+          body: "PersoNews publie quatre éditions soignées par semaine — lundi, mercredi, vendredi et dimanche. Aujourd'hui est une journée calme, par choix.",
+          nextEdition: (weekday: string) => `Prochaine édition : ${weekday}.`,
+          continueSaved: "Continuer une lecture sauvegardée",
+          reviewEditions: "Revoir les dernières éditions",
+          reviewCases: "Revoir les mini-cas terminés",
+          exploreLibrary: "Explorer votre bibliothèque"
+        },
         retry: "Actualiser"
       }
     },
@@ -547,6 +658,15 @@ const createStyles = (c: ThemeColors) =>
     },
     conceptCard: {
       gap: tokens.space.sm
+    },
+    noEditionActions: {
+      gap: tokens.space.sm
+    },
+    noEditionRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md,
+      justifyContent: "space-between"
     },
     completion: {
       alignItems: "center",

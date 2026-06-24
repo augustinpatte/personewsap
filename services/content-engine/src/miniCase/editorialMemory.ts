@@ -1,4 +1,4 @@
-import type { GeneratedContentItem, Language, MiniCaseTopicId } from "../domain.js";
+import { EDITORIAL_MEMORY_LIMIT, type GeneratedContentItem, type Language, type MiniCaseTopicId } from "../domain.js";
 import {
   MINI_CASE_ALLOWED_FRAMING,
   MINI_CASE_CONCEPTS,
@@ -58,18 +58,59 @@ export function buildMiniCaseMemoryContext(input: {
   records: MiniCaseEditorialMemoryRecord[];
   dropDate: string;
 }): MiniCaseMemoryContext {
-  const recentOverall = input.records.slice(0, 60);
+  // Editorial memory is capped at the 50 most recent mini cases (EDITORIAL_MEMORY_LIMIT).
+  const recentOverall = input.records.slice(0, EDITORIAL_MEMORY_LIMIT);
   return {
     recentOverall,
     bannedScenarioTypes: uniqueRecent(recentOverall, input.dropDate, 10, (record) => record.scenario_type),
     bannedConcepts: uniqueRecent(recentOverall, input.dropDate, 7, (record) => record.concept_tested),
     bannedDecisionTypes: uniqueRecent(recentOverall, input.dropDate, 5, (record) => record.decision_type),
     bannedQuestionPatterns: uniqueRecent(recentOverall, input.dropDate, 14, (record) => record.question_pattern),
-    recentTitles: recentOverall.map((record) => record.title).filter(Boolean).slice(0, 60),
+    recentTitles: recentOverall.map((record) => record.title).filter(Boolean).slice(0, EDITORIAL_MEMORY_LIMIT),
     recentTopicStreak: recentOverall
       .filter((record) => daysBetween(record.published_date, input.dropDate) <= 2)
       .map((record) => record.topic),
     allowedFraming: MINI_CASE_ALLOWED_FRAMING
+  };
+}
+
+/**
+ * Compact, de-identified mini-case memory injected into the generation prompt.
+ * Never includes full past content — only the fields needed to avoid repeating a
+ * recent topic, sector, scenario_type, decision_type, concept_tested, mechanism,
+ * hook (title), or one_line_summary. Capped at EDITORIAL_MEMORY_LIMIT items.
+ */
+export function compactMiniCaseMemoryForPrompt(context?: MiniCaseMemoryContext | null) {
+  if (!context) {
+    return {
+      available: false,
+      instruction: "No persisted mini-case memory was supplied for this run."
+    };
+  }
+
+  return {
+    available: true,
+    hard_avoid: {
+      banned_recent_scenario_types: context.bannedScenarioTypes,
+      banned_recent_concepts: context.bannedConcepts,
+      banned_recent_decision_types: context.bannedDecisionTypes,
+      banned_recent_question_patterns: context.bannedQuestionPatterns,
+      recent_titles_to_avoid: context.recentTitles
+    },
+    recent_case_sample: context.recentOverall
+      .slice(0, EDITORIAL_MEMORY_LIMIT)
+      .map((record) => ({
+        title: record.title,
+        topic: record.topic,
+        sector: record.topic,
+        scenario_type: record.scenario_type,
+        decision_type: record.decision_type,
+        concept_tested: record.concept_tested,
+        mechanism: record.mechanism,
+        question_pattern: record.question_pattern,
+        one_line_summary: record.core_takeaway,
+        published_date: record.published_date
+      }))
   };
 }
 

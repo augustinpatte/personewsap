@@ -4,4 +4,10 @@ export type {
   LibraryItemSummary
 } from "./libraryTypes";
 
-export { fetchLibraryDrops } from "./libraryData";
+export { fetchLibraryDrops, fetchProfileCreatedAt } from "./libraryData";
+export {
+  BASE_UNLOCKED_EDITIONS,
+  isEditionUnlocked,
+  tenureDays,
+  unlockedEditionCount
+} from "./accessPolicy";

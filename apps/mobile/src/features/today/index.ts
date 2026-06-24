@@ -17,5 +17,10 @@ export type {
 } from "./contentTypes";
 
 export { DailyDropProvider, useDailyDrop } from "./DailyDropContext";
-export { fetchContentItemSources, fetchTodayDrop } from "./dailyDropData";
+export {
+  fetchContentItemById,
+  fetchContentItemSources,
+  fetchTodayDrop
+} from "./dailyDropData";
+export { ReaderItemProvider } from "./ReaderItemProvider";
 export { TodayDailyDropScreen } from "./TodayDailyDropScreen";

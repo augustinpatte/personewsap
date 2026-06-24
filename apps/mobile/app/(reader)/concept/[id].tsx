@@ -1,14 +1,14 @@
 import { useLocalSearchParams } from "expo-router";
 
 import { ReaderItemProvider } from "../../../src/features/today";
-import { BusinessStoryReader } from "../../../src/features/today/readers";
+import { ConceptReader } from "../../../src/features/today/readers";
 
-export default function BusinessStoryReaderRoute() {
+export default function ConceptReaderRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   return (
     <ReaderItemProvider contentItemId={id}>
-      <BusinessStoryReader storyId={id} />
+      <ConceptReader conceptId={id} />
     </ReaderItemProvider>
   );
 }

@@ -1,5 +1,6 @@
 import {
   BUSINESS_STORY_ENTITY_TYPES,
+  EDITORIAL_MEMORY_LIMIT,
   type BusinessStory,
   type BusinessStoryEditorialMemoryEntry,
   type BusinessStoryEditorialMemoryFields,
@@ -67,7 +68,8 @@ export function buildBusinessStoryMemoryContext(input: {
   const entries = input.entries
     .filter((entry) => !input.language || entry.language === input.language)
     .sort((left, right) => right.published_date.localeCompare(left.published_date));
-  const recentStories = entries.slice(0, 90);
+  // Editorial memory is capped at the 50 most recent stories (EDITORIAL_MEMORY_LIMIT).
+  const recentStories = entries.slice(0, EDITORIAL_MEMORY_LIMIT);
   const last180 = filterSince(entries, input.dropDate, 180);
   const last90 = filterSince(entries, input.dropDate, 90);
   const last30 = filterSince(entries, input.dropDate, 30);
@@ -112,7 +114,8 @@ export function compactBusinessStoryMemoryForPrompt(context?: BusinessStoryMemor
       geographies: context.underusedGeographies,
       time_periods: context.underusedTimePeriods
     },
-    recent_story_sample: context.recentStories.slice(0, 12).map((entry) => ({
+    // Compact memory only (never full past content), capped at EDITORIAL_MEMORY_LIMIT items.
+    recent_story_sample: context.recentStories.slice(0, EDITORIAL_MEMORY_LIMIT).map((entry) => ({
       title: entry.title,
       entity_name: entry.entity_name,
       main_company: entry.main_company,
@@ -120,6 +123,7 @@ export function compactBusinessStoryMemoryForPrompt(context?: BusinessStoryMemor
       key_mechanism: entry.key_mechanism,
       strategic_angle: entry.strategic_angle,
       core_takeaway: entry.core_takeaway,
+      one_line_summary: entry.core_takeaway,
       published_date: entry.published_date
     }))
   };

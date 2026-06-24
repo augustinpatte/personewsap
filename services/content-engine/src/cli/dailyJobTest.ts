@@ -28,6 +28,12 @@ import {
 } from "../ops/jobMetrics.js";
 import { processArticles } from "../processing/pipeline.js";
 import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "../scheduler/dailyDropBuilder.js";
+import {
+  nextEditionDate,
+  parseForcedEditionType,
+  resolveEditionType,
+  type EditionType
+} from "../scheduler/editionCadence.js";
 import { CURATED_SOURCES } from "../sources/curatedSources.js";
 import { RssFeedConnector } from "../sources/rssFetcher.js";
 import { SampleArticleConnector } from "../sources/sampleArticles.js";
@@ -54,7 +60,7 @@ const CONTENT_STATUSES = ["draft", "review", "published"] as const;
 type DailyJobContentStatus = (typeof CONTENT_STATUSES)[number];
 type DailyJobMode = "daily-job" | "daily-job-test";
 type SourceMode = "sample" | "rss" | "mixed";
-type DailyJobStatus = "completed" | "partial_failed" | "failed";
+type DailyJobStatus = "completed" | "partial_failed" | "failed" | "skipped_no_edition";
 
 type OperatorSummary = {
   runId: string;
@@ -143,6 +149,8 @@ export type DailyJobOutput = {
   dryRun: boolean;
   status: DailyJobStatus;
   runId: string;
+  editionType: EditionType | null;
+  editionSkipped: boolean;
   generator: "dry-run" | "llm";
   liveRss: boolean;
   liveRssOnly: boolean;
@@ -229,10 +237,25 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
 }
 
 export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJobOutput> {
+  const scheduledEdition = resolveEditionType(options.dropDate);
+  const forcedEdition = parseForcedEditionType(process.env.FORCE_EDITION);
+  const editionType = scheduledEdition ?? forcedEdition;
+
+  if (!editionType) {
+    return buildNoEditionOutput(options, forcedEdition);
+  }
+
   assertDailyJobEnvironment(options);
   const sourcePolicy = resolveSourcePolicy(options);
   const runId = options.runId ?? buildJobRunId(options);
   const pricing = readPricingConfig();
+
+  logProgress("edition scheduled", {
+    drop_date: options.dropDate,
+    edition_type: editionType,
+    scheduled_edition: scheduledEdition,
+    forced: scheduledEdition === null
+  }, options.logPrefix);
 
   logProgress("job started", {
     run_id: runId,
@@ -348,6 +371,8 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
     dryRun: options.dryRun,
     status,
     runId,
+    editionType,
+    editionSkipped: false,
     generator: options.useLlm ? "llm" : "dry-run",
     liveRss: options.liveRss,
     liveRssOnly: options.liveRssOnly,
@@ -359,6 +384,97 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
     operatorSummary,
     metrics,
     languages: languageResults
+  };
+}
+
+function buildNoEditionOutput(
+  options: DailyJobRunOptions,
+  forcedEdition: EditionType | null
+): DailyJobOutput {
+  const runId = options.runId ?? buildJobRunId(options);
+  const pricing = readPricingConfig();
+  const summary = summarizeLanguageResults([]);
+  const metrics = aggregateJobRunMetrics([], pricing);
+  const upcoming = nextEditionDate(options.dropDate);
+  const headline = `No edition scheduled for ${options.dropDate}. PersoNews publishes Monday, Wednesday, Friday, and Sunday.`;
+
+  logProgress("no edition scheduled today", {
+    drop_date: options.dropDate,
+    reason: "weekday_has_no_scheduled_edition",
+    schedule: "monday=daily, wednesday=daily, friday=daily, sunday=weekly_digest",
+    next_edition_date: upcoming?.date ?? null,
+    next_edition_type: upcoming?.editionType ?? null,
+    force_edition_hint: forcedEdition
+      ? "FORCE_EDITION was set but did not resolve to a valid edition type."
+      : "Set FORCE_EDITION=daily or FORCE_EDITION=weekly_digest to force generation on a quiet day (dry-runs and tests only).",
+    no_daily_drop_created: true,
+    no_content_generated: true
+  }, options.logPrefix);
+
+  const operatorSummary: OperatorSummary = {
+    runId,
+    status: "skipped_no_edition",
+    headline,
+    whatHappened: upcoming
+      ? `No content generated. No daily drops created. Next edition: ${upcoming.date} (${upcoming.editionType}).`
+      : "No content generated. No daily drops created.",
+    usersReceivedContent: false,
+    rerunSafe: true,
+    rerunRecommendation:
+      "Safe to rerun. The job is a no-op on quiet days; it only generates on Monday, Wednesday, Friday, and Sunday.",
+    generated: 0,
+    stored: 0,
+    assigned: 0,
+    deduplicatedContentItems: 0,
+    failedLanguages: [],
+    failedTopics: [],
+    failures: [],
+    recoveryHints: [
+      "This is expected behavior, not a failure: the editorial cadence is 4 editions per week.",
+      "To generate intentionally on another day, set FORCE_EDITION=daily or FORCE_EDITION=weekly_digest (dry-runs and tests only)."
+    ],
+    deduplication: {
+      contentItemsReused: 0,
+      activeDedupKeyUniqueIndexRequired: true
+    },
+    miniCase: {
+      generatedTopics: [],
+      fallbackReasons: {},
+      selectedTopicCounts: {}
+    },
+    costEstimate: {
+      available: metrics.estimated_cost_available,
+      estimatedUsd: metrics.estimated_cost_usd,
+      reason: "no_edition_scheduled"
+    },
+    idempotency: {
+      stableRunId: true,
+      dailyDropsUpsertByUserDate: true,
+      dailyDropItemsReplaceBySlotPosition: true,
+      contentItemsDeduplicated: true
+    }
+  };
+
+  return {
+    mode: options.mode,
+    confirmation: options.testMode ? "CONFIRM_DAILY_JOB_TEST=true" : undefined,
+    persisted: false,
+    dryRun: options.dryRun,
+    status: "skipped_no_edition",
+    runId,
+    editionType: null,
+    editionSkipped: true,
+    generator: options.useLlm ? "llm" : "dry-run",
+    liveRss: options.liveRss,
+    liveRssOnly: options.liveRssOnly,
+    sourceMode: resolveSourcePolicySummary(options).sourceMode,
+    sampleContentEnabled: resolveSourcePolicySummary(options).sampleContentEnabled,
+    userLimit: options.userLimit,
+    contentStatus: options.contentStatus,
+    summary,
+    operatorSummary,
+    metrics,
+    languages: []
   };
 }
 
@@ -1326,7 +1442,10 @@ function buildLanguageRunId(runId: string, language: Language): string {
   return `${runId}-${language}`;
 }
 
-function resolveJobStatus(summary: DailyJobOutput["summary"], options: DailyJobRunOptions): DailyJobStatus {
+function resolveJobStatus(
+  summary: DailyJobOutput["summary"],
+  options: DailyJobRunOptions
+): Exclude<DailyJobStatus, "skipped_no_edition"> {
   if (summary.languagesFailed === 0) {
     return "completed";
   }

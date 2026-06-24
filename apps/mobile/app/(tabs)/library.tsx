@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
@@ -12,8 +13,15 @@ import { AppScreen, AppText, EmptyState } from "../../src/components";
 import { tokens } from "../../src/design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../src/design/theme";
 import { useAuth } from "../../src/features/auth";
-import { fetchLibraryDrops, type LibraryDropSummary, type LibraryItemSummary } from "../../src/features/library";
+import {
+  fetchLibraryDrops,
+  fetchProfileCreatedAt,
+  unlockedEditionCount,
+  type LibraryDropSummary,
+  type LibraryItemSummary
+} from "../../src/features/library";
 import type { ContentType } from "../../src/features/today";
+import { resolveEditionType } from "../../src/features/today/editionCadence";
 import { trackAnalyticsEvent } from "../../src/lib/analytics";
 import type { DataFallbackReason, DataFetchSource } from "../../src/lib/dataState";
 import { localized } from "../../src/lib/i18n";
@@ -26,11 +34,28 @@ type LibraryFallbackReason = DataFallbackReason | "missing_auth_session";
 
 type LibraryLoadState = {
   drops: LibraryDropSummary[];
+  createdAt: string | null;
   error: NormalizedSupabaseError | null;
   fallbackReason: LibraryFallbackReason | null;
   source: DataFetchSource;
   status: "loading" | "ready";
 };
+
+type LibrarySectionId = "newsletter" | "weekly_digest";
+
+type EditionEntry = {
+  drop: LibraryDropSummary;
+  locked: boolean;
+  items: LibraryItemSummary[];
+};
+
+// Only the Sunday edition is a Weekly Digest; everything else is a regular
+// newsletter edition. Derived from the drop date so no schema field is needed.
+function sectionForDrop(drop: LibraryDropSummary): LibrarySectionId {
+  return resolveEditionType(drop.drop_date) === "weekly_digest"
+    ? "weekly_digest"
+    : "newsletter";
+}
 
 const contentFilters: Array<{
   id: ContentFilterId;
@@ -51,13 +76,47 @@ const contentFilters: Array<{
   { id: "concept", contentTypes: ["key_concept"] }
 ];
 
+function isContentFilterId(value: unknown): value is ContentFilterId {
+  return (
+    typeof value === "string" &&
+    contentFilters.some((filter) => filter.id === value)
+  );
+}
+
+type ReaderKind = "newsletter" | "story" | "mini-case" | "concept";
+
+const readerKindByContentType: Record<ContentType, ReaderKind> = {
+  newsletter_article: "newsletter",
+  business_story: "story",
+  mini_case: "mini-case",
+  key_concept: "concept"
+};
+
+// expo-router's generated types lag behind the reader route files, so we build
+// the href once and keep the call sites typed.
+function readerHref(contentType: ContentType, id: string): Href {
+  const kind = readerKindByContentType[contentType];
+  return { pathname: `/(reader)/${kind}/[id]`, params: { id } } as unknown as Href;
+}
+
+function openLibraryItem(router: ReturnType<typeof useRouter>, item: LibraryItemSummary) {
+  trackAnalyticsEvent("content_item_opened", {
+    content_type: item.content_type,
+    drop_date: item.drop_date,
+    item_id: item.id
+  });
+  router.push(readerHref(item.content_type, item.id));
+}
+
 export default function LibraryScreen() {
   const { profileLanguage } = useAuth();
+  const { filter } = useLocalSearchParams<{ filter?: string }>();
   const [activeContentFilter, setActiveContentFilter] =
-    useState<ContentFilterId>("all");
+    useState<ContentFilterId>(isContentFilterId(filter) ? filter : "all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loadState, setLoadState] = useState<LibraryLoadState>({
     drops: mockLibraryDrops,
+    createdAt: null,
     error: null,
     fallbackReason: null,
     source: "mock",
@@ -67,6 +126,7 @@ export default function LibraryScreen() {
   const copy = getLibraryCopy(uiLanguage);
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
+  const router = useRouter();
 
   const loadLibraryDrops = useCallback(
     async (isActive: () => boolean = () => true) => {
@@ -79,6 +139,7 @@ export default function LibraryScreen() {
         if (isActive()) {
           setLoadState({
             drops: mockLibraryDrops,
+            createdAt: null,
             error: sessionResult.error,
             fallbackReason: "missing_auth_session",
             source: "mock",
@@ -89,11 +150,15 @@ export default function LibraryScreen() {
         return;
       }
 
-      const result = await fetchLibraryDrops(userId);
+      const [result, createdAt] = await Promise.all([
+        fetchLibraryDrops(userId),
+        fetchProfileCreatedAt(userId)
+      ]);
 
       if (isActive()) {
         setLoadState({
           drops: result.data,
+          createdAt,
           error: result.error,
           fallbackReason: result.fallbackReason,
           source: result.source,
@@ -120,8 +185,33 @@ export default function LibraryScreen() {
     }
   }, [loadState.error, loadState.status]);
 
+  useEffect(() => {
+    if (isContentFilterId(filter)) {
+      setActiveContentFilter(filter);
+    }
+  }, [filter]);
+
   const libraryDrops = loadState.drops;
   const libraryItems = useMemo(() => getItemsForDrops(libraryDrops), [libraryDrops]);
+
+  // Access gate: the most recent editions stay readable, older ones lock until
+  // tenure widens the window. Ranked over all editions so the gate is stable
+  // regardless of the active content filter.
+  const lockedDropIds = useMemo(() => {
+    const sorted = [...libraryDrops].sort((left, right) =>
+      right.drop_date.localeCompare(left.drop_date)
+    );
+    const unlocked = unlockedEditionCount(loadState.createdAt);
+    const locked = new Set<string>();
+
+    sorted.forEach((drop, rank) => {
+      if (rank >= unlocked) {
+        locked.add(drop.drop_id);
+      }
+    });
+
+    return locked;
+  }, [libraryDrops, loadState.createdAt]);
 
   const stats = useMemo(() => {
     const completed = libraryItems.filter((item) => item.is_completed);
@@ -169,12 +259,51 @@ export default function LibraryScreen() {
     }, {});
   }, [filteredItems]);
 
+  // Saved shelf never surfaces a locked edition, so a shortcut can't bypass the gate.
   const savedItems = useMemo(
-    () => libraryItems.filter((item) => item.is_saved).slice(0, 4),
-    [libraryItems]
+    () =>
+      libraryItems
+        .filter((item) => item.is_saved && !lockedDropIds.has(item.drop_id))
+        .slice(0, 4),
+    [libraryItems, lockedDropIds]
   );
   const hasActiveFilters =
     activeContentFilter !== "all" || searchQuery.trim().length > 0;
+
+  // Locked editions are listed (title + date) only in the default browse view;
+  // they hold no openable items to filter or search.
+  const sections = useMemo(() => {
+    const unlockedEntries: EditionEntry[] = filteredDrops
+      .filter((drop) => !lockedDropIds.has(drop.drop_id))
+      .map((drop) => ({ drop, locked: false, items: itemsByDropId[drop.drop_id] ?? [] }));
+
+    const lockedEntries: EditionEntry[] = hasActiveFilters
+      ? []
+      : libraryDrops
+          .filter((drop) => lockedDropIds.has(drop.drop_id))
+          .map((drop) => ({ drop, locked: true, items: [] }));
+
+    const bySection: Record<LibrarySectionId, EditionEntry[]> = {
+      newsletter: [],
+      weekly_digest: []
+    };
+
+    for (const entry of [...unlockedEntries, ...lockedEntries]) {
+      bySection[sectionForDrop(entry.drop)].push(entry);
+    }
+
+    const orderedSectionIds: LibrarySectionId[] = ["newsletter", "weekly_digest"];
+
+    for (const sectionId of orderedSectionIds) {
+      bySection[sectionId].sort((left, right) =>
+        right.drop.drop_date.localeCompare(left.drop.drop_date)
+      );
+    }
+
+    return orderedSectionIds
+      .map((id) => ({ id, entries: bySection[id] }))
+      .filter((section) => section.entries.length > 0);
+  }, [filteredDrops, hasActiveFilters, itemsByDropId, libraryDrops, lockedDropIds]);
 
   const clearFilters = () => {
     setActiveContentFilter("all");
@@ -211,14 +340,23 @@ export default function LibraryScreen() {
             </AppText>
             <View style={styles.shelfList}>
               {savedItems.map((item) => (
-                <View key={item.id} style={styles.shelfRow}>
-                  <AppText numberOfLines={1} variant="bodyStrong">
+                <Pressable
+                  accessibilityHint={copy.openHint}
+                  accessibilityRole="button"
+                  key={item.id}
+                  onPress={() => openLibraryItem(router, item)}
+                  style={({ pressed }) => [
+                    styles.shelfRow,
+                    pressed ? styles.itemRowPressed : null
+                  ]}
+                >
+                  <AppText numberOfLines={1} style={styles.shelfRowTitle} variant="bodyStrong">
                     {item.title}
                   </AppText>
                   <AppText color="muted" variant="caption">
                     {getContentTypeLabel(item.content_type, uiLanguage)}
                   </AppText>
-                </View>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -247,14 +385,29 @@ export default function LibraryScreen() {
         </View>
 
         <View style={styles.archiveSection}>
-          {filteredDrops.length > 0 ? (
-            filteredDrops.map((drop) => (
-              <ArchiveDropGroup
-                drop={drop}
-                items={itemsByDropId[drop.drop_id] ?? []}
-                key={drop.drop_id}
-                language={uiLanguage}
-              />
+          {sections.length > 0 ? (
+            sections.map((section) => (
+              <View key={section.id} style={styles.section}>
+                <AppText color="muted" variant="eyebrow">
+                  {copy.sections[section.id]}
+                </AppText>
+                {section.entries.map((entry) =>
+                  entry.locked ? (
+                    <LockedEditionGroup
+                      drop={entry.drop}
+                      key={entry.drop.drop_id}
+                      language={uiLanguage}
+                    />
+                  ) : (
+                    <ArchiveDropGroup
+                      drop={entry.drop}
+                      items={entry.items}
+                      key={entry.drop.drop_id}
+                      language={uiLanguage}
+                    />
+                  )
+                )}
+              </View>
             ))
           ) : (
             <EmptyState
@@ -338,6 +491,7 @@ type ArchiveDropGroupProps = {
 
 function ArchiveDropGroup({ drop, items, language }: ArchiveDropGroupProps) {
   const styles = useThemedStyles(createStyles);
+  const router = useRouter();
   const topicLine = drop.topics
     .map((topic) => getTopicLabel(topic, language))
     .join(" · ");
@@ -358,7 +512,13 @@ function ArchiveDropGroup({ drop, items, language }: ArchiveDropGroupProps) {
 
       <View style={styles.itemList}>
         {items.map((item) => (
-          <View key={item.id} style={styles.itemRow}>
+          <Pressable
+            accessibilityHint={getLibraryCopy(language).openHint}
+            accessibilityRole="button"
+            key={item.id}
+            onPress={() => openLibraryItem(router, item)}
+            style={({ pressed }) => [styles.itemRow, pressed ? styles.itemRowPressed : null]}
+          >
             <View
               style={[
                 styles.itemDot,
@@ -374,8 +534,45 @@ function ArchiveDropGroup({ drop, items, language }: ArchiveDropGroupProps) {
                 {item.topic ? ` · ${getTopicLabel(item.topic, language)}` : ""}
               </AppText>
             </View>
-          </View>
+            <AppText color="accentInk" style={styles.itemArrow} variant="label">
+              →
+            </AppText>
+          </Pressable>
         ))}
+      </View>
+    </View>
+  );
+}
+
+function LockedEditionGroup({
+  drop,
+  language
+}: {
+  drop: LibraryDropSummary;
+  language: Language;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const copy = getLibraryCopy(language);
+
+  return (
+    <View
+      accessibilityLabel={`${drop.title} — ${copy.lockedAvailability}`}
+      style={[styles.dropGroup, styles.lockedGroup]}
+    >
+      <View style={styles.dropHeader}>
+        <AppText color="muted" variant="eyebrow">
+          {formatArchiveDate(drop.drop_date, language)}
+        </AppText>
+        <AppText color="muted" variant="subtitle">
+          {drop.title}
+        </AppText>
+      </View>
+      <View style={styles.lockedRow}>
+        <View style={styles.lockedBadge}>
+          <AppText color="muted" variant="caption">
+            {copy.lockedAvailability}
+          </AppText>
+        </View>
       </View>
     </View>
   );
@@ -434,8 +631,14 @@ function getLibraryCopy(language: Language) {
           "Nothing matches that just yet. Clear the filters to see everything again.",
         filteredEmptyTitle: "No match",
         generalTopic: "General",
+        lockedAvailability: "Available after a few days of use.",
         noResultsEyebrow: "No results",
+        openHint: "Opens this reading",
         savedEyebrow: "Worth revisiting",
+        sections: {
+          newsletter: "Newsletters",
+          weekly_digest: "Weekly Digests"
+        },
         searchAccessibility: "Search your library",
         searchPlaceholder: "Search",
         statCases: "Cases",
@@ -478,8 +681,14 @@ function getLibraryCopy(language: Language) {
           "Rien ne correspond pour l'instant. Effacez les filtres pour tout revoir.",
         filteredEmptyTitle: "Aucun résultat",
         generalTopic: "Général",
+        lockedAvailability: "Disponible après quelques jours d'utilisation.",
         noResultsEyebrow: "Aucun résultat",
+        openHint: "Ouvre cette lecture",
         savedEyebrow: "À revoir",
+        sections: {
+          newsletter: "Newsletters",
+          weekly_digest: "Weekly Digests"
+        },
         searchAccessibility: "Rechercher dans la bibliothèque",
         searchPlaceholder: "Rechercher",
         statCases: "Cas",
@@ -534,7 +743,11 @@ const createStyles = (c: ThemeColors) =>
       alignItems: "center",
       flexDirection: "row",
       gap: tokens.space.md,
-      justifyContent: "space-between"
+      justifyContent: "space-between",
+      minHeight: 44
+    },
+    shelfRowTitle: {
+      flexShrink: 1
     },
     controls: {
       gap: tokens.space.md
@@ -572,13 +785,30 @@ const createStyles = (c: ThemeColors) =>
       backgroundColor: c.surfaceMuted
     },
     archiveSection: {
-      gap: tokens.space.xl
+      gap: tokens.space.xxl
+    },
+    section: {
+      gap: tokens.space.lg
     },
     dropGroup: {
       borderTopColor: c.border,
       borderTopWidth: 1,
       gap: tokens.space.lg,
       paddingTop: tokens.space.lg
+    },
+    lockedGroup: {
+      gap: tokens.space.md
+    },
+    lockedRow: {
+      flexDirection: "row"
+    },
+    lockedBadge: {
+      backgroundColor: c.surfaceMuted,
+      borderColor: c.border,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.xs
     },
     dropHeader: {
       gap: tokens.space.xs
@@ -587,8 +817,13 @@ const createStyles = (c: ThemeColors) =>
       gap: tokens.space.lg
     },
     itemRow: {
+      alignItems: "flex-start",
       flexDirection: "row",
-      gap: tokens.space.md
+      gap: tokens.space.md,
+      minHeight: 44
+    },
+    itemRowPressed: {
+      opacity: 0.6
     },
     itemDot: {
       backgroundColor: c.surface,
@@ -606,5 +841,8 @@ const createStyles = (c: ThemeColors) =>
     itemCopy: {
       flex: 1,
       gap: tokens.space.xs
+    },
+    itemArrow: {
+      marginTop: 2
     }
   });

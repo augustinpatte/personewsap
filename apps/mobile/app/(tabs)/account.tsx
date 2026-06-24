@@ -15,15 +15,17 @@ import {
 } from "../../src/features/account/privacyData";
 import { useAuth } from "../../src/features/auth";
 import { NotificationPreferencesCard } from "../../src/features/notifications";
-import { PreferencesEditor } from "../../src/features/preferences";
+import { PreferencesEditor, updateProfileLanguage } from "../../src/features/preferences";
 import { trackAnalyticsEvent } from "../../src/lib/analytics";
 import { formatLanguageName, localized } from "../../src/lib/i18n";
 import { type NormalizedSupabaseError } from "../../src/lib/supabase";
+import type { Language } from "../../src/types/domain";
 import { getUserFacingError } from "../../src/lib/userFacingErrors";
 
 export default function AccountScreen() {
   const router = useRouter();
   const {
+    applyProfileLanguage,
     error,
     profileCompleted,
     profileLanguage,
@@ -55,6 +57,21 @@ export default function AccountScreen() {
       });
     }
   }, [profileLanguage, visibleAccountError]);
+
+  const handleLanguageChange = useCallback(
+    async (language: Language) => {
+      // Update the single source of truth first so every screen switches now,
+      // then persist so the choice survives a restart. No reset required.
+      applyProfileLanguage(language);
+
+      if (!user?.id) {
+        return;
+      }
+
+      await updateProfileLanguage(user.id, language);
+    },
+    [applyProfileLanguage, user?.id]
+  );
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -165,6 +182,7 @@ export default function AccountScreen() {
         </Card>
 
         <PreferencesEditor
+          onLanguageChange={handleLanguageChange}
           onSaved={refreshAuthState}
           refreshKey={preferencesRefreshKey}
           uiLanguage={profileLanguage}

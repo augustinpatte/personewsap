@@ -388,6 +388,52 @@ export async function saveEditablePreferences(
   }
 }
 
+/**
+ * Persist only the reading language to profiles.language. Used for the immediate
+ * language switch in Account, which applies app-wide instantly and must survive a
+ * restart without depending on a full preferences save (topics/modules untouched).
+ */
+export async function updateProfileLanguage(
+  userId: string,
+  language: Language
+): Promise<SavePreferencesResult> {
+  if (!supabase) {
+    return {
+      ok: false,
+      error: {
+        code: "missing_supabase_config",
+        message: localized(
+          {
+            en: "Live account preferences are not configured for this build.",
+            fr: "Les préférences de compte live ne sont pas configurées pour cette version."
+          },
+          language
+        )
+      }
+    };
+  }
+
+  const result = await supabase.from("profiles").update({ language }).eq("id", userId);
+
+  if (result.error) {
+    return {
+      ok: false,
+      error: normalizeSupabaseError(
+        result.error,
+        localized(
+          {
+            en: "Could not save your reading language.",
+            fr: "Impossible d'enregistrer ta langue de lecture."
+          },
+          language
+        )
+      )
+    };
+  }
+
+  return { ok: true };
+}
+
 export function normalizeEditablePreferences(preferences: EditablePreferences): EditablePreferences {
   const selectedTopics = normalizeNewsletterTopics(preferences.selectedTopics);
   const miniCaseTopics = normalizeMiniCaseTopics(preferences.miniCaseTopics);

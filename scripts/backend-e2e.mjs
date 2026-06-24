@@ -23,7 +23,11 @@ const childEnv = {
   USER_LIMIT: userLimit,
   NEWSLETTER_COUNT: newsletterCount,
   LIVE_RSS: liveRss ? "true" : "false",
-  USE_LLM: useLlm ? "true" : "false"
+  USE_LLM: useLlm ? "true" : "false",
+  // The e2e always expects an edition to be generated. PersoNews publishes on a
+  // 4×/week cadence (Mon/Wed/Fri/Sun), so force an edition to keep this run
+  // deterministic on quiet weekdays. A pinned DROP_DATE still drives the date.
+  FORCE_EDITION: process.env.FORCE_EDITION || "daily"
 };
 
 const checks = [];

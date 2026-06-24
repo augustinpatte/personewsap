@@ -10,6 +10,7 @@ import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../li
 import { mockLibraryDrops } from "../../mocks";
 import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
+import { resolveEditionType } from "../today/editionCadence";
 import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
 
 type FetchLibraryDropsOptions = {
@@ -47,6 +48,35 @@ const topicIds = [
   "sport_business",
   "culture_media"
 ] as const satisfies TopicId[];
+
+/**
+ * Best-effort read of the account creation date, used to age the library access
+ * gate (see accessPolicy). Never throws: on any failure we return null, which
+ * the policy treats as a brand-new account (most restrictive, base access).
+ */
+export async function fetchProfileCreatedAt(
+  userId: string | null | undefined
+): Promise<string | null> {
+  if (!supabase || !userId) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("created_at")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return data.created_at ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function fetchLibraryDrops(
   userId: string | null | undefined,
@@ -384,7 +414,13 @@ function mapLibraryContentType(
 }
 
 function getLibraryDropTitle(drop: DailyDrop): string {
-  return drop.language === "fr" ? "Brief quotidien" : "Daily drop";
+  const isWeeklyDigest = resolveEditionType(drop.drop_date) === "weekly_digest";
+
+  if (drop.language === "fr") {
+    return isWeeklyDigest ? "Synthèse hebdomadaire" : "Brief quotidien";
+  }
+
+  return isWeeklyDigest ? "Weekly digest" : "Daily drop";
 }
 
 function normalizeLibraryLimit(limit: number | undefined): number {

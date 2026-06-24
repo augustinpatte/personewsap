@@ -52,6 +52,7 @@ type AuthContextValue = {
   profileCompleted: boolean;
   profileLanguage: Language | null;
   isConfigured: boolean;
+  applyProfileLanguage: (language: Language) => void;
   refreshAuthState: () => Promise<void>;
   signInWithEmail: (params: SignInParams) => Promise<AuthActionResult>;
   signUpWithEmail: (params: SignUpParams) => Promise<AuthActionResult>;
@@ -295,6 +296,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return profileStatus.error ?? null;
   }, []);
 
+  // Single source of truth for the app's UI language. Updating it here re-renders
+  // every screen that reads `profileLanguage`, so a language change takes effect
+  // immediately app-wide without a reload. Persistence to profiles.language is the
+  // caller's responsibility so the choice survives a restart.
+  const applyProfileLanguage = useCallback((language: Language) => {
+    setProfileLanguage(language);
+  }, []);
+
   const refreshAuthState = useCallback(async () => {
     setStatus("loading");
 
@@ -492,12 +501,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       profileCompleted,
       profileLanguage,
       isConfigured: hasSupabaseConfig,
+      applyProfileLanguage,
       refreshAuthState,
       signInWithEmail,
       signUpWithEmail,
       signOut
     }),
     [
+      applyProfileLanguage,
       error,
       profileCompleted,
       profileLanguage,

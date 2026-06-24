@@ -25,8 +25,9 @@ import type {
   TodayDailyDrop
 } from "./contentTypes";
 import { fetchTodayDrop } from "./dailyDropData";
+import { getProductEditionDate } from "./editionCadence";
 
-type DailyDropContextValue = {
+export type DailyDropContextValue = {
   language: ContentLanguage;
   drop: TodayDailyDrop;
   status: "loading" | "ready";
@@ -44,7 +45,7 @@ type DailyDropContextValue = {
   reload: () => void;
 };
 
-const DailyDropContext = createContext<DailyDropContextValue | null>(null);
+export const DailyDropContext = createContext<DailyDropContextValue | null>(null);
 
 type DailyDropState = {
   drop: TodayDailyDrop;
@@ -82,7 +83,7 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
         return;
       }
 
-      const result = await fetchTodayDrop(userId, getLocalDropDate(new Date()), {
+      const result = await fetchTodayDrop(userId, getProductEditionDate(), {
         language
       });
 
@@ -214,12 +215,4 @@ export function useDailyDrop() {
   }
 
   return value;
-}
-
-function getLocalDropDate(date: Date) {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
 }

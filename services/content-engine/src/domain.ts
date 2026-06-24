@@ -26,6 +26,14 @@ export const GOAL_IDS = [
   "become_sharper_daily"
 ] as const;
 
+/**
+ * Editorial memory cap. Before generating Business Stories or Mini Cases we pull
+ * at most the 50 most recent history rows and inject only a compact, de-identified
+ * memory of them into the prompt. Never inject full past content and never exceed
+ * 50 items; if fewer exist, use what is available.
+ */
+export const EDITORIAL_MEMORY_LIMIT = 50;
+
 export const LANGUAGES = ["fr", "en"] as const;
 export const CONTENT_TYPES = ["newsletter_article", "business_story", "mini_case", "concept", "quick_quiz"] as const;
 export const DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  EDITORIAL_MEMORY_LIMIT,
   isLanguage,
   isMiniCaseTopicId,
   isTopicId,
@@ -980,7 +981,7 @@ export class ContentRepository {
       .eq("language", input.language)
       .lte("published_date", input.dropDate)
       .order("published_date", { ascending: false })
-      .limit(180)
+      .limit(EDITORIAL_MEMORY_LIMIT)
       .returns<BusinessStoryHistoryRow[]>();
 
     if (error) {
@@ -1011,7 +1012,7 @@ export class ContentRepository {
       .lte("published_date", input.dropDate)
       .order("published_date", { ascending: false })
       .order("created_at", { ascending: false })
-      .limit(60)
+      .limit(EDITORIAL_MEMORY_LIMIT)
       .returns<MiniCaseHistoryRow[]>();
 
     if (error) {

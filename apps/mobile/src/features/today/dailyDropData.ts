@@ -154,25 +154,25 @@ export async function fetchTodayDrop(
     }
 
     if (!drop) {
-      logTodayDataProof("mock_fallback", {
+      logTodayDataProof("no_edition", {
         drop_date: dropDate,
         reason: "no_supabase_data",
         user_id: redactIdentifier(userId)
       });
 
-      return createMockFallbackResult(fallbackDrop, "no_supabase_data");
+      return createSupabaseResult(buildEmptyTodayDrop(options.language ?? "en", dropDate));
     }
 
     const mappedDrop = await fetchAndMapDailyDrop(drop);
 
     if (!mappedDrop) {
-      logTodayDataProof("mock_fallback", {
+      logTodayDataProof("no_edition", {
         daily_drop_id: drop.id,
         drop_date: dropDate,
         reason: "daily_drop_has_no_displayable_items"
       });
 
-      return createMockFallbackResult(fallbackDrop, "no_supabase_data");
+      return createSupabaseResult(buildEmptyTodayDrop(options.language ?? "en", dropDate));
     }
 
     setCachedValue(cacheKey, mappedDrop, options.cacheTtlMs ?? todayDropCacheTtlMs);
@@ -284,6 +284,92 @@ export async function fetchContentItemSources(
 
     return createMockFallbackResult(
       fallbackSources,
+      getFallbackReasonForError(normalizedError),
+      normalizedError
+    );
+  }
+}
+
+/**
+ * Resolve a single content item by id and map it into the shape the readers
+ * expect. This is what lets archived/library items open: today's drop only holds
+ * the current edition, so any item that is not in it is fetched on demand here.
+ * Returns `null` data (not a fallback) when the item genuinely no longer exists,
+ * so the reader can show its "no longer available" state instead of a dead tap.
+ */
+export async function fetchContentItemById(
+  contentItemId: string
+): Promise<DataFetchResult<DailyDropContentItem | null>> {
+  const fallbackItem = getMockContentItemById(contentItemId);
+
+  if (!supabase) {
+    return createMockFallbackResult(
+      fallbackItem,
+      "missing_supabase_config",
+      normalizeSupabaseError({
+        code: "missing_supabase_config",
+        message: "Live reading is not configured for this build.",
+        hint:
+          "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
+      })
+    );
+  }
+
+  try {
+    const cacheKey = getContentItemCacheKey(contentItemId);
+    const cachedItem = getCachedValue<DailyDropContentItem>(cacheKey);
+
+    if (cachedItem) {
+      return createCachedResult(cachedItem);
+    }
+
+    const { data: contentItem, error } = await supabase
+      .from("content_items")
+      .select(contentItemSelect)
+      .eq("id", contentItemId)
+      .eq("status", "published")
+      .maybeSingle();
+
+    if (error) {
+      const normalizedError = normalizeSupabaseError(error);
+
+      return createMockFallbackResult(
+        fallbackItem,
+        getFallbackReasonForError(normalizedError),
+        normalizedError
+      );
+    }
+
+    if (!contentItem) {
+      // Authoritative "this item is gone" answer, not a fallback.
+      return createSupabaseResult(null);
+    }
+
+    const slot = slotForContentType(contentItem.content_type);
+
+    if (!slot) {
+      return createSupabaseResult(null);
+    }
+
+    const sourcesByContentItemId = await fetchSourcesByContentItemIds([contentItemId]);
+    const mappedItem = mapDailyDropContentItem(
+      contentItem,
+      synthesizeDropItem(contentItemId, slot),
+      sourcesByContentItemId
+    );
+
+    if (!mappedItem) {
+      return createSupabaseResult(null);
+    }
+
+    setCachedValue(cacheKey, mappedItem, todayDropCacheTtlMs);
+
+    return createSupabaseResult(mappedItem);
+  } catch (error) {
+    const normalizedError = normalizeSupabaseError(error);
+
+    return createMockFallbackResult(
+      fallbackItem,
       getFallbackReasonForError(normalizedError),
       normalizedError
     );
@@ -544,6 +630,73 @@ function getMockTodayDrop(language: ContentLanguage = "en"): TodayDailyDrop {
   return mockTodayDailyDropsByLanguage[language] ?? mockTodayDailyDropsByLanguage.en;
 }
 
+/**
+ * A real, authoritative "no edition" drop with zero items. Returned to authenticated
+ * users when Supabase has no assigned drop for the date (e.g. a quiet day in the
+ * 4×/week cadence). The UI renders a deliberate empty-edition screen rather than
+ * mock/sample content, which keeps the app free of any "sample" surface.
+ */
+function buildEmptyTodayDrop(
+  language: ContentLanguage,
+  dropDate: string
+): TodayDailyDrop {
+  return {
+    id: `no-edition:${dropDate}:${language}`,
+    drop_date: dropDate,
+    language,
+    title: language === "fr" ? "Aucune édition" : "No edition",
+    prompt_version: "no_edition",
+    generator_version: "no_edition",
+    estimated_read_minutes: 0,
+    items: {
+      newsletter: [],
+      business_story: undefined,
+      mini_case: undefined,
+      concept: undefined
+    }
+  };
+}
+
+function getMockContentItemById(contentItemId: string): DailyDropContentItem | null {
+  return (
+    Object.values(mockTodayDailyDropsByLanguage)
+      .flatMap((drop) => flattenDailyDropItems(drop))
+      .find((item) => item.id === contentItemId) ?? null
+  );
+}
+
+function slotForContentType(
+  contentType: ContentItem["content_type"]
+): DailyDropItem["slot"] | null {
+  switch (contentType) {
+    case "newsletter_article":
+      return "newsletter";
+    case "business_story":
+      return "business_story";
+    case "mini_case":
+      return "mini_case";
+    case "concept":
+      return "concept";
+    default:
+      return null;
+  }
+}
+
+// A standalone content item has no daily_drop_items row; mapDailyDropContentItem
+// only reads the slot, so we provide a minimal one anchored to the right slot.
+function synthesizeDropItem(
+  contentItemId: string,
+  slot: DailyDropItem["slot"]
+): DailyDropItem {
+  return {
+    daily_drop_id: "",
+    content_item_id: contentItemId,
+    slot,
+    position: 0,
+    created_at: ""
+  };
+}
+
 function getMockSourcesForContentItem(contentItemId: string): SourceMetadata[] {
   const mockItem = Object.values(mockTodayDailyDropsByLanguage)
     .flatMap((drop) => flattenDailyDropItems(drop))
@@ -736,12 +889,16 @@ function getContentSourcesCacheKey(contentItemId: string): string {
   return ["content-sources", contentItemId].join(":");
 }
 
+function getContentItemCacheKey(contentItemId: string): string {
+  return ["content-item", contentItemId].join(":");
+}
+
 function getFallbackReasonForError(error: ReturnType<typeof normalizeSupabaseError>): DataFallbackReason {
   return isLikelyNetworkError(error) ? "network_unavailable" : "supabase_error";
 }
 
 function logTodayDataProof(
-  event: "live_daily_drop" | "live_daily_drop_cache_hit" | "mock_fallback",
+  event: "live_daily_drop" | "live_daily_drop_cache_hit" | "mock_fallback" | "no_edition",
   details: Record<string, unknown>
 ): void {
   if (__DEV__) {
