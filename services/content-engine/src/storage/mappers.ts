@@ -237,6 +237,14 @@ function miniCaseMetadata(item: MiniCaseChallenge): Record<string, unknown> {
     expected_reasoning: item.expected_reasoning,
     sample_answer: item.sample_answer,
     conclusion: item.conclusion,
+    final_takeaway: item.final_takeaway,
+    score_max: item.score_max,
+    learning_points: item.learning_points ?? null,
+    prerequisites: item.prerequisites ?? null,
+    next_recommended: item.next_recommended ?? null,
+    cognitive_load: item.cognitive_load ?? null,
+    surprise_fact: item.surprise_fact ?? null,
+    business_context_type: item.business_context_type ?? null,
     source_urls: item.source_urls
   };
 }

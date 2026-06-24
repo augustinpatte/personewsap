@@ -82,7 +82,7 @@ const DAILY_DROP_SLOT_BY_TYPE: Partial<Record<ContentType, GeneratedContentItem[
 const REQUIRED_TEXT_FIELDS: Partial<Record<ContentType, string[]>> = {
   newsletter_article: ["title", "summary", "body_md", "why_it_matters", "published_date"],
   business_story: ["title", "company_or_market", "setup", "tension", "decision", "outcome", "lesson", "body_md", "story_date"],
-  mini_case: ["title", "context", "challenge", "question", "sample_answer", "body_md"],
+  mini_case: ["title", "context", "challenge", "question", "sample_answer", "final_takeaway", "body_md"],
   concept: ["title", "definition", "plain_english", "example", "why_it_matters", "how_to_use_it", "common_mistake", "body_md"]
 };
 
@@ -1053,6 +1053,8 @@ function validateMiniCaseUxAndRotation(
   return issues;
 }
 
+const MINI_CASE_FEEDBACK_MAX_CHARS = 320;
+
 function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content_type: "mini_case" }>, path: string, strict: boolean): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const questions = Array.isArray(item.questions) ? item.questions : [];
@@ -1071,8 +1073,8 @@ function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content
       issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.question`, code: "mini_case_mcq_question_missing", message: "Each MCQ question needs a concrete prompt.", strict }));
     }
 
-    if (!Array.isArray(question.options) || question.options.length < 2) {
-      issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options`, code: "mini_case_mcq_options_missing", message: "Each MCQ question needs answer options.", strict }));
+    if (!Array.isArray(question.options) || question.options.length !== 4) {
+      issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options`, code: "mini_case_mcq_options_invalid", message: "Each MCQ question needs exactly 4 answer options (A/B/C/D).", strict }));
       return;
     }
 
@@ -1082,28 +1084,88 @@ function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content
     }
 
     question.options.forEach((option, optionIndex) => {
-      if (!option.text || !option.feedback_correct || !option.feedback_incorrect) {
-        issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options.${optionIndex}`, code: "mini_case_mcq_feedback_missing", message: "Each answer option needs text plus correct and incorrect instant feedback.", strict }));
+      const feedback = typeof option.feedback === "string" ? option.feedback.trim() : "";
+      if (!option.text || feedback.length === 0) {
+        issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options.${optionIndex}`, code: "mini_case_mcq_feedback_missing", message: "Each answer option needs text plus a single instant feedback string.", strict }));
+        return;
+      }
+
+      if (feedback.length > MINI_CASE_FEEDBACK_MAX_CHARS) {
+        issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options.${optionIndex}.feedback`, code: "mini_case_mcq_feedback_too_long", message: `Option feedback must stay short (max ${MINI_CASE_FEEDBACK_MAX_CHARS} characters).`, strict }));
       }
     });
   });
+
+  issues.push(...validateMiniCaseProductFields(item, path, strict));
+
+  return issues;
+}
+
+const MINI_CASE_COGNITIVE_LOAD_VALUES = new Set(["low", "medium", "high"]);
+const MINI_CASE_BUSINESS_CONTEXT_VALUES = new Set(["fictional_but_realistic", "inspired_by_real_events"]);
+
+function validateMiniCaseProductFields(item: Extract<GeneratedContentItem, { content_type: "mini_case" }>, path: string, strict: boolean): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const record = item as unknown as Record<string, unknown>;
+  const questionCount = Array.isArray(item.questions) ? item.questions.length : 0;
+  const expectedScoreMax = questionCount > 0 ? questionCount : 3;
+
+  if (typeof item.score_max !== "number" || item.score_max !== expectedScoreMax) {
+    issues.push(qualityIssue({
+      path: `${path}.score_max`,
+      code: "mini_case_score_max_invalid",
+      message: `Mini-case score_max must equal the number of questions (${expectedScoreMax}).`,
+      strict
+    }));
+  }
+
+  // Optional standardized-ID lists: when present they must be non-empty string arrays.
+  for (const field of ["learning_points", "prerequisites", "next_recommended"] as const) {
+    const value = record[field];
+    if (value === undefined) {
+      continue;
+    }
+    if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || entry.trim().length === 0)) {
+      issues.push(qualityIssue({ path: `${path}.${field}`, code: "mini_case_id_list_invalid", message: `Mini-case ${field} must be a list of non-empty IDs when present.`, strict }));
+    }
+  }
+
+  const cognitiveLoad = record.cognitive_load;
+  if (cognitiveLoad !== undefined && !(typeof cognitiveLoad === "string" && MINI_CASE_COGNITIVE_LOAD_VALUES.has(cognitiveLoad))) {
+    issues.push(qualityIssue({ path: `${path}.cognitive_load`, code: "mini_case_cognitive_load_invalid", message: "Mini-case cognitive_load must be low, medium, or high when present.", strict }));
+  }
+
+  const businessContext = record.business_context_type;
+  if (businessContext !== undefined && !(typeof businessContext === "string" && MINI_CASE_BUSINESS_CONTEXT_VALUES.has(businessContext))) {
+    issues.push(qualityIssue({ path: `${path}.business_context_type`, code: "mini_case_business_context_invalid", message: "Mini-case business_context_type must be fictional_but_realistic or inspired_by_real_events when present.", strict }));
+  }
 
   return issues;
 }
 
 function validateMiniCaseConclusion(item: Extract<GeneratedContentItem, { content_type: "mini_case" }>, path: string, strict: boolean): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
   const conclusion = `${readItemString(item.conclusion) ?? ""} ${readItemString(item.core_takeaway) ?? ""}`.trim();
   if (wordCount(conclusion) < 12 || GENERIC_AI_PHRASES.some((phrase) => normalizeForPhraseCheck(conclusion).includes(phrase))) {
-    return [
-      qualityIssue({
-        path: `${path}.conclusion`,
-        code: "mini_case_conclusion_missing",
-        message: "Mini-case conclusion/final takeaway is missing, too short, or generic.",
-        strict
-      })
-    ];
+    issues.push(qualityIssue({
+      path: `${path}.conclusion`,
+      code: "mini_case_conclusion_missing",
+      message: "Mini-case conclusion/final takeaway is missing, too short, or generic.",
+      strict
+    }));
   }
-  return [];
+
+  const finalTakeaway = readItemString(item.final_takeaway);
+  if (!finalTakeaway || wordCount(finalTakeaway) < 4 || GENERIC_AI_PHRASES.some((phrase) => normalizeForPhraseCheck(finalTakeaway).includes(phrase))) {
+    issues.push(qualityIssue({
+      path: `${path}.final_takeaway`,
+      code: "mini_case_final_takeaway_missing",
+      message: "Mini-case final_takeaway is required and must be a short, concrete, non-generic idea.",
+      strict
+    }));
+  }
+
+  return issues;
 }
 
 function validateMiniCaseCooldowns(
@@ -1360,10 +1422,16 @@ function summarizeQualityChecks(issues: ValidationIssue[]): ContentQualityDiagno
     "mini_case_mcq_count_invalid",
     "mini_case_mcq_role_invalid",
     "mini_case_mcq_question_missing",
-    "mini_case_mcq_options_missing",
+    "mini_case_mcq_options_invalid",
     "mini_case_mcq_correct_count_invalid",
     "mini_case_mcq_feedback_missing",
+    "mini_case_mcq_feedback_too_long",
+    "mini_case_score_max_invalid",
+    "mini_case_id_list_invalid",
+    "mini_case_cognitive_load_invalid",
+    "mini_case_business_context_invalid",
     "mini_case_conclusion_missing",
+    "mini_case_final_takeaway_missing",
     "mini_case_title_repeated",
     "mini_case_scenario_cooldown",
     "mini_case_concept_cooldown",

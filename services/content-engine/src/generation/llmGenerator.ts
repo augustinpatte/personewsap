@@ -13,9 +13,11 @@ import { LlmGenerationError, serializeLlmFailure, toLlmGenerationError } from ".
 import type { LlmProvider } from "./llmProvider.js";
 import { sanitizeLlmDailyDropPayload } from "./llmSanitizer.js";
 import {
+  BUSINESS_STORY_PROMPT_FINAL,
   CONTENT_TYPE_PROMPTS,
   EDITORIAL_PROMPT,
   GENERATOR_VERSION,
+  MINI_CASE_PROMPT_FINAL,
   PROMPT_VERSION,
   STRONG_WRITING_EXAMPLES
 } from "./prompts.js";
@@ -190,6 +192,8 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
           "Use source_urls only from allowed_source_urls.",
           "Every body_md must include a concise source line with a YYYY-MM-DD date.",
           "Every body_md source line must include the exact source URL string from source_urls.",
+          "content_type_guidance.business_story.editorial_specification and content_type_guidance.mini_case.editorial_specification define editorial style, depth, and quality. They are NOT the output envelope: any standalone JSON object shown inside them is illustrative only.",
+          "The only valid output structure is this daily drop JSON schema. Map the editorial specifications into these schema fields.",
           "Return JSON only."
         ]
       },
@@ -233,7 +237,7 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
           "stock_market is market education only, never buy/sell instructions."
         ],
         ux_contract: [
-          "Each mini-case contains context/introduction, problem to solve, exactly 3 MCQ questions, immediate feedback for each answer, a computable score from 0/3 to 3/3, and a final short takeaway.",
+          "Each mini-case contains context/introduction, problem to solve, exactly 3 MCQ questions with exactly 4 options each (one correct), a single short feedback string per option, score_max 3, a computable score from 0/3 to 3/3, and a required final_takeaway.",
           "Question 1: method/framework. Question 2: technical/practical application. Question 3: conclusion/decision."
         ]
       },
@@ -249,8 +253,14 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
       stronger_writing_examples: STRONG_WRITING_EXAMPLES,
       content_type_guidance: {
         newsletter_article: CONTENT_TYPE_PROMPTS.newsletter_article,
-        business_story: CONTENT_TYPE_PROMPTS.business_story,
-        mini_case: CONTENT_TYPE_PROMPTS.mini_case,
+        business_story: {
+          editorial_specification: BUSINESS_STORY_PROMPT_FINAL,
+          daily_drop_output_contract: CONTENT_TYPE_PROMPTS.business_story
+        },
+        mini_case: {
+          editorial_specification: MINI_CASE_PROMPT_FINAL,
+          daily_drop_output_contract: CONTENT_TYPE_PROMPTS.mini_case
+        },
         concept: CONTENT_TYPE_PROMPTS.concept
       },
       request: {

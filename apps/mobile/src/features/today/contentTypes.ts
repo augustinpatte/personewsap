@@ -94,6 +94,10 @@ export type MiniCaseChallenge = BaseContentItem & {
   expected_reasoning: string[];
   sample_answer: string;
   final_takeaway?: string;
+  // Max achievable score (engine sets this to the number of questions, i.e. 3).
+  // Optional so legacy/mock single-question cases still type-check.
+  score_max?: number;
+  surprise_fact?: string;
 };
 
 export type KeyConcept = BaseContentItem & {

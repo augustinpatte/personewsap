@@ -194,11 +194,16 @@ function MiniCaseQuizFlow({
   const [showResults, setShowResults] = useState(false);
   const reveal = useRef(new Animated.Value(0)).current;
 
-  const total = questions.length;
+  // Navigation tracks the real question count; the score denominator prefers the
+  // engine's score_max (=== number of questions) and falls back to the count for
+  // legacy/mock cases. They match for engine content, so the score still reads
+  // n/3.
+  const questionCount = questions.length;
+  const total = challenge.score_max ?? questionCount;
   const currentQuestion = questions[index];
   const selectedId = selections[currentQuestion.id] ?? null;
   const answered = selectedId !== null;
-  const isLast = index >= total - 1;
+  const isLast = index >= questionCount - 1;
 
   const score = useMemo(
     () =>
@@ -271,7 +276,7 @@ function MiniCaseQuizFlow({
 
   function renderQuestion() {
     const roleLabel = currentQuestion.role ? roleLabelFor(currentQuestion.role, copy) : null;
-    const stepLabel = copy.questionStep(index + 1, total);
+    const stepLabel = copy.questionStep(index + 1, questionCount);
     const selectedOption =
       currentQuestion.options.find((option) => option.id === selectedId) ?? null;
 

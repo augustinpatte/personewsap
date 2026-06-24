@@ -172,15 +172,42 @@ export type MiniCaseChallenge = BaseGeneratedItem & {
       id: string;
       text: string;
       is_correct: boolean;
-      feedback_correct: string;
-      feedback_incorrect: string;
+      /**
+       * Single instant feedback for this option, aligned with the final Mini Case
+       * prompt: when the option is correct it explains why it works, when it is
+       * wrong it explains why it fails. Replaces the legacy
+       * feedback_correct/feedback_incorrect pair.
+       */
+      feedback: string;
     }>;
   }>;
   expected_reasoning: string[];
   sample_answer: string;
   conclusion: string;
+  /** Short, immediately useful closing idea (final Mini Case prompt: final_takeaway). */
+  final_takeaway: string;
+  /** Always equals the number of questions (3) so the app can show a 0/3..3/3 score. */
+  score_max: number;
+  /** Optional standardized learning-point IDs surfaced by the final prompt. */
+  learning_points?: string[];
+  prerequisites?: string[];
+  next_recommended?: string[];
+  cognitive_load?: MiniCaseCognitiveLoad;
+  surprise_fact?: string;
+  business_context_type?: MiniCaseBusinessContextType;
   body_md: string;
 };
+
+export const MINI_CASE_COGNITIVE_LOADS = ["low", "medium", "high"] as const;
+export type MiniCaseCognitiveLoad = (typeof MINI_CASE_COGNITIVE_LOADS)[number];
+
+export const MINI_CASE_BUSINESS_CONTEXT_TYPES = [
+  "fictional_but_realistic",
+  "inspired_by_real_events"
+] as const;
+export type MiniCaseBusinessContextType = (typeof MINI_CASE_BUSINESS_CONTEXT_TYPES)[number];
+
+export const MINI_CASE_SCORE_MAX = 3;
 
 export type KeyConcept = BaseGeneratedItem & {
   content_type: "concept";

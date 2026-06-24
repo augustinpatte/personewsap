@@ -207,6 +207,8 @@ export const DAILY_DROP_JSON_SCHEMA = {
               "sample_answer",
               "conclusion",
               "core_takeaway",
+              "final_takeaway",
+              "score_max",
               "body_md",
               "source_urls",
               "version"
@@ -273,17 +275,17 @@ export const DAILY_DROP_JSON_SCHEMA = {
                     question: { type: "string" },
                     options: {
                       type: "array",
-                      minItems: 2,
+                      minItems: 4,
+                      maxItems: 4,
                       items: {
                         type: "object",
                         additionalProperties: false,
-                        required: ["id", "text", "is_correct", "feedback_correct", "feedback_incorrect"],
+                        required: ["id", "text", "is_correct", "feedback"],
                         properties: {
                           id: { type: "string" },
                           text: { type: "string" },
                           is_correct: { type: "boolean" },
-                          feedback_correct: { type: "string" },
-                          feedback_incorrect: { type: "string" }
+                          feedback: { type: "string" }
                         }
                       }
                     }
@@ -310,6 +312,35 @@ export const DAILY_DROP_JSON_SCHEMA = {
               },
               core_takeaway: {
                 type: "string"
+              },
+              final_takeaway: {
+                type: "string"
+              },
+              score_max: {
+                type: "integer"
+              },
+              learning_points: {
+                type: "array",
+                items: { type: "string" }
+              },
+              prerequisites: {
+                type: "array",
+                items: { type: "string" }
+              },
+              next_recommended: {
+                type: "array",
+                items: { type: "string" }
+              },
+              cognitive_load: {
+                type: "string",
+                enum: ["low", "medium", "high"]
+              },
+              surprise_fact: {
+                type: "string"
+              },
+              business_context_type: {
+                type: "string",
+                enum: ["fictional_but_realistic", "inspired_by_real_events"]
               },
               body_md: {
                 type: "string"

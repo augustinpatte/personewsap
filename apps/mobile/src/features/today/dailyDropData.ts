@@ -585,7 +585,9 @@ function mapDailyDropContentItem(
       question: readString(metadata, "question"),
       questions: readMiniCaseQuestions(metadata),
       sample_answer: readString(metadata, "sample_answer"),
+      score_max: readNumber(metadata, "score_max"),
       slot: "mini_case",
+      surprise_fact: readString(metadata, "surprise_fact") || undefined,
       topic: readTopic(metadata, "topic", contentItem.topic_id)
     };
   }
@@ -736,6 +738,15 @@ function readString(
   return typeof value === "string" && value.trim().length > 0 ? value : fallback;
 }
 
+function readNumber(
+  metadata: Record<string, unknown>,
+  key: string
+): number | undefined {
+  const value = metadata[key];
+
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
 function readStringArray(metadata: Record<string, unknown>, key: string): string[] {
   const value = metadata[key];
 
@@ -746,6 +757,16 @@ function readStringArray(metadata: Record<string, unknown>, key: string): string
 
 const miniCaseOutcomes: readonly MiniCaseOptionOutcome[] = ["best", "viable", "weak"];
 const miniCaseRoles: readonly MiniCaseQuestionRole[] = ["method", "application", "conclusion"];
+
+// The content engine persists questions with the schema taxonomy
+// (method_framework / technical_application / conclusion_decision). The reader
+// uses the shorter mobile roles, so map the engine values onto them. Mock data
+// already uses the short roles, so this is a no-op there.
+const engineRoleToMobileRole: Record<string, MiniCaseQuestionRole> = {
+  method_framework: "method",
+  technical_application: "application",
+  conclusion_decision: "conclusion"
+};
 
 function readMiniCaseQuestions(
   metadata: Record<string, unknown>
@@ -763,12 +784,15 @@ function readMiniCaseQuestions(
   return questions.length > 0 ? questions : undefined;
 }
 
+// Accepts both the mobile/mock shape (prompt, options[].label/outcome/feedback)
+// and the content-engine shape (question, options[].text/is_correct/feedback),
+// so live Supabase content and mock content both render through one reader.
 function parseMiniCaseQuestion(value: unknown, index: number): MiniCaseQuestion | null {
   if (!isRecord(value)) {
     return null;
   }
 
-  const prompt = typeof value.prompt === "string" ? value.prompt.trim() : "";
+  const prompt = firstTrimmedString(value.prompt, value.question);
 
   if (prompt.length === 0) {
     return null;
@@ -791,9 +815,7 @@ function parseMiniCaseQuestion(value: unknown, index: number): MiniCaseQuestion 
         : `question-${index + 1}`,
     prompt,
     options,
-    role: miniCaseRoles.includes(value.role as MiniCaseQuestionRole)
-      ? (value.role as MiniCaseQuestionRole)
-      : undefined,
+    role: parseMiniCaseRole(value.role),
     explanation:
       typeof value.explanation === "string" && value.explanation.trim().length > 0
         ? value.explanation
@@ -801,16 +823,47 @@ function parseMiniCaseQuestion(value: unknown, index: number): MiniCaseQuestion 
   };
 }
 
+function parseMiniCaseRole(value: unknown): MiniCaseQuestionRole | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  if (miniCaseRoles.includes(value as MiniCaseQuestionRole)) {
+    return value as MiniCaseQuestionRole;
+  }
+
+  return engineRoleToMobileRole[value];
+}
+
 function parseMiniCaseOption(value: unknown, index: number): MiniCaseOption | null {
   if (!isRecord(value)) {
     return null;
   }
 
-  const label = typeof value.label === "string" ? value.label.trim() : "";
+  const label = firstTrimmedString(value.label, value.text);
 
   if (label.length === 0) {
     return null;
   }
+
+  const isCorrect = value.is_correct === true;
+
+  // Prefer an explicit outcome (mock/legacy); otherwise derive it from the
+  // engine's is_correct flag so the reader can highlight the strongest answer.
+  const outcome: MiniCaseOptionOutcome = miniCaseOutcomes.includes(
+    value.outcome as MiniCaseOptionOutcome
+  )
+    ? (value.outcome as MiniCaseOptionOutcome)
+    : isCorrect
+      ? "best"
+      : "weak";
+
+  // New engine content carries a single `feedback`. Legacy content carried
+  // feedback_correct/feedback_incorrect, so fall back to the relevant one.
+  const feedback = firstTrimmedString(
+    value.feedback,
+    isCorrect ? value.feedback_correct : value.feedback_incorrect
+  );
 
   return {
     id:
@@ -818,11 +871,18 @@ function parseMiniCaseOption(value: unknown, index: number): MiniCaseOption | nu
         ? value.id
         : `option-${index + 1}`,
     label,
-    outcome: miniCaseOutcomes.includes(value.outcome as MiniCaseOptionOutcome)
-      ? (value.outcome as MiniCaseOptionOutcome)
-      : "viable",
-    feedback: typeof value.feedback === "string" ? value.feedback : ""
+    outcome,
+    feedback
   };
+}
+
+function firstTrimmedString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return "";
 }
 
 function readTopic(

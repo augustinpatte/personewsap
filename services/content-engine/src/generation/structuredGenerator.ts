@@ -176,8 +176,10 @@ function buildMiniCaseQuestions(
         `Quel cadre utiliser d'abord pour tester ${conceptTested} ?`
       ),
       options: [
-        correctOption("a", languageLine(language, "Separate the sourced fact, decision owner, and next signal.", "Separer le fait source, le responsable de decision et le prochain signal.")),
-        wrongOption("b", languageLine(language, "Turn the update into an immediate recommendation.", "Transformer l'actualite en recommandation immediate."))
+        correctOption("A", languageLine(language, "Separate the sourced fact, decision owner, and next signal.", "Separer le fait source, le responsable de decision et le prochain signal.")),
+        wrongOption("B", languageLine(language, "Turn the update into an immediate recommendation.", "Transformer l'actualite en recommandation immediate.")),
+        wrongOption("C", languageLine(language, "Pick the loudest interpretation of the headline.", "Choisir l'interpretation la plus bruyante du titre.")),
+        wrongOption("D", languageLine(language, "Wait for the story to disappear before acting.", "Attendre que le sujet disparaisse avant d'agir."))
       ]
     },
     {
@@ -185,8 +187,10 @@ function buildMiniCaseQuestions(
       role: "technical_application",
       question: languageLine(language, "Which signal best tests the practical impact?", "Quel signal teste le mieux l'impact pratique ?"),
       options: [
-        correctOption("a", watchSignalText),
-        wrongOption("b", languageLine(language, "A louder headline with the same facts.", "Un titre plus bruyant avec les memes faits."))
+        correctOption("A", watchSignalText),
+        wrongOption("B", languageLine(language, "A louder headline with the same facts.", "Un titre plus bruyant avec les memes faits.")),
+        wrongOption("C", languageLine(language, "The number of times the story is shared.", "Le nombre de partages de l'actualite.")),
+        wrongOption("D", languageLine(language, "A competitor's unrelated announcement.", "L'annonce sans rapport d'un concurrent."))
       ]
     },
     {
@@ -194,8 +198,10 @@ function buildMiniCaseQuestions(
       role: "conclusion_decision",
       question: languageLine(language, "What is the strongest conclusion?", "Quelle est la conclusion la plus solide ?"),
       options: [
-        correctOption("a", languageLine(language, "Wait for the named signal before escalating the decision.", "Attendre le signal nomme avant d'escalader la decision.")),
-        wrongOption("b", languageLine(language, "Assume the source proves every downstream consequence.", "Supposer que la source prouve toutes les consequences."))
+        correctOption("A", languageLine(language, "Wait for the named signal before escalating the decision.", "Attendre le signal nomme avant d'escalader la decision.")),
+        wrongOption("B", languageLine(language, "Assume the source proves every downstream consequence.", "Supposer que la source prouve toutes les consequences.")),
+        wrongOption("C", languageLine(language, "Reverse the whole plan on one data point.", "Inverser tout le plan sur un seul element.")),
+        wrongOption("D", languageLine(language, "Ignore the update because it is uncomfortable.", "Ignorer l'actualite parce qu'elle derange."))
       ]
     }
   ];
@@ -206,8 +212,7 @@ function correctOption(id: string, text: string): MiniCaseChallenge["questions"]
     id,
     text,
     is_correct: true,
-    feedback_correct: "Correct: this keeps the decision tied to evidence.",
-    feedback_incorrect: "Incorrect: this option is the intended evidence-backed answer."
+    feedback: "Correct: this keeps the decision tied to evidence."
   };
 }
 
@@ -216,8 +221,7 @@ function wrongOption(id: string, text: string): MiniCaseChallenge["questions"][n
     id,
     text,
     is_correct: false,
-    feedback_correct: "Correct to reject: this answer overreaches beyond the source.",
-    feedback_incorrect: "Not quite: this skips the evidence discipline the case is testing."
+    feedback: "Not quite: this skips the evidence discipline the case is testing."
   };
 }
 
@@ -564,6 +568,12 @@ export class StructuredContentGenerator implements ContentGenerator {
         `Final takeaway: separate the sourced fact from the recommendation, then use ${watch} to update the decision.`,
         `A retenir : separe le fait source de la recommandation, puis utilise ${watch} pour mettre a jour la decision.`
       ),
+      final_takeaway: languageLine(
+        request.language,
+        `Separate the sourced fact from your recommendation, then let ${watch} decide the next move.`,
+        `Separe le fait source de ta recommandation, puis laisse ${watch} decider du prochain mouvement.`
+      ),
+      score_max: 3,
       body_md: [
         sentence(article),
         languageLine(

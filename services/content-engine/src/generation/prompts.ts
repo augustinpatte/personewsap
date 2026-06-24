@@ -1,5 +1,32 @@
+import {
+  BUSINESS_STORY_PROMPT_FINAL,
+  MINI_CASE_PROMPT_FINAL,
+  promptFilePath
+} from "./promptLibrary.js";
+
 export const PROMPT_VERSION = "daily_drop_v4";
 export const GENERATOR_VERSION = "content_engine_0.1";
+
+/**
+ * Single source of truth registry for the long-form editorial prompts.
+ *
+ * The full Business Story and Mini Case prompts live verbatim in versioned
+ * Markdown under services/content-engine/prompts/ and are loaded by
+ * ./promptLibrary. This module only builds the dynamic technical context
+ * (output contract, memory, schema constraints) around that editorial text.
+ */
+export const PROMPT_SOURCES = {
+  business_story: {
+    editorialSpecification: BUSINESS_STORY_PROMPT_FINAL,
+    file: promptFilePath("business_story")
+  },
+  mini_case: {
+    editorialSpecification: MINI_CASE_PROMPT_FINAL,
+    file: promptFilePath("mini_case")
+  }
+} as const;
+
+export { BUSINESS_STORY_PROMPT_FINAL, MINI_CASE_PROMPT_FINAL };
 
 export const CONTENT_GUARDRAILS = [
   "Write like a sharp mentor briefing an ambitious 18-25 year-old before class, an interview, an internship, or a serious conversation.",
@@ -43,32 +70,38 @@ export const CONTENT_TYPE_PROMPTS = {
     "- The angle must match the topic. Do not stretch a culture story into finance or a medicine story into business.",
     "- Keep the tone direct and useful; no generic transition sentences or meta-commentary about headlines."
   ].join("\n"),
+  // Editorial direction for business stories now lives verbatim in
+  // prompts/business_story_prompt_final.md (injected as
+  // business_story_editorial_specification). The lines below are only the
+  // daily-drop output contract that the schema and validators depend on.
   business_story: [
-    "Business story:",
-    "- Teach one business mechanism through one concrete company, market, or operator decision.",
-    "- Include setup, tension, decision, outcome, and lesson. The lesson must be a business judgment, not a motivational slogan.",
-    "- Make the operator's trade-off explicit: growth vs margin, trust vs speed, distribution vs control, regulation vs expansion, scarcity vs demand.",
-    "- Name the observable signal that would prove the strategy is working or failing.",
-    "- Favor pricing power, distribution, regulation, incentives, operational leverage, market entry, or trust mechanics.",
+    "Business story output contract (daily drop envelope):",
+    "- Follow business_story_editorial_specification fully for style, depth, hook, narrative rhythm, factual discipline, anti-repetition, and memory rules.",
+    "- Render that story into the daily drop schema fields: setup, tension, decision, outcome, lesson, and body_md. The lesson must be a business judgment, not a motivational slogan.",
     "- Include editorial_memory with entity_name, entity_type, main_company, companies_mentioned, industry, key_mechanism, secondary_mechanisms, strategic_angle, core_takeaway, and year_period.",
     "- Treat editorial_memory as long-term freshness metadata: make it specific enough that the next run can avoid repeating the same entity, company, mechanism, industry, and angle.",
     "- Use dates and sources. Distinguish known facts from interpretation.",
     "- source_urls must contain only exact URLs supplied to you. body_md must repeat the exact URL and source date.",
-    "- Do not provide investment recommendations."
+    "- Do not provide investment recommendations.",
+    "- The standalone JSON object shown inside the editorial specification is illustrative of editorial intent only. Emit the daily drop schema fields, never that object."
   ].join("\n"),
+  // Editorial direction for mini cases now lives verbatim in
+  // prompts/mini_case_prompt_final.md (injected as
+  // mini_case_editorial_specification). The lines below are only the
+  // daily-drop output contract that the schema and validators depend on.
   mini_case: [
-    "Mini-case challenge:",
-    "- Create a practical decision exercise, not academic trivia.",
-    "- Give a tight context/introduction, a problem to solve, constraints, expected reasoning, a sample answer, conclusion, and a final short takeaway.",
+    "Mini-case output contract (daily drop envelope):",
+    "- Follow mini_case_editorial_specification fully for scenario design, pressure, difficulty, distractor quality, hook, narrative structure, safety, and memory rules.",
+    "- Render that case into the daily drop schema: context/introduction, a problem to solve, constraints, expected reasoning, a sample answer, conclusion, core_takeaway, and a required final_takeaway (short, concrete, non-generic closing idea).",
     "- Include product_topic, scenario_type, decision_type, concept_tested, mechanism, question_pattern, correct_answer_pattern, and core_takeaway.",
-    "- Include exactly 3 MCQ questions in questions: Question 1 tests method/framework, Question 2 tests technical/practical application, Question 3 tests conclusion/decision.",
-    "- Every MCQ option must include is_correct plus feedback_correct and feedback_incorrect so a score can be computed from 0/3 to 3/3.",
-    "- The sample answer should separate facts from judgment, make one recommendation, and name the observable signal that would change the answer.",
-    "- Frame the case like an internship brief: what decision is on the table, what constraint matters, and what evidence is still missing.",
+    "- Include exactly 3 MCQ questions in questions: Question 1 uses role method_framework, Question 2 uses role technical_application, Question 3 uses role conclusion_decision.",
+    "- Every MCQ question must have exactly 4 options (A/B/C/D), exactly one with is_correct true, and each option carries a single short feedback string that teaches why it is right or wrong.",
+    "- Set score_max to 3 so a score can be computed from 0/3 to 3/3.",
+    "- You may add the optional fields learning_points, prerequisites, next_recommended (standardized short IDs), cognitive_load (low|medium|high), surprise_fact, and business_context_type (fictional_but_realistic|inspired_by_real_events) when the editorial specification calls for them.",
     "- Use source-backed facts only. Avoid pretending the user has private data.",
     "- law_compliance is business/compliance/legal-risk education, not personal legal advice. health_pharma is pharma/healthcare/public-health decision education, not medical diagnosis or medical advice.",
     "- source_urls must contain only exact URLs supplied to you. body_md must repeat the exact URL and source date.",
-    "- Keep difficulty realistic for an ambitious student or junior analyst."
+    "- The standalone JSON object inside the editorial specification illustrates editorial intent only (e.g. question.type or numeric option ids). Emit the daily drop schema fields above, using question.role and the option fields id/text/is_correct/feedback, never that raw object."
   ].join("\n"),
   quick_quiz: [
     "Quick quiz:",

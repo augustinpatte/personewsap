@@ -186,8 +186,10 @@ function miniCase(topic: TopicId, contentItemId: string): StoredContentSelection
           role: "method_framework",
           question: "Which method applies?",
           options: [
-            { id: "a", text: "Name the constraint.", is_correct: true, feedback_correct: "Correct.", feedback_incorrect: "This is the intended answer." },
-            { id: "b", text: "Guess quickly.", is_correct: false, feedback_correct: "Correct to reject.", feedback_incorrect: "This overreaches." }
+            { id: "A", text: "Name the constraint.", is_correct: true, feedback: "Correct." },
+            { id: "B", text: "Guess quickly.", is_correct: false, feedback: "This overreaches." },
+            { id: "C", text: "Copy a rival.", is_correct: false, feedback: "This ignores the evidence." },
+            { id: "D", text: "Do nothing.", is_correct: false, feedback: "This skips the decision." }
           ]
         },
         {
@@ -195,8 +197,10 @@ function miniCase(topic: TopicId, contentItemId: string): StoredContentSelection
           role: "technical_application",
           question: "Which signal matters?",
           options: [
-            { id: "a", text: "The strongest evidence.", is_correct: true, feedback_correct: "Correct.", feedback_incorrect: "This is the intended answer." },
-            { id: "b", text: "Noise.", is_correct: false, feedback_correct: "Correct to reject.", feedback_incorrect: "This overreaches." }
+            { id: "A", text: "The strongest evidence.", is_correct: true, feedback: "Correct." },
+            { id: "B", text: "Noise.", is_correct: false, feedback: "This overreaches." },
+            { id: "C", text: "Reshares.", is_correct: false, feedback: "This is vanity data." },
+            { id: "D", text: "A rumor.", is_correct: false, feedback: "This is unsourced." }
           ]
         },
         {
@@ -204,14 +208,18 @@ function miniCase(topic: TopicId, contentItemId: string): StoredContentSelection
           role: "conclusion_decision",
           question: "What is the decision?",
           options: [
-            { id: "a", text: "Wait for evidence.", is_correct: true, feedback_correct: "Correct.", feedback_incorrect: "This is the intended answer." },
-            { id: "b", text: "Act without evidence.", is_correct: false, feedback_correct: "Correct to reject.", feedback_incorrect: "This overreaches." }
+            { id: "A", text: "Wait for evidence.", is_correct: true, feedback: "Correct." },
+            { id: "B", text: "Act without evidence.", is_correct: false, feedback: "This overreaches." },
+            { id: "C", text: "Reverse everything.", is_correct: false, feedback: "This overreacts." },
+            { id: "D", text: "Ignore the update.", is_correct: false, feedback: "This avoids the call." }
           ]
         }
       ],
       expected_reasoning: ["Name the trade-off."],
       sample_answer: "Act after checking the strongest signal.",
       conclusion: "Use the evidence signal before escalating the decision.",
+      final_takeaway: "Name the strongest signal before you escalate the decision.",
+      score_max: 3,
       body_md: "A short mini-case body."
     } satisfies GeneratedContentItem
   };

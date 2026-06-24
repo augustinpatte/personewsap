@@ -200,6 +200,13 @@ export function runQualityProof(): QualityProofOutput {
       { miniCaseProductTopics: ["finance_economy"] }
     ),
     expectRejected(
+      "mini-case question does not have exactly 4 options",
+      withMiniCaseQuestions(twoOptionMiniCaseQuestions()),
+      ["mini_case_mcq_options_invalid"],
+      [FINANCE_SOURCE, TECH_SOURCE],
+      { miniCaseProductTopics: ["finance_economy"] }
+    ),
+    expectRejected(
       "mini-case repeats a recent scenario and concept",
       basePayload(),
       ["mini_case_scenario_cooldown", "mini_case_concept_cooldown"],
@@ -499,6 +506,8 @@ function miniCaseItem(): GeneratedContentItem {
     expected_reasoning: ["State the sourced fact from 2026-04-29", "Name who has less room to maneuver", "Choose one signal to watch"],
     sample_answer: "I would wait for one confirming signal because the sourced fact changes risk expectations, not the whole budget yet.",
     conclusion: "Final takeaway: use risk-adjusted return to decide which signal would justify action.",
+    final_takeaway: "Wait for the named signal before treating one market move as a full forecast.",
+    score_max: 3,
     body_md: sourceBackedBody(FINANCE_SOURCE_URL, "Finance"),
     source_urls: [FINANCE_SOURCE_URL],
     version: 1
@@ -512,8 +521,10 @@ function miniCaseQuestions(): Extract<GeneratedContentItem, { content_type: "min
       role: "method_framework",
       question: "Which framework should you use first?",
       options: [
-        miniCaseOption("a", "Separate sourced fact, owner, and signal.", true),
-        miniCaseOption("b", "Make an immediate recommendation.", false)
+        miniCaseOption("A", "Separate sourced fact, owner, and signal.", true),
+        miniCaseOption("B", "Make an immediate recommendation.", false),
+        miniCaseOption("C", "Pick the loudest interpretation.", false),
+        miniCaseOption("D", "Wait for the story to fade.", false)
       ]
     },
     {
@@ -521,8 +532,10 @@ function miniCaseQuestions(): Extract<GeneratedContentItem, { content_type: "min
       role: "technical_application",
       question: "Which signal matters most?",
       options: [
-        miniCaseOption("a", "Funding costs and inflation expectations.", true),
-        miniCaseOption("b", "A louder headline.", false)
+        miniCaseOption("A", "Funding costs and inflation expectations.", true),
+        miniCaseOption("B", "A louder headline.", false),
+        miniCaseOption("C", "The number of reshares.", false),
+        miniCaseOption("D", "An unrelated competitor move.", false)
       ]
     },
     {
@@ -530,11 +543,20 @@ function miniCaseQuestions(): Extract<GeneratedContentItem, { content_type: "min
       role: "conclusion_decision",
       question: "What should the team do?",
       options: [
-        miniCaseOption("a", "Wait for the signal before escalating.", true),
-        miniCaseOption("b", "Treat one source as a complete forecast.", false)
+        miniCaseOption("A", "Wait for the signal before escalating.", true),
+        miniCaseOption("B", "Treat one source as a complete forecast.", false),
+        miniCaseOption("C", "Reverse the budget on one data point.", false),
+        miniCaseOption("D", "Ignore the update entirely.", false)
       ]
     }
   ];
+}
+
+function twoOptionMiniCaseQuestions(): Extract<GeneratedContentItem, { content_type: "mini_case" }>["questions"] {
+  return miniCaseQuestions().map((question) => ({
+    ...question,
+    options: question.options.slice(0, 2)
+  }));
 }
 
 function miniCaseOption(
@@ -546,8 +568,9 @@ function miniCaseOption(
     id,
     text,
     is_correct: isCorrect,
-    feedback_correct: isCorrect ? "Correct: this keeps the case tied to evidence." : "Correct to reject: this answer overreaches.",
-    feedback_incorrect: isCorrect ? "Incorrect: this is the evidence-backed option." : "Incorrect: this overreaches beyond the source."
+    feedback: isCorrect
+      ? "Correct: this keeps the case tied to evidence."
+      : "Not quite: this overreaches beyond the source."
   };
 }
 
