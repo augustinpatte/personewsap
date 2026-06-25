@@ -1,6 +1,7 @@
 import {
   BUSINESS_STORY_PROMPT_FINAL,
   MINI_CASE_PROMPT_FINAL,
+  NEWSLETTER_PROMPT_FINAL,
   promptFilePath
 } from "./promptLibrary.js";
 
@@ -23,10 +24,14 @@ export const PROMPT_SOURCES = {
   mini_case: {
     editorialSpecification: MINI_CASE_PROMPT_FINAL,
     file: promptFilePath("mini_case")
+  },
+  newsletter: {
+    editorialSpecification: NEWSLETTER_PROMPT_FINAL,
+    file: promptFilePath("newsletter")
   }
 } as const;
 
-export { BUSINESS_STORY_PROMPT_FINAL, MINI_CASE_PROMPT_FINAL };
+export { BUSINESS_STORY_PROMPT_FINAL, MINI_CASE_PROMPT_FINAL, NEWSLETTER_PROMPT_FINAL };
 
 export const CONTENT_GUARDRAILS = [
   "Write like a sharp mentor briefing an ambitious 18-25 year-old before class, an interview, an internship, or a serious conversation.",
@@ -41,6 +46,10 @@ export const CONTENT_GUARDRAILS = [
   "Every body_md must include one source/date line using ISO dates: Source: Publisher, published YYYY-MM-DD, retrieved YYYY-MM-DD. https://exact-source-url",
   "If a source has published_at, use that exact YYYY-MM-DD date and never write published unknown. If published_at is missing, cite the retrieved YYYY-MM-DD date instead.",
   "FR and EN versions must carry the same facts, sources, dates, angle, and depth while sounding natural in each language.",
+  "Single-language rule (absolute): every user-facing string in an item must be written in that item's language. Never mix languages inside one item.",
+  "For an item with language=fr, write title, summary, body_md, context, challenge, every question, every option text, every option feedback, expected_reasoning, sample_answer, conclusion, and final_takeaway in natural French. For language=en, write all of them in English.",
+  "French must preserve every accent and diacritic (é, è, à, ê, î, ô, û, ç, œ) and natural French punctuation. Never output accent-stripped French such as 'A vous', 'decider', 'perimetre', 'decision', 'reponse', 'strategie', 'cout', or 'marche'.",
+  "Reject and rewrite any draft where an item mixes French and English, or where French text is missing accents. Only the structured source/date citation line (Source, published, retrieved) and proper nouns, URLs, and ISO dates may stay in their original form.",
   "For French output, keep the source/date line structurally identical with ISO dates and the exact URL; do not translate or reformat the date.",
   "For legal, medical, and financial topics, explain facts, incentives, uncertainty, and context. Do not give individualized advice, diagnosis, treatment, or buy/sell instructions."
 ];
@@ -57,9 +66,17 @@ export const EDITORIAL_PROMPT = [
   ...CONTENT_GUARDRAILS
 ].join("\n");
 
+// Editorial direction for newsletter articles now also lives verbatim in
+// prompts/newsletter_prompt_final.md (injected as
+// newsletter_editorial_specification). The lines below remain the daily-drop
+// output contract that the schema and validators depend on.
 export const CONTENT_TYPE_PROMPTS = {
   newsletter_article: [
-    "Newsletter article:",
+    "Newsletter article output contract (daily drop envelope):",
+    "- Follow newsletter_editorial_specification fully for editorial standard, tone, the 8 subjects, recency (J/J-1) discipline, neutrality/safety rules, per-category source priorities, single-date discipline, and anti-template writing.",
+    "- That specification is editorial intent only. Its standalone JSON shape (date/type/period/subjects/articles, dual FR+EN output, downloadable-file delivery, 48/16 article batches) is NOT the output envelope. Emit ONE newsletter_article per daily drop slot using the daily drop schema fields below, never that object.",
+    "- Use the requested language exactly (one language per run). Do not produce both FR and EN in the same response, and do not add any text outside the JSON object.",
+    "- daily/weekly_digest separation is handled by the engine cadence, not by this item. Render only the daily drop schema fields for the slot you are given.",
     "- Explain one sourced factual development in 120-220 words, but lead with the thesis instead of a school-style recap.",
     "- Body must include: sharp thesis, concrete mechanism, specific implication, one observable signal, and a source/date line.",
     "- The mechanism should name what is changing: pricing, incentives, distribution, regulation, capacity, trust, demand, risk, or execution.",

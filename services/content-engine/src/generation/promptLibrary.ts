@@ -20,7 +20,8 @@ const PROMPTS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..",
 
 export const PROMPT_FILES = {
   business_story: "business_story_prompt_final.md",
-  mini_case: "mini_case_prompt_final.md"
+  mini_case: "mini_case_prompt_final.md",
+  newsletter: "newsletter_prompt_final.md"
 } as const;
 
 export type PromptFileKey = keyof typeof PROMPT_FILES;
@@ -65,3 +66,6 @@ export const BUSINESS_STORY_PROMPT_FINAL = loadPromptFile("business_story");
 
 /** Full Mini Case production prompt (single source of truth, loaded from Markdown). */
 export const MINI_CASE_PROMPT_FINAL = loadPromptFile("mini_case");
+
+/** Full Newsletter production prompt (single source of truth, loaded from Markdown). */
+export const NEWSLETTER_PROMPT_FINAL = loadPromptFile("newsletter");

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUSINESS_STORY_PROMPT_FINAL,
   MINI_CASE_PROMPT_FINAL,
+  NEWSLETTER_PROMPT_FINAL,
   loadPromptFile,
   promptFilePath
 } from "./promptLibrary.js";
@@ -14,6 +15,7 @@ describe("promptLibrary", () => {
   it("resolves the versioned Markdown files on disk", () => {
     expect(existsSync(promptFilePath("business_story"))).toBe(true);
     expect(existsSync(promptFilePath("mini_case"))).toBe(true);
+    expect(existsSync(promptFilePath("newsletter"))).toBe(true);
   });
 
   it("loads the Business Story prompt verbatim with its production header and JSON contract", () => {
@@ -34,16 +36,28 @@ describe("promptLibrary", () => {
     expect(MINI_CASE_PROMPT_FINAL).toContain("recent_case_memory");
   });
 
+  it("loads the Newsletter prompt verbatim with its production header and key rules", () => {
+    expect(NEWSLETTER_PROMPT_FINAL).toContain(
+      "# PROMPT NEWSLETTER — VERSION PRODUCTION COMPLÈTE"
+    );
+    expect(NEWSLETTER_PROMPT_FINAL).toContain("RÈGLE DE TEMPORALITÉ (STRICTE — NON NÉGOCIABLE)");
+    expect(NEWSLETTER_PROMPT_FINAL).toContain("weekly_digest");
+    expect(NEWSLETTER_PROMPT_FINAL).toContain("FORMAT DE SORTIE : JSON (OBLIGATOIRE)");
+  });
+
   it("caches and returns identical content on repeated loads", () => {
     expect(loadPromptFile("business_story")).toBe(BUSINESS_STORY_PROMPT_FINAL);
     expect(loadPromptFile("mini_case")).toBe(MINI_CASE_PROMPT_FINAL);
+    expect(loadPromptFile("newsletter")).toBe(NEWSLETTER_PROMPT_FINAL);
   });
 
   it("exposes a single source of truth registry pointing at the Markdown files", () => {
     expect(PROMPT_SOURCES.business_story.editorialSpecification).toBe(BUSINESS_STORY_PROMPT_FINAL);
     expect(PROMPT_SOURCES.mini_case.editorialSpecification).toBe(MINI_CASE_PROMPT_FINAL);
+    expect(PROMPT_SOURCES.newsletter.editorialSpecification).toBe(NEWSLETTER_PROMPT_FINAL);
     expect(PROMPT_SOURCES.business_story.file).toBe(promptFilePath("business_story"));
     expect(PROMPT_SOURCES.mini_case.file).toBe(promptFilePath("mini_case"));
+    expect(PROMPT_SOURCES.newsletter.file).toBe(promptFilePath("newsletter"));
   });
 
   it("keeps the schema-binding daily-drop output contract that validators depend on", () => {
@@ -54,5 +68,9 @@ describe("promptLibrary", () => {
     expect(CONTENT_TYPE_PROMPTS.mini_case).toContain("single short feedback string");
     expect(CONTENT_TYPE_PROMPTS.mini_case).toContain("final_takeaway");
     expect(CONTENT_TYPE_PROMPTS.business_story).toContain("editorial_memory");
+    // Newsletter editorial spec is wrapped but the single-language, JSON-only
+    // daily-drop contract must still bind generation.
+    expect(CONTENT_TYPE_PROMPTS.newsletter_article).toContain("Use the requested language exactly");
+    expect(CONTENT_TYPE_PROMPTS.newsletter_article).toContain("editorial intent only");
   });
 });

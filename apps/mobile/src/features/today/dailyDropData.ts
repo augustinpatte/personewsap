@@ -560,7 +560,12 @@ function mapDailyDropContentItem(
   if (contentItem.content_type === "business_story" && dropItem.slot === "business_story") {
     return {
       ...base,
-      company_or_market: readString(metadata, "company_or_market", "Market"),
+      // Fallback follows the content language so FR stories never show an English label.
+      company_or_market: readString(
+        metadata,
+        "company_or_market",
+        contentItem.language === "fr" ? "Marché" : "Market"
+      ),
       content_type: "business_story",
       decision: readString(metadata, "decision"),
       lesson: readString(metadata, "lesson", contentItem.summary ?? ""),

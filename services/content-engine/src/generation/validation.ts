@@ -205,6 +205,37 @@ const HIGH_STAKES_ADVICE_PATTERNS = [
   /\byou should plead\b/i
 ];
 
+// Language-consistency markers. Deliberately conservative: only high-confidence
+// signals so the check blocks obvious failures (mixed FR/EN, accent-stripped
+// French) without rejecting legitimate borderline wording.
+const ENGLISH_ONLY_MARKERS = new Set([
+  "the", "you", "your", "with", "this", "that", "would", "should", "could",
+  "before", "after", "because", "while", "which", "what", "when", "answer",
+  "wait", "keep", "move", "step", "next", "update", "headline", "evidence", "owner"
+]);
+
+const FRENCH_ONLY_MARKERS = new Set([
+  "le", "la", "les", "des", "une", "vous", "est", "avec", "pour", "dans",
+  "cette", "qui", "que", "pas", "leur", "leurs", "alors", "ferais", "surveille",
+  "prochain", "contrainte", "actualité", "décision", "stratégie"
+]);
+
+// Accent-stripped spellings that are almost always wrong inside French prose.
+const FRENCH_MISSING_ACCENT_WORDS = new Set([
+  "decision", "decider", "deciderais", "perimetre", "reponse", "strategie",
+  "cout", "couts", "etape", "etapes", "actualite", "actualites", "consequence",
+  "consequences", "interpretation", "donnees", "capacite", "capacites",
+  "verifier", "resultat", "resultats", "developpement", "operateur", "metrique",
+  "separer", "separe", "reduire", "securite", "mecanisme", "reglementaire",
+  "fondee", "fondees", "revele", "criteres", "etude", "systeme", "fidelite",
+  "popularite", "activite", "differente", "prets", "epargne", "materiel",
+  "medecine", "ingenierie", "medias", "barriere", "lecon"
+]);
+
+const FRENCH_MISSING_ACCENT_PHRASES = [
+  /\ba\s+(vous|retenir|suivre|tester|jour|garder|prouver)\b/i
+];
+
 const CONCEPT_ANCHORS: Record<TopicId, string[]> = {
   business: [
     "customer", "pricing", "price", "revenue", "margin", "retention", "distribution", "demand", "churn",
@@ -346,6 +377,7 @@ function validateGeneratedItem(item: GeneratedContentItem, path: string): Valida
   issues.push(...validateRequiredSourceCount(item, path));
   issues.push(...validateEstimatedReadingTime(item, path));
   issues.push(...validateDatePresence(item, path));
+  issues.push(...validateLanguageConsistency(item, path));
 
   for (const phrase of [...GENERIC_AI_PHRASES, ...BANNED_EDITORIAL_PHRASES]) {
     if (fullText.includes(phrase)) {
@@ -372,6 +404,138 @@ function normalizeForPhraseCheck(value: string): string {
     .replace(/[’‘]/g, "'")
     .replace(/\s+/g, " ")
     .toLowerCase();
+}
+
+/**
+ * Enforces the absolute product rule: every user-facing string in an item must be
+ * written in that item's language, and French must keep its accents. Always an
+ * error (not gated by strict mode) so mixed-language or accent-stripped content is
+ * rejected in every path. Conservative thresholds avoid rejecting borderline text.
+ */
+export function validateLanguageConsistency(item: GeneratedContentItem, path: string): ValidationIssue[] {
+  const language = item.language;
+  if (language !== "fr" && language !== "en") {
+    return [];
+  }
+
+  const issues: ValidationIssue[] = [];
+
+  for (const { field, text } of userFacingLanguageFields(item)) {
+    const cleaned = stripCitationAndLinks(text);
+    if (cleaned.trim().length === 0) {
+      continue;
+    }
+
+    const words = tokenizeWords(cleaned);
+
+    if (language === "fr") {
+      const accentHits = [...FRENCH_MISSING_ACCENT_WORDS].filter((word) => words.has(word));
+      const phraseHit = FRENCH_MISSING_ACCENT_PHRASES.some((pattern) => pattern.test(cleaned));
+
+      if (accentHits.length > 0 || phraseHit) {
+        issues.push({
+          path: `${path}.${field}`,
+          code: "language_french_missing_accents",
+          message: `French ${field} is missing accents or is not natural French (e.g. "${accentHits[0] ?? "a vous"}"). French strings must keep their accents.`,
+          severity: "error"
+        });
+      }
+
+      const englishHits = [...ENGLISH_ONLY_MARKERS].filter((marker) => words.has(marker));
+      if (englishHits.length >= 2) {
+        issues.push({
+          path: `${path}.${field}`,
+          code: "language_mixed",
+          message: `French ${field} contains English words (${englishHits.slice(0, 3).join(", ")}). Each item must be 100% in its language.`,
+          severity: "error"
+        });
+      }
+    } else {
+      const frenchHits = [...FRENCH_ONLY_MARKERS].filter((marker) => words.has(marker));
+      const accentedWordCount = (cleaned.match(/[a-zà-öø-ÿ]*[éèàêîôûçëïüœ][a-zà-öø-ÿ]*/gi) ?? []).length;
+
+      if (frenchHits.length >= 2 || (frenchHits.length >= 1 && accentedWordCount >= 2)) {
+        issues.push({
+          path: `${path}.${field}`,
+          code: "language_mixed",
+          message: `English ${field} contains French (${frenchHits.slice(0, 3).join(", ")}). Each item must be 100% in its language.`,
+          severity: "error"
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+// User-facing text fields per content type. Metadata-only fields (mechanism ids,
+// editorial_memory, scenario taxonomy) are intentionally excluded to avoid false
+// positives from English snake_case identifiers.
+function userFacingLanguageFields(item: GeneratedContentItem): Array<{ field: string; text: string }> {
+  const fields: Array<{ field: string; text: string }> = [];
+  const add = (field: string, value: unknown) => {
+    if (typeof value === "string" && value.trim().length > 0) {
+      fields.push({ field, text: value });
+    }
+  };
+
+  add("title", item.title);
+
+  if (item.content_type === "newsletter_article") {
+    add("summary", item.summary);
+    add("body_md", item.body_md);
+    add("why_it_matters", item.why_it_matters);
+  } else if (item.content_type === "business_story") {
+    add("setup", item.setup);
+    add("tension", item.tension);
+    add("decision", item.decision);
+    add("outcome", item.outcome);
+    add("lesson", item.lesson);
+    add("body_md", item.body_md);
+  } else if (item.content_type === "mini_case") {
+    add("context", item.context);
+    add("challenge", item.challenge);
+    add("question", item.question);
+    add("sample_answer", item.sample_answer);
+    add("conclusion", item.conclusion);
+    add("final_takeaway", item.final_takeaway);
+    add("body_md", item.body_md);
+    (Array.isArray(item.expected_reasoning) ? item.expected_reasoning : []).forEach((reason, index) => add(`expected_reasoning.${index}`, reason));
+    (Array.isArray(item.questions) ? item.questions : []).forEach((question, questionIndex) => {
+      add(`questions.${questionIndex}.question`, question.question);
+      (Array.isArray(question.options) ? question.options : []).forEach((option, optionIndex) => {
+        add(`questions.${questionIndex}.options.${optionIndex}.text`, option.text);
+        add(`questions.${questionIndex}.options.${optionIndex}.feedback`, option.feedback);
+      });
+    });
+  } else {
+    add("definition", item.definition);
+    add("plain_english", item.plain_english);
+    add("example", item.example);
+    add("why_it_matters", item.why_it_matters);
+    add("how_to_use_it", item.how_to_use_it);
+    add("common_mistake", item.common_mistake);
+    add("body_md", item.body_md);
+  }
+
+  return fields;
+}
+
+// Removes structured citation lines, markdown links, URLs, and ISO dates so the
+// language check only inspects natural prose. The "Source: …, published …,
+// retrieved …" line stays structurally English in both languages by design.
+function stripCitationAndLinks(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !/^\s*source\s*:/i.test(line))
+    .join("\n")
+    .replace(/\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ");
+}
+
+function tokenizeWords(text: string): Set<string> {
+  return new Set((text.toLowerCase().match(/[\p{L}]+/gu) ?? []));
 }
 
 export function validateRequiredSourceCount(item: GeneratedContentItem, path: string): ValidationIssue[] {
@@ -1451,6 +1615,8 @@ function summarizeQualityChecks(issues: ValidationIssue[]): ContentQualityDiagno
     "generic_filler",
     "title_topic_mismatch",
     "high_stakes_personal_advice",
+    "language_mixed",
+    "language_french_missing_accents",
     "repeated_template_phrase"
   ];
 

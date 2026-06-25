@@ -1,13 +1,14 @@
-import type {
-  DailyDropPayload,
-  GeneratedContentItem,
-  Language,
-  RankedArticle,
-  TopicId
+import {
+  miniCaseTopicToContentTopics,
+  type DailyDropPayload,
+  type GeneratedContentItem,
+  type Language,
+  type RankedArticle,
+  type TopicId
 } from "../domain.js";
 import { compactMiniCaseMemoryForPrompt } from "../miniCase/editorialMemory.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
-import { DAILY_DROP_JSON_SCHEMA } from "./dailyDropSchema.js";
+import { DAILY_DROP_SECTION_SCHEMAS } from "./dailyDropSchema.js";
 import { compactBusinessStoryMemoryForPrompt } from "./editorialMemory.js";
 import { LlmGenerationError, serializeLlmFailure, toLlmGenerationError } from "./llmErrors.js";
 import type { LlmProvider } from "./llmProvider.js";
@@ -18,6 +19,7 @@ import {
   EDITORIAL_PROMPT,
   GENERATOR_VERSION,
   MINI_CASE_PROMPT_FINAL,
+  NEWSLETTER_PROMPT_FINAL,
   PROMPT_VERSION,
   STRONG_WRITING_EXAMPLES
 } from "./prompts.js";
@@ -88,25 +90,38 @@ export class LlmContentGenerator implements ContentGenerator {
           language: request.language,
           attempt,
           max_attempts: this.maxAttempts,
-          provider: this.provider.name
+          provider: this.provider.name,
+          sections: SECTION_ORDER
         });
 
-        const rawPayload = await this.provider.generateJson({
-          systemPrompt: EDITORIAL_PROMPT,
-          userPrompt: buildDailyDropPrompt(request, sources, feedback),
-          jsonSchema: DAILY_DROP_JSON_SCHEMA as unknown as Record<string, unknown>,
-          maxOutputTokens: this.maxOutputTokens
-        });
+        // One isolated LLM call per content type. Each call only carries that
+        // section's editorial specification (newsletter / business story / mini
+        // case), so a generation never sees a foreign prompt: maximal token
+        // reduction and zero cross-prompt conflict.
+        const items: GeneratedContentItem[] = [];
+        for (const section of SECTION_ORDER) {
+          items.push(...(await this.generateSection(section, request, sources, feedback, attempt)));
+        }
 
         this.reportProgress("OpenAI request completed", {
           language: request.language,
           attempt,
           max_attempts: this.maxAttempts,
-          provider: this.provider.name
+          provider: this.provider.name,
+          sections: SECTION_ORDER
         });
 
         const payload = assembleDailyDropPayload(
-          sanitizeLlmDailyDropPayload(normalizePayload(rawPayload, request), sources)
+          sanitizeLlmDailyDropPayload(
+            {
+              drop_date: request.dropDate,
+              language: request.language,
+              prompt_version: PROMPT_VERSION,
+              generator_version: LLM_GENERATOR_VERSION,
+              items
+            },
+            sources
+          )
         );
         const quality = validateDailyDropQuality(payload, {
           articles: request.articles,
@@ -163,66 +178,253 @@ export class LlmContentGenerator implements ContentGenerator {
     throw lastError ?? new Error("LLM generation failed validation.");
   }
 
+  // Generates a single content-type section with an isolated LLM call. Only this
+  // section's editorial specification is sent; the other prompts are never loaded.
+  private async generateSection(
+    section: DropSection,
+    request: GenerationRequest,
+    allSources: SourcePacket[],
+    feedback: string | undefined,
+    attempt: number
+  ): Promise<GeneratedContentItem[]> {
+    const scopedSources = scopeSourcesForSection(section, request, allSources);
+
+    this.reportProgress("LLM section started", {
+      language: request.language,
+      section,
+      attempt,
+      editorial_specification: SECTION_SPEC_FILE[section],
+      source_count: scopedSources.length
+    });
+
+    const raw = await this.provider.generateJson({
+      systemPrompt: EDITORIAL_PROMPT,
+      userPrompt: buildSectionPrompt(section, request, scopedSources, feedback),
+      jsonSchema: DAILY_DROP_SECTION_SCHEMAS[section] as unknown as Record<string, unknown>,
+      maxOutputTokens: this.maxOutputTokens
+    });
+
+    const items = normalizeSectionItems(raw, section);
+
+    this.reportProgress("LLM section completed", {
+      language: request.language,
+      section,
+      attempt,
+      generated_items: items.length
+    });
+
+    return items;
+  }
+
   private reportProgress(message: string, details: Record<string, unknown>): void {
     this.onProgress?.(message, details);
   }
 }
 
-function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[], feedback?: string): string {
+type DropSection = keyof typeof DAILY_DROP_SECTION_SCHEMAS;
+
+const SECTION_ORDER: DropSection[] = [
+  "newsletter_article",
+  "business_story",
+  "mini_case",
+  "concept"
+];
+
+const SECTION_SPEC_FILE: Record<DropSection, string> = {
+  newsletter_article: "newsletter_prompt_final.md",
+  business_story: "business_story_prompt_final.md",
+  mini_case: "mini_case_prompt_final.md",
+  concept: "(no editorial markdown; daily-drop concept contract only)"
+};
+
+const BUSINESS_STORY_TOPICS: TopicId[] = ["business", "finance", "tech_ai"];
+
+// Generic editorial requirements shared by every section. Type-specific lines are
+// appended per section so a section never receives another content type's rules.
+const GENERIC_EDITORIAL_REQUIREMENTS = [
+  "Concise, factual, direct tone for ambitious 18-25 year-old students.",
+  "Lead with a sharp thesis, not a school-style summary.",
+  "Name the concrete mechanism: the incentive, constraint, bottleneck, default, or trade-off doing the work.",
+  "Give a specific implication: who gains leverage, who loses options, which budget/timeline/default changes, or what decision gets harder.",
+  "Include one observable signal: churn, renewals, filings, guidance, adoption, safety data, funding costs, deadlines, usage, or behavior.",
+  "Make the business judgment sharper than the source summary. Explain the operator's trade-off.",
+  "No filler language, generic conclusions, hype, or unsupported predictions.",
+  "Do not mention headline loudness or use meta phrases about what the useful question is.",
+  "Do not use school-report phrases such as 'This shift means', 'it is important', 'highlights the importance', 'critical in', or 'key in'.",
+  "Ground factual claims in the supplied sources only.",
+  "Do not invent URLs, dates, authors, institutions, numbers, or quotes.",
+  "Make each item relevant to its topic; do not force a source into the wrong topic."
+];
+
+const NEWSLETTER_EDITORIAL_REQUIREMENTS = [
+  "Do not repeat the same body structure across every newsletter item."
+];
+
+const MINI_CASE_EDITORIAL_REQUIREMENTS = [
+  "For law/compliance, health/pharma, and finance, frame mini-cases as business or compliance decisions. Never provide legal advice, medical advice, diagnosis, treatment guidance, or personalized financial advice.",
+  "For mini_case, obey editorial memory: do not repeat banned scenario_type, concept_tested, decision_type, question_pattern, titles, or slugs. Use exactly 3 MCQ questions with instant feedback."
+];
+
+const BUSINESS_STORY_EDITORIAL_REQUIREMENTS = [
+  "For business_story, obey editorial memory: do not repeat banned entities, companies, mechanisms, industries, strategic angles, titles, or slugs. Prefer underused industries, mechanisms, entity types, geographies, and time periods."
+];
+
+const MINI_CASE_ANTI_REPEAT_RULES = [
+  "No same scenario_type within 10 days.",
+  "No same concept_tested within 7 days.",
+  "No same decision_type within 5 days.",
+  "No same topic more than 2 days in a row globally if avoidable.",
+  "No same question_pattern within 14 days.",
+  "No same title or slug ever."
+];
+
+const BUSINESS_STORY_ANTI_REPEAT_RULES = [
+  "No same entity_name within 180 days.",
+  "No same main_company within 90 days unless the strategic_angle is clearly different.",
+  "No same key_mechanism within 14 days.",
+  "No same industry more than twice in 14 days.",
+  "No same strategic_angle within 30 days.",
+  "No same title or slug ever."
+];
+
+// Builds the user prompt for ONE section. Only that section's editorial
+// specification, output contract, anti-repeat rules, and editorial memory are
+// included, so foreign prompts are never sent to the model.
+function buildSectionPrompt(
+  section: DropSection,
+  request: GenerationRequest,
+  sources: SourcePacket[],
+  feedback?: string
+): string {
   const allowedSourceUrls = sources.map((source) => source.url);
 
-  return JSON.stringify(
-    {
-      task: "Generate one PersoNewsAP daily drop as structured JSON only.",
-      retry_feedback: feedback ?? null,
-      output_contract: {
-        drop_date: request.dropDate,
-        language: request.language,
-        prompt_version: PROMPT_VERSION,
-        generator_version: LLM_GENERATOR_VERSION,
-        items: [
-          `${request.newsletterArticleCount} newsletter_article items`,
-          "1 business_story item",
-          `${request.miniCaseProductTopics?.length ?? 1} mini_case item(s), one per requested mini_case_product_topics entry`,
-          "1 concept item"
-        ],
-        schema_notes: [
-          "Use the exact field names from the JSON schema.",
-          "Use content_type and slot values exactly.",
-          "Use source_urls only from allowed_source_urls.",
-          "Every body_md must include a concise source line with a YYYY-MM-DD date.",
-          "Every body_md source line must include the exact source URL string from source_urls.",
-          "content_type_guidance.business_story.editorial_specification and content_type_guidance.mini_case.editorial_specification define editorial style, depth, and quality. They are NOT the output envelope: any standalone JSON object shown inside them is illustrative only.",
-          "The only valid output structure is this daily drop JSON schema. Map the editorial specifications into these schema fields.",
-          "Return JSON only."
-        ]
-      },
-      editorial_requirements: [
-        "Concise, factual, direct tone for ambitious 18-25 year-old students.",
-        "Lead with a sharp thesis, not a school-style summary.",
-        "Name the concrete mechanism: the incentive, constraint, bottleneck, default, or trade-off doing the work.",
-        "Give a specific implication: who gains leverage, who loses options, which budget/timeline/default changes, or what decision gets harder.",
-        "Include one observable signal: churn, renewals, filings, guidance, adoption, safety data, funding costs, deadlines, usage, or behavior.",
-        "Make the business judgment sharper than the source summary. Explain the operator's trade-off.",
-        "No filler language, generic conclusions, hype, or unsupported predictions.",
-        "Do not repeat the same body structure across every newsletter item.",
-        "Do not mention headline loudness or use meta phrases about what the useful question is.",
-        "Do not use school-report phrases such as 'This shift means', 'it is important', 'highlights the importance', 'critical in', or 'key in'.",
-        "Ground factual claims in the supplied sources only.",
-        "Do not invent URLs, dates, authors, institutions, numbers, or quotes.",
-        "Make each item relevant to its topic; do not force a source into the wrong topic.",
-        "For law/compliance, health/pharma, and finance, frame mini-cases as business or compliance decisions. Never provide legal advice, medical advice, diagnosis, treatment guidance, or personalized financial advice.",
-        "For mini_case, obey editorial memory: do not repeat banned scenario_type, concept_tested, decision_type, question_pattern, titles, or slugs. Use exactly 3 MCQ questions with instant feedback.",
-        "For business_story, obey editorial memory: do not repeat banned entities, companies, mechanisms, industries, strategic angles, titles, or slugs. Prefer underused industries, mechanisms, entity types, geographies, and time periods."
-      ],
-      mini_case_anti_repeat_rules: [
-        "No same scenario_type within 10 days.",
-        "No same concept_tested within 7 days.",
-        "No same decision_type within 5 days.",
-        "No same topic more than 2 days in a row globally if avoidable.",
-        "No same question_pattern within 14 days.",
-        "No same title or slug ever."
-      ],
+  const prompt: Record<string, unknown> = {
+    task: `Generate ONLY the ${section} portion of one PersoNewsAP daily drop as structured JSON only.`,
+    retry_feedback: feedback ?? null,
+    output_contract: {
+      drop_date: request.dropDate,
+      language: request.language,
+      prompt_version: PROMPT_VERSION,
+      generator_version: LLM_GENERATOR_VERSION,
+      items: [sectionItemsExpectation(section, request)],
+      schema_notes: [
+        "Emit a JSON object whose items array contains ONLY this section's item(s).",
+        "Use the exact field names from the JSON schema.",
+        "Use content_type and slot values exactly.",
+        "Use source_urls only from allowed_source_urls.",
+        "Every body_md must include a concise source line with a YYYY-MM-DD date.",
+        "Every body_md source line must include the exact source URL string from source_urls.",
+        sectionSpecNote(section),
+        "The only valid output structure is this daily drop section schema. Map the editorial specification into these schema fields.",
+        "Return JSON only."
+      ]
+    },
+    editorial_requirements: editorialRequirementsForSection(section),
+    banned_phrases: BANNED_EDITORIAL_PHRASES,
+    stronger_writing_examples: STRONG_WRITING_EXAMPLES,
+    content_type_guidance: sectionGuidance(section),
+    request: {
+      drop_date: request.dropDate,
+      language: request.language,
+      ...sectionRequestContext(section, request)
+    },
+    ...sectionMemoryContext(section, request),
+    allowed_source_urls: allowedSourceUrls,
+    source_material: sources
+  };
+
+  return JSON.stringify(prompt, null, 2);
+}
+
+function sectionItemsExpectation(section: DropSection, request: GenerationRequest): string {
+  switch (section) {
+    case "newsletter_article":
+      return `${request.newsletterArticleCount} newsletter_article item(s)`;
+    case "business_story":
+      return "1 business_story item";
+    case "mini_case":
+      return `${request.miniCaseProductTopics?.length ?? 1} mini_case item(s), one per requested mini_case_product_topics entry`;
+    case "concept":
+      return "1 concept item";
+  }
+}
+
+function sectionSpecNote(section: DropSection): string {
+  if (section === "concept") {
+    return "content_type_guidance.concept defines the concept daily-drop output contract.";
+  }
+
+  return `content_type_guidance.${section}.editorial_specification defines editorial style, depth, and quality. It is NOT the output envelope: any standalone JSON object shown inside it is illustrative only.`;
+}
+
+function editorialRequirementsForSection(section: DropSection): string[] {
+  switch (section) {
+    case "newsletter_article":
+      return [...GENERIC_EDITORIAL_REQUIREMENTS, ...NEWSLETTER_EDITORIAL_REQUIREMENTS];
+    case "business_story":
+      return [...GENERIC_EDITORIAL_REQUIREMENTS, ...BUSINESS_STORY_EDITORIAL_REQUIREMENTS];
+    case "mini_case":
+      return [...GENERIC_EDITORIAL_REQUIREMENTS, ...MINI_CASE_EDITORIAL_REQUIREMENTS];
+    case "concept":
+      return GENERIC_EDITORIAL_REQUIREMENTS;
+  }
+}
+
+function sectionGuidance(section: DropSection): Record<string, unknown> {
+  switch (section) {
+    case "newsletter_article":
+      return {
+        newsletter_article: {
+          editorial_specification: NEWSLETTER_PROMPT_FINAL,
+          daily_drop_output_contract: CONTENT_TYPE_PROMPTS.newsletter_article
+        }
+      };
+    case "business_story":
+      return {
+        business_story: {
+          editorial_specification: BUSINESS_STORY_PROMPT_FINAL,
+          daily_drop_output_contract: CONTENT_TYPE_PROMPTS.business_story
+        }
+      };
+    case "mini_case":
+      return {
+        mini_case: {
+          editorial_specification: MINI_CASE_PROMPT_FINAL,
+          daily_drop_output_contract: CONTENT_TYPE_PROMPTS.mini_case
+        }
+      };
+    case "concept":
+      return { concept: CONTENT_TYPE_PROMPTS.concept };
+  }
+}
+
+function sectionRequestContext(section: DropSection, request: GenerationRequest): Record<string, unknown> {
+  switch (section) {
+    case "newsletter_article":
+      return {
+        newsletter_topics: request.newsletterTopics,
+        newsletter_article_count: request.newsletterArticleCount
+      };
+    case "mini_case":
+      return { mini_case_product_topics: request.miniCaseProductTopics ?? [] };
+    case "concept":
+      return { concept_topic: request.newsletterTopics[0] ?? "business" };
+    case "business_story":
+      return {};
+  }
+}
+
+function sectionMemoryContext(section: DropSection, request: GenerationRequest): Record<string, unknown> {
+  if (section === "business_story") {
+    return {
+      business_story_anti_repeat_rules: BUSINESS_STORY_ANTI_REPEAT_RULES,
+      business_story_editorial_memory: compactBusinessStoryMemoryForPrompt(request.businessStoryMemory)
+    };
+  }
+
+  if (section === "mini_case") {
+    return {
+      mini_case_anti_repeat_rules: MINI_CASE_ANTI_REPEAT_RULES,
       mini_case_rotation_context: {
         selected_topics: request.miniCaseProductTopics ?? [],
         banned_recent_scenario_types: request.miniCaseMemory?.bannedScenarioTypes ?? [],
@@ -241,43 +443,53 @@ function buildDailyDropPrompt(request: GenerationRequest, sources: SourcePacket[
           "Question 1: method/framework. Question 2: technical/practical application. Question 3: conclusion/decision."
         ]
       },
-      business_story_anti_repeat_rules: [
-        "No same entity_name within 180 days.",
-        "No same main_company within 90 days unless the strategic_angle is clearly different.",
-        "No same key_mechanism within 14 days.",
-        "No same industry more than twice in 14 days.",
-        "No same strategic_angle within 30 days.",
-        "No same title or slug ever."
-      ],
-      banned_phrases: BANNED_EDITORIAL_PHRASES,
-      stronger_writing_examples: STRONG_WRITING_EXAMPLES,
-      content_type_guidance: {
-        newsletter_article: CONTENT_TYPE_PROMPTS.newsletter_article,
-        business_story: {
-          editorial_specification: BUSINESS_STORY_PROMPT_FINAL,
-          daily_drop_output_contract: CONTENT_TYPE_PROMPTS.business_story
-        },
-        mini_case: {
-          editorial_specification: MINI_CASE_PROMPT_FINAL,
-          daily_drop_output_contract: CONTENT_TYPE_PROMPTS.mini_case
-        },
-        concept: CONTENT_TYPE_PROMPTS.concept
-      },
-      request: {
-        drop_date: request.dropDate,
-        language: request.language,
-        newsletter_topics: request.newsletterTopics,
-        newsletter_article_count: request.newsletterArticleCount,
-        mini_case_product_topics: request.miniCaseProductTopics ?? []
-      },
-      business_story_editorial_memory: compactBusinessStoryMemoryForPrompt(request.businessStoryMemory),
-      mini_case_editorial_memory: compactMiniCaseMemoryForPrompt(request.miniCaseMemory),
-      allowed_source_urls: allowedSourceUrls,
-      source_material: sources
-    },
-    null,
-    2
-  );
+      mini_case_editorial_memory: compactMiniCaseMemoryForPrompt(request.miniCaseMemory)
+    };
+  }
+
+  return {};
+}
+
+// Shows each section only the sources relevant to its topics (with a safe
+// fallback to all sources), trimming per-call tokens without ever starving a
+// section. Whole-payload source validation still uses the full ranked set.
+function scopeSourcesForSection(
+  section: DropSection,
+  request: GenerationRequest,
+  allSources: SourcePacket[]
+): SourcePacket[] {
+  const topics = sectionSourceTopics(section, request);
+  if (!topics || topics.length === 0) {
+    return allSources;
+  }
+
+  const allowed = new Set(topics);
+  const scoped = allSources.filter((source) => allowed.has(source.topic));
+  return scoped.length > 0 ? scoped : allSources;
+}
+
+function sectionSourceTopics(section: DropSection, request: GenerationRequest): TopicId[] | null {
+  switch (section) {
+    case "newsletter_article":
+      return request.newsletterTopics;
+    case "business_story":
+      return BUSINESS_STORY_TOPICS;
+    case "mini_case":
+      return Array.from(new Set((request.miniCaseProductTopics ?? []).flatMap(miniCaseTopicToContentTopics)));
+    case "concept":
+      return [request.newsletterTopics[0] ?? "business"];
+  }
+}
+
+function normalizeSectionItems(payload: unknown, section: DropSection): GeneratedContentItem[] {
+  if (!isRecord(payload) || !Array.isArray(payload.items)) {
+    throw new LlmGenerationError(
+      "validation_error",
+      `LLM ${section} response must be an object with an items array.`
+    );
+  }
+
+  return payload.items as GeneratedContentItem[];
 }
 
 function sourcePackets(request: GenerationRequest): SourcePacket[] {
@@ -299,20 +511,6 @@ function sourcePackets(request: GenerationRequest): SourcePacket[] {
       importance_score: article.importance_score,
       rank_reasons: article.rank_reasons
     }));
-}
-
-function normalizePayload(payload: unknown, request: GenerationRequest): DailyDropPayload {
-  if (!isRecord(payload) || !Array.isArray(payload.items)) {
-    throw new LlmGenerationError("validation_error", "LLM response must be a daily drop object with an items array.");
-  }
-
-  return {
-    drop_date: request.dropDate,
-    language: request.language,
-    prompt_version: PROMPT_VERSION,
-    generator_version: LLM_GENERATOR_VERSION,
-    items: payload.items as GeneratedContentItem[]
-  };
 }
 
 function validateComposition(payload: DailyDropPayload, request: GenerationRequest): ValidationIssue[] {

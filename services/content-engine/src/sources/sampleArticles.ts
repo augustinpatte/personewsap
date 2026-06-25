@@ -86,40 +86,40 @@ const SAMPLE_ARTICLES: RawArticle[] = [
   },
   {
     url: "https://example.com/business/logiciel-campus-prix",
-    title: "Des editeurs de logiciels universitaires testent leur pouvoir de prix",
+    title: "Des éditeurs de logiciels universitaires testent leur pouvoir de prix",
     publisher: "PersoNewsAP Sample Desk",
     author: "Content Engine",
     published_at: "2026-04-24T08:00:00.000Z",
     retrieved_at: "2026-04-26T08:00:00.000Z",
     language: "fr",
     summary:
-      "Plusieurs editeurs changent leurs offres et leurs remises alors que les universites contestent la hausse des abonnements.",
+      "Plusieurs éditeurs changent leurs offres et leurs remises alors que les universités contestent la hausse des abonnements.",
     sourceTopic: "business",
     credibility_score: 0.86
   },
   {
     url: "https://example.com/finance/taux-credit",
-    title: "Les anticipations de baisse des taux changent le calcul du credit",
+    title: "Les anticipations de baisse des taux changent le calcul du crédit",
     publisher: "PersoNewsAP Sample Desk",
     author: "Content Engine",
     published_at: "2026-04-25T09:30:00.000Z",
     retrieved_at: "2026-04-26T08:00:00.000Z",
     language: "fr",
     summary:
-      "Banques et emprunteurs se preparent a une trajectoire de taux differente, avec un impact sur les prets, l'epargne et le risque.",
+      "Banques et emprunteurs se préparent à une trajectoire de taux différente, avec un impact sur les prêts, l'épargne et le risque.",
     sourceTopic: "finance",
     credibility_score: 0.84
   },
   {
     url: "https://example.com/tech-ai/puces-ia-capacite",
-    title: "Les puces IA deviennent un sujet de strategie autant que de materiel",
+    title: "Les puces IA deviennent un sujet de stratégie autant que de matériel",
     publisher: "PersoNewsAP Sample Desk",
     author: "Content Engine",
     published_at: "2026-04-25T10:15:00.000Z",
     retrieved_at: "2026-04-26T08:00:00.000Z",
     language: "fr",
     summary:
-      "Les fournisseurs cloud revoient leur planification de capacite alors que la demande de calcul IA reste forte.",
+      "Les fournisseurs cloud revoient leur planification de capacité alors que la demande de calcul IA reste forte.",
     sourceTopic: "tech_ai",
     credibility_score: 0.85
   }

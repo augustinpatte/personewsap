@@ -29,55 +29,55 @@ const CONCEPTS: Record<TopicId, { title: Record<Language, string>; definition: R
     title: { en: "Pricing power", fr: "Pouvoir de prix" },
     definition: {
       en: "The ability to raise prices without losing enough customers to damage the business.",
-      fr: "La capacite a augmenter les prix sans perdre assez de clients pour abimer l'activite."
+      fr: "La capacité à augmenter les prix sans perdre assez de clients pour abîmer l'activité."
     },
-    mistake: { en: "Confusing popularity with pricing power.", fr: "Confondre popularite et capacite a faire payer." }
+    mistake: { en: "Confusing popularity with pricing power.", fr: "Confondre popularité et capacité à faire payer." }
   },
   finance: {
     title: { en: "Duration risk", fr: "Risque de duration" },
     definition: {
       en: "The sensitivity of an asset's value to changes in interest rates.",
-      fr: "La sensibilite de la valeur d'un actif aux variations de taux d'interet."
+      fr: "La sensibilité de la valeur d'un actif aux variations de taux d'intérêt."
     },
-    mistake: { en: "Thinking all bonds react the same way when rates move.", fr: "Croire que toutes les obligations reagissent pareil quand les taux bougent." }
+    mistake: { en: "Thinking all bonds react the same way when rates move.", fr: "Croire que toutes les obligations réagissent pareil quand les taux bougent." }
   },
   tech_ai: {
-    title: { en: "Switching costs", fr: "Couts de changement" },
+    title: { en: "Switching costs", fr: "Coûts de changement" },
     definition: {
       en: "The time, money, data, and habit a customer loses when changing products.",
-      fr: "Le temps, l'argent, les donnees et les habitudes qu'un client perd en changeant de produit."
+      fr: "Le temps, l'argent, les données et les habitudes qu'un client perd en changeant de produit."
     },
     mistake: { en: "Assuming the best product always wins.", fr: "Supposer que le meilleur produit gagne toujours." }
   },
   law: {
-    title: { en: "Regulatory moat", fr: "Barriere reglementaire" },
+    title: { en: "Regulatory moat", fr: "Barrière réglementaire" },
     definition: {
       en: "An advantage created when rules make it harder for competitors to enter or operate.",
-      fr: "Un avantage cree quand les regles rendent l'entree ou l'exploitation plus difficile pour les concurrents."
+      fr: "Un avantage créé quand les règles rendent l'entrée ou l'exploitation plus difficile pour les concurrents."
     },
-    mistake: { en: "Treating regulation only as a cost.", fr: "Voir la regulation seulement comme un cout." }
+    mistake: { en: "Treating regulation only as a cost.", fr: "Voir la régulation seulement comme un coût." }
   },
   medicine: {
-    title: { en: "Clinical endpoints", fr: "Criteres cliniques" },
+    title: { en: "Clinical endpoints", fr: "Critères cliniques" },
     definition: {
       en: "The outcomes a study measures to judge whether a treatment works.",
-      fr: "Les resultats qu'une etude mesure pour juger si un traitement fonctionne."
+      fr: "Les résultats qu'une étude mesure pour juger si un traitement fonctionne."
     },
-    mistake: { en: "Reading a positive trial result without checking what was actually measured.", fr: "Lire un resultat positif sans verifier ce qui a ete mesure." }
+    mistake: { en: "Reading a positive trial result without checking what was actually measured.", fr: "Lire un résultat positif sans vérifier ce qui a été mesuré." }
   },
   engineering: {
-    title: { en: "Operational redundancy", fr: "Redondance operationnelle" },
+    title: { en: "Operational redundancy", fr: "Redondance opérationnelle" },
     definition: {
       en: "Extra capacity or backup paths that keep a system working when one part fails.",
-      fr: "Une capacite ou des chemins de secours qui gardent un systeme actif quand une partie tombe."
+      fr: "Une capacité ou des chemins de secours qui gardent un système actif quand une partie tombe."
     },
-    mistake: { en: "Seeing redundancy as waste instead of resilience.", fr: "Voir la redondance comme du gaspillage au lieu d'une resilience." }
+    mistake: { en: "Seeing redundancy as waste instead of resilience.", fr: "Voir la redondance comme du gaspillage au lieu d'une résilience." }
   },
   sport_business: {
-    title: { en: "Media rights flywheel", fr: "Volant des droits medias" },
+    title: { en: "Media rights flywheel", fr: "Volant des droits médias" },
     definition: {
       en: "The cycle where audience demand raises rights fees, which funds better talent and production.",
-      fr: "Le cycle ou la demande du public augmente les droits, puis finance de meilleurs talents et une meilleure production."
+      fr: "Le cycle où la demande du public augmente les droits, puis finance de meilleurs talents et une meilleure production."
     },
     mistake: { en: "Judging a league only by ticket sales.", fr: "Juger une ligue seulement par la billetterie." }
   },
@@ -85,9 +85,9 @@ const CONCEPTS: Record<TopicId, { title: Record<Language, string>; definition: R
     title: { en: "Attention bundling", fr: "Regroupement de l'attention" },
     definition: {
       en: "Packaging content so audiences return regularly instead of consuming one isolated item.",
-      fr: "Assembler du contenu pour faire revenir le public regulierement plutot que consommer un seul element isole."
+      fr: "Assembler du contenu pour faire revenir le public régulièrement plutôt que consommer un seul élément isolé."
     },
-    mistake: { en: "Mistaking reach for loyalty.", fr: "Confondre portee et fidelite." }
+    mistake: { en: "Mistaking reach for loyalty.", fr: "Confondre portée et fidélité." }
   }
 };
 
@@ -96,60 +96,60 @@ const TOPIC_LABELS: Record<TopicId, { en: string; fr: string }> = {
   finance: { en: "Finance", fr: "Finance" },
   tech_ai: { en: "Tech/AI", fr: "Tech/IA" },
   law: { en: "Law", fr: "Droit" },
-  medicine: { en: "Medicine", fr: "Medecine" },
-  engineering: { en: "Engineering", fr: "Ingenierie" },
+  medicine: { en: "Medicine", fr: "Médecine" },
+  engineering: { en: "Engineering", fr: "Ingénierie" },
   sport_business: { en: "Sports Business", fr: "Sport business" },
-  culture_media: { en: "Culture/Media", fr: "Culture/medias" }
+  culture_media: { en: "Culture/Media", fr: "Culture/médias" }
 };
 
 const TOPIC_EDGES: Record<TopicId, { en: string; fr: string; watchEn: string; watchFr: string }> = {
   business: {
     en: "pricing, retention, and distribution decide whether the move survives contact with customers",
-    fr: "le prix, la retention et la distribution montrent si la decision tient face aux clients",
+    fr: "le prix, la rétention et la distribution montrent si la décision tient face aux clients",
     watchEn: "renewals, discounting, customer churn, or a change in sales cycle length",
-    watchFr: "les renouvellements, les remises, le depart de clients ou la duree du cycle de vente"
+    watchFr: "les renouvellements, les remises, le départ de clients ou la durée du cycle de vente"
   },
   finance: {
     en: "small rate or risk changes can reprice decisions that looked stable last week",
-    fr: "un faible changement de taux ou de risque peut revaloriser une decision qui semblait stable",
+    fr: "un faible changement de taux ou de risque peut revaloriser une décision qui semblait stable",
     watchEn: "funding costs, default signals, deposit flows, or guidance on credit demand",
-    watchFr: "les couts de financement, les signaux de defaut, les flux de depots ou la demande de credit"
+    watchFr: "les coûts de financement, les signaux de défaut, les flux de dépôts ou la demande de crédit"
   },
   tech_ai: {
     en: "the constraint is often compute, data access, distribution, or trust rather than the demo itself",
-    fr: "la contrainte se situe souvent dans le calcul, les donnees, la distribution ou la confiance plus que dans la demo",
+    fr: "la contrainte se situe souvent dans le calcul, les données, la distribution ou la confiance plus que dans la démo",
     watchEn: "capacity commitments, customer migrations, model access rules, or security reviews",
-    watchFr: "les engagements de capacite, les migrations clients, les regles d'acces aux modeles ou les revues de securite"
+    watchFr: "les engagements de capacité, les migrations clients, les règles d'accès aux modèles ou les revues de sécurité"
   },
   law: {
     en: "rules change product defaults, compliance costs, and who can move fastest",
-    fr: "les regles changent les choix par defaut, les couts de conformite et la vitesse d'execution",
+    fr: "les règles changent les choix par défaut, les coûts de conformité et la vitesse d'exécution",
     watchEn: "implementation deadlines, enforcement language, appeals, or revised product defaults",
-    watchFr: "les delais d'application, le vocabulaire de sanction, les recours ou les choix produit modifies"
+    watchFr: "les délais d'application, le vocabulaire de sanction, les recours ou les choix produit modifiés"
   },
   medicine: {
     en: "the real test is what was measured, for whom, and whether the effect changes care",
-    fr: "le vrai test porte sur ce qui a ete mesure, pour quels patients, et si l'effet change les soins",
+    fr: "le vrai test porte sur ce qui a été mesuré, pour quels patients, et si l'effet change les soins",
     watchEn: "endpoint detail, safety data, trial size, regulatory review, or clinician uptake",
-    watchFr: "le detail des criteres, les donnees de securite, la taille de l'essai, l'examen regulatoire ou l'adoption clinique"
+    watchFr: "le détail des critères, les données de sécurité, la taille de l'essai, l'examen réglementaire ou l'adoption clinique"
   },
   engineering: {
     en: "constraints in reliability, cost, and failure modes decide whether the design scales",
-    fr: "la fiabilite, les couts et les modes de panne disent si la conception peut passer a l'echelle",
+    fr: "la fiabilité, les coûts et les modes de panne disent si la conception peut passer à l'échelle",
     watchEn: "incident rates, redundancy plans, maintenance cost, or deployment timelines",
-    watchFr: "les taux d'incident, les plans de redondance, les couts de maintenance ou les calendriers de deploiement"
+    watchFr: "les taux d'incident, les plans de redondance, les coûts de maintenance ou les calendriers de déploiement"
   },
   sport_business: {
     en: "audience demand becomes strategy only when rights, sponsorship, and fan behavior reinforce each other",
-    fr: "la demande du public devient strategique quand droits, sponsoring et comportement des fans se renforcent",
+    fr: "la demande du public devient stratégique quand droits, sponsoring et comportement des fans se renforcent",
     watchEn: "rights fees, attendance, subscriber trends, sponsorship renewals, or schedule changes",
-    watchFr: "les droits medias, l'affluence, les abonnes, les renouvellements de sponsoring ou le calendrier"
+    watchFr: "les droits médias, l'affluence, les abonnés, les renouvellements de sponsoring ou le calendrier"
   },
   culture_media: {
     en: "attention only compounds when the format, distribution, and audience habit all line up",
     fr: "l'attention ne s'accumule que si le format, la distribution et l'habitude du public s'alignent",
     watchEn: "repeat usage, subscriber conversion, licensing terms, or platform placement",
-    watchFr: "l'usage repete, la conversion en abonnes, les licences ou la mise en avant par les plateformes"
+    watchFr: "l'usage répété, la conversion en abonnés, les licences ou la mise en avant par les plateformes"
   }
 };
 
@@ -176,10 +176,10 @@ function buildMiniCaseQuestions(
         `Quel cadre utiliser d'abord pour tester ${conceptTested} ?`
       ),
       options: [
-        correctOption("A", languageLine(language, "Separate the sourced fact, decision owner, and next signal.", "Separer le fait source, le responsable de decision et le prochain signal.")),
-        wrongOption("B", languageLine(language, "Turn the update into an immediate recommendation.", "Transformer l'actualite en recommandation immediate.")),
-        wrongOption("C", languageLine(language, "Pick the loudest interpretation of the headline.", "Choisir l'interpretation la plus bruyante du titre.")),
-        wrongOption("D", languageLine(language, "Wait for the story to disappear before acting.", "Attendre que le sujet disparaisse avant d'agir."))
+        correctOption(language, "A", languageLine(language, "Separate the sourced fact, decision owner, and next signal.", "Séparer le fait source, le responsable de la décision et le prochain signal.")),
+        wrongOption(language, "B", languageLine(language, "Turn the update into an immediate recommendation.", "Transformer l'actualité en recommandation immédiate.")),
+        wrongOption(language, "C", languageLine(language, "Pick the loudest interpretation of the headline.", "Choisir l'interprétation la plus bruyante du titre.")),
+        wrongOption(language, "D", languageLine(language, "Wait for the story to disappear before acting.", "Attendre que le sujet disparaisse avant d'agir."))
       ]
     },
     {
@@ -187,10 +187,10 @@ function buildMiniCaseQuestions(
       role: "technical_application",
       question: languageLine(language, "Which signal best tests the practical impact?", "Quel signal teste le mieux l'impact pratique ?"),
       options: [
-        correctOption("A", watchSignalText),
-        wrongOption("B", languageLine(language, "A louder headline with the same facts.", "Un titre plus bruyant avec les memes faits.")),
-        wrongOption("C", languageLine(language, "The number of times the story is shared.", "Le nombre de partages de l'actualite.")),
-        wrongOption("D", languageLine(language, "A competitor's unrelated announcement.", "L'annonce sans rapport d'un concurrent."))
+        correctOption(language, "A", watchSignalText),
+        wrongOption(language, "B", languageLine(language, "A louder headline with the same facts.", "Un titre plus bruyant avec les mêmes faits.")),
+        wrongOption(language, "C", languageLine(language, "The number of times the story is shared.", "Le nombre de partages de l'actualité.")),
+        wrongOption(language, "D", languageLine(language, "A competitor's unrelated announcement.", "L'annonce sans rapport d'un concurrent."))
       ]
     },
     {
@@ -198,30 +198,38 @@ function buildMiniCaseQuestions(
       role: "conclusion_decision",
       question: languageLine(language, "What is the strongest conclusion?", "Quelle est la conclusion la plus solide ?"),
       options: [
-        correctOption("A", languageLine(language, "Wait for the named signal before escalating the decision.", "Attendre le signal nomme avant d'escalader la decision.")),
-        wrongOption("B", languageLine(language, "Assume the source proves every downstream consequence.", "Supposer que la source prouve toutes les consequences.")),
-        wrongOption("C", languageLine(language, "Reverse the whole plan on one data point.", "Inverser tout le plan sur un seul element.")),
-        wrongOption("D", languageLine(language, "Ignore the update because it is uncomfortable.", "Ignorer l'actualite parce qu'elle derange."))
+        correctOption(language, "A", languageLine(language, "Wait for the named signal before escalating the decision.", "Attendre le signal nommé avant d'escalader la décision.")),
+        wrongOption(language, "B", languageLine(language, "Assume the source proves every downstream consequence.", "Supposer que la source prouve toutes les conséquences.")),
+        wrongOption(language, "C", languageLine(language, "Reverse the whole plan on one data point.", "Inverser tout le plan sur un seul élément.")),
+        wrongOption(language, "D", languageLine(language, "Ignore the update because it is uncomfortable.", "Ignorer l'actualité parce qu'elle dérange."))
       ]
     }
   ];
 }
 
-function correctOption(id: string, text: string): MiniCaseChallenge["questions"][number]["options"][number] {
+function correctOption(language: Language, id: string, text: string): MiniCaseChallenge["questions"][number]["options"][number] {
   return {
     id,
     text,
     is_correct: true,
-    feedback: "Correct: this keeps the decision tied to evidence."
+    feedback: languageLine(
+      language,
+      "Correct: this keeps the decision tied to evidence.",
+      "Correct : cela garde la décision reliée aux preuves."
+    )
   };
 }
 
-function wrongOption(id: string, text: string): MiniCaseChallenge["questions"][number]["options"][number] {
+function wrongOption(language: Language, id: string, text: string): MiniCaseChallenge["questions"][number]["options"][number] {
   return {
     id,
     text,
     is_correct: false,
-    feedback: "Not quite: this skips the evidence discipline the case is testing."
+    feedback: languageLine(
+      language,
+      "Not quite: this skips the evidence discipline the case is testing.",
+      "Pas tout à fait : cela ignore la discipline de preuve que le cas teste."
+    )
   };
 }
 
@@ -275,18 +283,18 @@ function newsletterBody(request: GenerationRequest, article: RankedArticle, summ
       languageLine(
         request.language,
         `${article.publisher} puts a concrete ${label} development on the table: ${summary}`,
-        `${article.publisher} met sur la table un developpement concret en ${label} : ${summary}`
+        `${article.publisher} met sur la table un développement concret en ${label} : ${summary}`
       ),
       languageLine(
         request.language,
         `The mechanism to keep is specific: ${topicEdge(article.topic, request.language)}. That is the part a student can reuse in a class discussion, market note, or interview answer.`,
-        `Le mecanisme a garder est precis : ${topicEdge(article.topic, request.language)}. C'est la partie reutilisable en cours, dans une note de marche ou en entretien.`
+        `Le mécanisme à garder est précis : ${topicEdge(article.topic, request.language)}. C'est la partie réutilisable en cours, dans une note de marché ou en entretien.`
       ),
       why,
       languageLine(
         request.language,
         `Next signal: ${watch}. Those signals will say more than another round of commentary on the ${publishedDate} update.`,
-        `Prochain signal : ${watch}. Ces signaux diront plus qu'un nouveau commentaire sur l'actualite du ${publishedDate}.`
+        `Prochain signal : ${watch}. Ces signaux diront plus qu'un nouveau commentaire sur l'actualité du ${publishedDate}.`
       ),
       source
     ].join("\n\n");
@@ -297,7 +305,7 @@ function newsletterBody(request: GenerationRequest, article: RankedArticle, summ
       languageLine(
         request.language,
         `Treat this as a live ${label} case. The fact pattern is simple: ${summary}`,
-        `Traite ce sujet comme un cas vivant de ${label}. Le fait de depart est simple : ${summary}`
+        `Traite ce sujet comme un cas vivant de ${label}. Le fait de départ est simple : ${summary}`
       ),
       languageLine(
         request.language,
@@ -307,7 +315,7 @@ function newsletterBody(request: GenerationRequest, article: RankedArticle, summ
       languageLine(
         request.language,
         `For a five-minute briefing, separate the sourced fact from the judgment: the fact is the ${publishedDate} development; the judgment is whether it changes behavior, budgets, or timelines.`,
-        `Pour un briefing de cinq minutes, separe le fait source du jugement : le fait est le developpement du ${publishedDate}; le jugement porte sur son effet sur les comportements, les budgets ou les calendriers.`
+        `Pour un briefing de cinq minutes, sépare le fait source du jugement : le fait est le développement du ${publishedDate}; le jugement porte sur son effet sur les comportements, les budgets ou les calendriers.`
       ),
       `${why} ${languageLine(request.language, `Watch ${watch}.`, `Surveille ${watch}.`)}`,
       source
@@ -319,13 +327,13 @@ function newsletterBody(request: GenerationRequest, article: RankedArticle, summ
     languageLine(
       request.language,
       `Read it through the ${label} lens: ${topicEdge(article.topic, request.language)}. That turns the item from a news update into a decision map.`,
-      `Lis-le avec le prisme ${label} : ${topicEdge(article.topic, request.language)}. Le sujet devient alors une carte de decision, pas seulement une actualite.`
+      `Lis-le avec le prisme ${label} : ${topicEdge(article.topic, request.language)}. Le sujet devient alors une carte de décision, pas seulement une actualité.`
     ),
     why,
     languageLine(
       request.language,
       `Watch ${watch}. If those signals do not move after ${publishedDate}, the practical impact is still unproven.`,
-      `Surveille ${watch}. Si ces signaux ne bougent pas apres le ${publishedDate}, l'impact pratique reste a prouver.`
+      `Surveille ${watch}. Si ces signaux ne bougent pas après le ${publishedDate}, l'impact pratique reste à prouver.`
     ),
     source
   ].join("\n\n");
@@ -424,34 +432,34 @@ export class StructuredContentGenerator implements ContentGenerator {
       decision: languageLine(
         request.language,
         `A strong operator would turn ${article.publisher}'s update into one constraint, one owner, and one metric to test next.`,
-        `Un bon operateur transformerait l'actualite de ${article.publisher} en une contrainte, un responsable et une metrique a tester.`
+        `Un bon opérateur transformerait l'actualité de ${article.publisher} en une contrainte, un responsable et une métrique à tester.`
       ),
       outcome: languageLine(
         request.language,
         `The next measurable outcome is ${watch}.`,
-        `Le resultat mesurable a suivre : ${watch}.`
+        `Le résultat mesurable à suivre : ${watch}.`
       ),
       lesson: languageLine(
         request.language,
         "The lesson is to find the constraint before judging the strategy.",
-        "La lecon consiste a trouver la contrainte avant de juger la strategie."
+        "La leçon consiste à trouver la contrainte avant de juger la stratégie."
       ),
       body_md: [
         setup,
         languageLine(
           request.language,
           `The business mechanism is concrete: ${topicEdge(article.topic, request.language)}.`,
-          `Le mecanisme business est concret : ${topicEdge(article.topic, request.language)}.`
+          `Le mécanisme business est concret : ${topicEdge(article.topic, request.language)}.`
         ),
         languageLine(
           request.language,
           `The operator's job is to name the constraint, assign an owner, and choose a move that can be tested against ${watch}.`,
-          `Le role de l'operateur est de nommer la contrainte, designer un responsable et choisir une action testable avec ${watch}.`
+          `Le rôle de l'opérateur est de nommer la contrainte, désigner un responsable et choisir une action testable avec ${watch}.`
         ),
         languageLine(
           request.language,
           `For students, the useful move is to translate the ${article.published_at?.slice(0, 10) ?? request.dropDate} update into a decision: what would you do Monday morning, and which metric would prove you were wrong?`,
-          `Pour un etudiant, le bon reflexe est de traduire l'actualite du ${article.published_at?.slice(0, 10) ?? request.dropDate} en decision : que ferais-tu lundi matin, et quelle metrique prouverait que tu avais tort ?`
+          `Pour un étudiant, le bon réflexe est de traduire l'actualité du ${article.published_at?.slice(0, 10) ?? request.dropDate} en décision : que ferais-tu lundi matin, et quelle métrique prouverait que tu avais tort ?`
         ),
         sourceLine(article)
       ].join("\n\n"),
@@ -469,12 +477,12 @@ export class StructuredContentGenerator implements ContentGenerator {
         strategic_angle: languageLine(
           request.language,
           `${keyMechanism}: turn one constraint into one owner and one metric.`,
-          `${keyMechanism} : transformer une contrainte en un responsable et une metrique.`
+          `${keyMechanism} : transformer une contrainte en un responsable et une métrique.`
         ),
         core_takeaway: languageLine(
           request.language,
           "Find the constraint before judging the strategy.",
-          "Trouver la contrainte avant de juger la strategie."
+          "Trouver la contrainte avant de juger la stratégie."
         ),
         year_period: article.published_at?.slice(0, 4) ?? request.dropDate.slice(0, 4)
       },
@@ -531,10 +539,10 @@ export class StructuredContentGenerator implements ContentGenerator {
       scenario_type: scenarioType,
       decision_type: decisionType,
       concept_tested: conceptTested,
-      mechanism: languageLine(request.language, `The active mechanism is ${conceptTested} under a ${scenarioType} constraint.`, `Le mecanisme actif est ${conceptTested} sous une contrainte de type ${scenarioType}.`),
+      mechanism: languageLine(request.language, `The active mechanism is ${conceptTested} under a ${scenarioType} constraint.`, `Le mécanisme actif est ${conceptTested} sous une contrainte de type ${scenarioType}.`),
       question_pattern: questionPattern,
       correct_answer_pattern: correctAnswerPattern,
-      core_takeaway: languageLine(request.language, `Use ${conceptTested} to choose the next evidence-backed step, not to overreact to one source.`, `Utilise ${conceptTested} pour choisir la prochaine etape fondee sur les preuves, pas pour surreagir a une seule source.`),
+      core_takeaway: languageLine(request.language, `Use ${conceptTested} to choose the next evidence-backed step, not to overreact to one source.`, `Utilise ${conceptTested} pour choisir la prochaine étape fondée sur les preuves, pas pour surréagir à une seule source.`),
       language: request.language,
       title: languageLine(request.language, `Mini-case: brief the ${label} move`, `Mini-cas : briefer le mouvement ${label}`),
       difficulty: "medium",
@@ -542,36 +550,36 @@ export class StructuredContentGenerator implements ContentGenerator {
       challenge: languageLine(
         request.language,
         `You are preparing a five-minute brief for someone deciding whether the ${article.publisher} development deserves action this week.`,
-        `Tu prepares un brief de cinq minutes pour quelqu'un qui doit decider si le sujet signale par ${article.publisher} merite une action cette semaine.`
+        `Tu prépares un brief de cinq minutes pour quelqu'un qui doit décider si le sujet signalé par ${article.publisher} mérite une action cette semaine.`
       ),
-      constraints: languageLine(request.language, `Use only sourced facts; name the decision owner; watch ${watch}.`, `Utilise seulement des faits sources ; nomme le responsable de la decision ; surveille ${watch}.`)
+      constraints: languageLine(request.language, `Use only sourced facts; name the decision owner; watch ${watch}.`, `Utilise seulement des faits sourcés ; nomme le responsable de la décision ; surveille ${watch}.`)
         .split("; ")
         .map((item) => item.trim()),
       question: languageLine(
         request.language,
         "Would you recommend acting now, waiting for one signal, or narrowing the scope of the decision?",
-        "Recommanderais-tu d'agir maintenant, d'attendre un signal, ou de reduire le perimetre de la decision ?"
+        "Recommanderais-tu d'agir maintenant, d'attendre un signal, ou de réduire le périmètre de la décision ?"
       ),
       questions: buildMiniCaseQuestions(request.language, conceptTested, watch),
       expected_reasoning: [
-        languageLine(request.language, `State the sourced fact from ${article.published_at?.slice(0, 10) ?? request.dropDate}.`, `Enonce le fait source du ${article.published_at?.slice(0, 10) ?? request.dropDate}.`),
-        languageLine(request.language, "Identify who has less room to maneuver after the update.", "Identifie qui a moins de marge de manoeuvre apres l'actualite."),
+        languageLine(request.language, `State the sourced fact from ${article.published_at?.slice(0, 10) ?? request.dropDate}.`, `Énonce le fait source du ${article.published_at?.slice(0, 10) ?? request.dropDate}.`),
+        languageLine(request.language, "Identify who has less room to maneuver after the update.", "Identifie qui a moins de marge de manœuvre après l'actualité."),
         languageLine(request.language, `Name the signal that would confirm or weaken the recommendation: ${watch}.`, `Nomme le signal qui confirmerait ou affaiblirait la recommandation : ${watch}.`)
       ],
       sample_answer: languageLine(
         request.language,
         `I would wait for one confirming signal before committing resources. The sourced fact is ${sentence(article)} The judgment is whether that changes behavior; I would test it through ${watch}.`,
-        `J'attendrais un signal de confirmation avant d'engager des ressources. Le fait source est le suivant : ${sentence(article)} Le jugement porte sur le changement de comportement; je le testerais avec ${watch}.`
+        `J'attendrais un signal de confirmation avant d'engager des ressources. Le fait source est le suivant : ${sentence(article)} Le jugement porte sur le changement de comportement ; je le testerais avec ${watch}.`
       ),
       conclusion: languageLine(
         request.language,
         `Final takeaway: separate the sourced fact from the recommendation, then use ${watch} to update the decision.`,
-        `A retenir : separe le fait source de la recommandation, puis utilise ${watch} pour mettre a jour la decision.`
+        `À retenir : sépare le fait source de la recommandation, puis utilise ${watch} pour mettre à jour la décision.`
       ),
       final_takeaway: languageLine(
         request.language,
         `Separate the sourced fact from your recommendation, then let ${watch} decide the next move.`,
-        `Separe le fait source de ta recommandation, puis laisse ${watch} decider du prochain mouvement.`
+        `Sépare le fait source de ta recommandation, puis laisse ${watch} décider du prochain mouvement.`
       ),
       score_max: 3,
       body_md: [
@@ -579,12 +587,12 @@ export class StructuredContentGenerator implements ContentGenerator {
         languageLine(
           request.language,
           `Your task is to brief a decision-maker in five minutes. Keep the sourced fact separate from your judgment, then recommend acting now, waiting, or narrowing the decision.`,
-          `Ta mission est de briefer un decideur en cinq minutes. Garde le fait source separe de ton jugement, puis recommande d'agir, d'attendre ou de reduire la decision.`
+          `Ta mission est de briefer un décideur en cinq minutes. Garde le fait source séparé de ton jugement, puis recommande d'agir, d'attendre ou de réduire la décision.`
         ),
         languageLine(
           request.language,
           `A strong answer names who owns the decision, who has less room to maneuver, and which signal to watch next: ${watch}.`,
-          `Une bonne reponse nomme le responsable de la decision, l'acteur qui a moins de marge, et le signal a suivre : ${watch}.`
+          `Une bonne réponse nomme le responsable de la décision, l'acteur qui a moins de marge, et le signal à suivre : ${watch}.`
         ),
         sourceLine(article)
       ].join("\n\n"),
@@ -611,18 +619,18 @@ export class StructuredContentGenerator implements ContentGenerator {
       plain_english: languageLine(
         request.language,
         `Use it to ask what constraint the ${label} story exposes and who has fewer alternatives after the update.`,
-        `Utilise-le pour demander quelle contrainte le sujet ${label} revele et qui a moins d'options apres l'actualite.`
+        `Utilise-le pour demander quelle contrainte le sujet ${label} révèle et qui a moins d'options après l'actualité.`
       ),
       example: sentence(article),
       why_it_matters: languageLine(
         request.language,
         `It gives you a reusable lens for the ${article.published_at?.slice(0, 10) ?? request.dropDate} source instead of leaving the item as a one-off update.`,
-        `Il donne un prisme reutilisable pour la source du ${article.published_at?.slice(0, 10) ?? request.dropDate}, au lieu de laisser le sujet comme une actualite isolee.`
+        `Il donne un prisme réutilisable pour la source du ${article.published_at?.slice(0, 10) ?? request.dropDate}, au lieu de laisser le sujet comme une actualité isolée.`
       ),
       how_to_use_it: languageLine(
         request.language,
         `In class or an interview, pair the concept with one signal to watch: ${watch}.`,
-        `En cours ou en entretien, associe le concept a un signal a suivre : ${watch}.`
+        `En cours ou en entretien, associe le concept à un signal à suivre : ${watch}.`
       ),
       common_mistake: concept.mistake[request.language],
       body_md: [
@@ -630,7 +638,7 @@ export class StructuredContentGenerator implements ContentGenerator {
         languageLine(
           request.language,
           `Plain English: use the concept to ask what constraint the ${label} story exposes and who has fewer alternatives after the update.`,
-          `En clair : utilise le concept pour demander quelle contrainte le sujet ${label} revele et qui a moins d'options apres l'actualite.`
+          `En clair : utilise le concept pour demander quelle contrainte le sujet ${label} révèle et qui a moins d'options après l'actualité.`
         ),
         languageLine(
           request.language,
@@ -640,7 +648,7 @@ export class StructuredContentGenerator implements ContentGenerator {
         languageLine(
           request.language,
           `Use it in class, interviews, or internships by pairing the concept with one observable signal: ${watch}. The common mistake is ${concept.mistake.en.toLowerCase()}`,
-          `Utilise-le en cours, en entretien ou en stage en l'associant a un signal observable : ${watch}. L'erreur frequente consiste a ${concept.mistake.fr.toLowerCase()}`
+          `Utilise-le en cours, en entretien ou en stage en l'associant à un signal observable : ${watch}. L'erreur fréquente consiste à ${concept.mistake.fr.toLowerCase()}`
         ),
         sourceLine(article)
       ].join("\n\n"),
