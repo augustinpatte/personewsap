@@ -4,6 +4,7 @@ import {
   type ContentType,
   type DailyDropPayload,
   type DailyDropSlot,
+  type GeneratedContentItem,
   type Language,
   type MiniCaseTopicId,
   type TopicId,
@@ -50,8 +51,6 @@ import { redactLogIdentifiers } from "../utils/redactIdentifier.js";
 const DEFAULT_USER_LIMIT = 5;
 const MAX_USER_LIMIT = 25;
 const DEFAULT_LANGUAGES = "fr,en";
-const DRY_RUN_NEWSLETTER_ARTICLE_COUNT = 4;
-const LLM_NEWSLETTER_ARTICLE_COUNT = 1;
 const RETRYABLE_STAGE_ATTEMPTS = 2;
 const RETRY_BASE_DELAY_MS = 1_000;
 const RETRY_MAX_DELAY_MS = 8_000;
@@ -500,14 +499,14 @@ export function parseDailyJobTestOptions(args: string[]): DailyJobTestOptions {
   const liveRssOnly = envFlag("LIVE_RSS_ONLY") || flags.has("live-rss-only");
   const topics = applyTopicLimit(parseTopics(flags.get("topics") ?? flags.get("topic") ?? TOPIC_IDS.join(",")));
   const explicitNewsletterCount = readPositiveInteger(flags.get("newsletter-count"), "--newsletter-count");
-  const newsletterArticleCount =
-    explicitNewsletterCount ?? Math.min(useLlm ? LLM_NEWSLETTER_ARTICLE_COUNT : DRY_RUN_NEWSLETTER_ARTICLE_COUNT, topics.length);
 
   return {
     dropDate: flags.get("date") ?? toDateOnly(new Date()),
     languages: parseLanguages(flags.get("languages") ?? flags.get("language") ?? process.env.LANGUAGES ?? DEFAULT_LANGUAGES),
     topics,
-    newsletterArticleCount,
+    // Complete master catalog: one newsletter per editorial topic, independent of
+    // any user. Override with --newsletter-count for a smaller edition.
+    newsletterArticleCount: explicitNewsletterCount ?? topics.length,
     liveRss: liveRssOnly || envFlag("LIVE_RSS") || flags.has("live-rss"),
     liveRssOnly,
     useLlm,
@@ -522,8 +521,9 @@ export function parseDailyJobOptions(args: string[]): DailyJobRunOptions {
   const liveRssOnly = envFlag("LIVE_RSS_ONLY") || flags.has("live-rss-only");
   const topics = applyTopicLimit(parseTopics(flags.get("topics") ?? flags.get("topic") ?? TOPIC_IDS.join(",")));
   const explicitNewsletterCount = readPositiveInteger(flags.get("newsletter-count"), "--newsletter-count");
-  const newsletterArticleCount =
-    explicitNewsletterCount ?? Math.min(useLlm ? LLM_NEWSLETTER_ARTICLE_COUNT : DRY_RUN_NEWSLETTER_ARTICLE_COUNT, topics.length);
+  // Complete master catalog: one newsletter per editorial topic, independent of
+  // any user. Override with --newsletter-count for a smaller edition.
+  const newsletterArticleCount = explicitNewsletterCount ?? topics.length;
 
   return {
     mode: "daily-job",
@@ -628,9 +628,25 @@ async function runDailyJobLanguage(input: {
         dropDate: options.dropDate
       })
     : undefined;
-  const miniCaseProductTopics = repository
-    ? await loadMiniCaseProductTopicsForGeneration(repository, language)
-    : [...MINI_CASE_TOPIC_IDS];
+  // GENERATION PHASE — the master editorial catalog is edition-driven, never
+  // user-driven. Mini-cases always cover all 6 product topics and the newsletter
+  // covers all editorial topics, even if no current user selected some of them.
+  // Editorial memory is read only to avoid repetition, not to decide coverage.
+  const miniCaseProductTopics: MiniCaseTopicId[] = [...MINI_CASE_TOPIC_IDS];
+
+  logProgress("generated_catalog_plan", {
+    run_id: runId,
+    test_run_id: testRunId,
+    language,
+    generator: options.useLlm ? "llm" : "dry-run",
+    newsletter_topics_to_generate: options.topics,
+    newsletter_items_to_generate: options.newsletterArticleCount,
+    mini_case_topics_to_generate: miniCaseProductTopics,
+    business_story_count: 1,
+    concept_count: 1,
+    user_preferences_used_for_generation: false
+  }, options.logPrefix);
+
   const payload = await runStage(
     "generation",
     {
@@ -643,7 +659,8 @@ async function runDailyJobLanguage(input: {
       business_story_recent_count: businessStoryMemory?.recentStories.length ?? 0,
       mini_case_memory_available: Boolean(miniCaseMemory),
       mini_case_recent_count: miniCaseMemory?.recentOverall.length ?? 0,
-      mini_case_product_topics: miniCaseProductTopics
+      mini_case_product_topics: miniCaseProductTopics,
+      user_preferences_used_for_generation: false
     },
     async () =>
       assembleDailyDropPayload(
@@ -661,6 +678,17 @@ async function runDailyJobLanguage(input: {
     { logPrefix: options.logPrefix }
   );
   const llmLatencyMs = options.useLlm ? Date.now() - generationStartedAt : null;
+
+  logProgress("generated_catalog_summary", {
+    run_id: runId,
+    test_run_id: testRunId,
+    language,
+    generated_newsletter_items_by_topic: countItemsByTopic(payload, "newsletter_article"),
+    generated_mini_cases_by_topic: countMiniCasesByProductTopic(payload),
+    generated_business_story_count: payload.items.filter((item) => item.content_type === "business_story").length,
+    generated_concept_count: payload.items.filter((item) => item.content_type === "concept").length,
+    user_preferences_used_for_generation: false
+  }, options.logPrefix);
 
   const jobPayload = options.testMode ? markPayloadAsTestData(payload, testRunId) : payload;
 
@@ -866,10 +894,25 @@ async function assignStoredDropToUsers(input: {
     input.storedItems.map((stored) => [stored.content_item_id, stored.item.content_type])
   );
   const assignedPreviews: AssignedDropPreview[] = [];
+
+  // ASSIGNMENT PHASE — user preferences are read here, and ONLY here. They decide
+  // which already-generated catalog items each user receives; they never decided
+  // what was generated. USER_LIMIT slices the number of users assigned, not the
+  // catalog.
   const selection = await input.repository.listUserDailyDropPreferenceSelection(input.language);
   const preferences = selection.preferences;
   const sortedPreferences = [...preferences].sort((left, right) => left.user_id.localeCompare(right.user_id));
   const candidates = input.userLimit === null ? sortedPreferences : sortedPreferences.slice(0, input.userLimit);
+
+  logProgress("assignment phase started", {
+    language: input.language,
+    drop_date: input.dropDate,
+    user_preferences_used_for_assignment: true,
+    user_limit: input.userLimit ?? "all",
+    catalog_items_available: input.storedItems.length,
+    users_eligible: sortedPreferences.length,
+    users_considered: candidates.length
+  }, input.logPrefix);
 
   for (const skippedUser of selection.skippedUsers) {
     logProgress("user skipped before assignment", {
@@ -1056,20 +1099,24 @@ async function assignStoredDropToUsers(input: {
   };
 }
 
-async function loadMiniCaseProductTopicsForGeneration(
-  repository: ContentRepository,
-  language: Language
-): Promise<MiniCaseTopicId[]> {
-  const selection = await repository.listUserDailyDropPreferenceSelection(language);
-  const topics = new Set<MiniCaseTopicId>();
-
-  for (const preference of selection.preferences) {
-    for (const topic of preference.mini_case_topics) {
-      topics.add(topic.topic_id);
+function countItemsByTopic(payload: DailyDropPayload, contentType: GeneratedContentItem["content_type"]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of payload.items) {
+    if (item.content_type === contentType && item.topic) {
+      incrementCount(counts, item.topic);
     }
   }
+  return counts;
+}
 
-  return topics.size > 0 ? Array.from(topics).sort() : [...MINI_CASE_TOPIC_IDS];
+function countMiniCasesByProductTopic(payload: DailyDropPayload): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of payload.items) {
+    if (item.content_type === "mini_case") {
+      incrementCount(counts, item.product_topic);
+    }
+  }
+  return counts;
 }
 
 function skippedAssignment(reason: string): {

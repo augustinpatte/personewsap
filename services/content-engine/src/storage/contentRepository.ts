@@ -838,7 +838,10 @@ export class ContentRepository {
         { onConflict: "slug" }
       );
 
-    if (error) {
+    // A re-run that reuses a deduplicated content item already has its editorial
+    // memory recorded under the same content_item_id. The insert then trips the
+    // content_item_id unique constraint, which is safe to ignore (idempotent).
+    if (error && !isContentItemIdConflict(error)) {
       throwPersistenceError({
         table: "business_story_history",
         action: "upsert business story editorial memory",
@@ -870,7 +873,7 @@ export class ContentRepository {
         { onConflict: "slug" }
       );
 
-    if (error) {
+    if (error && !isContentItemIdConflict(error)) {
       throwPersistenceError({
         table: "mini_case_history",
         action: "upsert mini-case editorial memory",
@@ -1942,4 +1945,17 @@ function isPublishedPersistTestContentItem(row: PublishedPersistTestContentItem)
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// True when a Postgres unique violation (23505) is on a *_content_item_id_unique
+// constraint. Editorial-memory tables are keyed by content_item_id, so when a
+// re-run reuses a deduplicated content item the memory row already exists and the
+// duplicate is safe to ignore. Slug or other unique violations are never swallowed.
+function isContentItemIdConflict(error: unknown): boolean {
+  if (!isRecord(error)) {
+    return false;
+  }
+  const code = typeof error.code === "string" ? error.code : "";
+  const text = `${typeof error.message === "string" ? error.message : ""} ${typeof error.details === "string" ? error.details : ""}`;
+  return code === "23505" && /content_item_id/.test(text);
 }

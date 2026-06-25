@@ -191,6 +191,12 @@ export const MINI_CASE_ITEM_SCHEMA = {
     "core_takeaway",
     "final_takeaway",
     "score_max",
+    "learning_points",
+    "prerequisites",
+    "next_recommended",
+    "cognitive_load",
+    "surprise_fact",
+    "business_context_type",
     "body_md",
     "source_urls",
     "version"
@@ -242,8 +248,6 @@ export const MINI_CASE_ITEM_SCHEMA = {
     },
     questions: {
       type: "array",
-      minItems: 3,
-      maxItems: 3,
       items: {
         type: "object",
         additionalProperties: false,
@@ -257,8 +261,6 @@ export const MINI_CASE_ITEM_SCHEMA = {
           question: { type: "string" },
           options: {
             type: "array",
-            minItems: 4,
-            maxItems: 4,
             items: {
               type: "object",
               additionalProperties: false,
@@ -301,28 +303,31 @@ export const MINI_CASE_ITEM_SCHEMA = {
     score_max: {
       type: "integer"
     },
+    // Optional editorial enrichments. OpenAI Structured Outputs requires every
+    // property in `required`, so they are expressed as nullable unions; the model
+    // returns null when not applicable. Allowed enum values for cognitive_load
+    // (low|medium|high) and business_context_type are enforced by the validators,
+    // keeping the schema free of nullable-enum edge cases.
     learning_points: {
-      type: "array",
+      type: ["array", "null"],
       items: { type: "string" }
     },
     prerequisites: {
-      type: "array",
+      type: ["array", "null"],
       items: { type: "string" }
     },
     next_recommended: {
-      type: "array",
+      type: ["array", "null"],
       items: { type: "string" }
     },
     cognitive_load: {
-      type: "string",
-      enum: ["low", "medium", "high"]
+      type: ["string", "null"]
     },
     surprise_fact: {
-      type: "string"
+      type: ["string", "null"]
     },
     business_context_type: {
-      type: "string",
-      enum: ["fictional_but_realistic", "inspired_by_real_events"]
+      type: ["string", "null"]
     },
     body_md: {
       type: "string"
@@ -421,18 +426,15 @@ export const DAILY_DROP_JSON_SCHEMA = {
 } as const;
 
 // Per-section output schema. The LLM only emits the items array for one section;
-// the engine overrides drop_date/language/prompt_version/generator_version from
-// the request, so only `items` is required here.
+// the engine sets drop_date/language/prompt_version/generator_version itself, so
+// they are not part of the schema. OpenAI Structured Outputs requires every
+// property to be listed in `required`, so the wrapper exposes only `items`.
 function dailyDropSectionSchema(itemSchema: Record<string, unknown>) {
   return {
     type: "object",
     additionalProperties: false,
     required: ["items"],
     properties: {
-      drop_date: { type: "string" },
-      language: { type: "string", enum: LANGUAGES },
-      prompt_version: { type: "string" },
-      generator_version: { type: "string" },
       items: {
         type: "array",
         items: itemSchema

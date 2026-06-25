@@ -3,10 +3,18 @@ import {
   type DailyDropPayload,
   type GeneratedContentItem,
   type Language,
+  type MiniCaseTopicId,
   type RankedArticle,
   type TopicId
 } from "../domain.js";
 import { compactMiniCaseMemoryForPrompt } from "../miniCase/editorialMemory.js";
+import {
+  MINI_CASE_CONCEPTS,
+  MINI_CASE_CORRECT_ANSWER_PATTERNS,
+  MINI_CASE_DECISION_TYPES,
+  MINI_CASE_QUESTION_PATTERNS,
+  MINI_CASE_SCENARIO_TYPES
+} from "../miniCase/taxonomy.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { DAILY_DROP_SECTION_SCHEMAS } from "./dailyDropSchema.js";
 import { compactBusinessStoryMemoryForPrompt } from "./editorialMemory.js";
@@ -97,10 +105,24 @@ export class LlmContentGenerator implements ContentGenerator {
         // One isolated LLM call per content type. Each call only carries that
         // section's editorial specification (newsletter / business story / mini
         // case), so a generation never sees a foreign prompt: maximal token
-        // reduction and zero cross-prompt conflict.
+        // reduction and zero cross-prompt conflict. The newsletter is generated
+        // one article per editorial topic and mini-cases one per product topic —
+        // a focused call per topic guarantees the complete edition catalog and
+        // keeps each response within the output token budget. This is purely
+        // edition-driven: user preferences never influence what is generated.
         const items: GeneratedContentItem[] = [];
         for (const section of SECTION_ORDER) {
-          items.push(...(await this.generateSection(section, request, sources, feedback, attempt)));
+          if (section === "newsletter_article") {
+            for (const newsletterTopic of request.newsletterTopics) {
+              items.push(...(await this.generateSection(section, request, sources, feedback, attempt, { newsletterTopic })));
+            }
+          } else if (section === "mini_case") {
+            for (const miniCaseTopic of miniCaseGenerationTopics(request)) {
+              items.push(...(await this.generateSection(section, request, sources, feedback, attempt, { miniCaseTopic })));
+            }
+          } else {
+            items.push(...(await this.generateSection(section, request, sources, feedback, attempt)));
+          }
         }
 
         this.reportProgress("OpenAI request completed", {
@@ -185,13 +207,16 @@ export class LlmContentGenerator implements ContentGenerator {
     request: GenerationRequest,
     allSources: SourcePacket[],
     feedback: string | undefined,
-    attempt: number
+    attempt: number,
+    topic: SectionTopic = {}
   ): Promise<GeneratedContentItem[]> {
-    const scopedSources = scopeSourcesForSection(section, request, allSources);
+    const scopedSources = scopeSourcesForSectionTopic(section, request, allSources, topic);
 
     this.reportProgress("LLM section started", {
       language: request.language,
       section,
+      newsletter_topic: topic.newsletterTopic ?? null,
+      mini_case_topic: topic.miniCaseTopic ?? null,
       attempt,
       editorial_specification: SECTION_SPEC_FILE[section],
       source_count: scopedSources.length
@@ -199,7 +224,7 @@ export class LlmContentGenerator implements ContentGenerator {
 
     const raw = await this.provider.generateJson({
       systemPrompt: EDITORIAL_PROMPT,
-      userPrompt: buildSectionPrompt(section, request, scopedSources, feedback),
+      userPrompt: buildSectionPrompt(section, request, scopedSources, feedback, topic),
       jsonSchema: DAILY_DROP_SECTION_SCHEMAS[section] as unknown as Record<string, unknown>,
       maxOutputTokens: this.maxOutputTokens
     });
@@ -209,6 +234,8 @@ export class LlmContentGenerator implements ContentGenerator {
     this.reportProgress("LLM section completed", {
       language: request.language,
       section,
+      newsletter_topic: topic.newsletterTopic ?? null,
+      mini_case_topic: topic.miniCaseTopic ?? null,
       attempt,
       generated_items: items.length
     });
@@ -290,11 +317,17 @@ const BUSINESS_STORY_ANTI_REPEAT_RULES = [
 // Builds the user prompt for ONE section. Only that section's editorial
 // specification, output contract, anti-repeat rules, and editorial memory are
 // included, so foreign prompts are never sent to the model.
+type SectionTopic = {
+  newsletterTopic?: TopicId;
+  miniCaseTopic?: MiniCaseTopicId | null;
+};
+
 function buildSectionPrompt(
   section: DropSection,
   request: GenerationRequest,
   sources: SourcePacket[],
-  feedback?: string
+  feedback?: string,
+  topic: SectionTopic = {}
 ): string {
   const allowedSourceUrls = sources.map((source) => source.url);
 
@@ -306,7 +339,7 @@ function buildSectionPrompt(
       language: request.language,
       prompt_version: PROMPT_VERSION,
       generator_version: LLM_GENERATOR_VERSION,
-      items: [sectionItemsExpectation(section, request)],
+      items: [sectionItemsExpectation(section, request, topic)],
       schema_notes: [
         "Emit a JSON object whose items array contains ONLY this section's item(s).",
         "Use the exact field names from the JSON schema.",
@@ -326,9 +359,9 @@ function buildSectionPrompt(
     request: {
       drop_date: request.dropDate,
       language: request.language,
-      ...sectionRequestContext(section, request)
+      ...sectionRequestContext(section, request, topic)
     },
-    ...sectionMemoryContext(section, request),
+    ...sectionMemoryContext(section, request, topic),
     allowed_source_urls: allowedSourceUrls,
     source_material: sources
   };
@@ -336,17 +369,32 @@ function buildSectionPrompt(
   return JSON.stringify(prompt, null, 2);
 }
 
-function sectionItemsExpectation(section: DropSection, request: GenerationRequest): string {
+function sectionItemsExpectation(
+  section: DropSection,
+  request: GenerationRequest,
+  topic: SectionTopic
+): string {
   switch (section) {
     case "newsletter_article":
-      return `${request.newsletterArticleCount} newsletter_article item(s)`;
+      return topic.newsletterTopic
+        ? `Exactly 1 newsletter_article item with topic "${topic.newsletterTopic}". The items array must contain exactly one newsletter_article.`
+        : `Exactly ${request.newsletterArticleCount} newsletter_article item(s)`;
     case "business_story":
-      return "1 business_story item";
+      return "Exactly 1 business_story item";
     case "mini_case":
-      return `${request.miniCaseProductTopics?.length ?? 1} mini_case item(s), one per requested mini_case_product_topics entry`;
+      return topic.miniCaseTopic
+        ? `Exactly 1 mini_case item with product_topic "${topic.miniCaseTopic}". The items array must contain exactly one mini_case.`
+        : "Exactly 1 mini_case item";
     case "concept":
-      return "1 concept item";
+      return "Exactly 1 concept item";
   }
+}
+
+// One mini-case is generated per requested product topic. When no product topics
+// are requested, a single default mini-case (null) keeps the existing behaviour.
+function miniCaseGenerationTopics(request: GenerationRequest): (MiniCaseTopicId | null)[] {
+  const topics = request.miniCaseProductTopics ?? [];
+  return topics.length > 0 ? topics : [null];
 }
 
 function sectionSpecNote(section: DropSection): string {
@@ -398,15 +446,21 @@ function sectionGuidance(section: DropSection): Record<string, unknown> {
   }
 }
 
-function sectionRequestContext(section: DropSection, request: GenerationRequest): Record<string, unknown> {
+function sectionRequestContext(
+  section: DropSection,
+  request: GenerationRequest,
+  topic: SectionTopic
+): Record<string, unknown> {
   switch (section) {
     case "newsletter_article":
-      return {
-        newsletter_topics: request.newsletterTopics,
-        newsletter_article_count: request.newsletterArticleCount
-      };
+      return topic.newsletterTopic
+        ? { newsletter_topics: [topic.newsletterTopic], newsletter_article_count: 1 }
+        : {
+            newsletter_topics: request.newsletterTopics,
+            newsletter_article_count: request.newsletterArticleCount
+          };
     case "mini_case":
-      return { mini_case_product_topics: request.miniCaseProductTopics ?? [] };
+      return { mini_case_product_topics: topic.miniCaseTopic ? [topic.miniCaseTopic] : request.miniCaseProductTopics ?? [] };
     case "concept":
       return { concept_topic: request.newsletterTopics[0] ?? "business" };
     case "business_story":
@@ -414,7 +468,11 @@ function sectionRequestContext(section: DropSection, request: GenerationRequest)
   }
 }
 
-function sectionMemoryContext(section: DropSection, request: GenerationRequest): Record<string, unknown> {
+function sectionMemoryContext(
+  section: DropSection,
+  request: GenerationRequest,
+  topic: SectionTopic
+): Record<string, unknown> {
   if (section === "business_story") {
     return {
       business_story_anti_repeat_rules: BUSINESS_STORY_ANTI_REPEAT_RULES,
@@ -426,7 +484,16 @@ function sectionMemoryContext(section: DropSection, request: GenerationRequest):
     return {
       mini_case_anti_repeat_rules: MINI_CASE_ANTI_REPEAT_RULES,
       mini_case_rotation_context: {
-        selected_topics: request.miniCaseProductTopics ?? [],
+        selected_topics: topic.miniCaseTopic ? [topic.miniCaseTopic] : request.miniCaseProductTopics ?? [],
+        // Allowed taxonomy values. These are enforced by both the validators and
+        // the database CHECK constraints, so scenario_type, decision_type,
+        // concept_tested, question_pattern, and correct_answer_pattern must be
+        // chosen ONLY from these lists.
+        allowed_scenario_types: MINI_CASE_SCENARIO_TYPES,
+        allowed_decision_types: MINI_CASE_DECISION_TYPES,
+        allowed_concepts: MINI_CASE_CONCEPTS,
+        allowed_question_patterns: MINI_CASE_QUESTION_PATTERNS,
+        allowed_correct_answer_patterns: MINI_CASE_CORRECT_ANSWER_PATTERNS,
         banned_recent_scenario_types: request.miniCaseMemory?.bannedScenarioTypes ?? [],
         banned_recent_concepts: request.miniCaseMemory?.bannedConcepts ?? [],
         banned_recent_decision_types: request.miniCaseMemory?.bannedDecisionTypes ?? [],
@@ -453,12 +520,30 @@ function sectionMemoryContext(section: DropSection, request: GenerationRequest):
 // Shows each section only the sources relevant to its topics (with a safe
 // fallback to all sources), trimming per-call tokens without ever starving a
 // section. Whole-payload source validation still uses the full ranked set.
+function scopeSourcesForSectionTopic(
+  section: DropSection,
+  request: GenerationRequest,
+  allSources: SourcePacket[],
+  topic: SectionTopic
+): SourcePacket[] {
+  if (section === "newsletter_article" && topic.newsletterTopic) {
+    return scopeSourcesByTopics(allSources, [topic.newsletterTopic]);
+  }
+  if (section === "mini_case" && topic.miniCaseTopic) {
+    return scopeSourcesByTopics(allSources, miniCaseTopicToContentTopics(topic.miniCaseTopic));
+  }
+  return scopeSourcesForSection(section, request, allSources);
+}
+
 function scopeSourcesForSection(
   section: DropSection,
   request: GenerationRequest,
   allSources: SourcePacket[]
 ): SourcePacket[] {
-  const topics = sectionSourceTopics(section, request);
+  return scopeSourcesByTopics(allSources, sectionSourceTopics(section, request));
+}
+
+function scopeSourcesByTopics(allSources: SourcePacket[], topics: TopicId[] | null): SourcePacket[] {
   if (!topics || topics.length === 0) {
     return allSources;
   }

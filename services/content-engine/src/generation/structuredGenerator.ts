@@ -271,9 +271,9 @@ function languageLine(language: Language, english: string, french: string): stri
   return language === "fr" ? french : english;
 }
 
-function newsletterBody(request: GenerationRequest, article: RankedArticle, summary: string, why: string, index: number): string {
-  const label = topicLabel(article.topic, request.language);
-  const watch = watchSignal(article.topic, request.language);
+function newsletterBody(request: GenerationRequest, article: RankedArticle, topic: TopicId, summary: string, why: string, index: number): string {
+  const label = topicLabel(topic, request.language);
+  const watch = watchSignal(topic, request.language);
   const source = sourceLine(article);
   const publishedDate = article.published_at?.slice(0, 10) ?? request.dropDate;
   const pattern = index % 3;
@@ -287,8 +287,8 @@ function newsletterBody(request: GenerationRequest, article: RankedArticle, summ
       ),
       languageLine(
         request.language,
-        `The mechanism to keep is specific: ${topicEdge(article.topic, request.language)}. That is the part a student can reuse in a class discussion, market note, or interview answer.`,
-        `Le mécanisme à garder est précis : ${topicEdge(article.topic, request.language)}. C'est la partie réutilisable en cours, dans une note de marché ou en entretien.`
+        `The mechanism to keep is specific: ${topicEdge(topic, request.language)}. That is the part a student can reuse in a class discussion, market note, or interview answer.`,
+        `Le mécanisme à garder est précis : ${topicEdge(topic, request.language)}. C'est la partie réutilisable en cours, dans une note de marché ou en entretien.`
       ),
       why,
       languageLine(
@@ -309,8 +309,8 @@ function newsletterBody(request: GenerationRequest, article: RankedArticle, summ
       ),
       languageLine(
         request.language,
-        `The practical read is not abstract. ${sentenceCase(topicEdge(article.topic, request.language))}.`,
-        `La lecture pratique n'est pas abstraite. ${sentenceCase(topicEdge(article.topic, request.language))}.`
+        `The practical read is not abstract. ${sentenceCase(topicEdge(topic, request.language))}.`,
+        `La lecture pratique n'est pas abstraite. ${sentenceCase(topicEdge(topic, request.language))}.`
       ),
       languageLine(
         request.language,
@@ -326,8 +326,8 @@ function newsletterBody(request: GenerationRequest, article: RankedArticle, summ
     summary,
     languageLine(
       request.language,
-      `Read it through the ${label} lens: ${topicEdge(article.topic, request.language)}. That turns the item from a news update into a decision map.`,
-      `Lis-le avec le prisme ${label} : ${topicEdge(article.topic, request.language)}. Le sujet devient alors une carte de décision, pas seulement une actualité.`
+      `Read it through the ${label} lens: ${topicEdge(topic, request.language)}. That turns the item from a news update into a decision map.`,
+      `Lis-le avec le prisme ${label} : ${topicEdge(topic, request.language)}. Le sujet devient alors une carte de décision, pas seulement une actualité.`
     ),
     why,
     languageLine(
@@ -355,50 +355,46 @@ export class StructuredContentGenerator implements ContentGenerator {
     };
   }
 
+  // Generates the complete newsletter catalog: one article per editorial topic,
+  // independent of any user. A topic without a matching source falls back to any
+  // same-language article so every editorial topic is still covered.
   private generateNewsletter(request: GenerationRequest): NewsletterArticle[] {
-    const selected: RankedArticle[] = [];
-
-    for (const topic of request.newsletterTopics) {
-      const match = request.articles.find(
-        (article) => article.language === request.language && article.topic === topic && !selected.includes(article)
-      );
-      if (match) {
-        selected.push(match);
-      }
+    const sameLanguage = request.articles.filter((article) => article.language === request.language);
+    if (sameLanguage.length === 0) {
+      return [];
     }
 
-    for (const article of request.articles) {
-      if (selected.length >= request.newsletterArticleCount) {
-        break;
-      }
-      if (article.language === request.language && !selected.includes(article)) {
-        selected.push(article);
-      }
-    }
+    const topics = request.newsletterTopics;
+    const articles: NewsletterArticle[] = [];
 
-    return selected.slice(0, request.newsletterArticleCount).map((article, index): NewsletterArticle => {
-      const summary = sentence(article);
-      const label = topicLabel(article.topic, request.language);
+    for (let index = 0; index < request.newsletterArticleCount; index += 1) {
+      const topic = topics[index % topics.length];
+      const source =
+        sameLanguage.find((article) => article.topic === topic) ?? sameLanguage[index % sameLanguage.length];
+      const summary = sentence(source);
+      const label = topicLabel(topic, request.language);
       const why = languageLine(
         request.language,
-        `${label}: ${topicEdge(article.topic, request.language)}.`,
-        `${label} : ${topicEdge(article.topic, request.language)}.`
+        `${label}: ${topicEdge(topic, request.language)}.`,
+        `${label} : ${topicEdge(topic, request.language)}.`
       );
 
-      return {
+      articles.push({
         content_type: "newsletter_article",
         slot: "newsletter",
-        topic: article.topic,
+        topic,
         language: request.language,
-        title: article.title,
-        published_date: article.published_at?.slice(0, 10) ?? request.dropDate,
+        title: source.title,
+        published_date: source.published_at?.slice(0, 10) ?? request.dropDate,
         summary,
-        body_md: newsletterBody(request, article, summary, why, index),
+        body_md: newsletterBody(request, source, topic, summary, why, index),
         why_it_matters: why,
-        source_urls: [article.url],
+        source_urls: [source.url],
         version: 1
-      };
-    });
+      });
+    }
+
+    return articles;
   }
 
   private generateBusinessStory(request: GenerationRequest): BusinessStory {

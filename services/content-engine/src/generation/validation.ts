@@ -1185,29 +1185,33 @@ function validateMiniCaseUxAndRotation(
   const questionPattern = readItemString(item.question_pattern);
   const correctAnswerPattern = readItemString(item.correct_answer_pattern);
 
+  // The mini-case taxonomy fields are enforced by database CHECK constraints on
+  // mini_case_history, so an unsupported value would fail persistence. They are
+  // always blocking (not strict-gated) so generation retries until valid instead
+  // of producing content that cannot be stored.
   if (!productTopic || !isApprovedMiniCaseProductTopic(productTopic)) {
     issues.push(qualityIssue({
       path: `${path}.product_topic`,
       code: "invalid_mini_case_product_topic",
       message: `Mini-case product_topic must be one of: ${Object.keys(MINI_CASE_PRODUCT_TOPIC_TO_CONTENT_TOPICS).join(", ")}.`,
-      strict
+      strict: true
     }));
   }
 
   if (!scenarioType || !isMiniCaseScenarioType(scenarioType)) {
-    issues.push(qualityIssue({ path: `${path}.scenario_type`, code: "invalid_mini_case_scenario_type", message: "Mini-case scenario_type is missing or unsupported.", strict }));
+    issues.push(qualityIssue({ path: `${path}.scenario_type`, code: "invalid_mini_case_scenario_type", message: "Mini-case scenario_type is missing or unsupported.", strict: true }));
   }
   if (!decisionType || !isMiniCaseDecisionType(decisionType)) {
-    issues.push(qualityIssue({ path: `${path}.decision_type`, code: "invalid_mini_case_decision_type", message: "Mini-case decision_type is missing or unsupported.", strict }));
+    issues.push(qualityIssue({ path: `${path}.decision_type`, code: "invalid_mini_case_decision_type", message: "Mini-case decision_type is missing or unsupported.", strict: true }));
   }
   if (!conceptTested || !isMiniCaseConcept(conceptTested)) {
-    issues.push(qualityIssue({ path: `${path}.concept_tested`, code: "invalid_mini_case_concept", message: "Mini-case concept_tested is missing or unsupported.", strict }));
+    issues.push(qualityIssue({ path: `${path}.concept_tested`, code: "invalid_mini_case_concept", message: "Mini-case concept_tested is missing or unsupported.", strict: true }));
   }
   if (!questionPattern || !isMiniCaseQuestionPattern(questionPattern)) {
-    issues.push(qualityIssue({ path: `${path}.question_pattern`, code: "invalid_mini_case_question_pattern", message: "Mini-case question_pattern is missing or unsupported.", strict }));
+    issues.push(qualityIssue({ path: `${path}.question_pattern`, code: "invalid_mini_case_question_pattern", message: "Mini-case question_pattern is missing or unsupported.", strict: true }));
   }
   if (!correctAnswerPattern || !isMiniCaseCorrectAnswerPattern(correctAnswerPattern)) {
-    issues.push(qualityIssue({ path: `${path}.correct_answer_pattern`, code: "invalid_mini_case_answer_pattern", message: "Mini-case correct_answer_pattern is missing or unsupported.", strict }));
+    issues.push(qualityIssue({ path: `${path}.correct_answer_pattern`, code: "invalid_mini_case_answer_pattern", message: "Mini-case correct_answer_pattern is missing or unsupported.", strict: true }));
   }
 
   issues.push(...validateMiniCaseQuestions(item, path, strict));
@@ -1283,10 +1287,12 @@ function validateMiniCaseProductFields(item: Extract<GeneratedContentItem, { con
     }));
   }
 
-  // Optional standardized-ID lists: when present they must be non-empty string arrays.
+  // Optional standardized-ID lists: when present they must be non-empty string
+  // arrays. null/undefined both mean "absent" (the schema makes them nullable so
+  // OpenAI can return null when not applicable).
   for (const field of ["learning_points", "prerequisites", "next_recommended"] as const) {
     const value = record[field];
-    if (value === undefined) {
+    if (value === undefined || value === null) {
       continue;
     }
     if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || entry.trim().length === 0)) {
@@ -1295,12 +1301,12 @@ function validateMiniCaseProductFields(item: Extract<GeneratedContentItem, { con
   }
 
   const cognitiveLoad = record.cognitive_load;
-  if (cognitiveLoad !== undefined && !(typeof cognitiveLoad === "string" && MINI_CASE_COGNITIVE_LOAD_VALUES.has(cognitiveLoad))) {
+  if (cognitiveLoad !== undefined && cognitiveLoad !== null && !(typeof cognitiveLoad === "string" && MINI_CASE_COGNITIVE_LOAD_VALUES.has(cognitiveLoad))) {
     issues.push(qualityIssue({ path: `${path}.cognitive_load`, code: "mini_case_cognitive_load_invalid", message: "Mini-case cognitive_load must be low, medium, or high when present.", strict }));
   }
 
   const businessContext = record.business_context_type;
-  if (businessContext !== undefined && !(typeof businessContext === "string" && MINI_CASE_BUSINESS_CONTEXT_VALUES.has(businessContext))) {
+  if (businessContext !== undefined && businessContext !== null && !(typeof businessContext === "string" && MINI_CASE_BUSINESS_CONTEXT_VALUES.has(businessContext))) {
     issues.push(qualityIssue({ path: `${path}.business_context_type`, code: "mini_case_business_context_invalid", message: "Mini-case business_context_type must be fictional_but_realistic or inspired_by_real_events when present.", strict }));
   }
 
