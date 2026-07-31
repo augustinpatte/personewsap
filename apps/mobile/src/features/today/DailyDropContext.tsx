@@ -124,10 +124,15 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
   }, [authStatus, load]);
 
   const items = useMemo(() => flattenDailyDropItems(state.drop), [state.drop]);
-  const totalItemCount = items.length;
+  const visibleItems = useMemo(
+    () =>
+      items.filter((item) => !["key_concept", "concept"].includes(item.content_type as string)),
+    [items]
+  );
+  const totalItemCount = visibleItems.length;
   const completedItemCount = useMemo(
-    () => items.filter((item) => interactions.completedItemIds.has(item.id)).length,
-    [items, interactions.completedItemIds]
+    () => visibleItems.filter((item) => interactions.completedItemIds.has(item.id)).length,
+    [interactions.completedItemIds, visibleItems]
   );
 
   const markItemsComplete = useCallback(

@@ -5,6 +5,7 @@ import { StatusBar } from "react-native";
 import { AppErrorBoundary } from "../src/components";
 import { ThemeProvider, useTheme } from "../src/design";
 import { AuthProvider, useAuth } from "../src/features/auth";
+import { LearningPathProvider } from "../src/features/learning";
 import { DailyDropProvider } from "../src/features/today";
 import { trackAnalyticsEvent } from "../src/lib/analytics";
 
@@ -28,14 +29,16 @@ function RootNavigator() {
 
   return (
     <AppErrorBoundary language={profileLanguage}>
-      <DailyDropProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background }
-          }}
-        />
-      </DailyDropProvider>
+      <LearningPathProvider>
+        <DailyDropProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background }
+            }}
+          />
+        </DailyDropProvider>
+      </LearningPathProvider>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
     </AppErrorBoundary>
   );

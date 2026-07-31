@@ -48,6 +48,15 @@ export type DailyDropStatus = "generated" | "published" | "read" | "archived";
 export type DailyDropSlot = "newsletter" | "business_story" | "mini_case" | "concept";
 export type InteractionType = "view" | "complete" | "save" | "share" | "feedback";
 export type ContentRating = "good" | "average" | "bad";
+export type LearningCurrentLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type LearningTargetLevel = 1 | 2 | 3 | 4 | 5;
+export type LearningPathStatus = "active" | "archived" | "completed";
+export type LearningSessionStatus =
+  | "available"
+  | "started"
+  | "in_progress"
+  | "completed"
+  | "scheduled";
 
 type TableDefinition<Row, Insert, Update> = {
   Row: Row;
@@ -493,9 +502,231 @@ export type Database = {
           updated_at?: string;
         }
       >;
+      learning_domains: TableDefinition<
+        {
+          id: string;
+          slug: string;
+          label_fr: string;
+          label_en: string;
+          description_fr: string;
+          description_en: string;
+          position: number;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          slug: string;
+          label_fr: string;
+          label_en: string;
+          description_fr: string;
+          description_en: string;
+          position?: number;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          slug?: string;
+          label_fr?: string;
+          label_en?: string;
+          description_fr?: string;
+          description_en?: string;
+          position?: number;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+      learning_objectives: TableDefinition<
+        {
+          id: string;
+          domain_id: string;
+          slug: string;
+          label_fr: string;
+          label_en: string;
+          description_fr: string;
+          description_en: string;
+          position: number;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          domain_id: string;
+          slug: string;
+          label_fr: string;
+          label_en: string;
+          description_fr: string;
+          description_en: string;
+          position?: number;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          domain_id?: string;
+          slug?: string;
+          label_fr?: string;
+          label_en?: string;
+          description_fr?: string;
+          description_en?: string;
+          position?: number;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+      user_learning_paths: TableDefinition<
+        {
+          id: string;
+          user_id: string;
+          domain_id: string;
+          objective_id: string;
+          current_level: LearningCurrentLevel;
+          target_level: LearningTargetLevel;
+          status: LearningPathStatus;
+          created_at: string;
+          updated_at: string;
+          archived_at: string | null;
+        },
+        {
+          id?: string;
+          user_id: string;
+          domain_id: string;
+          objective_id: string;
+          current_level: LearningCurrentLevel;
+          target_level: LearningTargetLevel;
+          status?: LearningPathStatus;
+          created_at?: string;
+          updated_at?: string;
+          archived_at?: string | null;
+        },
+        {
+          id?: string;
+          user_id?: string;
+          domain_id?: string;
+          objective_id?: string;
+          current_level?: LearningCurrentLevel;
+          target_level?: LearningTargetLevel;
+          status?: LearningPathStatus;
+          created_at?: string;
+          updated_at?: string;
+          archived_at?: string | null;
+        }
+      >;
+      learning_sessions: TableDefinition<
+        {
+          id: string;
+          path_id: string;
+          session_number: number;
+          title_fr: string;
+          title_en: string;
+          summary_fr: string;
+          summary_en: string;
+          objectives_fr: string[];
+          objectives_en: string[];
+          prompt_text: string;
+          status: LearningSessionStatus;
+          available_on: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          path_id: string;
+          session_number: number;
+          title_fr: string;
+          title_en: string;
+          summary_fr: string;
+          summary_en: string;
+          objectives_fr?: string[];
+          objectives_en?: string[];
+          prompt_text: string;
+          status?: LearningSessionStatus;
+          available_on?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          path_id?: string;
+          session_number?: number;
+          title_fr?: string;
+          title_en?: string;
+          summary_fr?: string;
+          summary_en?: string;
+          objectives_fr?: string[];
+          objectives_en?: string[];
+          prompt_text?: string;
+          status?: LearningSessionStatus;
+          available_on?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+      learning_session_feedback: TableDefinition<
+        {
+          id: string;
+          session_id: string;
+          user_id: string;
+          comprehension_rating: number;
+          explainability_rating: number;
+          interest_rating: number;
+          difficulty_rating: number;
+          created_at: string;
+        },
+        {
+          id?: string;
+          session_id: string;
+          user_id: string;
+          comprehension_rating: number;
+          explainability_rating: number;
+          interest_rating: number;
+          difficulty_rating: number;
+          created_at?: string;
+        },
+        {
+          id?: string;
+          session_id?: string;
+          user_id?: string;
+          comprehension_rating?: number;
+          explainability_rating?: number;
+          interest_rating?: number;
+          difficulty_rating?: number;
+          created_at?: string;
+        }
+      >;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      start_learning_path: {
+        Args: {
+          p_domain_id: string;
+          p_objective_id: string;
+          p_current_level: LearningCurrentLevel;
+          p_target_level: LearningTargetLevel;
+        };
+        Returns: string | null;
+      };
+      submit_learning_session_feedback: {
+        Args: {
+          p_session_id: string;
+          p_comprehension_rating: number;
+          p_explainability_rating: number;
+          p_interest_rating: number;
+          p_difficulty_rating: number;
+        };
+        Returns: boolean | null;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

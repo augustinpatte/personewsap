@@ -1,12 +1,14 @@
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Tabs, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../src/design";
 import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
+import { useLearningPath } from "../../src/features/learning";
 import { localized } from "../../src/lib/i18n";
 
 export default function TabsLayout() {
   const { profileLanguage, status } = useAuth();
+  const learningPath = useLearningPath();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 16);
@@ -36,6 +38,15 @@ export default function TabsLayout() {
 
   if (status === "needsOnboarding") {
     return <Redirect href="/(onboarding)/language" />;
+  }
+
+  if (
+    status === "ready" &&
+    learningPath.status === "ready" &&
+    learningPath.source === "supabase" &&
+    !learningPath.activePath
+  ) {
+    return <Redirect href={"/(learning)/setup" as unknown as Href} />;
   }
 
   return (

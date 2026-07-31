@@ -9,6 +9,10 @@ import type {
   GoalId,
   InteractionType,
   Language,
+  LearningCurrentLevel,
+  LearningPathStatus,
+  LearningSessionStatus,
+  LearningTargetLevel,
   MiniCaseTopicId,
   PreferenceFrequency,
   TopicId
@@ -27,6 +31,10 @@ export type {
   GoalId,
   InteractionType,
   Language,
+  LearningCurrentLevel,
+  LearningPathStatus,
+  LearningSessionStatus,
+  LearningTargetLevel,
   MiniCaseTopicId,
   PreferenceFrequency,
   TopicId
@@ -44,6 +52,11 @@ export type DailyDrop = PublicTableRow<"daily_drops">;
 export type DailyDropItem = PublicTableRow<"daily_drop_items">;
 export type ContentInteraction = PublicTableRow<"content_interactions">;
 export type MiniCaseResponse = PublicTableRow<"mini_case_responses">;
+export type LearningDomain = PublicTableRow<"learning_domains">;
+export type LearningObjective = PublicTableRow<"learning_objectives">;
+export type UserLearningPath = PublicTableRow<"user_learning_paths">;
+export type LearningSession = PublicTableRow<"learning_sessions">;
+export type LearningSessionFeedback = PublicTableRow<"learning_session_feedback">;
 
 export type DailyDropWithItems = DailyDrop & {
   items: Array<

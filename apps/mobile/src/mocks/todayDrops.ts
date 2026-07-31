@@ -298,28 +298,6 @@ export const mockTodayDailyDrops = [
           "Ship the useful, low-risk core with consent and deletion, and postpone profiling until you can classify its risk. Speed and safety are not opposites here.",
         source_ids: aiActSourceIds,
         version: 1
-      },
-      concept: {
-        id: "concept-2026-04-26-en-switching-costs",
-        content_type: "key_concept",
-        slot: "concept",
-        language: "en",
-        title: "Switching costs",
-        category: "business",
-        definition:
-          "Switching costs are the time, money, effort, risk, or lost convenience a user faces when moving from one product to another.",
-        plain_english:
-          "A product can keep customers not only because it is better, but because leaving feels annoying, expensive, or risky.",
-        example:
-          "A charger standard can lower switching costs by making accessories work across brands. A streaming account can raise switching costs when profiles, watch history, and household habits all sit in one service.",
-        why_it_matters:
-          "Switching costs explain why some businesses defend margins even when alternatives exist. They also explain why regulators care about interoperability.",
-        how_to_use_it:
-          "When analyzing a company, ask what the customer loses by leaving. Data, habits, contracts, integrations, and social connections are often more important than the headline feature.",
-        common_mistake:
-          "Do not confuse switching costs with loyalty. A trapped customer and a delighted customer behave differently when a cheaper escape appears.",
-        source_ids: ["eu-common-charger", "netflix-q4-2023-letter"],
-        version: 1
       }
     }
   },
@@ -559,28 +537,6 @@ export const mockTodayDailyDrops = [
         final_takeaway:
           "Lance le cœur utile et peu risqué avec consentement et suppression, et repousse le profilage jusqu'à pouvoir en classer le risque. Vitesse et sécurité ne s'opposent pas ici.",
         source_ids: aiActSourceIds,
-        version: 1
-      },
-      concept: {
-        id: "concept-2026-04-26-fr-switching-costs",
-        content_type: "key_concept",
-        slot: "concept",
-        language: "fr",
-        title: "Couts de changement",
-        category: "business",
-        definition:
-          "Les couts de changement regroupent le temps, l'argent, l'effort, le risque ou la perte de confort qu'un utilisateur subit quand il passe d'un produit a un autre.",
-        plain_english:
-          "Un produit peut garder ses clients non seulement parce qu'il est meilleur, mais parce que partir semble penible, cher ou risque.",
-        example:
-          "Un standard de chargeur peut reduire ces couts en rendant les accessoires compatibles entre marques. Un compte de streaming peut les augmenter quand profils, historique et habitudes du foyer restent dans un seul service.",
-        why_it_matters:
-          "Ce concept explique pourquoi certaines entreprises protegent leurs marges meme avec des alternatives sur le marche. Il explique aussi pourquoi les regulateurs s'interessent a l'interoperabilite.",
-        how_to_use_it:
-          "Quand tu analyses une entreprise, demande ce que le client perd en partant. Les donnees, les habitudes, les contrats, les integrations et les liens sociaux comptent souvent plus que la fonctionnalite principale.",
-        common_mistake:
-          "Ne confonds pas cout de changement et fidelite. Un client bloque et un client ravi ne reagissent pas pareil quand une sortie moins chere apparait.",
-        source_ids: ["eu-common-charger", "netflix-q4-2023-letter"],
         version: 1
       }
     }

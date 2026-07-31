@@ -5,10 +5,10 @@ import { AppScreen, AppText, Card } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { localized } from "../../lib/i18n";
+import { LearningPathCard, useLearningPath } from "../learning";
 import {
   estimateReadMinutes,
   formatDropDate,
-  getConceptCategoryLabel,
   getDifficultyLabel,
   getTopicLabel
 } from "./contentCopy";
@@ -17,7 +17,6 @@ import { isEditionDay, nextEditionDate } from "./editionCadence";
 import type {
   BusinessStory,
   ContentLanguage,
-  KeyConcept,
   MiniCaseChallenge,
   NewsletterArticle
 } from "./contentTypes";
@@ -46,16 +45,21 @@ export function TodayDailyDropScreen() {
     isComplete,
     isItemComplete,
     isModuleComplete,
-    markItemsComplete,
     reload
   } = useDailyDrop();
   const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
+  const learningPath = useLearningPath();
 
   const newsletter = drop.items.newsletter;
   const story = drop.items.business_story;
   const miniCase = drop.items.mini_case;
-  const concept = drop.items.concept;
+  const learningSession =
+    learningPath.availableSession ??
+    learningPath.completedSessions[learningPath.completedSessions.length - 1] ??
+    null;
+  const learningCompleted =
+    Boolean(learningSession) && learningPath.availableSession?.id !== learningSession?.id;
 
   if (isEmptyDrop) {
     return (
@@ -109,16 +113,24 @@ export function TodayDailyDropScreen() {
         />
       ) : null}
 
-      {concept ? (
-        <ConceptNote
-          completed={isModuleComplete([concept])}
-          concept={concept}
-          language={language}
-          onKeep={() => {
-            void markItemsComplete([concept]);
-          }}
-        />
-      ) : null}
+      <LearningPathCard
+        completed={learningCompleted}
+        domain={learningPath.activeDomain}
+        hasPath={Boolean(learningPath.activePath)}
+        language={language}
+        objective={learningPath.activeObjective}
+        onCreate={() => router.push("/(learning)/setup" as Href)}
+        onOpenOverview={() => router.push("/(learning)/overview" as Href)}
+        onOpenSession={() => {
+          if (learningSession) {
+            router.push({
+              pathname: "/(learning)/session/[id]",
+              params: { id: learningSession.id }
+            } as unknown as Href);
+          }
+        }}
+        session={learningSession}
+      />
 
       {isComplete ? <CompletionNote language={language} /> : null}
     </AppScreen>
@@ -430,49 +442,6 @@ function MiniCaseInvitation({
   );
 }
 
-function ConceptNote({
-  completed,
-  concept,
-  language,
-  onKeep
-}: {
-  completed: boolean;
-  concept: KeyConcept;
-  language: ContentLanguage;
-  onKeep: () => void;
-}) {
-  const styles = useThemedStyles(createStyles);
-  const copy = getTodayCopy(language);
-
-  return (
-    <Card padding="md" style={styles.conceptCard} tone="muted">
-      <Kicker label={copy.conceptKicker} meta={getConceptCategoryLabel(concept, language)} />
-      <AppText variant="subtitle">{concept.title}</AppText>
-      <AppText color="inkSoft" variant="read">
-        {concept.plain_english}
-      </AppText>
-      {completed ? (
-        <View style={styles.statusRow}>
-          <View style={styles.statusDot} />
-          <AppText color="accentInk" variant="label">
-            {copy.kept}
-          </AppText>
-        </View>
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onKeep}
-          style={({ pressed }) => [styles.textAction, pressed ? styles.pressed : null]}
-        >
-          <AppText color="accentInk" variant="label">
-            {copy.keepConcept}
-          </AppText>
-        </Pressable>
-      )}
-    </Card>
-  );
-}
-
 function CompletionNote({ language }: { language: ContentLanguage }) {
   const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
@@ -514,14 +483,11 @@ function getTodayCopy(language: ContentLanguage) {
         storyKicker: "Business story",
         caseKicker: "Mini case",
         caseDecision: "Your call",
-        conceptKicker: "Concept to keep",
         readLead: "Read the lead",
         readStory: "Read the story",
         decide: "Make the call",
-        keepConcept: "Keep this concept",
         read: "Read",
         solved: "Solved",
-        kept: "Kept",
         minuteCount: (count: number) => `${count} min`,
         completionTitle: "Brief complete",
         completionBody: "You finished today's edition. See you tomorrow.",
@@ -548,14 +514,11 @@ function getTodayCopy(language: ContentLanguage) {
         storyKicker: "Business story",
         caseKicker: "Mini cas",
         caseDecision: "À vous de décider",
-        conceptKicker: "Concept à garder",
         readLead: "Lire la une",
         readStory: "Lire l'histoire",
         decide: "Décider",
-        keepConcept: "Garder ce concept",
         read: "Lu",
         solved: "Résolu",
-        kept: "Gardé",
         minuteCount: (count: number) => `${count} min`,
         completionTitle: "Brief terminé",
         completionBody: "Vous avez terminé l'édition du jour. À demain.",

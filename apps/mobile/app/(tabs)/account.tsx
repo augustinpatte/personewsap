@@ -15,6 +15,7 @@ import {
 } from "../../src/features/account/privacyData";
 import { useAuth } from "../../src/features/auth";
 import { NotificationPreferencesCard } from "../../src/features/notifications";
+import { LearningAccountSection } from "../../src/features/learning";
 import { PreferencesEditor, updateProfileLanguage } from "../../src/features/preferences";
 import { trackAnalyticsEvent } from "../../src/lib/analytics";
 import { formatLanguageName, localized } from "../../src/lib/i18n";
@@ -193,6 +194,17 @@ export default function AccountScreen() {
           language={profileLanguage}
           refreshKey={preferencesRefreshKey}
           userId={user?.id ?? null}
+        />
+
+        <LearningAccountSection
+          language={profileLanguage}
+          onCreate={() => router.push("/(learning)/setup" as Href)}
+          onOverview={() => router.push("/(learning)/overview" as Href)}
+          onReplace={() =>
+            router.push(
+              { pathname: "/(learning)/setup", params: { replace: "1" } } as unknown as Href
+            )
+          }
         />
 
         <Card tone="muted">

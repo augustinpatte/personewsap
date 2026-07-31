@@ -23,14 +23,15 @@
     "android": {
       "package": "com.personewsap.mobile"
     },
-    "notification": {
-      "icon": "./assets/notification-icon.png",
-      "color": "#2563eb",
-      "iosDisplayInForeground": true
-    },
     "plugins": [
       "expo-router",
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2563eb"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
