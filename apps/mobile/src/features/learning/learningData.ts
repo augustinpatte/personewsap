@@ -382,6 +382,8 @@ export const mockLearningSessions: LearningSession[] = [
       "You are my five-minute tutor for PersoNewsAP. Teach me what an operating system really does. My current level is beginner and my target is to become independent. Keep it concrete, use one analogy, ask no written homework, and finish with four quick recall questions I can answer mentally.",
     status: "available",
     available_on: "2026-04-26",
+    opened_at: null,
+    started_at: null,
     completed_at: null,
     created_at: "2026-04-26T07:00:00Z"
   }

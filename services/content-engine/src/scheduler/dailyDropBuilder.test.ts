@@ -67,6 +67,56 @@ describe("selectDailyDropItemsForUser mini-case personalization", () => {
   });
 });
 
+describe("selectDailyDropItemsForUser newsletter per-topic count", () => {
+  it("assigns up to 2 articles for each selected topic when available", () => {
+    const selection = selectDailyDropItemsForUser(
+      preferenceWithPerTopicCount(["finance", "engineering", "sport_business"], 2),
+      [
+        newsletter("finance", "finance-1"),
+        newsletter("finance", "finance-2"),
+        newsletter("engineering", "engineering-1"),
+        newsletter("engineering", "engineering-2"),
+        newsletter("sport_business", "sport-1"),
+        newsletter("sport_business", "sport-2")
+      ]
+    );
+
+    const assigned = selection.diagnostics.newsletter.assignedItems;
+    expect(assigned).toHaveLength(6);
+    expect(countByTopic(assigned)).toEqual({
+      finance: 2,
+      engineering: 2,
+      sport_business: 2
+    });
+  });
+
+  it("treats a legacy per-topic count of 3 as 2 at assignment", () => {
+    // articles_count = 3 (legacy), newsletter_article_count large enough that the
+    // global cap cannot mask the per-topic clamp, and 3 finance items available.
+    const selection = selectDailyDropItemsForUser(
+      preferenceWithPerTopicCount(["finance"], 3, 9),
+      [
+        newsletter("finance", "finance-1"),
+        newsletter("finance", "finance-2"),
+        newsletter("finance", "finance-3")
+      ]
+    );
+
+    const assigned = selection.diagnostics.newsletter.assignedItems;
+    expect(assigned).toHaveLength(2);
+    expect(assigned.map((item) => item.contentItemId)).toEqual(["finance-1", "finance-2"]);
+  });
+
+  it("assigns the single available article when only 1 exists for a 2-per-topic preference", () => {
+    const selection = selectDailyDropItemsForUser(
+      preferenceWithPerTopicCount(["finance"], 2),
+      [newsletter("finance", "finance-1")]
+    );
+
+    expect(selection.diagnostics.newsletter.assignedItems).toHaveLength(1);
+  });
+});
+
 describe("selectDailyDropItemsForUser newsletter personalization", () => {
   it("only selects newsletter articles from newsletter topic preferences", () => {
     const selection = selectDailyDropItemsForUser(
@@ -96,6 +146,39 @@ describe("selectDailyDropItemsForUser newsletter personalization", () => {
 
 function selectedMiniCaseId(selection: Array<{ contentItemId: string; slot: string }>) {
   return selection.find((item) => item.slot === "mini_case")?.contentItemId;
+}
+
+function countByTopic(assignedItems: Array<{ topicId: TopicId }>): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of assignedItems) {
+    counts[item.topicId] = (counts[item.topicId] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function preferenceWithPerTopicCount(
+  topicIds: TopicId[],
+  articlesCount: number,
+  newsletterArticleCount = topicIds.length * articlesCount
+): UserDailyDropPreference {
+  return {
+    user_id: "test-user",
+    language: "en",
+    goal: "understand_world",
+    frequency: "daily",
+    newsletter_article_count: newsletterArticleCount,
+    modules: {
+      newsletter: true,
+      business_story: false,
+      mini_case: false
+    },
+    mini_case_topics: [],
+    topics: topicIds.map((topicId, index) => ({
+      topic_id: topicId,
+      articles_count: articlesCount,
+      position: index + 1
+    }))
+  };
 }
 
 function preferenceWithTopics(

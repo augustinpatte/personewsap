@@ -7,6 +7,10 @@ export type GenerationRequest = {
   articles: RankedArticle[];
   newsletterTopics: TopicId[];
   newsletterArticleCount: number;
+  // Number of newsletter articles generated PER editorial topic. Defaults to
+  // NEWSLETTER_ITEMS_PER_TOPIC (2) when omitted. The total newsletter catalog is
+  // always newsletterTopics.length * newsletterItemsPerTopic.
+  newsletterItemsPerTopic?: number;
   miniCaseProductTopics?: MiniCaseTopicId[];
   miniCaseMemory?: MiniCaseMemoryContext;
   businessStoryMemory?: BusinessStoryMemoryContext;

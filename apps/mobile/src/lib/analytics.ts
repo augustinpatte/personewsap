@@ -13,6 +13,7 @@ export const ANALYTICS_EVENTS = [
   "learning_domain_selected",
   "learning_path_started",
   "learning_session_opened",
+  "learning_session_started",
   "learning_prompt_copied",
   "learning_provider_opened",
   "learning_feedback_submitted",

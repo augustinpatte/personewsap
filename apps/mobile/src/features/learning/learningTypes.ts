@@ -41,10 +41,9 @@ export type LearningPath = {
 
 export type LearningSessionStatus =
   | "available"
+  | "opened"
   | "started"
-  | "in_progress"
   | "completed"
-  | "scheduled"
   | string;
 
 export type LearningSession = {
@@ -60,6 +59,8 @@ export type LearningSession = {
   prompt_text: string;
   status: LearningSessionStatus;
   available_on: string | null;
+  opened_at: string | null;
+  started_at: string | null;
   completed_at: string | null;
   created_at: string | null;
 };

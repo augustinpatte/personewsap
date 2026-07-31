@@ -34,6 +34,22 @@ export const GOAL_IDS = [
  */
 export const EDITORIAL_MEMORY_LIMIT = 50;
 
+/**
+ * Newsletter catalog sizing. The master edition always generates exactly this
+ * many newsletter articles for EVERY editorial topic, independent of any user
+ * (catalog-first). With 8 editorial topics this yields 16 newsletter articles
+ * per language. User preferences only decide how many of those already-generated
+ * articles each user is assigned, never how many are generated.
+ */
+export const NEWSLETTER_ITEMS_PER_TOPIC = 2;
+
+/**
+ * Maximum newsletter articles a user can request per topic. The product allows
+ * only 1 or 2 per topic. Legacy preferences that stored 3 are clamped to this
+ * value at assignment time so existing users are never broken.
+ */
+export const MAX_NEWSLETTER_ARTICLES_PER_TOPIC = 2;
+
 export const LANGUAGES = ["fr", "en"] as const;
 export const CONTENT_TYPES = ["newsletter_article", "business_story", "mini_case", "concept", "quick_quiz"] as const;
 export const DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;

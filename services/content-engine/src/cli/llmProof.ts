@@ -170,7 +170,10 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
           language,
           articles: rankedArticles,
           newsletterTopics: options.topics,
-          newsletterArticleCount: 1,
+          newsletterArticleCount: options.topics.length,
+          // Lean proof: one article per topic instead of the production catalog's
+          // NEWSLETTER_ITEMS_PER_TOPIC, keeping the proof cheap and fast.
+          newsletterItemsPerTopic: 1,
           productionStrict: true
         })
       );

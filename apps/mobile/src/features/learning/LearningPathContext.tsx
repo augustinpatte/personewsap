@@ -54,6 +54,12 @@ type LearningPathContextValue = LearningPathBundle & {
       difficulty: number;
     }
   ) => Promise<{ ok: boolean; error: NormalizedSupabaseError | null }>;
+  markSessionOpened: (
+    sessionId: string
+  ) => Promise<{ ok: boolean; error: NormalizedSupabaseError | null }>;
+  markSessionStarted: (
+    sessionId: string
+  ) => Promise<{ ok: boolean; error: NormalizedSupabaseError | null }>;
   getSessionById: (sessionId: string) => LearningSession | undefined;
   reload: () => Promise<void>;
 };
@@ -144,7 +150,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           const sessionResult = await supabase
             .from("learning_sessions")
             .select(
-              "id, path_id, session_number, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, status, available_on, completed_at, created_at"
+              "id, path_id, session_number, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, status, available_on, opened_at, started_at, completed_at, created_at"
             )
             .eq("path_id", path.id)
             .order("session_number", { ascending: true });
@@ -277,15 +283,126 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
     [load, profileLanguage, user?.id]
   );
 
+  const updateSessionLocally = useCallback((sessionId: string, patch: Partial<LearningSession>) => {
+    setState((current) => {
+      const sessions = current.sessions.map((session) =>
+        session.id === sessionId ? { ...session, ...patch } : session
+      );
+
+      return {
+        ...current,
+        ...createBundle({
+          domains: current.domains,
+          objectives: current.objectives,
+          path: current.activePath,
+          sessions
+        })
+      };
+    });
+  }, []);
+
+  const markSessionOpened = useCallback<LearningPathContextValue["markSessionOpened"]>(
+    async (sessionId) => {
+      const currentSession = state.sessions.find((session) => session.id === sessionId);
+
+      if (!currentSession || currentSession.status !== "available") {
+        return { ok: true, error: null };
+      }
+
+      if (!supabase || !user?.id || state.source === "mock") {
+        updateSessionLocally(sessionId, {
+          opened_at: currentSession.opened_at ?? new Date().toISOString(),
+          status: "opened"
+        });
+        return { ok: true, error: null };
+      }
+
+      try {
+        const { data, error } = await supabase.rpc("open_learning_session", {
+          p_session_id: sessionId
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          updateSessionLocally(sessionId, coerceSession(data as LearningSession));
+        }
+        return { ok: true, error: null };
+      } catch (error) {
+        return {
+          ok: false,
+          error: normalizeSupabaseError(error, "Could not mark your session as opened.")
+        };
+      }
+    },
+    [state.sessions, state.source, updateSessionLocally, user?.id]
+  );
+
+  const markSessionStarted = useCallback<LearningPathContextValue["markSessionStarted"]>(
+    async (sessionId) => {
+      const currentSession = state.sessions.find((session) => session.id === sessionId);
+
+      if (
+        !currentSession ||
+        currentSession.status === "started" ||
+        currentSession.status === "completed"
+      ) {
+        return { ok: true, error: null };
+      }
+
+      const now = new Date().toISOString();
+
+      if (!supabase || !user?.id || state.source === "mock") {
+        updateSessionLocally(sessionId, {
+          opened_at: currentSession.opened_at ?? now,
+          started_at: currentSession.started_at ?? now,
+          status: "started"
+        });
+        trackAnalyticsEvent("learning_session_started", {
+          language: profileLanguage ?? undefined
+        });
+        return { ok: true, error: null };
+      }
+
+      try {
+        const { data, error } = await supabase.rpc("start_learning_session", {
+          p_session_id: sessionId
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          updateSessionLocally(sessionId, coerceSession(data as LearningSession));
+        }
+        trackAnalyticsEvent("learning_session_started", {
+          language: profileLanguage ?? undefined
+        });
+        return { ok: true, error: null };
+      } catch (error) {
+        return {
+          ok: false,
+          error: normalizeSupabaseError(error, "Could not start your learning session.")
+        };
+      }
+    },
+    [profileLanguage, state.sessions, state.source, updateSessionLocally, user?.id]
+  );
+
   const value = useMemo<LearningPathContextValue>(
     () => ({
       ...state,
+      markSessionOpened,
+      markSessionStarted,
       startPath,
       submitFeedback,
       getSessionById: (sessionId) => state.sessions.find((session) => session.id === sessionId),
       reload: () => load()
     }),
-    [load, startPath, state, submitFeedback]
+    [load, markSessionOpened, markSessionStarted, startPath, state, submitFeedback]
   );
 
   return (
@@ -345,7 +462,7 @@ function isSessionComplete(session: LearningSession): boolean {
 }
 
 function isSessionVisible(session: LearningSession): boolean {
-  return ["available", "started", "in_progress"].includes(session.status);
+  return ["available", "opened", "started"].includes(session.status);
 }
 
 function orderDomains(domains: LearningDomain[]): LearningDomain[] {

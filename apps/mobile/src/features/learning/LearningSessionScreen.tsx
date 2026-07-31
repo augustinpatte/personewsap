@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
@@ -27,6 +27,8 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     activeDomain,
     activeObjective,
     getSessionById,
+    markSessionOpened,
+    markSessionStarted,
     status
   } = useLearningPath();
   const styles = useThemedStyles(createStyles);
@@ -35,14 +37,20 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptUsed, setPromptUsed] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const openedSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (session) {
-      trackAnalyticsEvent("learning_session_opened", {
-        language: language ?? undefined
-      });
+    if (!session || openedSessionIdRef.current === session.id) {
+      return;
     }
-  }, [language, session]);
+
+    openedSessionIdRef.current = session.id;
+    trackAnalyticsEvent("learning_session_opened", {
+      language: language ?? undefined
+    });
+
+    void markSessionOpened(session.id);
+  }, [language, markSessionOpened, session]);
 
   const copyPrompt = async () => {
     if (!session?.prompt_text) {
@@ -50,6 +58,13 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     }
 
     await Clipboard.setStringAsync(session.prompt_text);
+    const result = await markSessionStarted(session.id);
+
+    if (!result.ok) {
+      setStatusMessage(copy.openFailed);
+      return false;
+    }
+
     setPromptUsed(true);
     setStatusMessage(copy.promptCopied);
     trackAnalyticsEvent("learning_prompt_copied", {

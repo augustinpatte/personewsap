@@ -50,7 +50,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         articleCount: {
           title: "Tune the daily dose",
           description: "Choose how many newsletter articles each selected topic gets.",
-          selectedFooter: "One to three articles per selected topic. Keep it readable.",
+          selectedFooter: "One or two articles per selected topic. Keep it readable.",
           emptyFooter: "Choose newsletter topics before setting article counts.",
           countLabel: (count: number) => `${count} per drop`,
           emptyTitle: "No topics selected",
@@ -107,7 +107,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         articleCount: {
           title: "Dose ton contenu quotidien",
           description: "Choisis combien d'articles newsletter chaque sujet sélectionné reçoit.",
-          selectedFooter: "Un à trois articles par sujet sélectionné. Garde un format lisible.",
+          selectedFooter: "Un ou deux articles par sujet sélectionné. Garde un format lisible.",
           emptyFooter: "Choisis des sujets newsletter avant de régler le nombre d'articles.",
           countLabel: (count: number) => `${count} par jour`,
           emptyTitle: "Aucun sujet sélectionné",

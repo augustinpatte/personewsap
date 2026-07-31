@@ -38,7 +38,7 @@ export function LearningPathCard({
   const styles = useThemedStyles(createStyles);
   const copy = getLearningCopy(language).card;
   const openLabel =
-    session?.status === "started" || session?.status === "in_progress"
+    session?.status === "opened" || session?.status === "started"
       ? copy.continue
       : copy.start;
 

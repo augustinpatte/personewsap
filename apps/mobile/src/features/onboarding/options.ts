@@ -84,7 +84,9 @@ export const ONBOARDING_MODULE_IDS = [
 export type OnboardingModuleId = (typeof ONBOARDING_MODULE_IDS)[number];
 
 export const MIN_NEWSLETTER_ARTICLES_PER_TOPIC = 1;
-export const MAX_NEWSLETTER_ARTICLES_PER_TOPIC = 3;
+// The product allows only 1 or 2 newsletter articles per topic. Legacy
+// preferences that stored 3 are clamped to 2 on read and saved back as 2.
+export const MAX_NEWSLETTER_ARTICLES_PER_TOPIC = 2;
 
 export type NewsletterTopicArticleCounts = Partial<Record<NewsletterTopicId, number>>;
 

@@ -53,10 +53,9 @@ export type LearningTargetLevel = 1 | 2 | 3 | 4 | 5;
 export type LearningPathStatus = "active" | "archived" | "completed";
 export type LearningSessionStatus =
   | "available"
+  | "opened"
   | "started"
-  | "in_progress"
-  | "completed"
-  | "scheduled";
+  | "completed";
 
 type TableDefinition<Row, Insert, Update> = {
   Row: Row;
@@ -633,6 +632,8 @@ export type Database = {
           prompt_text: string;
           status: LearningSessionStatus;
           available_on: string | null;
+          opened_at: string | null;
+          started_at: string | null;
           completed_at: string | null;
           created_at: string;
           updated_at: string;
@@ -650,6 +651,8 @@ export type Database = {
           prompt_text: string;
           status?: LearningSessionStatus;
           available_on?: string | null;
+          opened_at?: string | null;
+          started_at?: string | null;
           completed_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -667,6 +670,8 @@ export type Database = {
           prompt_text?: string;
           status?: LearningSessionStatus;
           available_on?: string | null;
+          opened_at?: string | null;
+          started_at?: string | null;
           completed_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -715,6 +720,54 @@ export type Database = {
           p_target_level: LearningTargetLevel;
         };
         Returns: string | null;
+      };
+      open_learning_session: {
+        Args: {
+          p_session_id: string;
+        };
+        Returns: {
+          id: string;
+          path_id: string;
+          session_number: number;
+          title_fr: string;
+          title_en: string;
+          summary_fr: string;
+          summary_en: string;
+          objectives_fr: string[];
+          objectives_en: string[];
+          prompt_text: string;
+          status: LearningSessionStatus;
+          available_on: string | null;
+          opened_at: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        } | null;
+      };
+      start_learning_session: {
+        Args: {
+          p_session_id: string;
+        };
+        Returns: {
+          id: string;
+          path_id: string;
+          session_number: number;
+          title_fr: string;
+          title_en: string;
+          summary_fr: string;
+          summary_en: string;
+          objectives_fr: string[];
+          objectives_en: string[];
+          prompt_text: string;
+          status: LearningSessionStatus;
+          available_on: string | null;
+          opened_at: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        } | null;
       };
       submit_learning_session_feedback: {
         Args: {
