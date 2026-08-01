@@ -104,6 +104,8 @@ export type Database = {
           newsletter_enabled: boolean;
           business_stories_enabled: boolean;
           mini_cases_enabled: boolean;
+          learning_path_enabled: boolean;
+          learning_path_choice_completed: boolean;
           newsletter_article_count: number;
           mini_case_topic_id: TopicId | null;
           notifications_enabled: boolean;
@@ -118,6 +120,8 @@ export type Database = {
           newsletter_enabled?: boolean;
           business_stories_enabled?: boolean;
           mini_cases_enabled?: boolean;
+          learning_path_enabled?: boolean;
+          learning_path_choice_completed?: boolean;
           newsletter_article_count?: number;
           mini_case_topic_id?: TopicId | null;
           notifications_enabled?: boolean;
@@ -132,6 +136,8 @@ export type Database = {
           newsletter_enabled?: boolean;
           business_stories_enabled?: boolean;
           mini_cases_enabled?: boolean;
+          learning_path_enabled?: boolean;
+          learning_path_choice_completed?: boolean;
           newsletter_article_count?: number;
           mini_case_topic_id?: TopicId | null;
           notifications_enabled?: boolean;
@@ -588,6 +594,7 @@ export type Database = {
           objective_id: string;
           current_level: LearningCurrentLevel;
           target_level: LearningTargetLevel;
+          language: Language;
           status: LearningPathStatus;
           created_at: string;
           updated_at: string;
@@ -600,6 +607,7 @@ export type Database = {
           objective_id: string;
           current_level: LearningCurrentLevel;
           target_level: LearningTargetLevel;
+          language?: Language;
           status?: LearningPathStatus;
           created_at?: string;
           updated_at?: string;
@@ -612,6 +620,7 @@ export type Database = {
           objective_id?: string;
           current_level?: LearningCurrentLevel;
           target_level?: LearningTargetLevel;
+          language?: Language;
           status?: LearningPathStatus;
           created_at?: string;
           updated_at?: string;
@@ -622,7 +631,10 @@ export type Database = {
         {
           id: string;
           path_id: string;
+          daily_drop_id: string | null;
+          curriculum_step_key: string;
           session_number: number;
+          adaptation_mode: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
           title_fr: string;
           title_en: string;
           summary_fr: string;
@@ -630,6 +642,7 @@ export type Database = {
           objectives_fr: string[];
           objectives_en: string[];
           prompt_text: string;
+          generation_status: "queued" | "generating" | "ready" | "failed";
           status: LearningSessionStatus;
           available_on: string | null;
           opened_at: string | null;
@@ -641,7 +654,10 @@ export type Database = {
         {
           id?: string;
           path_id: string;
+          daily_drop_id?: string | null;
+          curriculum_step_key: string;
           session_number: number;
+          adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
           title_fr: string;
           title_en: string;
           summary_fr: string;
@@ -649,6 +665,7 @@ export type Database = {
           objectives_fr?: string[];
           objectives_en?: string[];
           prompt_text: string;
+          generation_status?: "queued" | "generating" | "ready" | "failed";
           status?: LearningSessionStatus;
           available_on?: string | null;
           opened_at?: string | null;
@@ -660,7 +677,10 @@ export type Database = {
         {
           id?: string;
           path_id?: string;
+          daily_drop_id?: string | null;
+          curriculum_step_key?: string;
           session_number?: number;
+          adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
           title_fr?: string;
           title_en?: string;
           summary_fr?: string;
@@ -668,6 +688,7 @@ export type Database = {
           objectives_fr?: string[];
           objectives_en?: string[];
           prompt_text?: string;
+          generation_status?: "queued" | "generating" | "ready" | "failed";
           status?: LearningSessionStatus;
           available_on?: string | null;
           opened_at?: string | null;
@@ -720,6 +741,14 @@ export type Database = {
           p_target_level: LearningTargetLevel;
         };
         Returns: string | null;
+      };
+      disable_learning_path: {
+        Args: Record<string, never>;
+        Returns: boolean | null;
+      };
+      learning_paths_healthcheck: {
+        Args: Record<string, never>;
+        Returns: Json;
       };
       open_learning_session: {
         Args: {

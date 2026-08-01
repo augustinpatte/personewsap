@@ -1,0 +1,69 @@
+{
+  "version": "v1",
+  "min_steps": 245,
+  "domains": [
+    {
+      "id": "computer_science",
+      "file": "computer_science.json",
+      "objective_ids": [
+        "cs_systems",
+        "cs_programming",
+        "cs_software_data"
+      ]
+    },
+    {
+      "id": "artificial_intelligence",
+      "file": "artificial_intelligence.json",
+      "objective_ids": [
+        "ai_foundations",
+        "ai_machine_learning",
+        "ai_building"
+      ]
+    },
+    {
+      "id": "blockchain",
+      "file": "blockchain.json",
+      "objective_ids": [
+        "blockchain_foundations",
+        "blockchain_ecosystem",
+        "blockchain_building"
+      ]
+    },
+    {
+      "id": "quantum_physics",
+      "file": "quantum_physics.json",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ]
+    },
+    {
+      "id": "mathematics",
+      "file": "mathematics.json",
+      "objective_ids": [
+        "math_foundations",
+        "math_probability",
+        "math_technology"
+      ]
+    },
+    {
+      "id": "cybersecurity",
+      "file": "cybersecurity.json",
+      "objective_ids": [
+        "cyber_foundations",
+        "cyber_network_defense",
+        "cyber_app_cloud"
+      ]
+    },
+    {
+      "id": "human_biology_medicine",
+      "file": "human_biology_medicine.json",
+      "objective_ids": [
+        "medicine_body",
+        "medicine_disease",
+        "medicine_evidence"
+      ]
+    }
+  ]
+}

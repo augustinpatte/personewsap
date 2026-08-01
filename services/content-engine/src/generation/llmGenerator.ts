@@ -253,8 +253,7 @@ type DropSection = keyof typeof DAILY_DROP_SECTION_SCHEMAS;
 const SECTION_ORDER: DropSection[] = [
   "newsletter_article",
   "business_story",
-  "mini_case",
-  "concept"
+  "mini_case"
 ];
 
 const SECTION_SPEC_FILE: Record<DropSection, string> = {
@@ -622,8 +621,8 @@ function validateComposition(payload: DailyDropPayload, request: GenerationReque
     issues.push({ path: "items", message: `Expected ${expectedMiniCaseCount} mini_case item(s), received ${miniCaseCount}.` });
   }
 
-  if (conceptCount !== 1) {
-    issues.push({ path: "items", message: `Expected 1 concept item, received ${conceptCount}.` });
+  if (conceptCount !== 0) {
+    issues.push({ path: "items", message: `Expected 0 concept item(s) for new daily drops, received ${conceptCount}.` });
   }
 
   payload.items.forEach((item, index) => {

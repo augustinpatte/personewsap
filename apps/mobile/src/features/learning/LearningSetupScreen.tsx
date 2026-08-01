@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { AppScreen, AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
@@ -24,16 +25,19 @@ import {
 } from "./learningTypes";
 
 type SetupStep = 0 | 1 | 2 | 3 | 4;
+const LEARNING_SETUP_DRAFT_KEY = "personewsap:learning-setup-draft:v1";
 
 export function LearningSetupScreen({ language }: { language: Language | null | undefined }) {
   const router = useRouter();
-  const params = useLocalSearchParams<{ replace?: string }>();
+  const params = useLocalSearchParams<{ replace?: string; onboarding?: string }>();
   const replacing = params.replace === "1";
+  const fromOnboarding = params.onboarding === "1";
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
   const copy = getLearningCopy(language).setup;
   const {
     domains,
+    disableLearningPath,
     objectives,
     startPath,
     status
@@ -70,6 +74,65 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     });
   }, [language]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreDraft() {
+      try {
+        const value = await AsyncStorage.getItem(LEARNING_SETUP_DRAFT_KEY);
+        if (!value || cancelled) {
+          return;
+        }
+        const draft = JSON.parse(value) as Partial<{
+          currentLevel: LearningCurrentLevel;
+          currentStep: SetupStep;
+          domainId: string;
+          objectiveId: string;
+          targetLevel: LearningTargetLevel;
+        }>;
+        if (typeof draft.domainId === "string") {
+          setDomainId(draft.domainId);
+        }
+        if (typeof draft.objectiveId === "string") {
+          setObjectiveId(draft.objectiveId);
+        }
+        if (isCurrentLevel(draft.currentLevel)) {
+          setCurrentLevel(draft.currentLevel);
+        }
+        if (isTargetLevel(draft.targetLevel)) {
+          setTargetLevel(draft.targetLevel);
+        }
+        if (typeof draft.currentStep === "number" && draft.currentStep >= 0 && draft.currentStep <= 4) {
+          setStep(draft.currentStep);
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.warn("[LearningSetup] Could not restore draft", error);
+        }
+      }
+    }
+
+    void restoreDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    void AsyncStorage.setItem(
+      LEARNING_SETUP_DRAFT_KEY,
+      JSON.stringify({
+        domainId,
+        currentLevel,
+        targetLevel,
+        objectiveId,
+        currentStep: step,
+        updatedAt: new Date().toISOString()
+      })
+    );
+  }, [currentLevel, domainId, objectiveId, step, targetLevel]);
+
   const moveNext = () => {
     if (!canContinue) {
       setErrorMessage(copy.missingSelection);
@@ -103,7 +166,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     setSubmitting(false);
 
     if (!result.ok) {
-      setErrorMessage(copy.error);
+      setErrorMessage(result.error?.message ?? copy.error);
       return;
     }
 
@@ -113,6 +176,21 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
       });
     }
 
+    await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY);
+    router.replace("/(tabs)/today");
+  };
+
+  const handleNotNow = async () => {
+    setSubmitting(true);
+    const result = await disableLearningPath();
+    setSubmitting(false);
+
+    if (!result.ok) {
+      setErrorMessage(result.error?.message ?? copy.error);
+      return;
+    }
+
+    await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY);
     router.replace("/(tabs)/today");
   };
 
@@ -244,6 +322,8 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
       <View style={styles.actions}>
         {step > 0 ? (
           <SecondaryButton disabled={submitting} label={copy.back} onPress={moveBack} />
+        ) : fromOnboarding ? (
+          <SecondaryButton disabled={submitting} label={copy.notNow} onPress={handleNotNow} />
         ) : null}
         {step < 4 ? (
           <PrimaryButton disabled={!canContinue || submitting} label={copy.next} onPress={moveNext} />
@@ -325,6 +405,14 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <AppText variant="bodyStrong">{value}</AppText>
     </View>
   );
+}
+
+function isCurrentLevel(value: unknown): value is LearningCurrentLevel {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 7;
+}
+
+function isTargetLevel(value: unknown): value is LearningTargetLevel {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 5;
 }
 
 const createStyles = (c: ThemeColors) =>

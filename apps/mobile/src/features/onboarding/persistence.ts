@@ -29,6 +29,7 @@ export async function saveOnboardingPreferences(
   const selectedMiniCaseTopics = normalizeMiniCaseTopics(state.selectedMiniCaseTopics);
   const newsletterEnabled = state.enabledModules.includes("newsletter");
   const miniCasesEnabled = state.enabledModules.includes("mini_case");
+  const learningPathEnabled = state.enabledModules.includes("learning_path");
 
   if (!client) {
     logOnboardingProof("onboarding_save_failed", {
@@ -85,7 +86,8 @@ export async function saveOnboardingPreferences(
       state,
       language,
       selectedTopics,
-      selectedMiniCaseTopics
+      selectedMiniCaseTopics,
+      learningPathEnabled
     );
   } catch (error) {
     logOnboardingProof("onboarding_save_failed", {
@@ -113,7 +115,8 @@ async function saveValidatedOnboardingPreferences(
   state: OnboardingState,
   language: Language,
   selectedTopics: ReturnType<typeof normalizeNewsletterTopics>,
-  selectedMiniCaseTopics: ReturnType<typeof normalizeMiniCaseTopics>
+  selectedMiniCaseTopics: ReturnType<typeof normalizeMiniCaseTopics>,
+  learningPathEnabled: boolean
 ): Promise<SaveOnboardingPreferencesResult> {
   const sessionResult = await getAuthSession();
 
@@ -202,6 +205,7 @@ async function saveValidatedOnboardingPreferences(
 
   const preferencesResult = await upsertUserPreferences(client, {
     businessStoriesEnabled: state.enabledModules.includes("business_story"),
+    learningPathEnabled,
     miniCasesEnabled: state.enabledModules.includes("mini_case"),
     newsletterEnabled: state.enabledModules.includes("newsletter"),
     newsletterArticleCount: totalArticleCount,
@@ -340,6 +344,7 @@ async function upsertUserPreferences(
   client: MobileSupabaseClient,
   input: {
     businessStoriesEnabled: boolean;
+    learningPathEnabled: boolean;
     miniCasesEnabled: boolean;
     newsletterEnabled: boolean;
     newsletterArticleCount: number;
@@ -350,6 +355,8 @@ async function upsertUserPreferences(
   const payload = {
     user_id: input.userId,
     business_stories_enabled: input.businessStoriesEnabled,
+    learning_path_enabled: input.learningPathEnabled,
+    learning_path_choice_completed: true,
     mini_cases_enabled: input.miniCasesEnabled,
     mini_case_topic_id: input.primaryMiniCaseTopicId,
     newsletter_enabled: input.newsletterEnabled,
@@ -369,6 +376,8 @@ async function upsertUserPreferences(
 
   return client.from("user_preferences").upsert({
     user_id: input.userId,
+    learning_path_enabled: input.learningPathEnabled,
+    learning_path_choice_completed: true,
     newsletter_article_count: input.newsletterArticleCount
   });
 }

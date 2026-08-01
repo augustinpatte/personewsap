@@ -28,6 +28,33 @@ const SUPPORTING_TABLES = [
   "push_tokens"
 ];
 
+const LEARNING_TABLES = [
+  "learning_domains",
+  "learning_objectives",
+  "user_learning_paths",
+  "learning_sessions",
+  "learning_session_feedback"
+];
+
+const EXPECTED_LEARNING_DOMAINS = [
+  "computer_science",
+  "artificial_intelligence",
+  "blockchain",
+  "quantum_physics",
+  "mathematics",
+  "cybersecurity",
+  "human_biology_medicine"
+];
+
+const EXPECTED_LEARNING_RPCS = [
+  "start_learning_path",
+  "disable_learning_path",
+  "open_learning_session",
+  "start_learning_session",
+  "submit_learning_session_feedback",
+  "learning_paths_healthcheck"
+];
+
 const EXPECTED_TOPICS = [
   "business",
   "finance",
@@ -156,6 +183,47 @@ async function runStaticMigrationAudit() {
       `migration creates supporting table public.${table}`
     );
   }
+
+  for (const table of LEARNING_TABLES) {
+    assertRegex(
+      sql,
+      new RegExp(`create\\s+table\\s+(if\\s+not\\s+exists\\s+)?public\\.${table}\\b`, "i"),
+      `migration creates learning table public.${table}`
+    );
+    assertRegex(
+      sql,
+      new RegExp(`alter\\s+table\\s+public\\.${table}\\s+enable\\s+row\\s+level\\s+security`, "i"),
+      `migration enables RLS on learning table public.${table}`
+    );
+  }
+
+  for (const domain of EXPECTED_LEARNING_DOMAINS) {
+    assertRegex(
+      sql,
+      new RegExp(`['"]${escapeRegExp(domain)}['"]`, "i"),
+      `migration seeds learning domain ${domain}`
+    );
+  }
+
+  for (const rpc of EXPECTED_LEARNING_RPCS) {
+    assertRegex(
+      sql,
+      new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${escapeRegExp(rpc)}\\s*\\(`, "i"),
+      `migration defines learning RPC ${rpc}`
+    );
+  }
+
+  assertRegex(
+    sql,
+    /learning_path_enabled\s+boolean\s+not\s+null\s+default\s+false[\s\S]+learning_path_choice_completed\s+boolean\s+not\s+null\s+default\s+false/i,
+    "migration stores explicit learning path opt-in decision"
+  );
+
+  assertRegex(
+    sql,
+    /learning_sessions_one_ready_unstarted_per_path[\s\S]+generation_status\s*=\s*'ready'[\s\S]+status\s+in\s*\('available',\s*'opened'\)/i,
+    "migration prevents two visible unstarted learning sessions per path"
+  );
 
   for (const table of [...REQUIRED_TABLES, ...SUPPORTING_TABLES]) {
     assertRegex(

@@ -33,6 +33,7 @@ export type LearningPath = {
   objective_id: string;
   current_level: LearningCurrentLevel;
   target_level: LearningTargetLevel;
+  language?: Language | null;
   status: LearningPathStatus;
   created_at: string | null;
   updated_at: string | null;
@@ -49,7 +50,10 @@ export type LearningSessionStatus =
 export type LearningSession = {
   id: string;
   path_id: string;
+  daily_drop_id?: string | null;
+  curriculum_step_key?: string | null;
   session_number: number;
+  adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
   title_fr: string;
   title_en: string;
   summary_fr: string;
@@ -57,6 +61,7 @@ export type LearningSession = {
   objectives_fr: string[];
   objectives_en: string[];
   prompt_text: string;
+  generation_status?: "queued" | "generating" | "ready" | "failed";
   status: LearningSessionStatus;
   available_on: string | null;
   opened_at: string | null;

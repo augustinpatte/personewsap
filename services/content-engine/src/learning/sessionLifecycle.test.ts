@@ -55,7 +55,32 @@ describe("learning session scheduler lifecycle", () => {
         explainabilityRating: 4,
         interestRating: 4
       })
+    ).toBe("reinforce");
+  });
+
+  it("uses prerequisite after a weak reinforced session", () => {
+    expect(
+      resolveLearningAdaptationMode(
+        {
+          comprehensionRating: 2,
+          difficultyRating: 5,
+          explainabilityRating: 2,
+          interestRating: 4
+        },
+        true
+      )
     ).toBe("prerequisite");
+  });
+
+  it("keeps normal feedback on normal adaptation", () => {
+    expect(
+      resolveLearningAdaptationMode({
+        comprehensionRating: 3,
+        difficultyRating: 3,
+        explainabilityRating: 3,
+        interestRating: 3
+      })
+    ).toBe("normal");
   });
 
   it("records opened_at exactly once", () => {

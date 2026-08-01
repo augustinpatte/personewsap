@@ -18,6 +18,8 @@ import { OpenAiJsonProvider } from "../generation/openAiProvider.js";
 import { StructuredContentGenerator } from "../generation/structuredGenerator.js";
 import type { ContentGenerator } from "../generation/types.js";
 import { assertValidDailyDropPayload } from "../generation/validation.js";
+import { generateLearningSessionForUser } from "../learning/learningSessionOrchestrator.js";
+import { emptyLearningGenerationMetrics, type LearningGenerationMetrics } from "../learning/learningTypes.js";
 import {
   aggregateJobRunMetrics,
   buildFailedLanguageJobMetrics,
@@ -46,7 +48,7 @@ import { serializePersistenceError } from "../storage/persistenceError.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
 import { toDateOnly } from "../utils/date.js";
 import { sha256 } from "../utils/hash.js";
-import { redactLogIdentifiers } from "../utils/redactIdentifier.js";
+import { redactIdentifier, redactLogIdentifiers } from "../utils/redactIdentifier.js";
 
 const DEFAULT_USER_LIMIT = 5;
 const MAX_USER_LIMIT = 25;
@@ -54,7 +56,7 @@ const DEFAULT_LANGUAGES = "fr,en";
 const RETRYABLE_STAGE_ATTEMPTS = 2;
 const RETRY_BASE_DELAY_MS = 1_000;
 const RETRY_MAX_DELAY_MS = 8_000;
-const REQUIRED_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
+const REQUIRED_SLOTS = ["newsletter", "business_story", "mini_case"] as const;
 const CONTENT_STATUSES = ["draft", "review", "published"] as const;
 
 type DailyJobContentStatus = (typeof CONTENT_STATUSES)[number];
@@ -216,6 +218,7 @@ export type DailyJobOutput = {
     miniCaseSelectedTopicCounts: Record<string, number>;
     assignmentSkippedReason: string | null;
     assignedPreviews: AssignedDropPreview[];
+    learning: LearningGenerationMetrics;
     errorReason: LlmFailureReason | null;
     error: string | null;
     metrics: LanguageJobMetrics;
@@ -643,7 +646,7 @@ async function runDailyJobLanguage(input: {
     newsletter_items_to_generate: options.newsletterArticleCount,
     mini_case_topics_to_generate: miniCaseProductTopics,
     business_story_count: 1,
-    concept_count: 1,
+    concept_count: 0,
     user_preferences_used_for_generation: false
   }, options.logPrefix);
 
@@ -790,7 +793,8 @@ async function runDailyJobLanguage(input: {
               dropDate: jobPayload.drop_date,
               language,
               userLimit: options.userLimit,
-              logPrefix: options.logPrefix
+              logPrefix: options.logPrefix,
+              useLlm: options.useLlm
             }),
           { maxAttempts: 1, logPrefix: options.logPrefix }
         )
@@ -841,6 +845,7 @@ async function runDailyJobLanguage(input: {
     miniCaseSelectedTopicCounts: assignment.miniCaseSelectedTopicCounts,
     assignmentSkippedReason: assignment.assignmentSkippedReason,
     assignedPreviews: assignment.assignedPreviews,
+    learning: assignment.learning,
     errorReason: null,
     error: null,
     metrics
@@ -874,6 +879,7 @@ async function assignStoredDropToUsers(input: {
   language: Language;
   userLimit: number | null;
   logPrefix: string;
+  useLlm: boolean;
 }): Promise<{
   usersConsidered: number;
   usersAssigned: number;
@@ -888,6 +894,7 @@ async function assignStoredDropToUsers(input: {
   miniCaseSelectedTopicCounts: Record<string, number>;
   assignmentSkippedReason: string | null;
   assignedPreviews: AssignedDropPreview[];
+  learning: LearningGenerationMetrics;
 }> {
   assertAssignableStoredItems(input.storedItems, input.language);
   const contentTypeByItemId = new Map(
@@ -916,7 +923,7 @@ async function assignStoredDropToUsers(input: {
 
   for (const skippedUser of selection.skippedUsers) {
     logProgress("user skipped before assignment", {
-      user_id: skippedUser.user_id,
+      user_id: redactIdentifier(skippedUser.user_id),
       language: input.language,
       profile_language: skippedUser.language,
       expected_language: skippedUser.expectedLanguage,
@@ -962,6 +969,7 @@ async function assignStoredDropToUsers(input: {
   let duplicateDailyDropItemsSkipped = 0;
   const miniCaseFallbackReasons: Record<string, number> = {};
   const miniCaseSelectedTopicCounts: Record<string, number> = {};
+  const learning = emptyLearningGenerationMetrics();
 
   for (const preference of candidates) {
     const existingDrop = existingDrops.get(preference.user_id);
@@ -978,7 +986,7 @@ async function assignStoredDropToUsers(input: {
     }
 
     logProgress("assignment topic selection", {
-      user_id: preference.user_id,
+      user_id: redactIdentifier(preference.user_id),
       drop_date: input.dropDate,
       language: input.language,
       newsletter_topics_selected: selection.diagnostics.newsletter.selectedTopicIds,
@@ -989,7 +997,7 @@ async function assignStoredDropToUsers(input: {
 
     if (completedSelection.fallbackSlots.length > 0) {
       logProgress("assignment filled missing non-personalized slot", {
-        user_id: preference.user_id,
+        user_id: redactIdentifier(preference.user_id),
         drop_date: input.dropDate,
         language: input.language,
         fallback_slots: completedSelection.fallbackSlots,
@@ -999,7 +1007,7 @@ async function assignStoredDropToUsers(input: {
 
     if (selection.diagnostics.miniCase.fallbackReason !== "none") {
       logProgress("mini-case topic fallback", {
-        user_id: preference.user_id,
+        user_id: redactIdentifier(preference.user_id),
         drop_date: input.dropDate,
         language: input.language,
         requested_topic_id: selection.diagnostics.miniCase.requestedTopicId,
@@ -1012,7 +1020,7 @@ async function assignStoredDropToUsers(input: {
     if (!hasRequiredSlots(itemIds, requiredSlots)) {
       usersSkippedIncompleteSelection += 1;
       logProgress("assignment skipped incomplete selection", {
-        user_id: preference.user_id,
+        user_id: redactIdentifier(preference.user_id),
         drop_date: input.dropDate,
         language: input.language,
         selected_items: itemIds.length,
@@ -1034,7 +1042,7 @@ async function assignStoredDropToUsers(input: {
 
     if (existingDrop) {
       logProgress("assignment updating existing drop", {
-        user_id: preference.user_id,
+        user_id: redactIdentifier(preference.user_id),
         daily_drop_id: existingDrop.id,
         previous_status: existingDrop.status,
         drop_date: input.dropDate,
@@ -1049,6 +1057,41 @@ async function assignStoredDropToUsers(input: {
       status: "published",
       itemIds
     });
+
+    const learningResult = await generateLearningSessionForUser({
+      repository: input.repository,
+      userId: preference.user_id,
+      dailyDropId: assignment.dailyDropId,
+      dropDate: input.dropDate,
+      provider: input.useLlm ? new OpenAiJsonProvider({ model: process.env.OPENAI_LEARNING_MODEL ?? process.env.OPENAI_MODEL }) : "deterministic"
+    }).catch((error) => {
+      logProgress("learning session generation failed without blocking daily drop", {
+        user_id: redactIdentifier(preference.user_id),
+        daily_drop_id: assignment.dailyDropId,
+        drop_date: input.dropDate,
+        language: input.language,
+        error: serializePersistenceError(error)
+      }, input.logPrefix);
+      return {
+        ...emptyLearningGenerationMetrics(),
+        learning_sessions_failed: 1,
+        status: "failed" as const,
+        reason: "learning_exception",
+        sessionId: null
+      };
+    });
+    mergeLearningMetrics(learning, learningResult);
+
+    logProgress("learning session result", {
+      user_id: redactIdentifier(preference.user_id),
+      daily_drop_id: assignment.dailyDropId,
+      drop_date: input.dropDate,
+      language: input.language,
+      status: learningResult.status,
+      reason: learningResult.reason,
+      session_id: learningResult.sessionId,
+      learning_api_calls: learningResult.learning_api_calls
+    }, input.logPrefix);
 
     usersAssigned += 1;
     usersCreated += assignment.existingDropUpdated ? 0 : 1;
@@ -1068,7 +1111,7 @@ async function assignStoredDropToUsers(input: {
     });
 
     logProgress("assignment user completed", {
-      user_id: preference.user_id,
+        user_id: redactIdentifier(preference.user_id),
       daily_drop_id: assignment.dailyDropId,
       existing_drop_updated: assignment.existingDropUpdated,
       linked_items: assignment.linkedItems,
@@ -1096,6 +1139,7 @@ async function assignStoredDropToUsers(input: {
     miniCaseSelectedTopicCounts,
     assignmentSkippedReason: null,
     assignedPreviews
+    ,learning
   };
 }
 
@@ -1133,6 +1177,7 @@ function skippedAssignment(reason: string): {
   miniCaseSelectedTopicCounts: Record<string, number>;
   assignmentSkippedReason: string;
   assignedPreviews: AssignedDropPreview[];
+  learning: LearningGenerationMetrics;
 } {
   return {
     usersConsidered: 0,
@@ -1147,7 +1192,8 @@ function skippedAssignment(reason: string): {
     miniCaseFallbackReasons: {},
     miniCaseSelectedTopicCounts: {},
     assignmentSkippedReason: reason,
-    assignedPreviews: []
+    assignedPreviews: [],
+    learning: emptyLearningGenerationMetrics()
   };
 }
 
@@ -1181,6 +1227,7 @@ function emptyFailedLanguageResult(
     miniCaseSelectedTopicCounts: {},
     assignmentSkippedReason: null,
     assignedPreviews: [],
+    learning: emptyLearningGenerationMetrics(),
     errorReason,
     error,
     metrics: buildFailedLanguageJobMetrics({
@@ -1220,6 +1267,19 @@ function mergeCountRecords(records: Array<Record<string, number>>): Record<strin
 
 function incrementCount(record: Record<string, number>, key: string): void {
   record[key] = (record[key] ?? 0) + 1;
+}
+
+function mergeLearningMetrics(target: LearningGenerationMetrics, source: LearningGenerationMetrics): void {
+  target.learning_paths_considered += source.learning_paths_considered;
+  target.learning_paths_disabled += source.learning_paths_disabled;
+  target.learning_sessions_blocked_available += source.learning_sessions_blocked_available;
+  target.learning_sessions_blocked_opened += source.learning_sessions_blocked_opened;
+  target.learning_sessions_generation_claimed += source.learning_sessions_generation_claimed;
+  target.learning_sessions_generated += source.learning_sessions_generated;
+  target.learning_sessions_reused += source.learning_sessions_reused;
+  target.learning_sessions_failed += source.learning_sessions_failed;
+  target.learning_paths_completed += source.learning_paths_completed;
+  target.learning_api_calls += source.learning_api_calls;
 }
 
 function summarizeLanguageResults(results: DailyJobLanguageResult[]): DailyJobTestOutput["summary"] {
@@ -1364,7 +1424,6 @@ function requiredSlotsForPreference(preference: UserDailyDropPreference): DailyD
     preference.modules.newsletter ? "newsletter" : null,
     preference.modules.business_story ? "business_story" : null,
     preference.modules.mini_case ? "mini_case" : null,
-    "concept"
   ].filter((slot): slot is DailyDropSlot => Boolean(slot));
 }
 

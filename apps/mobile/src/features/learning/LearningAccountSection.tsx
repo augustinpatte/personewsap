@@ -27,8 +27,19 @@ export function LearningAccountSection({
 }: LearningAccountSectionProps) {
   const styles = useThemedStyles(createStyles);
   const copy = getLearningCopy(language).account;
-  const { activeDomain, activeObjective, activePath, completedSessions } = useLearningPath();
+  const {
+    activeDomain,
+    activeObjective,
+    activePath,
+    completedSessions,
+    disableLearningPath,
+    sessions,
+    learningPathEnabled
+  } = useLearningPath();
   const [replaceVisible, setReplaceVisible] = useState(false);
+  const [disableVisible, setDisableVisible] = useState(false);
+  const startedCount = sessions.filter((session) => session.started_at || session.completed_at).length;
+  const feedbackCount = completedSessions.length;
 
   return (
     <>
@@ -49,21 +60,30 @@ export function LearningAccountSection({
                   {localizeLearningDescription(activeObjective, language)}
                 </AppText>
                 <AppText color="accentInk" variant="label">
-                  {copy.sessionsCompleted(completedSessions.length)}
+                  {copy.sessionsStarted(startedCount)}
+                </AppText>
+                <AppText color="accentInk" variant="label">
+                  {copy.feedbackSent(feedbackCount)}
                 </AppText>
               </View>
               <View style={styles.actions}>
                 <SecondaryButton label={copy.overview} onPress={onOverview} />
                 <SecondaryButton label={copy.change} onPress={() => setReplaceVisible(true)} />
+                <SecondaryButton label={copy.disable} onPress={() => setDisableVisible(true)} />
               </View>
             </>
           ) : (
             <>
-              <AppText variant="bodyStrong">{copy.emptyTitle}</AppText>
-              <AppText color="muted" variant="body">
-                {copy.emptyBody}
+              <AppText variant="bodyStrong">
+                {learningPathEnabled ? copy.emptyTitle : copy.disabledTitle}
               </AppText>
-              <PrimaryButton label={copy.emptyTitle} onPress={onCreate} />
+              <AppText color="muted" variant="body">
+                {learningPathEnabled ? copy.emptyBody : copy.disabledBody}
+              </AppText>
+              <PrimaryButton
+                label={learningPathEnabled ? copy.emptyTitle : copy.enable}
+                onPress={onCreate}
+              />
             </>
           )}
         </View>
@@ -88,6 +108,32 @@ export function LearningAccountSection({
                 onPress={() => {
                   setReplaceVisible(false);
                   onReplace();
+                }}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setDisableVisible(false)}
+        transparent
+        visible={disableVisible}
+      >
+        <View style={styles.modalOverlay}>
+          <Card elevated padding="lg" style={styles.modalCard}>
+            <AppText variant="subtitle">{copy.disableTitle}</AppText>
+            <AppText color="muted" variant="body">
+              {copy.disableBody}
+            </AppText>
+            <View style={styles.actions}>
+              <SecondaryButton label={copy.cancel} onPress={() => setDisableVisible(false)} />
+              <PrimaryButton
+                label={copy.disableConfirm}
+                onPress={() => {
+                  setDisableVisible(false);
+                  void disableLearningPath();
                 }}
               />
             </View>

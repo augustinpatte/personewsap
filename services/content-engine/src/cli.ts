@@ -8,6 +8,7 @@ import { parseDailyJobTestOptions, runDailyJobTest } from "./cli/dailyJobTest.js
 import { parseDebugUsersOptions, runDebugUsers } from "./cli/debugUsers.js";
 import { parseDryRunOptions, runDryRun } from "./cli/dryRun.js";
 import { parseJobHealthOptions, runJobHealth } from "./cli/jobHealth.js";
+import { parseLearningProofOptions, runLearningProof } from "./cli/learningProof.js";
 import { parseLlmRunOptions, runLlmRun } from "./cli/llmRun.js";
 import { parseLlmProofOptions, runLlmProof } from "./cli/llmProof.js";
 import { parsePersonalizeTestOptions, runPersonalizeTest } from "./cli/personalizeTest.js";
@@ -108,6 +109,12 @@ async function main(): Promise<void> {
 
   if (command === "quality-proof") {
     const output = runQualityProof();
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+
+  if (command === "learning-proof") {
+    const output = await runLearningProof(parseLearningProofOptions());
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
     return;
   }

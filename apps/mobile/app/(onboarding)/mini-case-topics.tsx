@@ -25,6 +25,7 @@ export default function MiniCaseTopicsScreen() {
   const copy = getOnboardingCopy(state.language);
   const miniCaseTopicOptions = localizeOptions(MINI_CASE_TOPIC_OPTIONS, state.language);
   const selectedCount = state.selectedMiniCaseTopics.length;
+  const learningSetupHref = { pathname: "/(learning)/setup", params: { onboarding: "1" } } as unknown as Href;
 
   if (!state.language) {
     return <Redirect href="/(onboarding)/language" />;
@@ -67,7 +68,7 @@ export default function MiniCaseTopicsScreen() {
     });
     await clearStoredOnboardingDraft();
     await refreshAuthState();
-    router.replace("/(tabs)/today");
+    router.replace(state.enabledModules.includes("learning_path") ? learningSetupHref : "/(tabs)/today");
   };
 
   return (

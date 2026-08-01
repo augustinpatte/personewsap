@@ -20,6 +20,7 @@ import { getUserFacingError } from "../../src/lib/userFacingErrors";
 type SelectedTopic = (typeof TOPIC_OPTIONS)[number];
 
 const miniCaseTopicsHref = "/(onboarding)/mini-case-topics" as Href;
+const learningSetupHref = { pathname: "/(learning)/setup", params: { onboarding: "1" } } as unknown as Href;
 
 function isSelectedTopic(topic: SelectedTopic | undefined): topic is SelectedTopic {
   return Boolean(topic);
@@ -79,7 +80,7 @@ export default function ArticleCountScreen() {
     });
     await clearStoredOnboardingDraft();
     await refreshAuthState();
-    router.replace("/(tabs)/today");
+    router.replace(state.enabledModules.includes("learning_path") ? learningSetupHref : "/(tabs)/today");
   };
 
   return (

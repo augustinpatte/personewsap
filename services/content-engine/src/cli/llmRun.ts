@@ -50,7 +50,7 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
     newsletter_articles: LLM_RUN_NEWSLETTER_ARTICLE_COUNT,
     business_stories: 1,
     mini_cases: 1,
-    concepts: 1
+    concepts: 0
   });
 
   const sampleContentEnabled = !options.liveRssOnly && envFlag("ALLOW_SAMPLE_CONTENT");
@@ -213,8 +213,7 @@ function plannedLlmItems(newsletterArticleCount: number): Array<{
       contentType: "newsletter_article"
     })),
     { label: "business story", contentType: "business_story" },
-    { label: "mini-case", contentType: "mini_case" },
-    { label: "concept", contentType: "concept" }
+    { label: "mini-case", contentType: "mini_case" }
   ];
 }
 

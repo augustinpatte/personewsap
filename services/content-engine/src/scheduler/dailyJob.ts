@@ -1,4 +1,4 @@
-import { TOPIC_IDS, type DailyDropStatus, type Language, type TopicId } from "../domain.js";
+import { TOPIC_IDS, type DailyDropSlot, type DailyDropStatus, type Language, type TopicId } from "../domain.js";
 import type { ContentGenerator } from "../generation/types.js";
 import { assertValidDailyDropPayload } from "../generation/validation.js";
 import { processArticles } from "../processing/pipeline.js";
@@ -7,7 +7,7 @@ import type { ContentRepository } from "../storage/contentRepository.js";
 import { redactIdentifier } from "../utils/redactIdentifier.js";
 import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "./dailyDropBuilder.js";
 
-const REQUIRED_DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
+const REQUIRED_DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case"] as const;
 
 export type DailyContentJobOptions = {
   dropDate: string;
@@ -163,9 +163,7 @@ export class DailyContentJob {
   }
 }
 
-function missingRequiredSlots(
-  selectedItems: Array<{ slot: (typeof REQUIRED_DAILY_DROP_SLOTS)[number] }>
-) {
+function missingRequiredSlots(selectedItems: Array<{ slot: DailyDropSlot }>) {
   const slots = new Set(selectedItems.map((item) => item.slot));
 
   return REQUIRED_DAILY_DROP_SLOTS.filter((slot) => !slots.has(slot));

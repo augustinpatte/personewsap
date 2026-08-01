@@ -28,7 +28,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     activeObjective,
     getSessionById,
     markSessionOpened,
-    markSessionStarted,
+    recordSessionStartedAfterPromptCopy,
     status
   } = useLearningPath();
   const styles = useThemedStyles(createStyles);
@@ -58,15 +58,10 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     }
 
     await Clipboard.setStringAsync(session.prompt_text);
-    const result = await markSessionStarted(session.id);
-
-    if (!result.ok) {
-      setStatusMessage(copy.openFailed);
-      return false;
-    }
+    const result = await recordSessionStartedAfterPromptCopy(session.id);
 
     setPromptUsed(true);
-    setStatusMessage(copy.promptCopied);
+    setStatusMessage(result.syncPending ? copy.syncPending : copy.promptCopied);
     trackAnalyticsEvent("learning_prompt_copied", {
       language: language ?? undefined
     });

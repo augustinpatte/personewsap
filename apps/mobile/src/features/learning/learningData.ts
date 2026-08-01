@@ -16,341 +16,47 @@ export const learningDomainOrder = [
 ] as const;
 
 export const mockLearningDomains: LearningDomain[] = [
-  {
-    id: "domain-computer-science",
-    slug: "computer_science",
-    label_fr: "Informatique",
-    label_en: "Computer Science",
-    description_fr: "Comprendre les systèmes, les réseaux, les algorithmes et la logique du code.",
-    description_en: "Understand systems, networks, algorithms and the logic behind code.",
-    position: 1
-  },
-  {
-    id: "domain-artificial-intelligence",
-    slug: "artificial_intelligence",
-    label_fr: "Intelligence artificielle",
-    label_en: "Artificial Intelligence",
-    description_fr: "Apprendre comment les modèles apprennent, raisonnent et arrivent dans les produits.",
-    description_en: "Learn how models learn, reason and reach real products.",
-    position: 2
-  },
-  {
-    id: "domain-blockchain",
-    slug: "blockchain",
-    label_fr: "Blockchain",
-    label_en: "Blockchain",
-    description_fr: "Lire les réseaux décentralisés avec une logique technique, économique et juridique.",
-    description_en: "Read decentralised networks through technical, economic and legal logic.",
-    position: 3
-  },
-  {
-    id: "domain-quantum-physics",
-    slug: "quantum_physics",
-    label_fr: "Physique quantique",
-    label_en: "Quantum Physics",
-    description_fr: "Construire les bases pour comprendre états, mesures, qubits et applications.",
-    description_en: "Build the foundations for states, measurement, qubits and applications.",
-    position: 4
-  },
-  {
-    id: "domain-mathematics",
-    slug: "mathematics",
-    label_fr: "Mathématiques",
-    label_en: "Mathematics",
-    description_fr: "Renforcer les outils de raisonnement qui soutiennent la science et la finance.",
-    description_en: "Strengthen the reasoning tools behind science, software and finance.",
-    position: 5
-  },
-  {
-    id: "domain-cybersecurity",
-    slug: "cybersecurity",
-    label_fr: "Cybersécurité",
-    label_en: "Cybersecurity",
-    description_fr: "Comprendre les attaques, les défenses et les décisions de sécurité.",
-    description_en: "Understand attacks, defences and security decisions.",
-    position: 6
-  },
-  {
-    id: "domain-human-biology-medicine",
-    slug: "human_biology_medicine",
-    label_fr: "Biologie humaine et médecine",
-    label_en: "Human Biology and Medicine",
-    description_fr: "Relier biologie, diagnostic, essais cliniques et décisions médicales.",
-    description_en: "Connect biology, diagnosis, clinical trials and medical decisions.",
-    position: 7
-  }
+  domain("computer_science", 1, "Informatique", "Computer Science", "Comprendre les systèmes, les réseaux, les algorithmes et la logique du code.", "Understand systems, networks, algorithms and the logic behind code."),
+  domain("artificial_intelligence", 2, "Intelligence artificielle", "Artificial Intelligence", "Apprendre comment les modèles apprennent, raisonnent et arrivent dans les produits.", "Learn how models learn, reason and reach real products."),
+  domain("blockchain", 3, "Blockchain", "Blockchain", "Lire les réseaux décentralisés avec une logique technique, économique et juridique.", "Read decentralized networks through technical, economic and legal logic."),
+  domain("quantum_physics", 4, "Physique quantique", "Quantum Physics", "Construire les bases pour comprendre états, mesures, qubits et applications.", "Build the foundations for states, measurement, qubits and applications."),
+  domain("mathematics", 5, "Mathématiques", "Mathematics", "Renforcer les outils de raisonnement qui soutiennent la science, le logiciel et la finance.", "Strengthen the reasoning tools behind science, software and finance."),
+  domain("cybersecurity", 6, "Cybersécurité", "Cybersecurity", "Comprendre les attaques, les défenses et les décisions de sécurité.", "Understand attacks, defenses and security decisions."),
+  domain("human_biology_medicine", 7, "Biologie humaine et médecine", "Human Biology and Medicine", "Relier biologie, essais cliniques, preuves et décisions médicales générales.", "Connect biology, clinical trials, evidence and general medical decisions.")
 ];
 
-export const mockLearningObjectives: LearningObjective[] = mockLearningDomains.flatMap(
-  (domain, index) => {
-    const shared = {
-      domain_id: domain.id,
-      position: 1
-    };
-
-    const objectiveSets: Record<string, Array<Omit<LearningObjective, "domain_id">>> = {
-      computer_science: [
-        {
-          id: "objective-cs-systems",
-          slug: "systems",
-          label_fr: "Comprendre les systèmes",
-          label_en: "Understand systems",
-          description_fr:
-            "Découvrir ce qui se passe sous le code : processeurs, mémoire, systèmes d'exploitation, Internet et réseaux.",
-          description_en:
-            "Discover what happens below the code: processors, memory, operating systems, the Internet and networks.",
-          position: 1
-        },
-        {
-          id: "objective-cs-algorithms",
-          slug: "algorithms",
-          label_fr: "Raisonner avec les algorithmes",
-          label_en: "Reason with algorithms",
-          description_fr:
-            "Apprendre à choisir une structure de données, comparer des coûts et expliquer pourquoi une solution tient.",
-          description_en:
-            "Learn to choose a data structure, compare costs and explain why a solution holds up.",
-          position: 2
-        },
-        {
-          id: "objective-cs-product",
-          slug: "product_engineering",
-          label_fr: "Construire des produits fiables",
-          label_en: "Build reliable products",
-          description_fr:
-            "Relier architecture, tests, performance et décisions produit dans des situations concrètes.",
-          description_en:
-            "Connect architecture, tests, performance and product decisions in practical situations.",
-          position: 3
-        }
-      ],
-      artificial_intelligence: [
-        {
-          id: "objective-ai-models",
-          slug: "models",
-          label_fr: "Comprendre les modèles",
-          label_en: "Understand models",
-          description_fr:
-            "Comprendre données, entraînement, évaluation, limites et risques de hallucination.",
-          description_en:
-            "Understand data, training, evaluation, limits and hallucination risks.",
-          position: 1
-        },
-        {
-          id: "objective-ai-products",
-          slug: "ai_products",
-          label_fr: "Créer des produits IA",
-          label_en: "Create AI products",
-          description_fr:
-            "Apprendre à cadrer un cas d'usage, choisir une approche et vérifier la qualité réelle.",
-          description_en:
-            "Learn to frame a use case, choose an approach and verify real quality.",
-          position: 2
-        },
-        {
-          id: "objective-ai-governance",
-          slug: "governance",
-          label_fr: "Piloter les risques IA",
-          label_en: "Manage AI risks",
-          description_fr:
-            "Relier conformité, biais, sécurité, transparence et adoption responsable.",
-          description_en:
-            "Connect compliance, bias, safety, transparency and responsible adoption.",
-          position: 3
-        }
-      ],
-      blockchain: [
-        {
-          id: "objective-blockchain-basics",
-          slug: "protocols",
-          label_fr: "Comprendre les protocoles",
-          label_en: "Understand protocols",
-          description_fr:
-            "Comprendre blocs, consensus, wallets, frais et sécurité des transactions.",
-          description_en:
-            "Understand blocks, consensus, wallets, fees and transaction security.",
-          position: 1
-        },
-        {
-          id: "objective-blockchain-defi",
-          slug: "defi",
-          label_fr: "Lire la DeFi",
-          label_en: "Read DeFi",
-          description_fr:
-            "Analyser prêts, liquidité, rendement, smart contracts et risques économiques.",
-          description_en:
-            "Analyse lending, liquidity, yield, smart contracts and economic risk.",
-          position: 2
-        },
-        {
-          id: "objective-blockchain-regulation",
-          slug: "regulation",
-          label_fr: "Comprendre la régulation",
-          label_en: "Understand regulation",
-          description_fr:
-            "Relier usages crypto, conformité, protection des investisseurs et modèles d'affaires.",
-          description_en:
-            "Connect crypto uses, compliance, investor protection and business models.",
-          position: 3
-        }
-      ],
-      quantum_physics: [
-        {
-          id: "objective-quantum-foundations",
-          slug: "foundations",
-          label_fr: "Poser les bases",
-          label_en: "Build foundations",
-          description_fr:
-            "Comprendre états, superposition, mesure et le vocabulaire essentiel.",
-          description_en:
-            "Understand states, superposition, measurement and the essential vocabulary.",
-          position: 1
-        },
-        {
-          id: "objective-quantum-computing",
-          slug: "computing",
-          label_fr: "Comprendre le calcul quantique",
-          label_en: "Understand quantum computing",
-          description_fr:
-            "Découvrir qubits, portes, erreurs et pourquoi certains calculs changent d'échelle.",
-          description_en:
-            "Discover qubits, gates, errors and why some calculations scale differently.",
-          position: 2
-        },
-        {
-          id: "objective-quantum-applications",
-          slug: "applications",
-          label_fr: "Explorer les applications",
-          label_en: "Explore applications",
-          description_fr:
-            "Relier capteurs, cryptographie, matériaux et promesses réalistes du secteur.",
-          description_en:
-            "Connect sensors, cryptography, materials and realistic industry promises.",
-          position: 3
-        }
-      ],
-      mathematics: [
-        {
-          id: "objective-maths-proof",
-          slug: "proof",
-          label_fr: "Raisonner proprement",
-          label_en: "Reason cleanly",
-          description_fr:
-            "Travailler logique, preuves, contre-exemples et méthodes de résolution.",
-          description_en:
-            "Work on logic, proofs, counterexamples and problem-solving methods.",
-          position: 1
-        },
-        {
-          id: "objective-maths-data",
-          slug: "data",
-          label_fr: "Maîtriser les données",
-          label_en: "Master data",
-          description_fr:
-            "Comprendre probabilités, statistiques, corrélation, incertitude et modèles.",
-          description_en:
-            "Understand probability, statistics, correlation, uncertainty and models.",
-          position: 2
-        },
-        {
-          id: "objective-maths-finance",
-          slug: "finance",
-          label_fr: "Appliquer aux marchés",
-          label_en: "Apply to markets",
-          description_fr:
-            "Relier taux, risque, optimisation et lecture quantitative des décisions.",
-          description_en:
-            "Connect rates, risk, optimisation and quantitative decision reading.",
-          position: 3
-        }
-      ],
-      cybersecurity: [
-        {
-          id: "objective-cyber-threats",
-          slug: "threats",
-          label_fr: "Comprendre les attaques",
-          label_en: "Understand attacks",
-          description_fr:
-            "Lire phishing, vulnérabilités, malware, exploitation et chaînes d'attaque.",
-          description_en:
-            "Read phishing, vulnerabilities, malware, exploitation and attack chains.",
-          position: 1
-        },
-        {
-          id: "objective-cyber-defense",
-          slug: "defense",
-          label_fr: "Construire une défense",
-          label_en: "Build a defence",
-          description_fr:
-            "Comprendre authentification, chiffrement, surveillance et réponse à incident.",
-          description_en:
-            "Understand authentication, encryption, monitoring and incident response.",
-          position: 2
-        },
-        {
-          id: "objective-cyber-risk",
-          slug: "risk",
-          label_fr: "Piloter le risque",
-          label_en: "Manage risk",
-          description_fr:
-            "Relier sécurité, coûts, conformité, priorisation et décisions de direction.",
-          description_en:
-            "Connect security, cost, compliance, prioritisation and leadership decisions.",
-          position: 3
-        }
-      ],
-      human_biology_medicine: [
-        {
-          id: "objective-biology-body",
-          slug: "body_systems",
-          label_fr: "Comprendre le corps",
-          label_en: "Understand the body",
-          description_fr:
-            "Relier cellules, organes, immunité, hormones et grandes fonctions vitales.",
-          description_en:
-            "Connect cells, organs, immunity, hormones and major vital functions.",
-          position: 1
-        },
-        {
-          id: "objective-medicine-diagnosis",
-          slug: "diagnosis",
-          label_fr: "Lire un raisonnement médical",
-          label_en: "Read medical reasoning",
-          description_fr:
-            "Comprendre symptômes, hypothèses, examens, probabilités et décisions cliniques.",
-          description_en:
-            "Understand symptoms, hypotheses, tests, probabilities and clinical decisions.",
-          position: 2
-        },
-        {
-          id: "objective-medicine-research",
-          slug: "research",
-          label_fr: "Analyser la recherche médicale",
-          label_en: "Analyse medical research",
-          description_fr:
-            "Lire essais cliniques, niveaux de preuve, biais et sécurité des traitements.",
-          description_en:
-            "Read clinical trials, evidence levels, bias and treatment safety.",
-          position: 3
-        }
-      ]
-    };
-
-    return (objectiveSets[domain.slug] ?? []).map((objective) => ({
-      ...shared,
-      ...objective,
-      position: objective.position + index * 3
-    }));
-  }
-);
+export const mockLearningObjectives: LearningObjective[] = [
+  objective("cs_systems", "computer_science", "systems", 1, "Comprendre les systèmes", "Understand computer systems", "Découvrir ce qui se passe sous le code : processeurs, mémoire, systèmes d’exploitation, Internet et réseaux.", "Learn what happens beneath the code: processors, memory, operating systems, the Internet and networks."),
+  objective("cs_programming", "computer_science", "programming", 2, "Programmer et raisonner", "Program and reason", "Apprendre à décomposer un problème, écrire des algorithmes et produire du code fiable.", "Learn to break down problems, design algorithms and produce reliable code."),
+  objective("cs_software_data", "computer_science", "software_data", 3, "Construire des logiciels et gérer les données", "Build software and manage data", "Comprendre les bases de données, les API, l’architecture logicielle et la qualité d’un système.", "Understand databases, APIs, software architecture and system quality."),
+  objective("ai_foundations", "artificial_intelligence", "foundations", 1, "Comprendre l’intelligence artificielle", "Understand artificial intelligence", "Comprendre comment les modèles apprennent, produisent des résultats, échouent et sont évalués.", "Understand how models learn, produce outputs, fail and are evaluated."),
+  objective("ai_machine_learning", "artificial_intelligence", "machine_learning", 2, "Maîtriser les fondements du machine learning", "Master machine learning foundations", "Étudier les données, les statistiques, l’entraînement, les métriques et les principaux algorithmes.", "Study data, statistics, training, metrics and the main algorithms."),
+  objective("ai_building", "artificial_intelligence", "building", 3, "Construire avec l’intelligence artificielle", "Build with artificial intelligence", "Apprendre à utiliser des modèles, des API, le RAG, les agents et les bonnes architectures produit.", "Learn to use models, APIs, RAG, agents and strong product architectures."),
+  objective("blockchain_foundations", "blockchain", "foundations", 1, "Comprendre les fondements", "Understand the foundations", "Comprendre la cryptographie, les réseaux distribués, le consensus et le fonctionnement de Bitcoin.", "Understand cryptography, distributed networks, consensus and how Bitcoin works."),
+  objective("blockchain_ecosystem", "blockchain", "ecosystem", 2, "Explorer l’écosystème et la DeFi", "Explore the ecosystem and DeFi", "Comprendre Ethereum, les tokens, les stablecoins, la finance décentralisée et leurs risques.", "Understand Ethereum, tokens, stablecoins, decentralized finance and their risks."),
+  objective("blockchain_building", "blockchain", "building", 3, "Construire sur une blockchain", "Build on a blockchain", "Découvrir les smart contracts, les outils de développement, les tests et la sécurité.", "Discover smart contracts, developer tools, testing and security."),
+  objective("quantum_intuition", "quantum_physics", "intuition", 1, "Développer une intuition quantique", "Develop quantum intuition", "Comprendre les grandes idées de la physique quantique avant d’entrer dans le formalisme avancé.", "Understand the big ideas of quantum physics before advanced formalism."),
+  objective("quantum_mathematics", "quantum_physics", "mathematics", 2, "Comprendre le formalisme mathématique", "Understand the mathematical formalism", "Relier les états quantiques, les probabilités, les opérateurs et les mesures aux mathématiques nécessaires.", "Connect quantum states, probabilities, operators and measurement to the required mathematics."),
+  objective("quantum_computing", "quantum_physics", "computing", 3, "Découvrir le calcul quantique", "Discover quantum computing", "Comprendre les qubits, les portes quantiques, les algorithmes et les limites des ordinateurs quantiques.", "Understand qubits, quantum gates, algorithms and the limits of quantum computers."),
+  objective("math_foundations", "mathematics", "foundations", 1, "Renforcer les fondements et le raisonnement", "Strengthen foundations and reasoning", "Travailler l’algèbre, les fonctions, la logique, les démonstrations et la résolution de problèmes.", "Work on algebra, functions, logic, proofs and problem solving."),
+  objective("math_probability", "mathematics", "probability", 2, "Comprendre les probabilités et les statistiques", "Understand probability and statistics", "Apprendre à raisonner sous incertitude, analyser des données et interpréter correctement les résultats.", "Learn to reason under uncertainty, analyze data and interpret results correctly."),
+  objective("math_technology", "mathematics", "technology", 3, "Maîtriser les mathématiques de la technologie", "Master the mathematics of technology", "Étudier l’algèbre linéaire, le calcul différentiel et les mathématiques discrètes utiles en informatique, IA et physique.", "Study linear algebra, calculus and discrete mathematics useful in computer science, AI and physics."),
+  objective("cyber_foundations", "cybersecurity", "foundations", 1, "Comprendre les menaces et les protections", "Understand threats and protections", "Comprendre les attaques courantes, l’identité, la cryptographie et les règles essentielles de sécurité numérique.", "Understand common attacks, identity, cryptography and essential digital security rules."),
+  objective("cyber_network_defense", "cybersecurity", "network_defense", 2, "Défendre les réseaux et les systèmes", "Defend networks and systems", "Étudier les réseaux, la surveillance, les vulnérabilités, les incidents et les méthodes de défense.", "Study networks, monitoring, vulnerabilities, incidents and defense methods."),
+  objective("cyber_app_cloud", "cybersecurity", "app_cloud", 3, "Sécuriser les applications et le cloud", "Secure applications and cloud", "Comprendre la sécurité web, les API, les permissions, le cloud et la conception sécurisée.", "Understand web security, APIs, permissions, cloud and secure design."),
+  objective("medicine_body", "human_biology_medicine", "body", 1, "Comprendre le corps humain", "Understand the human body", "Étudier l’anatomie, la physiologie et le fonctionnement coordonné des principaux systèmes du corps.", "Study anatomy, physiology and the coordinated function of major body systems."),
+  objective("medicine_disease", "human_biology_medicine", "disease", 2, "Comprendre les mécanismes des maladies", "Understand disease mechanisms", "Découvrir comment les maladies apparaissent, progressent et sont étudiées, sans produire de diagnostic personnel.", "Discover how diseases appear, progress and are studied, without producing a personal diagnosis."),
+  objective("medicine_evidence", "human_biology_medicine", "evidence", 3, "Comprendre les médicaments et les preuves médicales", "Understand medicines and medical evidence", "Étudier la pharmacologie, les essais cliniques, les risques, la santé publique et la qualité des preuves.", "Study pharmacology, clinical trials, risks, public health and evidence quality.")
+];
 
 export const mockLearningPath: LearningPath = {
   id: "mock-learning-path-active",
   user_id: null,
-  domain_id: "domain-computer-science",
-  objective_id: "objective-cs-systems",
+  domain_id: "computer_science",
+  objective_id: "cs_systems",
   current_level: 2,
   target_level: 4,
+  language: "en",
   status: "active",
   created_at: "2026-04-26T07:00:00Z",
   updated_at: "2026-04-26T07:00:00Z",
@@ -361,7 +67,10 @@ export const mockLearningSessions: LearningSession[] = [
   {
     id: "mock-learning-session-1",
     path_id: mockLearningPath.id,
+    daily_drop_id: null,
+    curriculum_step_key: "computer_science.cs_systems.001",
     session_number: 1,
+    adaptation_mode: "normal",
     title_fr: "Ce que fait vraiment un système d'exploitation",
     title_en: "What an operating system really does",
     summary_fr:
@@ -379,7 +88,8 @@ export const mockLearningSessions: LearningSession[] = [
       "Connect files, processes and network."
     ],
     prompt_text:
-      "You are my five-minute tutor for PersoNewsAP. Teach me what an operating system really does. My current level is beginner and my target is to become independent. Keep it concrete, use one analogy, ask no written homework, and finish with four quick recall questions I can answer mentally.",
+      "Act as my PersoNewsAP five-minute tutor. Teach me what an operating system really does in English. Start with a maximum 120-word explanation, keep the main explanation under 220 words, ask at most three questions one at a time, correct briefly, and end with a recap under 60 words.",
+    generation_status: "ready",
     status: "available",
     available_on: "2026-04-26",
     opened_at: null,
@@ -388,3 +98,27 @@ export const mockLearningSessions: LearningSession[] = [
     created_at: "2026-04-26T07:00:00Z"
   }
 ];
+
+function domain(
+  id: LearningDomain["id"],
+  position: number,
+  label_fr: string,
+  label_en: string,
+  description_fr: string,
+  description_en: string
+): LearningDomain {
+  return { id, slug: id, position, label_fr, label_en, description_fr, description_en };
+}
+
+function objective(
+  id: LearningObjective["id"],
+  domain_id: LearningObjective["domain_id"],
+  slug: LearningObjective["slug"],
+  position: number,
+  label_fr: string,
+  label_en: string,
+  description_fr: string,
+  description_en: string
+): LearningObjective {
+  return { id, domain_id, slug, position, label_fr, label_en, description_fr, description_en };
+}

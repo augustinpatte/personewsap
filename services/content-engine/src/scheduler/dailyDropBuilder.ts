@@ -1,4 +1,4 @@
-import { miniCaseTopicToContentTopics } from "../domain.js";
+import { MAX_NEWSLETTER_ARTICLES_PER_TOPIC, miniCaseTopicToContentTopics } from "../domain.js";
 import type {
   DailyDropPayload,
   DailyDropSlot,
@@ -70,7 +70,9 @@ export function selectDailyDropItemsForUser(
         (stored) => stored.item.content_type === "newsletter_article" && stored.item.topic === topic.topic_id
       );
 
-      for (const match of matches.slice(0, topic.articles_count)) {
+      const perTopicCount = Math.max(1, Math.min(MAX_NEWSLETTER_ARTICLES_PER_TOPIC, topic.articles_count));
+
+      for (const match of matches.slice(0, perTopicCount)) {
         if (newsletterPosition >= preference.newsletter_article_count) {
           break;
         }
@@ -100,7 +102,6 @@ export function selectDailyDropItemsForUser(
         selectedTopicId: null,
         fallbackReason: "mini_case_module_disabled" as const
       };
-  addFirstSlot(selected, sortedStoredItems, "concept");
 
   return {
     userId: preference.user_id,

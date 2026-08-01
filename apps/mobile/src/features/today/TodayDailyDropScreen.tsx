@@ -1,4 +1,5 @@
 import { useRouter, type Href } from "expo-router";
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppScreen, AppText, Card } from "../../components";
@@ -42,7 +43,6 @@ export function TodayDailyDropScreen() {
     drop,
     progress,
     isEmptyDrop,
-    isComplete,
     isItemComplete,
     isModuleComplete,
     reload
@@ -55,17 +55,50 @@ export function TodayDailyDropScreen() {
   const story = drop.items.business_story;
   const miniCase = drop.items.mini_case;
   const learningSession =
-    learningPath.availableSession ??
-    learningPath.completedSessions[learningPath.completedSessions.length - 1] ??
-    null;
+    learningPath.availableSession ?? null;
   const learningCompleted =
-    Boolean(learningSession) && learningPath.availableSession?.id !== learningSession?.id;
+    Boolean(learningSession?.started_at) ||
+    learningSession?.status === "started" ||
+    learningSession?.status === "completed";
+  const newsletterComplete = newsletter.length > 0 && newsletter.every((item) => isItemComplete(item.id));
+  const storyComplete = Boolean(story && isModuleComplete([story]));
+  const miniCaseComplete = Boolean(miniCase && isModuleComplete([miniCase]));
+  const learningCountsForEdition = Boolean(learningPath.activePath && learningSession);
+  const moduleTotal = 3 + (learningCountsForEdition ? 1 : 0);
+  const moduleCompletedCount =
+    (newsletterComplete ? 1 : 0) +
+    (storyComplete ? 1 : 0) +
+    (miniCaseComplete ? 1 : 0) +
+    (learningCountsForEdition && learningCompleted ? 1 : 0);
+  const moduleProgress = moduleTotal > 0 ? moduleCompletedCount / moduleTotal : progress;
+  const editionComplete = moduleTotal > 0 && moduleCompletedCount === moduleTotal;
+  const learningCard = (
+    <LearningPathCard
+      completed={learningCompleted}
+      domain={learningPath.activeDomain}
+      hasPath={Boolean(learningPath.activePath)}
+      language={language}
+      objective={learningPath.activeObjective}
+      onCreate={() => router.push("/(learning)/setup" as Href)}
+      onOpenOverview={() => router.push("/(learning)/overview" as Href)}
+      onOpenSession={() => {
+        if (learningSession) {
+          router.push({
+            pathname: "/(learning)/session/[id]",
+            params: { id: learningSession.id }
+          } as unknown as Href);
+        }
+      }}
+      session={learningSession}
+    />
+  );
 
   if (isEmptyDrop) {
     return (
       <NoEditionScreen
         dropDate={drop.drop_date}
         language={language}
+        learningCard={learningSession ? learningCard : null}
         onExploreLibrary={(filter) => router.push(libraryHref(filter))}
         onRefresh={reload}
       />
@@ -83,7 +116,7 @@ export function TodayDailyDropScreen() {
         <AppText color="muted" variant="caption">
           {copy.mastheadStandfirst(drop.estimated_read_minutes)}
         </AppText>
-        <EditionProgress value={progress} />
+        <EditionProgress value={moduleProgress} />
       </View>
 
       {newsletter.length > 0 ? (
@@ -97,7 +130,7 @@ export function TodayDailyDropScreen() {
 
       {story ? (
         <BusinessStoryFeature
-          completed={isModuleComplete([story])}
+          completed={storyComplete}
           language={language}
           onOpen={() => router.push(readerHref("story", story.id))}
           story={story}
@@ -107,32 +140,15 @@ export function TodayDailyDropScreen() {
       {miniCase ? (
         <MiniCaseInvitation
           challenge={miniCase}
-          completed={isModuleComplete([miniCase])}
+          completed={miniCaseComplete}
           language={language}
           onOpen={() => router.push(readerHref("mini-case", miniCase.id))}
         />
       ) : null}
 
-      <LearningPathCard
-        completed={learningCompleted}
-        domain={learningPath.activeDomain}
-        hasPath={Boolean(learningPath.activePath)}
-        language={language}
-        objective={learningPath.activeObjective}
-        onCreate={() => router.push("/(learning)/setup" as Href)}
-        onOpenOverview={() => router.push("/(learning)/overview" as Href)}
-        onOpenSession={() => {
-          if (learningSession) {
-            router.push({
-              pathname: "/(learning)/session/[id]",
-              params: { id: learningSession.id }
-            } as unknown as Href);
-          }
-        }}
-        session={learningSession}
-      />
+      {learningPath.learningPathEnabled || learningPath.activePath ? learningCard : null}
 
-      {isComplete ? <CompletionNote language={language} /> : null}
+      {editionComplete ? <CompletionNote language={language} /> : null}
     </AppScreen>
   );
 }
@@ -140,11 +156,13 @@ export function TodayDailyDropScreen() {
 function NoEditionScreen({
   dropDate,
   language,
+  learningCard,
   onExploreLibrary,
   onRefresh
 }: {
   dropDate: string;
   language: ContentLanguage;
+  learningCard?: ReactNode;
   onExploreLibrary: (filter: LibraryFilter) => void;
   onRefresh: () => void;
 }) {
@@ -183,6 +201,15 @@ function NoEditionScreen({
           </AppText>
         ) : null}
       </View>
+
+      {learningCard ? (
+        <View style={styles.quietLearning}>
+          <AppText color="muted" variant="eyebrow">
+            {copy.noEdition.continueLearning}
+          </AppText>
+          {learningCard}
+        </View>
+      ) : null}
 
       <View style={styles.noEditionActions}>
         {actions.map((action) => (
@@ -501,6 +528,7 @@ function getTodayCopy(language: ContentLanguage) {
           continueSaved: "Continue a saved reading",
           reviewEditions: "Revisit recent editions",
           reviewCases: "Review completed mini-cases",
+          continueLearning: "Continue your learning path session",
           exploreLibrary: "Explore your library"
         },
         retry: "Refresh"
@@ -532,6 +560,7 @@ function getTodayCopy(language: ContentLanguage) {
           continueSaved: "Continuer une lecture sauvegardée",
           reviewEditions: "Revoir les dernières éditions",
           reviewCases: "Revoir les mini-cas terminés",
+          continueLearning: "Continuer votre session de parcours",
           exploreLibrary: "Explorer votre bibliothèque"
         },
         retry: "Actualiser"
@@ -624,6 +653,9 @@ const createStyles = (c: ThemeColors) =>
     },
     noEditionActions: {
       gap: tokens.space.sm
+    },
+    quietLearning: {
+      gap: tokens.space.md
     },
     noEditionRow: {
       alignItems: "center",

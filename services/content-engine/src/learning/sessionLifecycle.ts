@@ -136,7 +136,9 @@ export function planNextLearningSession(input: LearningSchedulerInput): Learning
   return {
     action: "create",
     adaptationMode: resolveLearningAdaptationMode(
-      input.feedbackBySessionId?.get(latestSession.id) ?? null
+      input.feedbackBySessionId?.get(latestSession.id) ?? null,
+      latestSession.status === "completed" &&
+        orderedSessions.some((session) => session.id !== latestSession.id && session.status === "completed")
     ),
     nextSequenceNumber: latestSession.sequenceNumber + 1,
     reason: latestSession.status === "completed" ? "last_session_completed" : "last_session_started"
@@ -144,18 +146,19 @@ export function planNextLearningSession(input: LearningSchedulerInput): Learning
 }
 
 export function resolveLearningAdaptationMode(
-  feedback: LearningSessionFeedbackRatings | null | undefined
+  feedback: LearningSessionFeedbackRatings | null | undefined,
+  weakAfterReinforcement = false
 ): LearningAdaptationMode {
   if (!feedback) {
     return "normal";
   }
 
-  if (feedback.comprehensionRating <= 2 || feedback.explainabilityRating <= 2) {
-    return "prerequisite";
-  }
-
-  if (feedback.difficultyRating >= 4) {
-    return "reinforce";
+  if (
+    feedback.comprehensionRating <= 2 ||
+    feedback.explainabilityRating <= 2 ||
+    feedback.difficultyRating === 5
+  ) {
+    return weakAfterReinforcement ? "prerequisite" : "reinforce";
   }
 
   if (
@@ -170,5 +173,5 @@ export function resolveLearningAdaptationMode(
     return "context_shift";
   }
 
-  return "reinforce";
+  return "normal";
 }

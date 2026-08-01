@@ -44,6 +44,8 @@ export default function TabsLayout() {
     status === "ready" &&
     learningPath.status === "ready" &&
     learningPath.source === "supabase" &&
+    learningPath.learningPathChoiceCompleted &&
+    learningPath.learningPathEnabled &&
     !learningPath.activePath
   ) {
     return <Redirect href={"/(learning)/setup" as unknown as Href} />;

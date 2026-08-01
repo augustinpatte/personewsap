@@ -8,17 +8,29 @@ export function getLearningCopy(language: Language | null | undefined) {
         account: {
           title: "Learning path",
           description: "Your active five-minute learning path.",
+          disabledTitle: "Personal learning path off",
+          disabledBody: "Activate a progressive five-minute path, four times per week.",
+          enable: "Activate path",
           emptyTitle: "Create your learning path",
           emptyBody: "Choose one bilingual path. It will become the fourth module in Today.",
           change: "Change path",
           overview: "View path",
+          disable: "Disable path",
+          disableTitle: "Disable learning path?",
+          disableBody:
+            "Your current path will be archived. Its history stays available, and no future learning sessions will be generated.",
+          disableConfirm: "Disable",
           replaceTitle: "Change learning path?",
           replaceBody:
             "Your current path will be archived. Its history stays available, and the new path becomes the only active one.",
           cancel: "Cancel",
           confirm: "Continue",
           sessionsCompleted: (value: number) =>
-            value === 1 ? "1 session completed" : `${value} sessions completed`
+            value === 1 ? "1 session completed" : `${value} sessions completed`,
+          sessionsStarted: (value: number) =>
+            value === 1 ? "1 session started" : `${value} sessions started`,
+          feedbackSent: (value: number) =>
+            value === 1 ? "1 feedback sent" : `${value} feedback sent`
         },
         card: {
           kicker: "Learning path",
@@ -60,6 +72,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           providers: "Works with ChatGPT, Claude or Gemini.",
           back: "Back",
           next: "Next",
+          notNow: "Not now",
           create: "Create my learning path",
           creating: "Creating",
           missingSelection: "Complete this step to continue.",
@@ -75,6 +88,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           openWith: "Open with",
           copyPrompt: "Copy prompt",
           promptCopied: "Prompt copied. Paste it into a new conversation.",
+          syncPending:
+            "Prompt copied. Your progress will sync when the connection is back.",
           openFailed:
             "The provider could not be opened. The prompt is copied; paste it into a new conversation.",
           complete: "I've finished",
@@ -139,18 +154,31 @@ export function getLearningCopy(language: Language | null | undefined) {
         account: {
           title: "Parcours",
           description: "Votre parcours d'apprentissage actif en cinq minutes.",
+          disabledTitle: "Parcours personnalisé désactivé",
+          disabledBody:
+            "Activez un parcours progressif de cinq minutes, quatre fois par semaine.",
+          enable: "Activer le parcours",
           emptyTitle: "Créer votre parcours",
           emptyBody:
             "Choisissez un seul parcours bilingue. Il deviendra le quatrième module dans Aujourd'hui.",
           change: "Changer de parcours",
           overview: "Voir le parcours",
+          disable: "Désactiver le parcours",
+          disableTitle: "Désactiver le parcours ?",
+          disableBody:
+            "Votre parcours actuel sera archivé. Son historique reste disponible, et aucune future session ne sera générée.",
+          disableConfirm: "Désactiver",
           replaceTitle: "Changer de parcours ?",
           replaceBody:
             "Votre parcours actuel sera archivé. Son historique reste disponible, et le nouveau parcours devient le seul actif.",
           cancel: "Annuler",
           confirm: "Continuer",
           sessionsCompleted: (value: number) =>
-            value === 1 ? "1 session terminée" : `${value} sessions terminées`
+            value === 1 ? "1 session terminée" : `${value} sessions terminées`,
+          sessionsStarted: (value: number) =>
+            value === 1 ? "1 session commencée" : `${value} sessions commencées`,
+          feedbackSent: (value: number) =>
+            value === 1 ? "1 retour envoyé" : `${value} retours envoyés`
         },
         card: {
           kicker: "Parcours",
@@ -192,6 +220,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           providers: "Utilisable avec ChatGPT, Claude ou Gemini.",
           back: "Retour",
           next: "Suivant",
+          notNow: "Pas maintenant",
           create: "Créer mon parcours",
           creating: "Création",
           missingSelection: "Complétez cette étape pour continuer.",
@@ -207,6 +236,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           openWith: "Ouvrir avec",
           copyPrompt: "Copier le prompt",
           promptCopied: "Prompt copié. Collez-le dans une nouvelle conversation.",
+          syncPending:
+            "Prompt copié. Votre progression sera synchronisée au retour de la connexion.",
           openFailed:
             "Le fournisseur n'a pas pu être ouvert. Le prompt est copié; collez-le dans une nouvelle conversation.",
           complete: "J'ai terminé",

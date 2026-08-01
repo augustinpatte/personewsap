@@ -78,7 +78,8 @@ export type NewsletterTopicOption = OnboardingOption<NewsletterTopicId> & {
 export const ONBOARDING_MODULE_IDS = [
   "newsletter",
   "business_story",
-  "mini_case"
+  "mini_case",
+  "learning_path"
 ] as const;
 
 export type OnboardingModuleId = (typeof ONBOARDING_MODULE_IDS)[number];
@@ -161,6 +162,24 @@ export const MODULE_OPTIONS: Array<OnboardingOption<OnboardingModuleId>> = [
       fr: {
         label: "Mini-cas",
         description: "Entraîne ta prise de décision avec des cas courts."
+      }
+    }
+  },
+  {
+    id: "learning_path",
+    label: "Personal learning path",
+    description:
+      "A progressive path adapted to your level, with a five-minute prompt to use in ChatGPT, Claude or Gemini.",
+    translations: {
+      en: {
+        label: "Personal learning path",
+        description:
+          "A progressive path adapted to your level, with a five-minute prompt to use in ChatGPT, Claude or Gemini."
+      },
+      fr: {
+        label: "Parcours personnalisé",
+        description:
+          "Un chemin progressif adapté à votre niveau, avec un prompt de cinq minutes à utiliser dans ChatGPT, Claude ou Gemini."
       }
     }
   }

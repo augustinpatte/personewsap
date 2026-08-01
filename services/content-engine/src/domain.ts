@@ -53,6 +53,7 @@ export const MAX_NEWSLETTER_ARTICLES_PER_TOPIC = 2;
 export const LANGUAGES = ["fr", "en"] as const;
 export const CONTENT_TYPES = ["newsletter_article", "business_story", "mini_case", "concept", "quick_quiz"] as const;
 export const DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
+export const ACTIVE_DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case"] as const;
 export const CONTENT_DIFFICULTIES = ["easy", "medium", "hard"] as const;
 export const BUSINESS_STORY_ENTITY_TYPES = [
   "founder",

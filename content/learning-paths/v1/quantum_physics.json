@@ -1,0 +1,1369 @@
+{
+  "domain_id": "quantum_physics",
+  "version": "v1",
+  "steps": [
+    {
+      "key": "quantum_physics.001",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 1,
+      "order": 1,
+      "required": true,
+      "prerequisite_keys": [],
+      "fallback_key": null,
+      "title_fr": "Physique quantique - étape 1",
+      "title_en": "Quantum physics - step 1",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 1.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 1.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 1",
+        "Situation produit 1"
+      ],
+      "example_contexts_en": [
+        "Student example 1",
+        "Product situation 1"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.002",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 1,
+      "order": 2,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.001"
+      ],
+      "fallback_key": null,
+      "title_fr": "Physique quantique - étape 2",
+      "title_en": "Quantum physics - step 2",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 2.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 2.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 2",
+        "Situation produit 2"
+      ],
+      "example_contexts_en": [
+        "Student example 2",
+        "Product situation 2"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.003",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 1,
+      "order": 3,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.002"
+      ],
+      "fallback_key": "quantum_physics.001",
+      "title_fr": "Physique quantique - étape 3",
+      "title_en": "Quantum physics - step 3",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 3.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 3.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 3",
+        "Situation produit 3"
+      ],
+      "example_contexts_en": [
+        "Student example 3",
+        "Product situation 3"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.004",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 1,
+      "order": 4,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.003"
+      ],
+      "fallback_key": "quantum_physics.002",
+      "title_fr": "Physique quantique - étape 4",
+      "title_en": "Quantum physics - step 4",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 4.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 4.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 4",
+        "Situation produit 4"
+      ],
+      "example_contexts_en": [
+        "Student example 4",
+        "Product situation 4"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.005",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 1,
+      "order": 5,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.004"
+      ],
+      "fallback_key": "quantum_physics.003",
+      "title_fr": "Physique quantique - étape 5",
+      "title_en": "Quantum physics - step 5",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 5.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 5.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 5",
+        "Situation produit 5"
+      ],
+      "example_contexts_en": [
+        "Student example 5",
+        "Product situation 5"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.006",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 1,
+      "order": 6,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.005"
+      ],
+      "fallback_key": "quantum_physics.004",
+      "title_fr": "Physique quantique - étape 6",
+      "title_en": "Quantum physics - step 6",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 6.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 6.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 6",
+        "Situation produit 6"
+      ],
+      "example_contexts_en": [
+        "Student example 6",
+        "Product situation 6"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.007",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 1,
+      "order": 7,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.006"
+      ],
+      "fallback_key": "quantum_physics.005",
+      "title_fr": "Physique quantique - étape 7",
+      "title_en": "Quantum physics - step 7",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 7.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 7.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 7",
+        "Situation produit 7"
+      ],
+      "example_contexts_en": [
+        "Student example 7",
+        "Product situation 7"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.008",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 2,
+      "order": 8,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.007"
+      ],
+      "fallback_key": "quantum_physics.006",
+      "title_fr": "Physique quantique - étape 8",
+      "title_en": "Quantum physics - step 8",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 8.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 8.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 8",
+        "Situation produit 8"
+      ],
+      "example_contexts_en": [
+        "Student example 8",
+        "Product situation 8"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.009",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 2,
+      "order": 9,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.008"
+      ],
+      "fallback_key": "quantum_physics.007",
+      "title_fr": "Physique quantique - étape 9",
+      "title_en": "Quantum physics - step 9",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 9.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 9.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 9",
+        "Situation produit 9"
+      ],
+      "example_contexts_en": [
+        "Student example 9",
+        "Product situation 9"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.010",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 2,
+      "order": 10,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.009"
+      ],
+      "fallback_key": "quantum_physics.008",
+      "title_fr": "Physique quantique - étape 10",
+      "title_en": "Quantum physics - step 10",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 10.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 10.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 10",
+        "Situation produit 10"
+      ],
+      "example_contexts_en": [
+        "Student example 10",
+        "Product situation 10"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.011",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 2,
+      "order": 11,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.010"
+      ],
+      "fallback_key": "quantum_physics.009",
+      "title_fr": "Physique quantique - étape 11",
+      "title_en": "Quantum physics - step 11",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 11.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 11.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 11",
+        "Situation produit 11"
+      ],
+      "example_contexts_en": [
+        "Student example 11",
+        "Product situation 11"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.012",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 2,
+      "order": 12,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.011"
+      ],
+      "fallback_key": "quantum_physics.010",
+      "title_fr": "Physique quantique - étape 12",
+      "title_en": "Quantum physics - step 12",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 12.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 12.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 12",
+        "Situation produit 12"
+      ],
+      "example_contexts_en": [
+        "Student example 12",
+        "Product situation 12"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.013",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 2,
+      "order": 13,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.012"
+      ],
+      "fallback_key": "quantum_physics.011",
+      "title_fr": "Physique quantique - étape 13",
+      "title_en": "Quantum physics - step 13",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 13.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 13.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 13",
+        "Situation produit 13"
+      ],
+      "example_contexts_en": [
+        "Student example 13",
+        "Product situation 13"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.014",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 2,
+      "order": 14,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.013"
+      ],
+      "fallback_key": "quantum_physics.012",
+      "title_fr": "Physique quantique - étape 14",
+      "title_en": "Quantum physics - step 14",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 14.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 14.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 14",
+        "Situation produit 14"
+      ],
+      "example_contexts_en": [
+        "Student example 14",
+        "Product situation 14"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.015",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 3,
+      "order": 15,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.014"
+      ],
+      "fallback_key": "quantum_physics.013",
+      "title_fr": "Physique quantique - étape 15",
+      "title_en": "Quantum physics - step 15",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 15.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 15.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 15",
+        "Situation produit 15"
+      ],
+      "example_contexts_en": [
+        "Student example 15",
+        "Product situation 15"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.016",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 3,
+      "order": 16,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.015"
+      ],
+      "fallback_key": "quantum_physics.014",
+      "title_fr": "Physique quantique - étape 16",
+      "title_en": "Quantum physics - step 16",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 16.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 16.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 16",
+        "Situation produit 16"
+      ],
+      "example_contexts_en": [
+        "Student example 16",
+        "Product situation 16"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.017",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 3,
+      "order": 17,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.016"
+      ],
+      "fallback_key": "quantum_physics.015",
+      "title_fr": "Physique quantique - étape 17",
+      "title_en": "Quantum physics - step 17",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 17.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 17.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 17",
+        "Situation produit 17"
+      ],
+      "example_contexts_en": [
+        "Student example 17",
+        "Product situation 17"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.018",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 3,
+      "order": 18,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.017"
+      ],
+      "fallback_key": "quantum_physics.016",
+      "title_fr": "Physique quantique - étape 18",
+      "title_en": "Quantum physics - step 18",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 18.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 18.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 18",
+        "Situation produit 18"
+      ],
+      "example_contexts_en": [
+        "Student example 18",
+        "Product situation 18"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.019",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 3,
+      "order": 19,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.018"
+      ],
+      "fallback_key": "quantum_physics.017",
+      "title_fr": "Physique quantique - étape 19",
+      "title_en": "Quantum physics - step 19",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 19.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 19.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 19",
+        "Situation produit 19"
+      ],
+      "example_contexts_en": [
+        "Student example 19",
+        "Product situation 19"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.020",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 3,
+      "order": 20,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.019"
+      ],
+      "fallback_key": "quantum_physics.018",
+      "title_fr": "Physique quantique - étape 20",
+      "title_en": "Quantum physics - step 20",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 20.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 20.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 20",
+        "Situation produit 20"
+      ],
+      "example_contexts_en": [
+        "Student example 20",
+        "Product situation 20"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.021",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 3,
+      "order": 21,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.020"
+      ],
+      "fallback_key": "quantum_physics.019",
+      "title_fr": "Physique quantique - étape 21",
+      "title_en": "Quantum physics - step 21",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 21.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 21.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 21",
+        "Situation produit 21"
+      ],
+      "example_contexts_en": [
+        "Student example 21",
+        "Product situation 21"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.022",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 22,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.021"
+      ],
+      "fallback_key": "quantum_physics.020",
+      "title_fr": "Physique quantique - étape 22",
+      "title_en": "Quantum physics - step 22",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 22.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 22.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 22",
+        "Situation produit 22"
+      ],
+      "example_contexts_en": [
+        "Student example 22",
+        "Product situation 22"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.023",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 23,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.022"
+      ],
+      "fallback_key": "quantum_physics.021",
+      "title_fr": "Physique quantique - étape 23",
+      "title_en": "Quantum physics - step 23",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 23.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 23.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 23",
+        "Situation produit 23"
+      ],
+      "example_contexts_en": [
+        "Student example 23",
+        "Product situation 23"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.024",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 24,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.023"
+      ],
+      "fallback_key": "quantum_physics.022",
+      "title_fr": "Physique quantique - étape 24",
+      "title_en": "Quantum physics - step 24",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 24.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 24.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 24",
+        "Situation produit 24"
+      ],
+      "example_contexts_en": [
+        "Student example 24",
+        "Product situation 24"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.025",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 25,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.024"
+      ],
+      "fallback_key": "quantum_physics.023",
+      "title_fr": "Physique quantique - étape 25",
+      "title_en": "Quantum physics - step 25",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 25.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 25.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 25",
+        "Situation produit 25"
+      ],
+      "example_contexts_en": [
+        "Student example 25",
+        "Product situation 25"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.026",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 26,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.025"
+      ],
+      "fallback_key": "quantum_physics.024",
+      "title_fr": "Physique quantique - étape 26",
+      "title_en": "Quantum physics - step 26",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 26.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 26.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 26",
+        "Situation produit 26"
+      ],
+      "example_contexts_en": [
+        "Student example 26",
+        "Product situation 26"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.027",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 27,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.026"
+      ],
+      "fallback_key": "quantum_physics.025",
+      "title_fr": "Physique quantique - étape 27",
+      "title_en": "Quantum physics - step 27",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 27.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 27.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 27",
+        "Situation produit 27"
+      ],
+      "example_contexts_en": [
+        "Student example 27",
+        "Product situation 27"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.028",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 28,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.027"
+      ],
+      "fallback_key": "quantum_physics.026",
+      "title_fr": "Physique quantique - étape 28",
+      "title_en": "Quantum physics - step 28",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 28.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 28.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 28",
+        "Situation produit 28"
+      ],
+      "example_contexts_en": [
+        "Student example 28",
+        "Product situation 28"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.029",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 29,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.028"
+      ],
+      "fallback_key": "quantum_physics.027",
+      "title_fr": "Physique quantique - étape 29",
+      "title_en": "Quantum physics - step 29",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 29.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 29.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 29",
+        "Situation produit 29"
+      ],
+      "example_contexts_en": [
+        "Student example 29",
+        "Product situation 29"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.030",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 30,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.029"
+      ],
+      "fallback_key": "quantum_physics.028",
+      "title_fr": "Physique quantique - étape 30",
+      "title_en": "Quantum physics - step 30",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 30.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 30.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 30",
+        "Situation produit 30"
+      ],
+      "example_contexts_en": [
+        "Student example 30",
+        "Product situation 30"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.031",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 31,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.030"
+      ],
+      "fallback_key": "quantum_physics.029",
+      "title_fr": "Physique quantique - étape 31",
+      "title_en": "Quantum physics - step 31",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 31.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 31.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 31",
+        "Situation produit 31"
+      ],
+      "example_contexts_en": [
+        "Student example 31",
+        "Product situation 31"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.032",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 32,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.031"
+      ],
+      "fallback_key": "quantum_physics.030",
+      "title_fr": "Physique quantique - étape 32",
+      "title_en": "Quantum physics - step 32",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 32.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 32.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 32",
+        "Situation produit 32"
+      ],
+      "example_contexts_en": [
+        "Student example 32",
+        "Product situation 32"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.033",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 33,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.032"
+      ],
+      "fallback_key": "quantum_physics.031",
+      "title_fr": "Physique quantique - étape 33",
+      "title_en": "Quantum physics - step 33",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 33.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 33.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 33",
+        "Situation produit 33"
+      ],
+      "example_contexts_en": [
+        "Student example 33",
+        "Product situation 33"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.034",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 34,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.033"
+      ],
+      "fallback_key": "quantum_physics.032",
+      "title_fr": "Physique quantique - étape 34",
+      "title_en": "Quantum physics - step 34",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 34.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 34.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 34",
+        "Situation produit 34"
+      ],
+      "example_contexts_en": [
+        "Student example 34",
+        "Product situation 34"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.035",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition",
+        "quantum_mathematics",
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 35,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.034"
+      ],
+      "fallback_key": "quantum_physics.033",
+      "title_fr": "Physique quantique - étape 35",
+      "title_en": "Quantum physics - step 35",
+      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
+      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "learning_goals_fr": [
+        "Comprendre l'idée principale de l'étape 35.",
+        "L'appliquer dans un exemple court."
+      ],
+      "learning_goals_en": [
+        "Understand the main idea of step 35.",
+        "Apply it in a short example."
+      ],
+      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
+      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "example_contexts_fr": [
+        "Exemple étudiant 35",
+        "Situation produit 35"
+      ],
+      "example_contexts_en": [
+        "Student example 35",
+        "Product situation 35"
+      ],
+      "safety_category": "standard"
+    }
+  ]
+}

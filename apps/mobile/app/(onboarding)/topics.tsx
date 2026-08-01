@@ -18,6 +18,7 @@ import { getUserFacingError } from "../../src/lib/userFacingErrors";
 
 const newsletterTopicsHref = "/(onboarding)/newsletter-topics" as Href;
 const miniCaseTopicsHref = "/(onboarding)/mini-case-topics" as Href;
+const learningSetupHref = { pathname: "/(learning)/setup", params: { onboarding: "1" } } as unknown as Href;
 
 export default function ModuleSelectionScreen() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function ModuleSelectionScreen() {
     });
     await clearStoredOnboardingDraft();
     await refreshAuthState();
-    router.replace("/(tabs)/today");
+    router.replace(state.enabledModules.includes("learning_path") ? learningSetupHref : "/(tabs)/today");
   };
 
   return (

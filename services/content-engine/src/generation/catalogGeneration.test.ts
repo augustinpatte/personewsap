@@ -95,7 +95,7 @@ describe("master catalog generation (generation is edition-driven, not user-driv
     expect(payload.items.filter((item) => item.content_type === "newsletter_article")).toHaveLength(8);
     expect(payload.items.filter((item) => item.content_type === "mini_case")).toHaveLength(6);
     expect(payload.items.filter((item) => item.content_type === "business_story")).toHaveLength(1);
-    expect(payload.items.filter((item) => item.content_type === "concept")).toHaveLength(1);
+    expect(payload.items.filter((item) => item.content_type === "concept")).toHaveLength(0);
   });
 });
 

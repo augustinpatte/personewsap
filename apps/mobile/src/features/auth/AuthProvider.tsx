@@ -171,7 +171,7 @@ async function getProfileCompleted(userId: string) {
 
     const { data: preferences, error: preferencesError } = await supabase
       .from("user_preferences")
-      .select("user_id, newsletter_enabled, mini_cases_enabled")
+      .select("user_id, newsletter_enabled, mini_cases_enabled, learning_path_choice_completed")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -205,9 +205,10 @@ async function getProfileCompleted(userId: string) {
 
     const newsletterReady = preferences?.newsletter_enabled === false || Boolean(topicPreference);
     const miniCaseReady = preferences?.mini_cases_enabled === false || Boolean(miniCaseTopicPreference);
+    const learningChoiceReady = preferences?.learning_path_choice_completed === true;
 
     return {
-      completed: Boolean(profile && preferences && newsletterReady && miniCaseReady),
+      completed: Boolean(profile && preferences && newsletterReady && miniCaseReady && learningChoiceReady),
       language: profile?.language ?? null,
       error: null
     };

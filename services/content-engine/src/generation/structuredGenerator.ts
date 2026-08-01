@@ -344,14 +344,13 @@ export class StructuredContentGenerator implements ContentGenerator {
     const newsletter = this.generateNewsletter(request);
     const businessStory = this.generateBusinessStory(request);
     const miniCases = this.generateMiniCases(request);
-    const concept = this.generateConcept(request);
 
     return {
       drop_date: request.dropDate,
       language: request.language,
       prompt_version: PROMPT_VERSION,
       generator_version: GENERATOR_VERSION,
-      items: [...newsletter, businessStory, ...miniCases, concept]
+      items: [...newsletter, businessStory, ...miniCases]
     };
   }
 

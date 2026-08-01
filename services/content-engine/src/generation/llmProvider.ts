@@ -3,6 +3,7 @@ export type LlmJsonRequest = {
   userPrompt: string;
   jsonSchema: Record<string, unknown>;
   maxOutputTokens?: number;
+  schemaName?: string;
 };
 
 export type LlmProvider = {

@@ -17,6 +17,13 @@ import {
   type TopicId,
   type UserDailyDropPreference
 } from "../domain.js";
+import type {
+  GeneratedLearningPrompt,
+  LearningFeedbackRecord,
+  LearningPathRecord,
+  LearningSessionRecord
+} from "../learning/learningTypes.js";
+import type { LearningAdaptationMode } from "../learning/sessionLifecycle.js";
 import { buildBusinessStoryEditorialMemory, buildBusinessStoryMemoryContext } from "../generation/editorialMemory.js";
 import {
   buildMiniCaseMemoryContext,
@@ -1542,6 +1549,240 @@ export class ContentRepository {
     };
   }
 
+  async getActiveLearningPathForUser(userId: string): Promise<LearningPathRecord | null> {
+    const { data, error } = await this.supabase
+      .from("user_learning_paths")
+      .select("id,user_id,domain_id,objective_id,current_level,target_level,language")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle<LearningPathRecord>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "user_learning_paths",
+        action: "select active learning path",
+        error
+      });
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    const { data: preference, error: preferenceError } = await this.supabase
+      .from("user_preferences")
+      .select("learning_path_enabled,learning_path_choice_completed")
+      .eq("user_id", userId)
+      .maybeSingle<{ learning_path_enabled: boolean | null; learning_path_choice_completed: boolean | null }>();
+
+    if (preferenceError) {
+      throwPersistenceError({
+        table: "user_preferences",
+        action: "select learning preference",
+        error: preferenceError
+      });
+    }
+
+    return preference?.learning_path_enabled === true &&
+      preference.learning_path_choice_completed === true
+      ? data
+      : null;
+  }
+
+  async listLearningSessions(pathId: string): Promise<LearningSessionRecord[]> {
+    const { data, error } = await this.supabase
+      .from("learning_sessions")
+      .select("id,path_id,curriculum_step_key,session_number,adaptation_mode,generation_status,status,opened_at,started_at,completed_at")
+      .eq("path_id", pathId)
+      .order("session_number", { ascending: true })
+      .returns<LearningSessionRecord[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "learning_sessions",
+        action: "select learning sessions",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  async listLearningFeedback(pathId: string): Promise<LearningFeedbackRecord[]> {
+    const sessions = await this.listLearningSessions(pathId);
+    if (sessions.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from("learning_session_feedback")
+      .select("session_id,comprehension_rating,explainability_rating,interest_rating,difficulty_rating")
+      .in("session_id", sessions.map((session) => session.id))
+      .returns<LearningFeedbackRecord[]>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "learning_session_feedback",
+        action: "select learning feedback",
+        error
+      });
+    }
+
+    return data ?? [];
+  }
+
+  async insertLearningSessionClaim(input: {
+    pathId: string;
+    dailyDropId: string;
+    curriculumStepKey: string;
+    sessionNumber: number;
+    adaptationMode: LearningAdaptationMode;
+    language: string;
+    inputHash: string;
+  }): Promise<{ claimed: boolean; sessionId: string; exhausted?: boolean }> {
+    const maxAttempts = readLearningGenerationMaxAttempts();
+    const { data, error } = await this.supabase
+      .from("learning_sessions")
+      .insert({
+        path_id: input.pathId,
+        daily_drop_id: input.dailyDropId,
+        curriculum_step_key: input.curriculumStepKey,
+        session_number: input.sessionNumber,
+        adaptation_mode: input.adaptationMode,
+        language: input.language,
+        input_hash: input.inputHash,
+        generation_status: "generating",
+        generation_attempts: 1,
+        generation_locked_at: new Date().toISOString(),
+        status: "available",
+        available_on: new Date().toISOString().slice(0, 10)
+      })
+      .select("id")
+      .single<{ id: string }>();
+
+    if (!error && data) {
+      return { claimed: true, sessionId: data.id };
+    }
+
+    if (error && isUniqueConflict(error)) {
+      const { data: existing, error: selectError } = await this.supabase
+        .from("learning_sessions")
+        .select("id,generation_status,generation_attempts")
+        .eq("path_id", input.pathId)
+        .eq("session_number", input.sessionNumber)
+        .single<{ id: string; generation_status: string; generation_attempts: number | null }>();
+
+      if (selectError) {
+        throwPersistenceError({
+          table: "learning_sessions",
+          action: "select existing learning session claim",
+          error: selectError
+        });
+      }
+
+      if (existing.generation_status === "failed") {
+        const nextAttempt = (existing.generation_attempts ?? 0) + 1;
+
+        if (nextAttempt > maxAttempts) {
+          return { claimed: false, sessionId: existing.id, exhausted: true };
+        }
+
+        const { data: reclaimed, error: reclaimError } = await this.supabase
+          .from("learning_sessions")
+          .update({
+            daily_drop_id: input.dailyDropId,
+            curriculum_step_key: input.curriculumStepKey,
+            adaptation_mode: input.adaptationMode,
+            language: input.language,
+            input_hash: input.inputHash,
+            generation_status: "generating",
+            generation_attempts: nextAttempt,
+            generation_locked_at: new Date().toISOString(),
+            last_generation_error: null
+          })
+          .eq("id", existing.id)
+          .eq("generation_status", "failed")
+          .select("id")
+          .maybeSingle<{ id: string }>();
+
+        if (reclaimError) {
+          throwPersistenceError({
+            table: "learning_sessions",
+            action: "reclaim failed learning session",
+            error: reclaimError
+          });
+        }
+
+        if (reclaimed) {
+          return { claimed: true, sessionId: reclaimed.id };
+        }
+      }
+
+      return { claimed: false, sessionId: existing.id };
+    }
+
+    throwPersistenceError({
+      table: "learning_sessions",
+      action: "insert learning session claim",
+      error
+    });
+  }
+
+  async markLearningSessionReady(input: {
+    sessionId: string;
+    dailyDropId: string;
+    modelName: string;
+    promptVersion: string;
+    prompt: GeneratedLearningPrompt;
+  }): Promise<void> {
+    const { error } = await this.supabase
+      .from("learning_sessions")
+      .update({
+        daily_drop_id: input.dailyDropId,
+        curriculum_step_key: input.prompt.curriculum_step_key,
+        title_fr: input.prompt.title_fr,
+        title_en: input.prompt.title_en,
+        summary_fr: input.prompt.summary_fr,
+        summary_en: input.prompt.summary_en,
+        objectives_fr: input.prompt.objectives_fr,
+        objectives_en: input.prompt.objectives_en,
+        prompt_text: input.prompt.prompt_text,
+        adaptation_mode: input.prompt.adaptation_mode,
+        generation_status: "ready",
+        model_name: input.modelName,
+        prompt_version: input.promptVersion,
+        generated_at: new Date().toISOString(),
+        last_generation_error: null
+      })
+      .eq("id", input.sessionId);
+
+    if (error) {
+      throwPersistenceError({
+        table: "learning_sessions",
+        action: "mark learning session ready",
+        error
+      });
+    }
+  }
+
+  async markLearningSessionFailed(input: { sessionId: string; error: string }): Promise<void> {
+    const { error } = await this.supabase
+      .from("learning_sessions")
+      .update({
+        generation_status: "failed",
+        last_generation_error: input.error
+      })
+      .eq("id", input.sessionId);
+
+    if (error) {
+      throwPersistenceError({
+        table: "learning_sessions",
+        action: "mark learning session failed",
+        error
+      });
+    }
+  }
+
   async insertDailyDrop(input: {
     userId: string;
     dropDate: string;
@@ -1920,6 +2161,16 @@ function normalizeArticlesCount(value: number | null): number {
   return Number.isFinite(value) && value && value > 0 ? Math.floor(value) : 1;
 }
 
+function readLearningGenerationMaxAttempts(): number {
+  const raw = Number.parseInt(process.env.LEARNING_GENERATION_MAX_ATTEMPTS ?? "3", 10);
+
+  if (!Number.isFinite(raw) || raw < 1) {
+    return 3;
+  }
+
+  return Math.min(raw, 10);
+}
+
 function isPersistTestContentItem(row: PersistTestContentItemRow, testRunId: string): boolean {
   const metadata = isRecord(row.metadata) ? row.metadata : {};
 
@@ -1958,4 +2209,8 @@ function isContentItemIdConflict(error: unknown): boolean {
   const code = typeof error.code === "string" ? error.code : "";
   const text = `${typeof error.message === "string" ? error.message : ""} ${typeof error.details === "string" ? error.details : ""}`;
   return code === "23505" && /content_item_id/.test(text);
+}
+
+function isUniqueConflict(error: unknown): boolean {
+  return isRecord(error) && error.code === "23505";
 }

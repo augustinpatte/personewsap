@@ -95,7 +95,7 @@ export async function loadEditablePreferences(
 
     const { data: userPreferences, error: userPreferencesError } = await supabase
       .from("user_preferences")
-      .select("newsletter_enabled,business_stories_enabled,mini_cases_enabled,mini_case_topic_id")
+      .select("newsletter_enabled,business_stories_enabled,mini_cases_enabled,learning_path_enabled,learning_path_choice_completed,mini_case_topic_id")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -288,6 +288,7 @@ export async function saveEditablePreferences(
     const userPreferencesResult = await upsertUserPreferences({
       newsletterArticleCount,
       businessStoriesEnabled: normalized.enabledModules.includes("business_story"),
+      learningPathEnabled: normalized.enabledModules.includes("learning_path"),
       miniCasesEnabled: normalized.enabledModules.includes("mini_case"),
       newsletterEnabled: normalized.enabledModules.includes("newsletter"),
       primaryMiniCaseTopicId: normalized.miniCaseTopics[0]
@@ -527,6 +528,7 @@ function normalizeStoredMiniCaseTopicId(value: string | null): MiniCaseTopicId |
 
 async function upsertUserPreferences(input: {
   businessStoriesEnabled: boolean;
+  learningPathEnabled: boolean;
   miniCasesEnabled: boolean;
   newsletterEnabled: boolean;
   newsletterArticleCount: number;
@@ -546,6 +548,8 @@ async function upsertUserPreferences(input: {
   const result = await supabase.from("user_preferences").upsert({
     user_id: input.userId,
     business_stories_enabled: input.businessStoriesEnabled,
+    learning_path_enabled: input.learningPathEnabled,
+    learning_path_choice_completed: true,
     mini_cases_enabled: input.miniCasesEnabled,
     mini_case_topic_id: input.primaryMiniCaseTopicId,
     newsletter_enabled: input.newsletterEnabled,
@@ -565,6 +569,8 @@ async function upsertUserPreferences(input: {
   return supabase.from("user_preferences").upsert({
     user_id: input.userId,
     business_stories_enabled: input.businessStoriesEnabled,
+    learning_path_enabled: input.learningPathEnabled,
+    learning_path_choice_completed: true,
     mini_cases_enabled: input.miniCasesEnabled,
     newsletter_enabled: input.newsletterEnabled,
     newsletter_article_count: input.newsletterArticleCount
@@ -577,6 +583,7 @@ function normalizeEnabledModules(
         newsletter_enabled?: boolean | null;
         business_stories_enabled?: boolean | null;
         mini_cases_enabled?: boolean | null;
+        learning_path_enabled?: boolean | null;
       }
     | null
     | undefined
@@ -588,7 +595,8 @@ function normalizeEnabledModules(
   return normalizeEnabledModuleIds([
     userPreferences.newsletter_enabled === false ? null : "newsletter",
     userPreferences.business_stories_enabled === false ? null : "business_story",
-    userPreferences.mini_cases_enabled === false ? null : "mini_case"
+    userPreferences.mini_cases_enabled === false ? null : "mini_case",
+    userPreferences.learning_path_enabled === true ? "learning_path" : null
   ].filter((moduleId): moduleId is OnboardingModuleId => Boolean(moduleId)));
 }
 

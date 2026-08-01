@@ -10,7 +10,7 @@ import { toDateOnly } from "../utils/date.js";
 import { redactLogIdentifiers } from "../utils/redactIdentifier.js";
 
 const DEFAULT_PERSONALIZE_LIMIT = 3;
-const REQUIRED_SLOTS = ["newsletter", "business_story", "mini_case", "concept"] as const;
+const REQUIRED_SLOTS = ["newsletter", "business_story", "mini_case"] as const;
 
 type PersonalizeTestOptions = {
   dropDate: string;
@@ -272,7 +272,6 @@ function selectPublishedContentForPreference(
       getMiniCaseContentTopicIds(preference)
     );
   }
-  addFirstSlot(selected, matchingLanguageItems, "concept", sortedTopics.map((topic) => topic.topic_id));
 
   return selected;
 }
@@ -333,8 +332,7 @@ function requiredSlotsForPreference(preference: UserDailyDropPreference): DailyD
   return [
     preference.modules.newsletter ? "newsletter" : null,
     preference.modules.business_story ? "business_story" : null,
-    preference.modules.mini_case ? "mini_case" : null,
-    "concept"
+    preference.modules.mini_case ? "mini_case" : null
   ].filter((slot): slot is DailyDropSlot => Boolean(slot));
 }
 

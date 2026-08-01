@@ -99,7 +99,7 @@ export class OpenAiJsonProvider implements LlmProvider {
           text: {
             format: {
               type: "json_schema",
-              name: "personewsap_daily_drop",
+              name: request.schemaName ?? "personewsap_daily_drop",
               strict: true,
               schema: request.jsonSchema
             }

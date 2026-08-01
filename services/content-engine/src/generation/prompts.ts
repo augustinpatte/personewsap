@@ -35,7 +35,7 @@ export { BUSINESS_STORY_PROMPT_FINAL, MINI_CASE_PROMPT_FINAL, NEWSLETTER_PROMPT_
 
 export const CONTENT_GUARDRAILS = [
   "Write like a sharp mentor briefing an ambitious 18-25 year-old before class, an interview, an internship, or a serious conversation.",
-  "Keep the daily drop finite: one focused newsletter set, one business story, one mini-case, and one key concept. Do not generate feed-like extras.",
+  "Keep the daily drop finite: one focused newsletter set, one business story, and one mini-case. Do not generate key concepts or feed-like extras.",
   "Use short paragraphs, concrete nouns, strong verbs, and practical implications. Cut generic AI filler, hype, vague motivation, and empty conclusions.",
   "Every item needs a sharp thesis, a concrete mechanism, a specific implication, and one observable signal.",
   "Sound like a premium daily briefing, not a class handout. Do not explain that something is important; show the leverage point.",
