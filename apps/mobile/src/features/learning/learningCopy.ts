@@ -102,6 +102,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           copyPrompt: "Copy prompt",
           promptCopied: "Prompt copied. Paste it into a new conversation.",
           copyFailed: "The prompt could not be copied. Try again.",
+          progressFailed:
+            "The prompt was copied, but your progress could not be saved. Try again before submitting feedback.",
           syncPending:
             "Prompt copied. Your progress will sync when the connection is back.",
           openFailed:
@@ -158,6 +160,12 @@ export function getLearningCopy(language: Language | null | undefined) {
           conceptsStudied: "Concepts studied",
           pathInProgress: "Path in progress",
           pathCompleted: "Path completed",
+          statusActive: "Active",
+          statusCompleted: "Completed",
+          statusArchived: "Archived",
+          completedOn: "Completed on",
+          archivedOn: "Archived on",
+          startedOn: "Started on",
           history: "Session history",
           pathHistory: "Path history",
           noHistory: "No completed session yet.",
@@ -167,7 +175,9 @@ export function getLearningCopy(language: Language | null | undefined) {
           loading: "Loading your path",
           emptyTitle: "No active path yet",
           emptyBody: "Create a path to receive a five-minute session in Today.",
-          error: "This path could not be loaded right now."
+          error: "This path could not be loaded right now.",
+          sessionNotFound: "This session could not be found.",
+          readOnly: "Read-only session"
         }
       },
       fr: {
@@ -270,6 +280,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           copyPrompt: "Copier le prompt",
           promptCopied: "Prompt copié. Collez-le dans une nouvelle conversation.",
           copyFailed: "Le prompt n'a pas pu être copié. Réessayez.",
+          progressFailed:
+            "Le prompt est copié, mais votre progression n'a pas pu être enregistrée. Réessayez avant d'envoyer votre retour.",
           syncPending:
             "Prompt copié. Votre progression sera synchronisée au retour de la connexion.",
           openFailed:
@@ -328,6 +340,12 @@ export function getLearningCopy(language: Language | null | undefined) {
           conceptsStudied: "Concepts étudiés",
           pathInProgress: "Parcours en cours",
           pathCompleted: "Parcours terminé",
+          statusActive: "Actif",
+          statusCompleted: "Terminé",
+          statusArchived: "Archivé",
+          completedOn: "Terminé le",
+          archivedOn: "Archivé le",
+          startedOn: "Commencé le",
           history: "Historique des sessions",
           pathHistory: "Historique des parcours",
           noHistory: "Aucune session terminée pour le moment.",
@@ -338,7 +356,9 @@ export function getLearningCopy(language: Language | null | undefined) {
           emptyTitle: "Aucun parcours actif",
           emptyBody:
             "Créez un parcours pour recevoir une session de cinq minutes dans Aujourd'hui.",
-          error: "Ce parcours n'a pas pu être chargé pour le moment."
+          error: "Ce parcours n'a pas pu être chargé pour le moment.",
+          sessionNotFound: "Cette session est introuvable.",
+          readOnly: "Session en lecture seule"
         }
       }
     },

@@ -9,6 +9,10 @@ import { getCurrentLevelLabel, getTargetLevelLabel } from "./learningLevels";
 import { getLearningCopy } from "./learningCopy";
 import { getHistoricalLearningPaths, useLearningPath } from "./LearningPathContext";
 import {
+  getLearningPathDateInfo,
+  getLearningPathStatusCopyKey
+} from "./learningPathState";
+import {
   localizeLearningField,
   type LearningDomain,
   type LearningObjective,
@@ -76,6 +80,7 @@ function PathHistoryCard({
   const copy = getLearningCopy(language);
   const domain = domains.find((candidate) => candidate.id === path.domain_id) ?? null;
   const objective = objectives.find((candidate) => candidate.id === path.objective_id) ?? null;
+  const pathDateInfo = getLearningPathDateInfo(path);
 
   return (
     <Card padding="lg">
@@ -86,7 +91,7 @@ function PathHistoryCard({
         <AppText color="muted" variant="body">
           {objective ? localizeLearningField(objective, language) : path.objective_id}
         </AppText>
-        <InfoLine label={copy.overview.status} value={path.status} />
+        <InfoLine label={copy.overview.status} value={copy.overview[getLearningPathStatusCopyKey(path)]} />
         <InfoLine
           label={copy.overview.currentLevel}
           value={getCurrentLevelLabel(path.current_level, language)}
@@ -96,8 +101,8 @@ function PathHistoryCard({
           value={getTargetLevelLabel(path.target_level, language)}
         />
         <InfoLine
-          label={copy.overview.nextEdition}
-          value={formatPathDate(path.completed_at ?? path.archived_at ?? path.updated_at ?? path.created_at, language)}
+          label={copy.overview[pathDateInfo.labelKey]}
+          value={formatPathDate(pathDateInfo.value, language)}
         />
         <PrimaryButton label={copy.account.overview} onPress={onOpen} />
       </View>

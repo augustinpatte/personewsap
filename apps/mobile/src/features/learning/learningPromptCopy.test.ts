@@ -13,7 +13,7 @@ describe("learning prompt copy", () => {
       recordSessionStartedAfterPromptCopy: recordStarted
     });
 
-    expect(result).toEqual({ copied: true, syncPending: false });
+    expect(result).toEqual({ copied: true, progressRecorded: true, syncPending: false });
     expect(recordStarted).toHaveBeenCalledOnce();
   });
 
@@ -29,7 +29,7 @@ describe("learning prompt copy", () => {
       recordSessionStartedAfterPromptCopy: recordStarted
     });
 
-    expect(result).toEqual({ copied: false, syncPending: false });
+    expect(result).toEqual({ copied: false, progressRecorded: false, syncPending: false });
     expect(recordStarted).not.toHaveBeenCalled();
   });
 
@@ -39,7 +39,7 @@ describe("learning prompt copy", () => {
     await copyPromptAndOpenProvider({
       providerId: "chatgpt",
       providerUrl: "https://chatgpt.com",
-      copyPrompt: async () => ({ copied: false, syncPending: false }),
+      copyPrompt: async () => ({ copied: false, progressRecorded: false, syncPending: false }),
       canOpenUrl: vi.fn(async () => true),
       openUrl,
       onPromptReady: vi.fn(),
@@ -51,13 +51,13 @@ describe("learning prompt copy", () => {
     expect(openUrl).not.toHaveBeenCalled();
   });
 
-  it("keeps the prompt marked used when provider opening fails after copy", async () => {
+  it("keeps the prompt marked used when provider opening fails after recorded progress", async () => {
     const onPromptReady = vi.fn();
 
     const result = await copyPromptAndOpenProvider({
       providerId: "claude",
       providerUrl: "https://claude.ai/new",
-      copyPrompt: async () => ({ copied: true, syncPending: false }),
+      copyPrompt: async () => ({ copied: true, progressRecorded: true, syncPending: false }),
       canOpenUrl: vi.fn(async () => true),
       openUrl: vi.fn(async () => {
         throw new Error("provider failed");
@@ -68,7 +68,51 @@ describe("learning prompt copy", () => {
       onOpenSucceeded: vi.fn()
     });
 
-    expect(result).toEqual({ copied: true, syncPending: false, opened: false });
+    expect(result).toEqual({ copied: true, progressRecorded: true, syncPending: false, opened: false });
     expect(onPromptReady).toHaveBeenCalledOnce();
+  });
+
+  it("returns copied true and progressRecorded false when progress recording throws", async () => {
+    const result = await copyLearningPrompt({
+      promptText: "Teach me",
+      sessionId: "session-1",
+      copyToClipboard: vi.fn(async () => undefined),
+      recordSessionStartedAfterPromptCopy: vi.fn(async () => {
+        throw new Error("AsyncStorage write failed");
+      })
+    });
+
+    expect(result).toEqual({ copied: true, progressRecorded: false, syncPending: false });
+  });
+
+  it("keeps feedback locked when progress recording throws", async () => {
+    const result = await copyLearningPrompt({
+      promptText: "Teach me",
+      sessionId: "session-1",
+      copyToClipboard: vi.fn(async () => undefined),
+      recordSessionStartedAfterPromptCopy: vi.fn(async () => {
+        throw new Error("AsyncStorage write failed");
+      })
+    });
+
+    expect(result.progressRecorded).toBe(false);
+  });
+
+  it("may still open the provider when progress recording throws after copy", async () => {
+    const openUrl = vi.fn(async () => undefined);
+    const result = await copyPromptAndOpenProvider({
+      providerId: "gemini",
+      providerUrl: "https://gemini.google.com/app",
+      copyPrompt: async () => ({ copied: true, progressRecorded: false, syncPending: false }),
+      canOpenUrl: vi.fn(async () => true),
+      openUrl,
+      onPromptReady: vi.fn(),
+      onCopyFailed: vi.fn(),
+      onOpenFailed: vi.fn(),
+      onOpenSucceeded: vi.fn()
+    });
+
+    expect(openUrl).toHaveBeenCalledOnce();
+    expect(result).toEqual({ copied: true, progressRecorded: false, syncPending: false, opened: true });
   });
 });

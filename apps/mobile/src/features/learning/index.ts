@@ -1,5 +1,6 @@
 export { LearningAccountSection } from "./LearningAccountSection";
 export { LearningFeedbackScreen } from "./LearningFeedbackScreen";
+export { LearningHistoricalSessionScreen } from "./LearningHistoricalSessionScreen";
 export { LearningPathCard } from "./LearningPathCard";
 export { LearningPathHistoryScreen } from "./LearningPathHistoryScreen";
 export { LearningPathOverviewScreen } from "./LearningPathOverviewScreen";

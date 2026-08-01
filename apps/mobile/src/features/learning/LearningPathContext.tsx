@@ -33,6 +33,7 @@ import {
   readLearningOutbox,
   removeLearningOutboxEvent,
   resolveLearningFeedbackSyncOutcome,
+  shouldCompleteLearningSessionLocally,
   upsertLearningOutboxEvent,
   writeLearningOutbox,
   type LearningOutboxSyncFailure,
@@ -422,8 +423,9 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         };
       }
 
+      const now = new Date().toISOString();
+
       try {
-        const now = new Date().toISOString();
         await enqueueLearningOutboxEvent(user.id, {
           sessionId,
           eventType: "feedback",
@@ -431,11 +433,6 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           createdAt: now,
           attemptCount: 0,
           lastAttemptAt: null
-        });
-        updateSessionLocally(sessionId, {
-          completed_at: now,
-          started_at: state.sessions.find((session) => session.id === sessionId)?.started_at ?? now,
-          status: "completed"
         });
       } catch (error) {
         if (__DEV__) {
@@ -468,25 +465,29 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         };
       }
 
-      if (!feedbackStillLocal) {
-        trackAnalyticsEvent("learning_feedback_submitted", {
-          language: profileLanguage ?? undefined
-        });
-        await load();
-        return { ok: true, syncPending: false, error: null };
-      }
-
       const blockingFailure = getLearningFeedbackBlockingFailure(flushResult.failures, sessionId);
       const syncOutcome = resolveLearningFeedbackSyncOutcome({
         feedbackStillLocal,
         blockingFailure
       });
 
+      if (shouldCompleteLearningSessionLocally(syncOutcome)) {
+        updateSessionLocally(sessionId, {
+          completed_at: now,
+          started_at: state.sessions.find((session) => session.id === sessionId)?.started_at ?? now,
+          status: "completed"
+        });
+      }
+
       if (syncOutcome.ok && syncOutcome.syncPending) {
         return { ok: true, syncPending: true, error: null };
       }
 
       if (syncOutcome.ok) {
+        trackAnalyticsEvent("learning_feedback_submitted", {
+          language: profileLanguage ?? undefined
+        });
+        await load();
         return { ok: true, syncPending: false, error: null };
       }
 

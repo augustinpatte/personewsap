@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
 import { AppScreen, AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
@@ -10,6 +10,10 @@ import { nextEditionDate } from "../today/editionCadence";
 import { getCurrentLevelLabel, getTargetLevelLabel } from "./learningLevels";
 import { getLearningCopy } from "./learningCopy";
 import { useLearningPath } from "./LearningPathContext";
+import {
+  getLearningPathDateInfo,
+  getLearningPathStatusCopyKey
+} from "./learningPathState";
 import {
   localizeLearningDescription,
   localizeLearningField,
@@ -112,6 +116,7 @@ export function LearningPathOverviewScreen({
   }
 
   const nextDate = nextAvailableAt ?? nextEditionDate(new Date().toISOString().slice(0, 10))?.date ?? null;
+  const pathDateInfo = getLearningPathDateInfo(selectedPath);
 
   return (
     <AppScreen contentStyle={styles.screen}>
@@ -128,17 +133,24 @@ export function LearningPathOverviewScreen({
         <InfoRow label={copy.orientation} value={localizeLearningField(selectedObjective, language)} />
         <InfoRow
           label={copy.status}
-          value={selectedPath.status === "completed" ? copy.pathCompleted : copy.pathInProgress}
+          value={copy[getLearningPathStatusCopyKey(selectedPath)]}
         />
         <InfoRow
           label={copy.sessionsCompleted}
           value={String(completedSessions.length)}
         />
         <InfoRow label={copy.conceptsStudied} value={String(completedSessions.length)} />
-        <InfoRow
-          label={copy.nextEdition}
-          value={isDefaultPath && nextDate ? formatDate(nextDate, language) : copy.nextUnknown}
-        />
+        {isDefaultPath && selectedPath.status === "active" ? (
+          <InfoRow
+            label={copy.nextEdition}
+            value={nextDate ? formatDate(nextDate, language) : copy.nextUnknown}
+          />
+        ) : (
+          <InfoRow
+            label={copy[pathDateInfo.labelKey]}
+            value={pathDateInfo.value ? formatDateTime(pathDateInfo.value, language) : copy.nextUnknown}
+          />
+        )}
         <InfoRow
           label={copy.currentLevel}
           value={getCurrentLevelLabel(selectedPath.current_level, language)}
@@ -165,12 +177,24 @@ export function LearningPathOverviewScreen({
           </AppText>
         ) : (
           completedSessions.map((session) => (
-            <View key={session.id} style={styles.historyRow}>
+            <Pressable
+              accessibilityRole="button"
+              key={session.id}
+              onPress={() =>
+                router.push(
+                  {
+                    pathname: "/(learning)/history-session",
+                    params: { pathId: selectedPath.id, sessionId: session.id }
+                  } as unknown as Href
+                )
+              }
+              style={({ pressed }) => [styles.historyRow, pressed ? styles.pressed : null]}
+            >
               <AppText color="muted" variant="caption">
                 {copy.sessionLabel(session.session_number)}
               </AppText>
               <AppText variant="bodyStrong">{localizeSessionTitle(session, language)}</AppText>
-            </View>
+            </Pressable>
           ))
         )}
         {selectedSessions.length > completedSessions.length ? (
@@ -214,6 +238,14 @@ function formatDate(date: string, language: Language | null | undefined) {
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
+function formatDateTime(date: string, language: Language | null | undefined) {
+  return new Intl.DateTimeFormat(language === "fr" ? "fr" : "en", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(date));
+}
+
 const createStyles = () =>
   StyleSheet.create({
     header: {
@@ -224,6 +256,9 @@ const createStyles = () =>
     },
     infoRow: {
       gap: tokens.space.xs
+    },
+    pressed: {
+      opacity: 0.72
     },
     screen: {
       gap: tokens.space.xl,

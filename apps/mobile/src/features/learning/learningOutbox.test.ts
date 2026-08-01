@@ -10,6 +10,7 @@ import {
   readLearningOutbox,
   removeLearningOutboxEvent,
   resolveLearningFeedbackSyncOutcome,
+  shouldCompleteLearningSessionLocally,
   upsertLearningOutboxEvent,
   writeLearningOutbox,
   type LearningOutboxStorage
@@ -80,6 +81,105 @@ describe("learning outbox", () => {
     expect(feedbackCalls).toEqual([]);
     expect(result.failures[0]?.event.eventType).toBe("started");
     expect(result.remaining.map((event) => event.eventType)).toEqual(["started", "feedback"]);
+  });
+
+  it("drops feedback from remaining when feedback fails permanently", async () => {
+    const result = await flushLearningOutboxEvents(
+      [feedbackEvent("session-1", "2026-08-01T09:01:00Z")],
+      {
+        now: () => "2026-08-01T09:03:00Z",
+        startSession: async () => null,
+        submitFeedback: async () => {
+          throw { status: 401, message: "unauthorized" };
+        }
+      }
+    );
+
+    expect(result.remaining).toEqual([]);
+    expect(result.failures[0]).toMatchObject({ retryable: false });
+  });
+
+  it("keeps feedback in remaining when feedback fails temporarily", async () => {
+    const result = await flushLearningOutboxEvents(
+      [feedbackEvent("session-1", "2026-08-01T09:01:00Z")],
+      {
+        now: () => "2026-08-01T09:03:00Z",
+        startSession: async () => null,
+        submitFeedback: async () => {
+          throw { status: 503, message: "server unavailable" };
+        }
+      }
+    );
+
+    expect(result.remaining.map((event) => event.eventType)).toEqual(["feedback"]);
+    expect(result.remaining[0]?.attemptCount).toBe(1);
+  });
+
+  it("does not complete the local session after a permanent feedback failure", () => {
+    expect(
+      shouldCompleteLearningSessionLocally(
+        resolveLearningFeedbackSyncOutcome({
+          feedbackStillLocal: false,
+          blockingFailure: {
+            event: feedbackEvent("session-1", "2026-08-01T09:01:00Z"),
+            error: { status: 401 },
+            retryable: false
+          }
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("completes the local session after a retryable feedback failure", () => {
+    expect(
+      shouldCompleteLearningSessionLocally(
+        resolveLearningFeedbackSyncOutcome({
+          feedbackStillLocal: true,
+          blockingFailure: {
+            event: feedbackEvent("session-1", "2026-08-01T09:01:00Z"),
+            error: { status: 503 },
+            retryable: true
+          }
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("drops started and dependent feedback from remaining when started fails permanently", async () => {
+    const result = await flushLearningOutboxEvents(
+      [startedEvent("session-1", "2026-08-01T09:00:00Z"), feedbackEvent("session-1", "2026-08-01T09:01:00Z")],
+      {
+        now: () => "2026-08-01T09:03:00Z",
+        startSession: async () => {
+          throw { status: 403, message: "forbidden" };
+        },
+        submitFeedback: async () => {
+          throw new Error("feedback should not run");
+        }
+      }
+    );
+
+    expect(result.remaining).toEqual([]);
+    expect(result.failures.map((failure) => failure.event.eventType)).toEqual(["started", "feedback"]);
+    expect(result.failures.every((failure) => failure.retryable === false)).toBe(true);
+  });
+
+  it("keeps started and dependent feedback in remaining when started fails temporarily", async () => {
+    const result = await flushLearningOutboxEvents(
+      [startedEvent("session-1", "2026-08-01T09:00:00Z"), feedbackEvent("session-1", "2026-08-01T09:01:00Z")],
+      {
+        now: () => "2026-08-01T09:03:00Z",
+        startSession: async () => {
+          throw { status: 503, message: "server unavailable" };
+        },
+        submitFeedback: async () => {
+          throw new Error("feedback should not run");
+        }
+      }
+    );
+
+    expect(result.remaining.map((event) => event.eventType)).toEqual(["started", "feedback"]);
+    expect(result.remaining[0]?.attemptCount).toBe(1);
   });
 
   it("treats permanent sync errors as non-retryable", () => {

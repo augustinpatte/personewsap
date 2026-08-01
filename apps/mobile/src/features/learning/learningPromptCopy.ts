@@ -2,6 +2,7 @@ import type { LearningProviderId } from "./learningTypes";
 
 export type LearningPromptCopyResult = {
   copied: boolean;
+  progressRecorded: boolean;
   syncPending: boolean;
 };
 
@@ -14,17 +15,21 @@ export async function copyLearningPrompt(input: {
   ) => Promise<{ ok: boolean; error: unknown; syncPending: boolean }>;
 }): Promise<LearningPromptCopyResult> {
   if (!input.promptText) {
-    return { copied: false, syncPending: false };
+    return { copied: false, progressRecorded: false, syncPending: false };
   }
 
   try {
     await input.copyToClipboard(input.promptText);
   } catch {
-    return { copied: false, syncPending: false };
+    return { copied: false, progressRecorded: false, syncPending: false };
   }
 
-  const result = await input.recordSessionStartedAfterPromptCopy(input.sessionId);
-  return { copied: true, syncPending: result.syncPending };
+  try {
+    const result = await input.recordSessionStartedAfterPromptCopy(input.sessionId);
+    return { copied: true, progressRecorded: true, syncPending: result.syncPending };
+  } catch {
+    return { copied: true, progressRecorded: false, syncPending: false };
+  }
 }
 
 export async function copyPromptAndOpenProvider(input: {
@@ -35,7 +40,7 @@ export async function copyPromptAndOpenProvider(input: {
   openUrl: (url: string) => Promise<void>;
   onPromptReady: (result: LearningPromptCopyResult) => void;
   onCopyFailed: () => void;
-  onOpenFailed: () => void;
+  onOpenFailed: (result: LearningPromptCopyResult) => void;
   onOpenSucceeded: (providerId: LearningProviderId, result: LearningPromptCopyResult) => void;
 }): Promise<LearningPromptCopyResult & { opened: boolean }> {
   const copyResult = await input.copyPrompt();
@@ -50,7 +55,7 @@ export async function copyPromptAndOpenProvider(input: {
   try {
     const supported = await input.canOpenUrl(input.providerUrl);
     if (!supported) {
-      input.onOpenFailed();
+      input.onOpenFailed(copyResult);
       return { ...copyResult, opened: false };
     }
 
@@ -58,7 +63,7 @@ export async function copyPromptAndOpenProvider(input: {
     input.onOpenSucceeded(input.providerId, copyResult);
     return { ...copyResult, opened: true };
   } catch {
-    input.onOpenFailed();
+    input.onOpenFailed(copyResult);
     return { ...copyResult, opened: false };
   }
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   getHistoricalLearningPaths,
+  getLearningPathDateInfo,
+  getLearningPathStatusCopyKey,
   getLearningSessionsForPath,
   selectLatestLearningSessionForDrop
 } from "./learningPathState";
@@ -58,6 +60,16 @@ describe("learning path state", () => {
     expect(getLearningSessionsForPath(sessions, "old-b").map((item) => item.id)).toEqual([
       "old-b-session"
     ]);
+  });
+
+  it("labels archived paths as archived with an archive date", () => {
+    const archived = path("old-b", "archived", "2026-07-30T09:00:00Z");
+
+    expect(getLearningPathStatusCopyKey(archived)).toBe("statusArchived");
+    expect(getLearningPathDateInfo(archived)).toEqual({
+      labelKey: "archivedOn",
+      value: "2026-07-30T09:00:00Z"
+    });
   });
 });
 

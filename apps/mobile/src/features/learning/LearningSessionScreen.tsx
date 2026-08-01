@@ -62,7 +62,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
 
   const copyPrompt = async () => {
     if (!session?.prompt_text || !session.id) {
-      return { copied: false, syncPending: false };
+      return { copied: false, progressRecorded: false, syncPending: false };
     }
 
     const result = await copyLearningPrompt({
@@ -78,13 +78,19 @@ export function LearningSessionScreen({ language }: { language: Language | null 
       return result;
     }
 
-    setPromptUsed(true);
-    setStatusTone("success");
-    setStatusMessage(result.syncPending ? copy.syncPending : copy.promptCopied);
+    setPromptUsed(result.progressRecorded);
+    setStatusTone(result.progressRecorded ? "success" : "danger");
+    setStatusMessage(
+      result.progressRecorded
+        ? result.syncPending
+          ? copy.syncPending
+          : copy.promptCopied
+        : copy.progressFailed
+    );
     trackAnalyticsEvent("learning_prompt_copied", {
       language: language ?? undefined
     });
-    return { copied: true, syncPending: result.syncPending };
+    return result;
   };
 
   const openProvider = async (providerId: LearningProviderId) => {
@@ -97,21 +103,33 @@ export function LearningSessionScreen({ language }: { language: Language | null 
       canOpenUrl: Linking.canOpenURL,
       openUrl: Linking.openURL,
       onPromptReady: (copied) => {
-        setPromptUsed(true);
-        setStatusTone("success");
-        setStatusMessage(copied.syncPending ? copy.syncPending : copy.promptCopied);
+        setPromptUsed(copied.progressRecorded);
+        setStatusTone(copied.progressRecorded ? "success" : "danger");
+        setStatusMessage(
+          copied.progressRecorded
+            ? copied.syncPending
+              ? copy.syncPending
+              : copy.promptCopied
+            : copy.progressFailed
+        );
       },
       onCopyFailed: () => {
         setStatusTone("danger");
         setStatusMessage(copy.copyFailed);
       },
-      onOpenFailed: () => {
+      onOpenFailed: (copied) => {
         setStatusTone("danger");
-        setStatusMessage(copy.openFailed);
+        setStatusMessage(copied.progressRecorded ? copy.openFailed : copy.progressFailed);
       },
       onOpenSucceeded: (_providerId, copied) => {
-        setStatusTone("success");
-        setStatusMessage(copied.syncPending ? copy.syncPending : copy.promptCopied);
+        setStatusTone(copied.progressRecorded ? "success" : "danger");
+        setStatusMessage(
+          copied.progressRecorded
+            ? copied.syncPending
+              ? copy.syncPending
+              : copy.promptCopied
+            : copy.progressFailed
+        );
         trackAnalyticsEvent("learning_provider_opened", {
           language: language ?? undefined
         });

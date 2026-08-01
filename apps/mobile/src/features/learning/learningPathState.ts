@@ -1,5 +1,8 @@
 import type { LearningPath, LearningSession } from "./learningTypes";
 
+export type LearningPathStatusCopyKey = "statusActive" | "statusCompleted" | "statusArchived";
+export type LearningPathDateCopyKey = "completedOn" | "archivedOn" | "startedOn";
+
 export function selectLatestLearningSessionForDrop(
   sessions: LearningSession[],
   dropId: string | null | undefined
@@ -37,6 +40,28 @@ export function getLearningSessionsForPath(
   pathId: string
 ): LearningSession[] {
   return sessions.filter((session) => session.path_id === pathId);
+}
+
+export function getLearningPathStatusCopyKey(path: LearningPath): LearningPathStatusCopyKey {
+  if (path.status === "completed") {
+    return "statusCompleted";
+  }
+  if (path.status === "archived") {
+    return "statusArchived";
+  }
+  return "statusActive";
+}
+
+export function getLearningPathDateInfo(
+  path: LearningPath
+): { labelKey: LearningPathDateCopyKey; value: string | null } {
+  if (path.status === "completed") {
+    return { labelKey: "completedOn", value: path.completed_at ?? path.updated_at ?? path.created_at };
+  }
+  if (path.status === "archived") {
+    return { labelKey: "archivedOn", value: path.archived_at ?? path.updated_at ?? path.created_at };
+  }
+  return { labelKey: "startedOn", value: path.created_at };
 }
 
 function getPathSortDate(path: LearningPath): string {

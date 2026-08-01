@@ -158,21 +158,34 @@ export async function flushLearningOutboxEvents<TSession>(
           syncedSessions.push(syncedSession);
         }
       } catch (error) {
+        const retryable = isRetryableLearningSyncError(error);
         startedSynced = false;
         failures.push({
           event: started,
           error,
-          retryable: isRetryableLearningSyncError(error)
+          retryable
         });
-        remaining = upsertLearningOutboxEvent(
-          remaining,
-          retryLearningOutboxEvent(started, dependencies.now())
-        );
+
+        if (retryable) {
+          remaining = upsertLearningOutboxEvent(
+            remaining,
+            retryLearningOutboxEvent(started, dependencies.now())
+          );
+        } else if (feedback) {
+          failures.push({
+            event: feedback,
+            error,
+            retryable: false
+          });
+        }
       }
     }
 
     if (!startedSynced) {
-      if (feedback) {
+      const startedFailure = failures.find(
+        (failure) => failure.event === started && failure.event.eventType === "started"
+      );
+      if (feedback && startedFailure?.retryable === true) {
         remaining = upsertLearningOutboxEvent(remaining, feedback);
       }
       continue;
@@ -185,15 +198,18 @@ export async function flushLearningOutboxEvents<TSession>(
           syncedSessions.push(syncedSession);
         }
       } catch (error) {
+        const retryable = isRetryableLearningSyncError(error);
         failures.push({
           event: feedback,
           error,
-          retryable: isRetryableLearningSyncError(error)
+          retryable
         });
-        remaining = upsertLearningOutboxEvent(
-          remaining,
-          retryLearningOutboxEvent(feedback, dependencies.now())
-        );
+        if (retryable) {
+          remaining = upsertLearningOutboxEvent(
+            remaining,
+            retryLearningOutboxEvent(feedback, dependencies.now())
+          );
+        }
       }
     }
   }
@@ -238,6 +254,10 @@ export function resolveLearningFeedbackSyncOutcome(input: {
   feedbackStillLocal: boolean;
   blockingFailure: LearningOutboxSyncFailure | null;
 }): LearningFeedbackSyncOutcome {
+  if (input.blockingFailure?.retryable === false) {
+    return { ok: false, syncPending: false };
+  }
+
   if (!input.feedbackStillLocal) {
     return { ok: true, syncPending: false };
   }
@@ -247,6 +267,10 @@ export function resolveLearningFeedbackSyncOutcome(input: {
   }
 
   return { ok: false, syncPending: false };
+}
+
+export function shouldCompleteLearningSessionLocally(outcome: LearningFeedbackSyncOutcome): boolean {
+  return outcome.ok;
 }
 
 export function parseLearningOutbox(value: string | null): LearningOutboxEvent[] {
