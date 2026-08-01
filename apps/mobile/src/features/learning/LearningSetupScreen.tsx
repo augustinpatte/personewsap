@@ -15,16 +15,19 @@ import {
   getAllowedTargetLevelOptions,
   getCurrentLevelLabel,
   getCurrentLevelOptions,
-  getTargetLevelLabel
+  getTargetLevelLabel,
+  minimumTargetLevelForCurrentLevel
 } from "./learningLevels";
 import { getLearningCopy } from "./learningCopy";
 import {
   getLearningSetupDraftKey,
   LEARNING_SETUP_DRAFT_KEY_V1,
+  migrateLearningSetupDraftForUser,
   parseLearningSetupDraft,
   reconcileLearningSetupDraft,
   type LearningSetupStep
 } from "./learningSetupDraft";
+import { getLearningSetupDebugError } from "./learningSetupDebug";
 import { useLearningPath } from "./LearningPathContext";
 import type {
   LearningCurrentLevel,
@@ -106,9 +109,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
 
     async function restoreDraft() {
       try {
-        const draftKey = getLearningSetupDraftKey(user?.id);
-        const value =
-          (await AsyncStorage.getItem(draftKey)) ?? (await AsyncStorage.getItem(LEARNING_SETUP_DRAFT_KEY_V1));
+        const value = await migrateLearningSetupDraftForUser(AsyncStorage, user?.id);
         if (cancelled) {
           return;
         }
@@ -206,7 +207,10 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     setSubmitting(false);
 
     if (!result.ok) {
-      setErrorMessage(result.error?.message ?? copy.error);
+      if (__DEV__ && result.error) {
+        console.warn("[LearningSetup] startPath failed", result.error);
+      }
+      setErrorMessage(copy.error);
       return;
     }
 
@@ -234,7 +238,10 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     setSubmitting(false);
 
     if (!result.ok) {
-      setErrorMessage(result.error?.message ?? copy.error);
+      if (__DEV__ && result.error) {
+        console.warn("[LearningSetup] disableLearningPath failed", result.error);
+      }
+      setErrorMessage(copy.error);
       return;
     }
 
@@ -273,9 +280,9 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
               <AppText color="muted" variant="body">
                 {copy.loadErrorBody}
               </AppText>
-              {error?.message ? (
+              {getLearningSetupDebugError(error, __DEV__) ? (
                 <AppText color="muted" variant="caption">
-                  {error.message}
+                  {getLearningSetupDebugError(error, __DEV__)}
                 </AppText>
               ) : null}
               <PrimaryButton
@@ -353,6 +360,11 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
               selected={option.value === targetLevel}
             />
           ))}
+          {currentLevel && minimumTargetLevelForCurrentLevel(currentLevel) > 1 ? (
+            <AppText color="muted" variant="caption">
+              {copy.targetLevelMinimumNotice}
+            </AppText>
+          ) : null}
         </SelectionStep>
       ) : null}
 

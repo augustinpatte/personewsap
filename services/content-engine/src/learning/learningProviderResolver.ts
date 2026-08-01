@@ -28,6 +28,7 @@ export function resolveLearningProvider(input: {
     return {
       status: "ready",
       provider: new OpenAiJsonProvider({
+        apiKey: env.OPENAI_API_KEY,
         model: env.OPENAI_LEARNING_MODEL ?? env.OPENAI_MODEL,
         disableFallback: true
       })

@@ -6,6 +6,7 @@ import { AppScreen, AppText, Card, PrimaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import type { Language } from "../../types/domain";
+import { resolveLearningFeedbackSubmitDecision } from "./learningFeedbackUi";
 import { getLearningCopy } from "./learningCopy";
 import { useLearningPath } from "./LearningPathContext";
 import type { LearningFeedbackRatings } from "./learningTypes";
@@ -27,6 +28,7 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const allAnswered = useMemo(
     () =>
       ratings.comprehension !== null &&
@@ -39,6 +41,7 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
   const setRating = (key: keyof LearningFeedbackRatings, value: number) => {
     setRatings((current) => ({ ...current, [key]: value }));
     setErrorMessage(null);
+    setSyncMessage(null);
   };
 
   const submit = async () => {
@@ -65,8 +68,15 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
 
     setSubmitting(false);
 
-    if (!result.ok) {
+    const decision = resolveLearningFeedbackSubmitDecision(result);
+
+    if (decision === "error") {
       setErrorMessage(copy.error);
+      return;
+    }
+
+    if (decision === "syncPending") {
+      setSyncMessage(copy.syncPending);
       return;
     }
 
@@ -113,6 +123,10 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
         <AppText color="danger" variant="body">
           {errorMessage}
         </AppText>
+      ) : syncMessage ? (
+        <AppText color="success" variant="body">
+          {syncMessage}
+        </AppText>
       ) : !allAnswered ? (
         <AppText color="muted" variant="caption">
           {copy.required}
@@ -120,10 +134,10 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
       ) : null}
 
       <PrimaryButton
-        disabled={!allAnswered || submitting}
-        label={submitting ? copy.submitting : copy.submit}
+        disabled={(!allAnswered && !syncMessage) || submitting}
+        label={syncMessage ? copy.backToday : submitting ? copy.submitting : copy.submit}
         loading={submitting}
-        onPress={submit}
+        onPress={syncMessage ? () => router.replace("/(tabs)/today") : submit}
       />
     </AppScreen>
   );

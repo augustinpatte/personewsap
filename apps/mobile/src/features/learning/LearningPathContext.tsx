@@ -25,11 +25,17 @@ import {
   LEARNING_SETUP_DRAFT_KEY_V1
 } from "./learningSetupDraft";
 import {
+  getLearningSessionsForPath,
+  selectLatestLearningSessionForDrop
+} from "./learningPathState";
+import {
+  flushLearningOutboxEvents,
   readLearningOutbox,
   removeLearningOutboxEvent,
-  retryLearningOutboxEvent,
+  resolveLearningFeedbackSyncOutcome,
   upsertLearningOutboxEvent,
   writeLearningOutbox,
+  type LearningOutboxSyncFailure,
   type LearningOutboxEvent
 } from "./learningOutbox";
 import {
@@ -42,12 +48,19 @@ import {
 import type {
   LearningCurrentLevel,
   LearningDomain,
+  LearningFeedbackRatings,
   LearningObjective,
   LearningPath,
   LearningPathBundle,
   LearningSession,
   LearningTargetLevel
 } from "./learningTypes";
+
+export {
+  getHistoricalLearningPaths,
+  getLearningSessionsForPath,
+  selectLatestLearningSessionForDrop
+} from "./learningPathState";
 
 type LearningPathContextValue = LearningPathBundle & {
   status: "loading" | "ready" | "error";
@@ -69,7 +82,7 @@ type LearningPathContextValue = LearningPathBundle & {
       interest: number;
       difficulty: number;
     }
-  ) => Promise<{ ok: boolean; error: NormalizedSupabaseError | null }>;
+  ) => Promise<{ ok: boolean; syncPending: boolean; error: NormalizedSupabaseError | null }>;
   markSessionOpened: (
     sessionId: string
   ) => Promise<{ ok: boolean; error: NormalizedSupabaseError | null }>;
@@ -81,6 +94,7 @@ type LearningPathContextValue = LearningPathBundle & {
   ) => Promise<{ ok: boolean; error: NormalizedSupabaseError | null; syncPending: boolean }>;
   disableLearningPath: () => Promise<{ ok: boolean; error: NormalizedSupabaseError | null }>;
   getSessionById: (sessionId: string) => LearningSession | undefined;
+  loadSessionsForPath: (pathId: string) => Promise<LearningSession[]>;
   reload: () => Promise<void>;
 };
 
@@ -97,6 +111,7 @@ type LearningPathState = LearningPathBundle & {
 const initialBundle = createBundle({
   domains: mockLearningDomains,
   objectives: mockLearningObjectives,
+  learningPaths: [],
   activePath: null,
   latestCompletedPath: null,
   sessions: []
@@ -124,6 +139,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         ...createBundle({
           domains: current.domains,
           objectives: current.objectives,
+          learningPaths: current.learningPaths,
           activePath: current.activePath,
           latestCompletedPath: current.latestCompletedPath,
           sessions
@@ -140,6 +156,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         const mockBundle = createBundle({
           domains: mockLearningDomains,
           objectives: mockLearningObjectives,
+          learningPaths: hasSupabaseConfig ? [] : [mockLearningPath],
           activePath: hasSupabaseConfig ? null : mockLearningPath,
           latestCompletedPath: null,
           sessions: hasSupabaseConfig ? [] : mockLearningSessions
@@ -196,9 +213,8 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
               "id, user_id, domain_id, objective_id, current_level, target_level, language, status, created_at, updated_at, archived_at, completed_at"
             )
             .eq("user_id", user.id)
-            .in("status", ["active", "completed"])
+            .in("status", ["active", "completed", "archived"])
             .order("created_at", { ascending: false })
-            .limit(5)
         ]);
 
         if (domainResult.error) {
@@ -240,6 +256,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         const bundle = createBundle({
           domains: orderDomains((domainResult.data ?? []).map(coerceDomain)),
           objectives: (objectiveResult.data ?? []).map(coerceObjective),
+          learningPaths: paths,
           activePath,
           latestCompletedPath,
           sessions
@@ -264,6 +281,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
             ...createBundle({
               domains: [],
               objectives: [],
+              learningPaths: [],
               activePath: null,
               latestCompletedPath: null,
               sessions: []
@@ -388,7 +406,19 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
       if (!supabase || !user?.id) {
         return {
           ok: false,
+          syncPending: false,
           error: normalizeSupabaseError(getSupabaseConfigError(), "Feedback is unavailable.")
+        };
+      }
+
+      if (!areLearningFeedbackRatingsValid(ratings)) {
+        return {
+          ok: false,
+          syncPending: false,
+          error: normalizeSupabaseError(
+            { code: "invalid_learning_feedback", message: "Feedback ratings must be integers from 1 to 5." },
+            "Feedback could not be saved."
+          )
         };
       }
 
@@ -407,39 +437,67 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           started_at: state.sessions.find((session) => session.id === sessionId)?.started_at ?? now,
           status: "completed"
         });
-
-        const { error } = await supabase.rpc("submit_learning_session_feedback", {
-          p_session_id: sessionId,
-          p_comprehension_rating: ratings.comprehension,
-          p_explainability_rating: ratings.explainability,
-          p_interest_rating: ratings.interest,
-          p_difficulty_rating: ratings.difficulty
-        });
-
-        if (error) {
-          throw error;
-        }
-        await removeLearningOutboxEventForUser(user.id, sessionId, "feedback");
-
-        trackAnalyticsEvent("learning_feedback_submitted", {
-          language: profileLanguage ?? undefined
-        });
-
-        await load();
-        return { ok: true, error: null };
       } catch (error) {
-        await flushLearningOutbox({
+        if (__DEV__) {
+          console.warn("[LearningPath] feedback outbox write failed", error);
+        }
+        return {
+          ok: false,
+          syncPending: false,
+          error: normalizeSupabaseError(error, "Feedback could not be saved.")
+        };
+      }
+
+      let flushResult: { failures: LearningOutboxSyncFailure[] };
+      let feedbackStillLocal = true;
+
+      try {
+        flushResult = await flushLearningOutbox({
           userId: user.id,
           onSynced: (session) => updateSessionLocally(session.id, session)
         });
-        if (__DEV__) {
-          console.warn("[LearningPath] feedback queued locally", error);
-        }
+        const remainingEvents = await readLearningOutbox(AsyncStorage, user.id);
+        feedbackStillLocal = remainingEvents.some(
+          (event) => event.sessionId === sessionId && event.eventType === "feedback"
+        );
+      } catch (error) {
         return {
-          ok: true,
-          error: null
+          ok: false,
+          syncPending: false,
+          error: normalizeSupabaseError(error, "Feedback could not be saved.")
         };
       }
+
+      if (!feedbackStillLocal) {
+        trackAnalyticsEvent("learning_feedback_submitted", {
+          language: profileLanguage ?? undefined
+        });
+        await load();
+        return { ok: true, syncPending: false, error: null };
+      }
+
+      const blockingFailure = getLearningFeedbackBlockingFailure(flushResult.failures, sessionId);
+      const syncOutcome = resolveLearningFeedbackSyncOutcome({
+        feedbackStillLocal,
+        blockingFailure
+      });
+
+      if (syncOutcome.ok && syncOutcome.syncPending) {
+        return { ok: true, syncPending: true, error: null };
+      }
+
+      if (syncOutcome.ok) {
+        return { ok: true, syncPending: false, error: null };
+      }
+
+      return {
+        ok: false,
+        syncPending: false,
+        error: normalizeSupabaseError(
+          blockingFailure?.error ?? { code: "learning_feedback_sync_failed" },
+          "Feedback could not be saved."
+        )
+      };
     },
     [load, profileLanguage, state.sessions, updateSessionLocally, user?.id]
   );
@@ -570,6 +628,34 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
     return () => subscription.remove();
   }, [updateSessionLocally, user?.id]);
 
+  const loadSessionsForPath = useCallback<LearningPathContextValue["loadSessionsForPath"]>(
+    async (pathId) => {
+      if (!pathId) {
+        return [];
+      }
+
+      if (!supabase || state.source === "mock") {
+        return getLearningSessionsForPath(mockLearningSessions, pathId);
+      }
+
+      const { data, error } = await supabase
+        .from("learning_sessions")
+        .select(
+          "id, path_id, daily_drop_id, curriculum_step_key, skipped_step_key, session_number, adaptation_mode, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, generation_status, status, available_on, opened_at, started_at, completed_at, created_at"
+        )
+        .eq("path_id", pathId)
+        .eq("generation_status", "ready")
+        .order("session_number", { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      return (data ?? []).map(coerceSession);
+    },
+    [state.source]
+  );
+
   const value = useMemo<LearningPathContextValue>(
     () => ({
       ...state,
@@ -580,10 +666,12 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
       startPath,
       submitFeedback,
       getSessionById: (sessionId) => state.sessions.find((session) => session.id === sessionId),
+      loadSessionsForPath,
       reload: () => load()
     }),
     [
       disableLearningPath,
+      loadSessionsForPath,
       load,
       markSessionOpened,
       markSessionStarted,
@@ -612,12 +700,14 @@ export function useLearningPath() {
 function createBundle({
   domains,
   objectives,
+  learningPaths,
   activePath,
   latestCompletedPath,
   sessions
 }: {
   domains: LearningDomain[];
   objectives: LearningObjective[];
+  learningPaths: LearningPath[];
   activePath: LearningPath | null;
   latestCompletedPath: LearningPath | null;
   sessions: LearningSession[];
@@ -649,6 +739,7 @@ function createBundle({
   return {
     domains,
     objectives,
+    learningPaths,
     activePath,
     latestCompletedPath,
     displayPath,
@@ -660,12 +751,7 @@ function createBundle({
     completedSessions,
     sessions,
     nextAvailableAt,
-    getSessionForDrop: (dropId) => {
-      if (!dropId) {
-        return null;
-      }
-      return sessions.find((session) => session.daily_drop_id === dropId) ?? null;
-    }
+    getSessionForDrop: (dropId) => selectLatestLearningSessionForDrop(sessions, dropId)
   };
 }
 
@@ -713,7 +799,7 @@ function coerceSession(row: LearningSession): LearningSession {
   };
 }
 
-function isLearningHealthcheckReady(value: unknown): boolean {
+export function isLearningHealthcheckReady(value: unknown): boolean {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -721,6 +807,7 @@ function isLearningHealthcheckReady(value: unknown): boolean {
   const payload = value as Record<string, unknown>;
   return (
     payload.schema_version === "1.1" &&
+    payload.ready === true &&
     payload.domain_count === 7 &&
     payload.objective_count === 21 &&
     payload.start_rpc_ready === true &&
@@ -750,49 +837,59 @@ async function removeLearningOutboxEventForUser(
 async function flushLearningOutbox(input: {
   userId: string | null;
   onSynced: (session: LearningSession) => void;
-}) {
+}): Promise<{ failures: LearningOutboxSyncFailure[] }> {
   if (!input.userId || !supabase) {
-    return;
+    return { failures: [] };
   }
+  const client = supabase;
 
   const events = await readLearningOutbox(AsyncStorage, input.userId);
   if (events.length === 0) {
-    return;
+    return { failures: [] };
   }
 
-  let remaining: LearningOutboxEvent[] = [];
-
-  for (const event of events) {
-    try {
-      const { data, error } =
-        event.eventType === "started"
-          ? await supabase.rpc("start_learning_session", {
-              p_session_id: event.sessionId
-            })
-          : await supabase.rpc("submit_learning_session_feedback", {
-              p_session_id: event.sessionId,
-              p_comprehension_rating: event.ratings.comprehension,
-              p_explainability_rating: event.ratings.explainability,
-              p_interest_rating: event.ratings.interest,
-              p_difficulty_rating: event.ratings.difficulty
-            });
+  const result = await flushLearningOutboxEvents(events, {
+    now: () => new Date().toISOString(),
+    startSession: async (sessionId) => {
+      const { data, error } = await client.rpc("start_learning_session", {
+        p_session_id: sessionId
+      });
 
       if (error) {
         throw error;
       }
 
-      if (data && typeof data === "object") {
-        input.onSynced(coerceSession(data as LearningSession));
+      return data && typeof data === "object" ? coerceSession(data as LearningSession) : null;
+    },
+    submitFeedback: async (sessionId, ratings) => {
+      const { data, error } = await client.rpc("submit_learning_session_feedback", {
+        p_session_id: sessionId,
+        p_comprehension_rating: ratings.comprehension,
+        p_explainability_rating: ratings.explainability,
+        p_interest_rating: ratings.interest,
+        p_difficulty_rating: ratings.difficulty
+      });
+
+      if (error) {
+        throw error;
       }
-    } catch (error) {
-      if (__DEV__) {
-        console.warn("[LearningPath] outbox sync failed", error);
-      }
-      remaining = upsertLearningOutboxEvent(remaining, retryLearningOutboxEvent(event, new Date().toISOString()));
+
+      return data && typeof data === "object" ? coerceSession(data as LearningSession) : null;
+    }
+  });
+
+  for (const session of result.syncedSessions) {
+    input.onSynced(session);
+  }
+
+  for (const failure of result.failures) {
+    if (__DEV__) {
+      console.warn("[LearningPath] outbox sync failed", failure.error);
     }
   }
 
-  await writeLearningOutbox(AsyncStorage, input.userId, remaining);
+  await writeLearningOutbox(AsyncStorage, input.userId, result.remaining);
+  return { failures: result.failures };
 }
 
 export async function clearLearningSetupDraft() {
@@ -802,4 +899,35 @@ export async function clearLearningSetupDraft() {
 async function clearLearningSetupDraftForUser(userId: string | null) {
   await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY_V1);
   await AsyncStorage.removeItem(getLearningSetupDraftKey(userId));
+}
+
+function areLearningFeedbackRatingsValid(ratings: LearningFeedbackRatings): ratings is {
+  comprehension: number;
+  explainability: number;
+  interest: number;
+  difficulty: number;
+} {
+  return (
+    isLearningFeedbackRating(ratings.comprehension) &&
+    isLearningFeedbackRating(ratings.explainability) &&
+    isLearningFeedbackRating(ratings.interest) &&
+    isLearningFeedbackRating(ratings.difficulty)
+  );
+}
+
+function isLearningFeedbackRating(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 5;
+}
+
+function getLearningFeedbackBlockingFailure(
+  failures: LearningOutboxSyncFailure[],
+  sessionId: string
+): LearningOutboxSyncFailure | null {
+  return (
+    failures.find(
+      (failure) =>
+        failure.event.sessionId === sessionId &&
+        (failure.event.eventType === "feedback" || failure.event.eventType === "started")
+    ) ?? null
+  );
 }

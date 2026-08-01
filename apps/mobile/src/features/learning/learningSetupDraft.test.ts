@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   getLearningSetupDraftKey,
+  LEARNING_SETUP_DRAFT_KEY_V1,
+  migrateLearningSetupDraftForUser,
   parseLearningSetupDraft,
   reconcileLearningSetupDraft,
   resolveLearningSetupStep
@@ -101,6 +103,45 @@ describe("learning setup draft", () => {
     expect(getLearningSetupDraftKey(null)).toBe("personewsap:learning-setup-draft:v2:anonymous");
   });
 
+  it("ignores v1 when a user-scoped v2 draft already exists", async () => {
+    const storage = memoryStorage({
+      [getLearningSetupDraftKey("user-a")]: "draft-v2",
+      [LEARNING_SETUP_DRAFT_KEY_V1]: "draft-v1"
+    });
+
+    await expect(migrateLearningSetupDraftForUser(storage, "user-a")).resolves.toBe("draft-v2");
+    expect(storage.reads).toEqual([getLearningSetupDraftKey("user-a")]);
+  });
+
+  it("copies v1 to v2, verifies it, then deletes v1", async () => {
+    const storage = memoryStorage({
+      [LEARNING_SETUP_DRAFT_KEY_V1]: "draft-v1"
+    });
+
+    await expect(migrateLearningSetupDraftForUser(storage, "user-a")).resolves.toBe("draft-v1");
+    await expect(storage.getItem(getLearningSetupDraftKey("user-a"))).resolves.toBe("draft-v1");
+    await expect(storage.getItem(LEARNING_SETUP_DRAFT_KEY_V1)).resolves.toBeNull();
+  });
+
+  it("keeps v1 when the v2 write cannot be verified", async () => {
+    const storage = memoryStorage(
+      { [LEARNING_SETUP_DRAFT_KEY_V1]: "draft-v1" },
+      { dropWrites: true }
+    );
+
+    await expect(migrateLearningSetupDraftForUser(storage, "user-a")).rejects.toThrow("verify");
+    await expect(storage.getItem(LEARNING_SETUP_DRAFT_KEY_V1)).resolves.toBe("draft-v1");
+  });
+
+  it("does not restore user A's migrated draft for user B", async () => {
+    const storage = memoryStorage({
+      [LEARNING_SETUP_DRAFT_KEY_V1]: "draft-a"
+    });
+
+    await expect(migrateLearningSetupDraftForUser(storage, "user-a")).resolves.toBe("draft-a");
+    await expect(migrateLearningSetupDraftForUser(storage, "user-b")).resolves.toBeNull();
+  });
+
   it("returns an empty draft rather than throwing on corrupted storage", () => {
     expect(parseLearningSetupDraft("{not json")).toBeNull();
     expect(parseLearningSetupDraft(null)).toBeNull();
@@ -148,4 +189,28 @@ function objective(id: string, domainId: string, position: number): LearningObje
     description_en: id,
     position
   };
+}
+
+function memoryStorage(
+  initial: Record<string, string> = {},
+  options: { dropWrites?: boolean } = {}
+) {
+  const values = new Map(Object.entries(initial));
+  const storage = {
+    reads: [] as string[],
+    async getItem(key: string) {
+      storage.reads.push(key);
+      return values.get(key) ?? null;
+    },
+    async setItem(key: string, value: string) {
+      if (!options.dropWrites) {
+        values.set(key, value);
+      }
+    },
+    async removeItem(key: string) {
+      values.delete(key);
+    }
+  };
+
+  return storage;
 }

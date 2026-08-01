@@ -199,6 +199,7 @@ export default function AccountScreen() {
         <LearningAccountSection
           language={profileLanguage}
           onCreate={() => router.push("/(learning)/setup" as Href)}
+          onHistory={() => router.push("/(learning)/history" as Href)}
           onOverview={() => router.push("/(learning)/overview" as Href)}
           onReplace={() =>
             router.push(

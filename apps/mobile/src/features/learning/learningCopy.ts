@@ -17,10 +17,13 @@ export function getLearningCopy(language: Language | null | undefined) {
           change: "Change path",
           newPath: "Start a new path",
           overview: "View path",
+          history: "Path history",
           disable: "Disable path",
           disableTitle: "Disable learning path?",
           disableBody:
             "Your current path will be archived. Its history stays available, and no future learning sessions will be generated.",
+          disableCompletedBody:
+            "Learning path suggestions will be turned off. Your completed path history stays available.",
           disableConfirm: "Disable",
           replaceTitle: "Change learning path?",
           replaceBody:
@@ -32,7 +35,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           sessionsStarted: (value: number) =>
             value === 1 ? "1 session started" : `${value} sessions started`,
           feedbackSent: (value: number) =>
-            value === 1 ? "1 feedback sent" : `${value} feedback sent`
+            value === 1 ? "1 feedback sent" : `${value} feedback sent`,
+          historyEmpty: "No completed or archived path yet."
         },
         card: {
           kicker: "Learning path",
@@ -60,6 +64,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           domainTitle: "Choose a domain",
           currentLevelTitle: "Your current level",
           targetLevelTitle: "Your target level",
+          targetLevelMinimumNotice:
+            "Goals below your current level are hidden so the path stays useful.",
           objectiveTitle: "Choose an orientation",
           objectiveEmpty: "Choose a domain first to see its orientations.",
           confirmationTitle: "Confirm your path",
@@ -95,6 +101,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           openWith: "Open with",
           copyPrompt: "Copy prompt",
           promptCopied: "Prompt copied. Paste it into a new conversation.",
+          copyFailed: "The prompt could not be copied. Try again.",
           syncPending:
             "Prompt copied. Your progress will sync when the connection is back.",
           openFailed:
@@ -131,7 +138,10 @@ export function getLearningCopy(language: Language | null | undefined) {
           submit: "Submit feedback",
           submitting: "Submitting",
           required: "Answer the four ratings to finish the session.",
-          error: "Feedback could not be saved. Your ratings are still selected."
+          error: "Feedback could not be saved. Your ratings are still selected.",
+          syncPending:
+            "Your answers are saved on this device and will sync automatically.",
+          backToday: "Back to Today"
         },
         overview: {
           eyebrow: "Learning path",
@@ -149,13 +159,15 @@ export function getLearningCopy(language: Language | null | undefined) {
           pathInProgress: "Path in progress",
           pathCompleted: "Path completed",
           history: "Session history",
+          pathHistory: "Path history",
           noHistory: "No completed session yet.",
           nextEdition: "Next edition",
           nextUnknown: "With the next edition",
           replace: "Change path",
           loading: "Loading your path",
           emptyTitle: "No active path yet",
-          emptyBody: "Create a path to receive a five-minute session in Today."
+          emptyBody: "Create a path to receive a five-minute session in Today.",
+          error: "This path could not be loaded right now."
         }
       },
       fr: {
@@ -173,10 +185,13 @@ export function getLearningCopy(language: Language | null | undefined) {
           change: "Changer de parcours",
           newPath: "Commencer un nouveau parcours",
           overview: "Voir le parcours",
+          history: "Historique des parcours",
           disable: "Désactiver le parcours",
           disableTitle: "Désactiver le parcours ?",
           disableBody:
             "Votre parcours actuel sera archivé. Son historique reste disponible, et aucune future session ne sera générée.",
+          disableCompletedBody:
+            "Les suggestions de parcours seront désactivées. L'historique de vos parcours terminés reste disponible.",
           disableConfirm: "Désactiver",
           replaceTitle: "Changer de parcours ?",
           replaceBody:
@@ -188,7 +203,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           sessionsStarted: (value: number) =>
             value === 1 ? "1 session commencée" : `${value} sessions commencées`,
           feedbackSent: (value: number) =>
-            value === 1 ? "1 retour envoyé" : `${value} retours envoyés`
+            value === 1 ? "1 retour envoyé" : `${value} retours envoyés`,
+          historyEmpty: "Aucun parcours terminé ou archivé pour le moment."
         },
         card: {
           kicker: "Parcours",
@@ -216,6 +232,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           domainTitle: "Choisir un domaine",
           currentLevelTitle: "Votre niveau actuel",
           targetLevelTitle: "Votre niveau cible",
+          targetLevelMinimumNotice:
+            "Les objectifs inférieurs à votre niveau actuel sont masqués pour garder un parcours utile.",
           objectiveTitle: "Choisir une orientation",
           objectiveEmpty: "Choisissez d'abord un domaine pour voir ses orientations.",
           confirmationTitle: "Confirmer votre parcours",
@@ -251,6 +269,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           openWith: "Ouvrir avec",
           copyPrompt: "Copier le prompt",
           promptCopied: "Prompt copié. Collez-le dans une nouvelle conversation.",
+          copyFailed: "Le prompt n'a pas pu être copié. Réessayez.",
           syncPending:
             "Prompt copié. Votre progression sera synchronisée au retour de la connexion.",
           openFailed:
@@ -289,7 +308,10 @@ export function getLearningCopy(language: Language | null | undefined) {
           submitting: "Validation",
           required: "Répondez aux quatre notes pour terminer la session.",
           error:
-            "Le retour n'a pas pu être enregistré. Vos notes restent sélectionnées."
+            "Le retour n'a pas pu être enregistré. Vos notes restent sélectionnées.",
+          syncPending:
+            "Vos réponses sont enregistrées sur cet appareil et seront synchronisées automatiquement.",
+          backToday: "Retour à Aujourd'hui"
         },
         overview: {
           eyebrow: "Parcours",
@@ -307,6 +329,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           pathInProgress: "Parcours en cours",
           pathCompleted: "Parcours terminé",
           history: "Historique des sessions",
+          pathHistory: "Historique des parcours",
           noHistory: "Aucune session terminée pour le moment.",
           nextEdition: "Prochaine édition",
           nextUnknown: "Avec la prochaine édition",
@@ -314,7 +337,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           loading: "Chargement du parcours",
           emptyTitle: "Aucun parcours actif",
           emptyBody:
-            "Créez un parcours pour recevoir une session de cinq minutes dans Aujourd'hui."
+            "Créez un parcours pour recevoir une session de cinq minutes dans Aujourd'hui.",
+          error: "Ce parcours n'a pas pu être chargé pour le moment."
         }
       }
     },

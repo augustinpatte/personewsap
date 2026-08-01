@@ -9,6 +9,7 @@ import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import type { Language } from "../../types/domain";
 import { getLearningCopy } from "./learningCopy";
+import { copyLearningPrompt, copyPromptAndOpenProvider } from "./learningPromptCopy";
 import { useLearningPath } from "./LearningPathContext";
 import { LEARNING_PROVIDER_LINKS } from "./providerLinks";
 import type { LearningProviderId } from "./learningTypes";
@@ -24,8 +25,8 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   const params = useLocalSearchParams<{ id?: string }>();
   const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
   const {
-    activeDomain,
-    activeObjective,
+    displayDomain,
+    displayObjective,
     getSessionById,
     markSessionOpened,
     recordSessionStartedAfterPromptCopy,
@@ -39,6 +40,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     Boolean(session?.started_at) || session?.status === "started" || session?.status === "completed"
   );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusTone, setStatusTone] = useState<"success" | "danger">("success");
   const openedSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -59,14 +61,25 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   }, [session?.started_at, session?.status]);
 
   const copyPrompt = async () => {
-    if (!session?.prompt_text) {
+    if (!session?.prompt_text || !session.id) {
       return { copied: false, syncPending: false };
     }
 
-    await Clipboard.setStringAsync(session.prompt_text);
-    const result = await recordSessionStartedAfterPromptCopy(session.id);
+    const result = await copyLearningPrompt({
+      promptText: session.prompt_text,
+      sessionId: session.id,
+      copyToClipboard: Clipboard.setStringAsync,
+      recordSessionStartedAfterPromptCopy
+    });
+
+    if (!result.copied) {
+      setStatusTone("danger");
+      setStatusMessage(copy.copyFailed);
+      return result;
+    }
 
     setPromptUsed(true);
+    setStatusTone("success");
     setStatusMessage(result.syncPending ? copy.syncPending : copy.promptCopied);
     trackAnalyticsEvent("learning_prompt_copied", {
       language: language ?? undefined
@@ -75,28 +88,35 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   };
 
   const openProvider = async (providerId: LearningProviderId) => {
-    const copied = await copyPrompt();
     const provider = LEARNING_PROVIDER_LINKS[providerId];
 
-    if (!copied.copied) {
-      return;
-    }
-
-    try {
-      const supported = await Linking.canOpenURL(provider.url);
-      if (!supported) {
+    await copyPromptAndOpenProvider({
+      providerId,
+      providerUrl: provider.url,
+      copyPrompt,
+      canOpenUrl: Linking.canOpenURL,
+      openUrl: Linking.openURL,
+      onPromptReady: (copied) => {
+        setPromptUsed(true);
+        setStatusTone("success");
+        setStatusMessage(copied.syncPending ? copy.syncPending : copy.promptCopied);
+      },
+      onCopyFailed: () => {
+        setStatusTone("danger");
+        setStatusMessage(copy.copyFailed);
+      },
+      onOpenFailed: () => {
+        setStatusTone("danger");
         setStatusMessage(copy.openFailed);
-        return;
+      },
+      onOpenSucceeded: (_providerId, copied) => {
+        setStatusTone("success");
+        setStatusMessage(copied.syncPending ? copy.syncPending : copy.promptCopied);
+        trackAnalyticsEvent("learning_provider_opened", {
+          language: language ?? undefined
+        });
       }
-
-      await Linking.openURL(provider.url);
-      trackAnalyticsEvent("learning_provider_opened", {
-        language: language ?? undefined
-      });
-      setStatusMessage(copied.syncPending ? copy.syncPending : copy.promptCopied);
-    } catch {
-      setStatusMessage(copy.openFailed);
-    }
+    });
   };
 
   if (status === "loading") {
@@ -128,10 +148,10 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     <AppScreen contentStyle={styles.screen}>
       <View style={styles.header}>
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
-        {activeDomain && activeObjective ? (
+        {displayDomain && displayObjective ? (
           <AppText color="muted" variant="caption">
-            {`${localizeLearningField(activeDomain, language)} · ${localizeLearningField(
-              activeObjective,
+            {`${localizeLearningField(displayDomain, language)} · ${localizeLearningField(
+              displayObjective,
               language
             )}`}
           </AppText>
@@ -182,7 +202,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
           }}
         />
         {statusMessage ? (
-          <AppText color="success" variant="body">
+          <AppText color={statusTone} variant="body">
             {statusMessage}
           </AppText>
         ) : null}

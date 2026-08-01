@@ -19,8 +19,41 @@ export type LearningSetupDraft = {
   currentStep: LearningSetupStep;
 };
 
+export type LearningSetupDraftStorage = {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+};
+
 export function getLearningSetupDraftKey(userId: string | null | undefined): string {
   return `${LEARNING_SETUP_DRAFT_KEY_PREFIX}:${userId ?? "anonymous"}`;
+}
+
+export async function migrateLearningSetupDraftForUser(
+  storage: LearningSetupDraftStorage,
+  userId: string | null | undefined
+): Promise<string | null> {
+  const v2Key = getLearningSetupDraftKey(userId);
+  const v2Value = await storage.getItem(v2Key);
+
+  if (v2Value) {
+    return v2Value;
+  }
+
+  const v1Value = await storage.getItem(LEARNING_SETUP_DRAFT_KEY_V1);
+  if (!v1Value) {
+    return null;
+  }
+
+  await storage.setItem(v2Key, v1Value);
+
+  const verified = await storage.getItem(v2Key);
+  if (verified !== v1Value) {
+    throw new Error("Learning setup draft migration could not verify the v2 write.");
+  }
+
+  await storage.removeItem(LEARNING_SETUP_DRAFT_KEY_V1);
+  return v1Value;
 }
 
 export function parseLearningSetupDraft(value: string | null): Partial<LearningSetupDraft> | null {

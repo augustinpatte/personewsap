@@ -15,6 +15,7 @@ import {
 type LearningAccountSectionProps = {
   language: Language | null | undefined;
   onCreate: () => void;
+  onHistory: () => void;
   onOverview: () => void;
   onReplace: () => void;
 };
@@ -22,6 +23,7 @@ type LearningAccountSectionProps = {
 export function LearningAccountSection({
   language,
   onCreate,
+  onHistory,
   onOverview,
   onReplace
 }: LearningAccountSectionProps) {
@@ -69,8 +71,9 @@ export function LearningAccountSection({
               </View>
               <View style={styles.actions}>
                 <SecondaryButton label={copy.overview} onPress={onOverview} />
+                <SecondaryButton label={copy.history} onPress={onHistory} />
                 <SecondaryButton label={activePath ? copy.change : copy.newPath} onPress={() => setReplaceVisible(true)} />
-                {activePath ? (
+                {learningPathEnabled ? (
                   <SecondaryButton label={copy.disable} onPress={() => setDisableVisible(true)} />
                 ) : null}
               </View>
@@ -128,7 +131,7 @@ export function LearningAccountSection({
           <Card elevated padding="lg" style={styles.modalCard}>
             <AppText variant="subtitle">{copy.disableTitle}</AppText>
             <AppText color="muted" variant="body">
-              {copy.disableBody}
+              {activePath ? copy.disableBody : copy.disableCompletedBody}
             </AppText>
             <View style={styles.actions}>
               <SecondaryButton label={copy.cancel} onPress={() => setDisableVisible(false)} />

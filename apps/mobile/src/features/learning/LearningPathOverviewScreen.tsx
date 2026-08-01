@@ -1,5 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
 import { AppScreen, AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
@@ -12,7 +13,8 @@ import { useLearningPath } from "./LearningPathContext";
 import {
   localizeLearningDescription,
   localizeLearningField,
-  localizeSessionTitle
+  localizeSessionTitle,
+  type LearningSession
 } from "./learningTypes";
 
 export function LearningPathOverviewScreen({
@@ -21,17 +23,65 @@ export function LearningPathOverviewScreen({
   language: Language | null | undefined;
 }) {
   const router = useRouter();
+  const params = useLocalSearchParams<{ pathId?: string }>();
+  const pathId = Array.isArray(params.pathId) ? params.pathId[0] : params.pathId;
   const styles = useThemedStyles(createStyles);
   const copy = getLearningCopy(language).overview;
   const {
-    completedSessions,
-    displayDomain,
-    displayObjective,
     displayPath,
+    domains,
+    learningPaths,
+    loadSessionsForPath,
     nextAvailableAt,
+    objectives,
     sessions,
     status
   } = useLearningPath();
+  const selectedPath = pathId ? learningPaths.find((path) => path.id === pathId) ?? null : displayPath;
+  const selectedDomain = selectedPath
+    ? domains.find((domain) => domain.id === selectedPath.domain_id) ?? null
+    : null;
+  const selectedObjective = selectedPath
+    ? objectives.find((objective) => objective.id === selectedPath.objective_id) ?? null
+    : null;
+  const isDefaultPath = !pathId || pathId === displayPath?.id;
+  const [loadedSessions, setLoadedSessions] = useState<LearningSession[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const selectedSessions = isDefaultPath ? sessions : loadedSessions ?? [];
+  const completedSessions = useMemo(
+    () =>
+      selectedSessions.filter((session) => Boolean(session.completed_at) || session.status === "completed"),
+    [selectedSessions]
+  );
+
+  useEffect(() => {
+    if (isDefaultPath || !selectedPath) {
+      return;
+    }
+
+    let cancelled = false;
+    setLoadedSessions(null);
+    setLoadError(false);
+
+    void loadSessionsForPath(selectedPath.id)
+      .then((pathSessions) => {
+        if (!cancelled) {
+          setLoadedSessions(pathSessions);
+        }
+      })
+      .catch((error) => {
+        if (__DEV__) {
+          console.warn("[LearningPathOverview] could not load path sessions", error);
+        }
+        if (!cancelled) {
+          setLoadError(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDefaultPath, loadSessionsForPath, selectedPath]);
 
   if (status === "loading") {
     return (
@@ -43,7 +93,7 @@ export function LearningPathOverviewScreen({
     );
   }
 
-  if (!displayPath || !displayDomain || !displayObjective) {
+  if (!selectedPath || !selectedDomain || !selectedObjective) {
     return (
       <AppScreen centered>
         <Card elevated padding="lg">
@@ -69,16 +119,16 @@ export function LearningPathOverviewScreen({
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
         <AppText variant="title">{copy.title}</AppText>
         <AppText color="muted" variant="body">
-          {localizeLearningDescription(displayObjective, language)}
+          {localizeLearningDescription(selectedObjective, language)}
         </AppText>
       </View>
 
       <Card padding="lg">
-        <InfoRow label={copy.domain} value={localizeLearningField(displayDomain, language)} />
-        <InfoRow label={copy.orientation} value={localizeLearningField(displayObjective, language)} />
+        <InfoRow label={copy.domain} value={localizeLearningField(selectedDomain, language)} />
+        <InfoRow label={copy.orientation} value={localizeLearningField(selectedObjective, language)} />
         <InfoRow
           label={copy.status}
-          value={displayPath.status === "completed" ? copy.pathCompleted : copy.pathInProgress}
+          value={selectedPath.status === "completed" ? copy.pathCompleted : copy.pathInProgress}
         />
         <InfoRow
           label={copy.sessionsCompleted}
@@ -87,21 +137,29 @@ export function LearningPathOverviewScreen({
         <InfoRow label={copy.conceptsStudied} value={String(completedSessions.length)} />
         <InfoRow
           label={copy.nextEdition}
-          value={nextDate ? formatDate(nextDate, language) : copy.nextUnknown}
+          value={isDefaultPath && nextDate ? formatDate(nextDate, language) : copy.nextUnknown}
         />
         <InfoRow
           label={copy.currentLevel}
-          value={getCurrentLevelLabel(displayPath.current_level, language)}
+          value={getCurrentLevelLabel(selectedPath.current_level, language)}
         />
         <InfoRow
           label={copy.targetLevel}
-          value={getTargetLevelLabel(displayPath.target_level, language)}
+          value={getTargetLevelLabel(selectedPath.target_level, language)}
         />
       </Card>
 
       <Card padding="lg" tone="muted">
         <AppText variant="subtitle">{copy.history}</AppText>
-        {completedSessions.length === 0 ? (
+        {loadError ? (
+          <AppText color="danger" variant="body">
+            {copy.error}
+          </AppText>
+        ) : !isDefaultPath && loadedSessions === null ? (
+          <AppText color="muted" variant="body">
+            {copy.loading}
+          </AppText>
+        ) : completedSessions.length === 0 ? (
           <AppText color="muted" variant="body">
             {copy.noHistory}
           </AppText>
@@ -115,21 +173,23 @@ export function LearningPathOverviewScreen({
             </View>
           ))
         )}
-        {sessions.length > completedSessions.length ? (
+        {selectedSessions.length > completedSessions.length ? (
           <AppText color="muted" variant="caption">
-            {copy.remainingSessions(sessions.length - completedSessions.length)}
+            {copy.remainingSessions(selectedSessions.length - completedSessions.length)}
           </AppText>
         ) : null}
       </Card>
 
-      <SecondaryButton
-        label={copy.replace}
-        onPress={() =>
-          router.push(
-            { pathname: "/(learning)/setup", params: { replace: "1" } } as unknown as Href
-          )
-        }
-      />
+      {isDefaultPath ? (
+        <SecondaryButton
+          label={copy.replace}
+          onPress={() =>
+            router.push(
+              { pathname: "/(learning)/setup", params: { replace: "1" } } as unknown as Href
+            )
+          }
+        />
+      ) : null}
     </AppScreen>
   );
 }

@@ -19,7 +19,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm install
+      - run: npm ci
       - run: npm run learning:catalog:build
       - run: git diff --exit-code -- content/learning-paths/v1
       - run: npm run learning:catalog:validate

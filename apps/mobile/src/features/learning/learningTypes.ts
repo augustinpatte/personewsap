@@ -75,6 +75,7 @@ export type LearningSession = {
 export type LearningPathBundle = {
   domains: LearningDomain[];
   objectives: LearningObjective[];
+  learningPaths: LearningPath[];
   activePath: LearningPath | null;
   latestCompletedPath: LearningPath | null;
   displayPath: LearningPath | null;

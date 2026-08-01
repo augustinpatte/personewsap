@@ -22,6 +22,46 @@ const PATH_B: LearningPathRecord = {
 };
 
 describe("learning provider isolation", () => {
+  it("uses the injected env and stays unavailable when the injected key is empty", () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "real-process-key";
+
+    try {
+      const resolution = resolveLearningProvider({
+        useLlm: true,
+        env: { OPENAI_API_KEY: "", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
+      });
+
+      expect(resolution.status).toBe("unavailable");
+    } finally {
+      if (originalKey === undefined) {
+        delete process.env.OPENAI_API_KEY;
+      } else {
+        process.env.OPENAI_API_KEY = originalKey;
+      }
+    }
+  });
+
+  it("uses the injected env key without reading process.env", () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+
+    try {
+      const resolution = resolveLearningProvider({
+        useLlm: true,
+        env: { OPENAI_API_KEY: "injected-key", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
+      });
+
+      expect(resolution.status).toBe("ready");
+    } finally {
+      if (originalKey === undefined) {
+        delete process.env.OPENAI_API_KEY;
+      } else {
+        process.env.OPENAI_API_KEY = originalKey;
+      }
+    }
+  });
+
   it("captures constructor failures without creating a claim", async () => {
     const repository = new InMemoryLearningRepository({ ...PATH_A });
     const resolution = resolveLearningProvider({

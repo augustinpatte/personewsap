@@ -33,6 +33,34 @@ export type LearningOutboxStorage = {
   removeItem(key: string): Promise<void>;
 };
 
+export type LearningOutboxSessionGroup = {
+  sessionId: string;
+  events: LearningOutboxEvent[];
+};
+
+export type LearningOutboxSyncFailure = {
+  event: LearningOutboxEvent;
+  error: unknown;
+  retryable: boolean;
+};
+
+export type LearningOutboxSyncResult<TSession> = {
+  remaining: LearningOutboxEvent[];
+  failures: LearningOutboxSyncFailure[];
+  syncedSessions: TSession[];
+};
+
+export type LearningFeedbackSyncOutcome =
+  | { ok: true; syncPending: false }
+  | { ok: true; syncPending: true }
+  | { ok: false; syncPending: false };
+
+export type LearningOutboxSyncDependencies<TSession> = {
+  startSession(sessionId: string): Promise<TSession | null>;
+  submitFeedback(sessionId: string, ratings: LearningOutboxFeedbackRatings): Promise<TSession | null>;
+  now(): string;
+};
+
 export function getLearningOutboxKey(userId: string | null | undefined): string {
   return `${LEARNING_OUTBOX_KEY_PREFIX}:${userId ?? "anonymous"}`;
 }
@@ -92,6 +120,133 @@ export function retryLearningOutboxEvent(event: LearningOutboxEvent, now: string
     attemptCount: event.attemptCount + 1,
     lastAttemptAt: now
   };
+}
+
+export function groupLearningOutboxEventsBySession(
+  events: LearningOutboxEvent[]
+): LearningOutboxSessionGroup[] {
+  const orderedEvents = orderLearningOutboxEvents(dedupeLearningOutbox(events));
+  const groups = new Map<string, LearningOutboxEvent[]>();
+
+  for (const event of orderedEvents) {
+    groups.set(event.sessionId, [...(groups.get(event.sessionId) ?? []), event]);
+  }
+
+  return [...groups.entries()].map(([sessionId, groupedEvents]) => ({
+    sessionId,
+    events: groupedEvents
+  }));
+}
+
+export async function flushLearningOutboxEvents<TSession>(
+  events: LearningOutboxEvent[],
+  dependencies: LearningOutboxSyncDependencies<TSession>
+): Promise<LearningOutboxSyncResult<TSession>> {
+  let remaining: LearningOutboxEvent[] = [];
+  const failures: LearningOutboxSyncFailure[] = [];
+  const syncedSessions: TSession[] = [];
+
+  for (const group of groupLearningOutboxEventsBySession(events)) {
+    const started = group.events.find((event) => event.eventType === "started");
+    const feedback = group.events.find((event) => event.eventType === "feedback");
+    let startedSynced = true;
+
+    if (started) {
+      try {
+        const syncedSession = await dependencies.startSession(started.sessionId);
+        if (syncedSession) {
+          syncedSessions.push(syncedSession);
+        }
+      } catch (error) {
+        startedSynced = false;
+        failures.push({
+          event: started,
+          error,
+          retryable: isRetryableLearningSyncError(error)
+        });
+        remaining = upsertLearningOutboxEvent(
+          remaining,
+          retryLearningOutboxEvent(started, dependencies.now())
+        );
+      }
+    }
+
+    if (!startedSynced) {
+      if (feedback) {
+        remaining = upsertLearningOutboxEvent(remaining, feedback);
+      }
+      continue;
+    }
+
+    if (feedback) {
+      try {
+        const syncedSession = await dependencies.submitFeedback(feedback.sessionId, feedback.ratings);
+        if (syncedSession) {
+          syncedSessions.push(syncedSession);
+        }
+      } catch (error) {
+        failures.push({
+          event: feedback,
+          error,
+          retryable: isRetryableLearningSyncError(error)
+        });
+        remaining = upsertLearningOutboxEvent(
+          remaining,
+          retryLearningOutboxEvent(feedback, dependencies.now())
+        );
+      }
+    }
+  }
+
+  return {
+    remaining: orderLearningOutboxEvents(remaining),
+    failures,
+    syncedSessions
+  };
+}
+
+export function isRetryableLearningSyncError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as Record<string, unknown>;
+  const status = typeof record.status === "number" ? record.status : Number(record.status);
+  const code = typeof record.code === "string" ? record.code : null;
+  const message = typeof record.message === "string" ? record.message.toLowerCase() : "";
+
+  if (status === 401 || status === 403 || code === "401" || code === "403" || code === "P0002" || code === "22023") {
+    return false;
+  }
+
+  if (Number.isFinite(status) && status >= 500 && status <= 599) {
+    return true;
+  }
+
+  return (
+    message.includes("network") ||
+    message.includes("failed to fetch") ||
+    message.includes("fetch failed") ||
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("econnreset") ||
+    message.includes("etimedout")
+  );
+}
+
+export function resolveLearningFeedbackSyncOutcome(input: {
+  feedbackStillLocal: boolean;
+  blockingFailure: LearningOutboxSyncFailure | null;
+}): LearningFeedbackSyncOutcome {
+  if (!input.feedbackStillLocal) {
+    return { ok: true, syncPending: false };
+  }
+
+  if (input.blockingFailure?.retryable === true) {
+    return { ok: true, syncPending: true };
+  }
+
+  return { ok: false, syncPending: false };
 }
 
 export function parseLearningOutbox(value: string | null): LearningOutboxEvent[] {
