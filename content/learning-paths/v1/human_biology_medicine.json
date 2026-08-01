@@ -3,7 +3,7 @@
   "version": "v1",
   "steps": [
     {
-      "key": "human_biology_medicine.001",
+      "key": "human_biology_medicine.cell_basics",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -15,32 +15,34 @@
       "required": true,
       "prerequisite_keys": [],
       "fallback_key": null,
-      "title_fr": "Biologie humaine et médecine - étape 1",
-      "title_en": "Human biology and medicine - step 1",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 1.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 1.",
+      "title_fr": "La cellule, unité de base du vivant",
+      "title_en": "The cell, basic unit of life",
+      "summary_fr": "Situer les principaux compartiments d'une cellule et le rôle de chacun.",
+      "summary_en": "Locate the main compartments of a cell and the role of each one.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 1.",
-        "L'appliquer dans un exemple court."
+        "Nommer trois compartiments cellulaires et leur fonction.",
+        "Expliquer le rôle de la membrane comme frontière sélective."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 1.",
-        "Apply it in a short example."
+        "Name three cell compartments and their function.",
+        "Explain the membrane's role as a selective boundary."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais nommer trois compartiments d'une cellule et leur rôle, puis demande ce qui se passe si la membrane laisse tout passer.",
+      "tutor_focus_en": "Have the student name three cell compartments and their role, then ask what happens if the membrane lets everything through.",
       "example_contexts_fr": [
-        "Exemple étudiant 1",
-        "Situation produit 1"
+        "une cellule musculaire riche en mitochondries",
+        "un globule rouge dépourvu de noyau",
+        "une cellule de la peau qui se renouvelle"
       ],
       "example_contexts_en": [
-        "Student example 1",
-        "Product situation 1"
+        "a muscle cell rich in mitochondria",
+        "a red blood cell without a nucleus",
+        "a skin cell being renewed"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.002",
+      "key": "human_biology_medicine.body_systems_map",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -49,37 +51,39 @@
       ],
       "stage": 1,
       "order": 2,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.001"
+        "human_biology_medicine.cell_basics"
       ],
       "fallback_key": null,
-      "title_fr": "Biologie humaine et médecine - étape 2",
-      "title_en": "Human biology and medicine - step 2",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 1.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 1.",
+      "title_fr": "Les grands systèmes du corps et leur coordination",
+      "title_en": "The major body systems and their coordination",
+      "summary_fr": "Relier les systèmes entre eux plutôt que de les mémoriser séparément.",
+      "summary_en": "Connect the systems to each other rather than memorising them separately.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 2.",
-        "L'appliquer dans un exemple court."
+        "Associer chaque grand système à sa fonction principale.",
+        "Décrire une coordination entre deux systèmes lors d'un effort."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 2.",
-        "Apply it in a short example."
+        "Match each major system to its main function.",
+        "Describe a coordination between two systems during exercise."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire ce qui se coordonne entre trois systèmes quand on monte un escalier rapidement.",
+      "tutor_focus_en": "Have the student describe what three systems coordinate when climbing stairs quickly.",
       "example_contexts_fr": [
-        "Exemple étudiant 2",
-        "Situation produit 2"
+        "une montée d'escalier rapide",
+        "un repas copieux suivi d'une somnolence",
+        "une déshydratation par forte chaleur"
       ],
       "example_contexts_en": [
-        "Student example 2",
-        "Product situation 2"
+        "a quick climb up a staircase",
+        "a heavy meal followed by drowsiness",
+        "dehydration during a heatwave"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.003",
+      "key": "human_biology_medicine.homeostasis",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -88,37 +92,39 @@
       ],
       "stage": 1,
       "order": 3,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.002"
+        "human_biology_medicine.body_systems_map"
       ],
-      "fallback_key": "human_biology_medicine.001",
-      "title_fr": "Biologie humaine et médecine - étape 3",
-      "title_en": "Human biology and medicine - step 3",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 1.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 1.",
+      "fallback_key": null,
+      "title_fr": "L'homéostasie : maintenir un équilibre",
+      "title_en": "Homeostasis: keeping a balance",
+      "summary_fr": "Comprendre la régulation par rétroaction négative sur des exemples de température et de glycémie.",
+      "summary_en": "Understand negative feedback regulation through temperature and blood sugar examples.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 3.",
-        "L'appliquer dans un exemple court."
+        "Décrire une boucle de rétroaction négative complète.",
+        "Identifier capteur, centre de contrôle et effecteur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 3.",
-        "Apply it in a short example."
+        "Describe a full negative feedback loop.",
+        "Identify sensor, control centre and effector."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire la boucle qui ramène la température corporelle après un effort, en nommant capteur, centre et effecteur.",
+      "tutor_focus_en": "Have the student describe the loop returning body temperature to normal after exercise, naming sensor, centre and effector.",
       "example_contexts_fr": [
-        "Exemple étudiant 3",
-        "Situation produit 3"
+        "une transpiration déclenchée par la chaleur",
+        "un frisson par temps froid",
+        "une glycémie qui remonte après un repas"
       ],
       "example_contexts_en": [
-        "Student example 3",
-        "Product situation 3"
+        "sweating triggered by heat",
+        "shivering in cold weather",
+        "blood sugar rising after a meal"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.004",
+      "key": "human_biology_medicine.dna_to_protein",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -127,37 +133,39 @@
       ],
       "stage": 1,
       "order": 4,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.003"
+        "human_biology_medicine.homeostasis"
       ],
-      "fallback_key": "human_biology_medicine.002",
-      "title_fr": "Biologie humaine et médecine - étape 4",
-      "title_en": "Human biology and medicine - step 4",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 1.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 1.",
+      "fallback_key": null,
+      "title_fr": "De l'ADN à la protéine",
+      "title_en": "From DNA to protein",
+      "summary_fr": "Suivre le passage d'une séquence d'ADN à une protéine fonctionnelle en deux étapes.",
+      "summary_en": "Follow the path from a DNA sequence to a functional protein in two steps.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 4.",
-        "L'appliquer dans un exemple court."
+        "Ordonner transcription et traduction.",
+        "Expliquer pourquoi toutes les cellules n'expriment pas les mêmes gènes."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 4.",
-        "Apply it in a short example."
+        "Order transcription and translation.",
+        "Explain why not all cells express the same genes."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais ordonner les deux étapes du gène à la protéine, puis demande pourquoi deux cellules du même corps sont différentes.",
+      "tutor_focus_en": "Have the student order the two steps from gene to protein, then ask why two cells of the same body differ.",
       "example_contexts_fr": [
-        "Exemple étudiant 4",
-        "Situation produit 4"
+        "l'insuline produite par le pancréas",
+        "une cellule de peau et un neurone au même génome",
+        "une enzyme digestive fabriquée après un repas"
       ],
       "example_contexts_en": [
-        "Student example 4",
-        "Product situation 4"
+        "insulin produced by the pancreas",
+        "a skin cell and a neuron sharing one genome",
+        "a digestive enzyme made after a meal"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.005",
+      "key": "human_biology_medicine.medical_vocabulary",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -166,154 +174,156 @@
       ],
       "stage": 1,
       "order": 5,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.004"
+        "human_biology_medicine.dna_to_protein"
       ],
-      "fallback_key": "human_biology_medicine.003",
-      "title_fr": "Biologie humaine et médecine - étape 5",
-      "title_en": "Human biology and medicine - step 5",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 1.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Lire un terme médical",
+      "title_en": "Reading a medical term",
+      "summary_fr": "Décomposer un mot médical en préfixe, racine et suffixe pour en deviner le sens.",
+      "summary_en": "Break a medical word into prefix, root and suffix to infer its meaning.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 5.",
-        "L'appliquer dans un exemple court."
+        "Décomposer trois termes médicaux courants.",
+        "Deviner le sens d'un terme inconnu à partir de ses éléments."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 5.",
-        "Apply it in a short example."
+        "Break down three common medical terms.",
+        "Infer the meaning of an unknown term from its parts."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décomposer trois termes médicaux, puis demande de deviner le sens d'un quatrième jamais rencontré.",
+      "tutor_focus_en": "Have the student break down three medical terms, then infer the meaning of a fourth they have never seen.",
       "example_contexts_fr": [
-        "Exemple étudiant 5",
-        "Situation produit 5"
+        "un compte rendu d'examen rempli d'abréviations",
+        "un terme finissant par -ite dans une notice",
+        "un mot composé désignant une opération"
       ],
       "example_contexts_en": [
-        "Student example 5",
-        "Product situation 5"
+        "a test report full of abbreviations",
+        "a term ending in -itis in a leaflet",
+        "a compound word naming a surgical procedure"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.006",
+      "key": "human_biology_medicine.skeleton_and_muscles",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
       "stage": 1,
       "order": 6,
       "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.005"
+        "human_biology_medicine.medical_vocabulary"
       ],
-      "fallback_key": "human_biology_medicine.004",
-      "title_fr": "Biologie humaine et médecine - étape 6",
-      "title_en": "Human biology and medicine - step 6",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 1.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Os, articulations et muscles",
+      "title_en": "Bones, joints and muscles",
+      "summary_fr": "Comprendre le levier formé par un os, une articulation et un muscle qui se contracte.",
+      "summary_en": "Understand the lever formed by a bone, a joint and a contracting muscle.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 6.",
-        "L'appliquer dans un exemple court."
+        "Décrire le mouvement produit par une paire de muscles antagonistes.",
+        "Nommer les trois éléments d'un levier articulaire."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 6.",
-        "Apply it in a short example."
+        "Describe the movement produced by a pair of antagonist muscles.",
+        "Name the three parts of a joint lever."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire les muscles qui plient puis tendent le coude, et demande pourquoi un muscle ne peut que tirer.",
+      "tutor_focus_en": "Have the student describe the muscles bending then extending the elbow, and ask why a muscle can only pull.",
       "example_contexts_fr": [
-        "Exemple étudiant 6",
-        "Situation produit 6"
+        "la flexion du coude en portant un sac",
+        "une articulation du genou en descente",
+        "une posture assise maintenue longtemps"
       ],
       "example_contexts_en": [
-        "Student example 6",
-        "Product situation 6"
+        "bending the elbow while carrying a bag",
+        "a knee joint going downhill",
+        "a seated posture held for a long time"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.007",
+      "key": "human_biology_medicine.pathogen_types",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_disease"
       ],
       "stage": 1,
       "order": 7,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.006"
+        "human_biology_medicine.medical_vocabulary"
       ],
-      "fallback_key": "human_biology_medicine.005",
-      "title_fr": "Biologie humaine et médecine - étape 7",
-      "title_en": "Human biology and medicine - step 7",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 1.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Bactéries, virus, champignons et parasites",
+      "title_en": "Bacteria, viruses, fungi and parasites",
+      "summary_fr": "Distinguer les grandes familles d'agents infectieux et ce que cela implique pour les traitements.",
+      "summary_en": "Tell apart the major families of infectious agents and what that implies for treatment.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 7.",
-        "L'appliquer dans un exemple court."
+        "Comparer bactérie et virus sur la structure et la reproduction.",
+        "Expliquer pourquoi un antibiotique n'agit pas sur un virus."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 7.",
-        "Apply it in a short example."
+        "Compare bacteria and viruses on structure and reproduction.",
+        "Explain why an antibiotic does not act on a virus."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer une bactérie et un virus, puis demande pourquoi un antibiotique est inutile contre une infection virale.",
+      "tutor_focus_en": "Have the student compare a bacterium and a virus, then ask why an antibiotic is useless against a viral infection.",
       "example_contexts_fr": [
-        "Exemple étudiant 7",
-        "Situation produit 7"
+        "une angine d'origine virale ou bactérienne",
+        "une infection cutanée due à un champignon",
+        "une contamination alimentaire par une bactérie"
       ],
       "example_contexts_en": [
-        "Student example 7",
-        "Product situation 7"
+        "a sore throat of viral or bacterial origin",
+        "a skin infection caused by a fungus",
+        "food contamination by a bacterium"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.008",
+      "key": "human_biology_medicine.what_is_a_drug",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
         "medicine_evidence"
       ],
-      "stage": 2,
+      "stage": 1,
       "order": 8,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.007"
+        "human_biology_medicine.medical_vocabulary"
       ],
-      "fallback_key": "human_biology_medicine.006",
-      "title_fr": "Biologie humaine et médecine - étape 8",
-      "title_en": "Human biology and medicine - step 8",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 2.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 2.",
+      "fallback_key": null,
+      "title_fr": "Ce qu'est un médicament",
+      "title_en": "What a medicine is",
+      "summary_fr": "Distinguer principe actif, excipients et forme galénique, et comprendre ce que chacun apporte.",
+      "summary_en": "Tell apart active ingredient, excipients and dosage form, and what each contributes.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 8.",
-        "L'appliquer dans un exemple court."
+        "Distinguer principe actif et excipients sur une notice.",
+        "Expliquer ce que la forme du médicament change à son action."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 8.",
-        "Apply it in a short example."
+        "Tell active ingredient from excipients on a leaflet.",
+        "Explain what the dosage form changes about the action."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lire la composition d'une notice et distinguer principe actif et excipients, puis demande ce que change une forme à libération prolongée.",
+      "tutor_focus_en": "Have the student read a leaflet's composition and separate active ingredient from excipients, then ask what an extended-release form changes.",
       "example_contexts_fr": [
-        "Exemple étudiant 8",
-        "Situation produit 8"
+        "une notice listant plusieurs composants",
+        "un comprimé à libération prolongée",
+        "un générique comparé à un médicament d'origine"
       ],
       "example_contexts_en": [
-        "Student example 8",
-        "Product situation 8"
+        "a leaflet listing several components",
+        "an extended-release tablet",
+        "a generic compared with an originator medicine"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.009",
+      "key": "human_biology_medicine.anatomical_orientation",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -322,37 +332,39 @@
       ],
       "stage": 2,
       "order": 9,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.008"
+        "human_biology_medicine.medical_vocabulary"
       ],
-      "fallback_key": "human_biology_medicine.007",
-      "title_fr": "Biologie humaine et médecine - étape 9",
-      "title_en": "Human biology and medicine - step 9",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 2.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 2.",
+      "fallback_key": "human_biology_medicine.medical_vocabulary",
+      "title_fr": "Se repérer dans le corps : plans et positions",
+      "title_en": "Orienting yourself in the body: planes and positions",
+      "summary_fr": "Utiliser le vocabulaire de position pour décrire une localisation sans ambiguïté.",
+      "summary_en": "Use positional vocabulary to describe a location without ambiguity.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 9.",
-        "L'appliquer dans un exemple court."
+        "Utiliser correctement quatre termes de position.",
+        "Décrire une localisation sans ambiguïté."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 9.",
-        "Apply it in a short example."
+        "Correctly use four positional terms.",
+        "Describe a location without ambiguity."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire la position d'un organe par rapport à deux autres avec le vocabulaire adapté, puis corrige les ambiguïtés.",
+      "tutor_focus_en": "Have the student describe an organ's position relative to two others using the right vocabulary, then fix the ambiguities.",
       "example_contexts_fr": [
-        "Exemple étudiant 9",
-        "Situation produit 9"
+        "la description d'une douleur lors d'une consultation",
+        "une coupe d'imagerie médicale",
+        "un schéma d'anatomie vu de face et de profil"
       ],
       "example_contexts_en": [
-        "Student example 9",
-        "Product situation 9"
+        "describing a pain during a consultation",
+        "a medical imaging slice",
+        "an anatomy diagram seen from front and side"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.010",
+      "key": "human_biology_medicine.immune_defense_lines",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -361,37 +373,39 @@
       ],
       "stage": 2,
       "order": 10,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.009"
+        "human_biology_medicine.anatomical_orientation"
       ],
-      "fallback_key": "human_biology_medicine.008",
-      "title_fr": "Biologie humaine et médecine - étape 10",
-      "title_en": "Human biology and medicine - step 10",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 2.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 2.",
+      "fallback_key": "human_biology_medicine.medical_vocabulary",
+      "title_fr": "Les deux lignes de défense de l'immunité",
+      "title_en": "The two lines of immune defence",
+      "summary_fr": "Distinguer la réponse immédiate non spécifique de la réponse ciblée et mémorisée.",
+      "summary_en": "Tell apart the immediate non-specific response and the targeted, remembered one.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 10.",
-        "L'appliquer dans un exemple court."
+        "Comparer immunité innée et immunité adaptative sur trois critères.",
+        "Expliquer ce que la mémoire immunitaire change lors d'un second contact."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 10.",
-        "Apply it in a short example."
+        "Compare innate and adaptive immunity on three criteria.",
+        "Explain what immune memory changes on a second contact."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer les deux réponses lors d'une coupure infectée, puis demande ce qui change lors d'un second contact avec le même agent.",
+      "tutor_focus_en": "Have the student compare both responses on an infected cut, then ask what changes on a second contact with the same agent.",
       "example_contexts_fr": [
-        "Exemple étudiant 10",
-        "Situation produit 10"
+        "une coupure qui rougit et gonfle",
+        "une seconde exposition au même virus",
+        "une fièvre déclenchée par une infection"
       ],
       "example_contexts_en": [
-        "Student example 10",
-        "Product situation 10"
+        "a cut turning red and swollen",
+        "a second exposure to the same virus",
+        "a fever triggered by an infection"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.011",
+      "key": "human_biology_medicine.metabolism_energy",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -402,35 +416,37 @@
       "order": 11,
       "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.010"
+        "human_biology_medicine.immune_defense_lines"
       ],
-      "fallback_key": "human_biology_medicine.009",
-      "title_fr": "Biologie humaine et médecine - étape 11",
-      "title_en": "Human biology and medicine - step 11",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 2.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 2.",
+      "fallback_key": "human_biology_medicine.medical_vocabulary",
+      "title_fr": "D'où vient l'énergie des cellules",
+      "title_en": "Where cells get their energy",
+      "summary_fr": "Relier les nutriments consommés à la production d'énergie utilisable par les cellules.",
+      "summary_en": "Connect consumed nutrients to the production of energy cells can use.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 11.",
-        "L'appliquer dans un exemple court."
+        "Décrire le chemin d'un nutriment jusqu'à l'énergie cellulaire.",
+        "Comparer une dépense au repos et à l'effort."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 11.",
-        "Apply it in a short example."
+        "Describe the path from a nutrient to cellular energy.",
+        "Compare energy expenditure at rest and during exercise."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais suivre le trajet d'un sucre depuis l'assiette jusqu'à la contraction d'un muscle, en nommant chaque étape.",
+      "tutor_focus_en": "Have the student follow a sugar from the plate to a muscle contraction, naming every step.",
       "example_contexts_fr": [
-        "Exemple étudiant 11",
-        "Situation produit 11"
+        "un sprint de trente secondes",
+        "un jeûne d'une nuit",
+        "une marche longue à allure régulière"
       ],
       "example_contexts_en": [
-        "Student example 11",
-        "Product situation 11"
+        "a thirty-second sprint",
+        "an overnight fast",
+        "a long walk at steady pace"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.012",
+      "key": "human_biology_medicine.medical_uncertainty",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
         "medicine_body",
@@ -439,929 +455,1672 @@
       ],
       "stage": 2,
       "order": 12,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.011"
+        "human_biology_medicine.metabolism_energy"
       ],
-      "fallback_key": "human_biology_medicine.010",
-      "title_fr": "Biologie humaine et médecine - étape 12",
-      "title_en": "Human biology and medicine - step 12",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 2.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 2.",
+      "fallback_key": "human_biology_medicine.medical_vocabulary",
+      "title_fr": "Pourquoi la médecine raisonne en probabilités",
+      "title_en": "Why medicine reasons in probabilities",
+      "summary_fr": "Comprendre qu'un raisonnement médical pondère des hypothèses au lieu de certitudes.",
+      "summary_en": "Understand that medical reasoning weighs hypotheses rather than certainties.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 12.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi un même symptôme admet plusieurs causes.",
+        "Dire ce qu'un examen complémentaire modifie dans le raisonnement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 12.",
-        "Apply it in a short example."
+        "Explain why one symptom admits several causes.",
+        "Say what an additional test changes in the reasoning."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister plusieurs causes possibles d'un symptôme courant, puis demande ce qu'un examen change dans la hiérarchie des hypothèses. Reste général et n'évoque aucun cas personnel.",
+      "tutor_focus_en": "Have the student list several possible causes of a common symptom, then ask what a test changes in the ranking. Stay general and avoid any personal case.",
       "example_contexts_fr": [
-        "Exemple étudiant 12",
-        "Situation produit 12"
+        "une fatigue persistante aux causes multiples",
+        "un examen qui écarte une hypothèse",
+        "deux patients aux mêmes symptômes et aux causes différentes"
       ],
       "example_contexts_en": [
-        "Student example 12",
-        "Product situation 12"
+        "persistent tiredness with multiple causes",
+        "a test ruling out one hypothesis",
+        "two patients with the same symptoms and different causes"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.013",
+      "key": "human_biology_medicine.heart_circulation",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
       "stage": 2,
       "order": 13,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.012"
+        "human_biology_medicine.medical_uncertainty"
       ],
-      "fallback_key": "human_biology_medicine.011",
-      "title_fr": "Biologie humaine et médecine - étape 13",
-      "title_en": "Human biology and medicine - step 13",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 2.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 2.",
+      "fallback_key": "human_biology_medicine.skeleton_and_muscles",
+      "title_fr": "Le trajet du sang dans le cœur",
+      "title_en": "The path of blood through the heart",
+      "summary_fr": "Suivre les deux circulations et comprendre le rôle des valves dans le sens du flux.",
+      "summary_en": "Follow both circulations and understand the role of valves in flow direction.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 13.",
-        "L'appliquer dans un exemple court."
+        "Ordonner les cavités traversées par le sang.",
+        "Expliquer le rôle des valves cardiaques."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 13.",
-        "Apply it in a short example."
+        "Order the chambers the blood passes through.",
+        "Explain the role of the heart valves."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais suivre une goutte de sang depuis une jambe jusqu'au retour dans cette même jambe, cavité par cavité.",
+      "tutor_focus_en": "Have the student follow a drop of blood from a leg back to that same leg, chamber by chamber.",
       "example_contexts_fr": [
-        "Exemple étudiant 13",
-        "Situation produit 13"
+        "une goutte de sang partie d'une jambe",
+        "un souffle entendu à l'auscultation",
+        "un rythme cardiaque accéléré par l'effort"
       ],
       "example_contexts_en": [
-        "Student example 13",
-        "Product situation 13"
+        "a drop of blood leaving a leg",
+        "a murmur heard on auscultation",
+        "a heart rate raised by exercise"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.014",
+      "key": "human_biology_medicine.respiration_gas_exchange",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
       "stage": 2,
       "order": 14,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.013"
+        "human_biology_medicine.heart_circulation"
       ],
-      "fallback_key": "human_biology_medicine.012",
-      "title_fr": "Biologie humaine et médecine - étape 14",
-      "title_en": "Human biology and medicine - step 14",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 2.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 2.",
+      "fallback_key": "human_biology_medicine.skeleton_and_muscles",
+      "title_fr": "Les échanges gazeux dans les poumons",
+      "title_en": "Gas exchange in the lungs",
+      "summary_fr": "Relier la surface alvéolaire, la diffusion des gaz et le transport par le sang.",
+      "summary_en": "Connect alveolar surface, gas diffusion and transport by the blood.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 14.",
-        "L'appliquer dans un exemple court."
+        "Expliquer la diffusion de l'oxygène au niveau alvéolaire.",
+        "Dire ce qui déclenche l'augmentation du rythme respiratoire."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 14.",
-        "Apply it in a short example."
+        "Explain oxygen diffusion at the alveolar level.",
+        "Say what triggers an increase in breathing rate."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qui traverse la paroi alvéolaire dans chaque sens, puis demande quel gaz déclenche l'envie de respirer.",
+      "tutor_focus_en": "Have the student explain what crosses the alveolar wall in each direction, then ask which gas drives the urge to breathe.",
       "example_contexts_fr": [
-        "Exemple étudiant 14",
-        "Situation produit 14"
+        "un effort qui accélère la respiration",
+        "une altitude élevée en montagne",
+        "une apnée volontaire de trente secondes"
       ],
       "example_contexts_en": [
-        "Student example 14",
-        "Product situation 14"
+        "exercise speeding up breathing",
+        "high altitude in the mountains",
+        "a thirty-second voluntary breath hold"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.015",
+      "key": "human_biology_medicine.infection_transmission",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_disease"
       ],
-      "stage": 3,
+      "stage": 2,
       "order": 15,
-      "required": false,
-      "prerequisite_keys": [
-        "human_biology_medicine.014"
-      ],
-      "fallback_key": "human_biology_medicine.013",
-      "title_fr": "Biologie humaine et médecine - étape 15",
-      "title_en": "Human biology and medicine - step 15",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 3.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 3.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 15.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 15.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 15",
-        "Situation produit 15"
-      ],
-      "example_contexts_en": [
-        "Student example 15",
-        "Product situation 15"
-      ],
-      "safety_category": "medical_educational"
-    },
-    {
-      "key": "human_biology_medicine.016",
-      "domain_id": "human_biology_medicine",
-      "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
-      ],
-      "stage": 3,
-      "order": 16,
       "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.015"
+        "human_biology_medicine.medical_uncertainty"
       ],
-      "fallback_key": "human_biology_medicine.014",
-      "title_fr": "Biologie humaine et médecine - étape 16",
-      "title_en": "Human biology and medicine - step 16",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 3.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 3.",
+      "fallback_key": "human_biology_medicine.pathogen_types",
+      "title_fr": "Comment une infection se transmet",
+      "title_en": "How an infection spreads",
+      "summary_fr": "Relier le mode de transmission aux mesures de prévention réellement efficaces.",
+      "summary_en": "Connect the transmission route to the prevention measures that actually work.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 16.",
-        "L'appliquer dans un exemple court."
+        "Associer trois modes de transmission à leur prévention adaptée.",
+        "Expliquer pourquoi une mesure efficace ici est inutile ailleurs."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 16.",
-        "Apply it in a short example."
+        "Match three transmission routes to their fitting prevention.",
+        "Explain why a measure effective here is useless elsewhere."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais associer trois modes de transmission aux mesures adaptées, puis demande pourquoi la même mesure ne convient pas partout.",
+      "tutor_focus_en": "Have the student match three transmission routes to fitting measures, then ask why the same measure does not suit all of them.",
       "example_contexts_fr": [
-        "Exemple étudiant 16",
-        "Situation produit 16"
+        "une transmission par gouttelettes dans une salle fermée",
+        "une contamination par les mains et les surfaces",
+        "une infection transmise par un insecte piqueur"
       ],
       "example_contexts_en": [
-        "Student example 16",
-        "Product situation 16"
+        "droplet transmission in a closed room",
+        "contamination through hands and surfaces",
+        "an infection carried by a biting insect"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.017",
+      "key": "human_biology_medicine.inflammation",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_disease"
       ],
-      "stage": 3,
-      "order": 17,
+      "stage": 2,
+      "order": 16,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.016"
+        "human_biology_medicine.infection_transmission"
       ],
-      "fallback_key": "human_biology_medicine.015",
-      "title_fr": "Biologie humaine et médecine - étape 17",
-      "title_en": "Human biology and medicine - step 17",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 3.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 3.",
+      "fallback_key": "human_biology_medicine.pathogen_types",
+      "title_fr": "L'inflammation : utile et dangereuse",
+      "title_en": "Inflammation: useful and dangerous",
+      "summary_fr": "Comprendre pourquoi une réaction protectrice devient nuisible lorsqu'elle se prolonge.",
+      "summary_en": "Understand why a protective reaction becomes harmful when it persists.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 17.",
-        "L'appliquer dans un exemple court."
+        "Citer les signes classiques d'une inflammation aiguë.",
+        "Opposer inflammation aiguë et inflammation chronique."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 17.",
-        "Apply it in a short example."
+        "Name the classic signs of acute inflammation.",
+        "Contrast acute and chronic inflammation."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais citer les signes d'une inflammation aiguë, puis demande ce qui change quand elle persiste pendant des mois.",
+      "tutor_focus_en": "Have the student name the signs of acute inflammation, then ask what changes when it persists for months.",
       "example_contexts_fr": [
-        "Exemple étudiant 17",
-        "Situation produit 17"
+        "une entorse gonflée et douloureuse",
+        "une inflammation persistante d'une articulation",
+        "une rougeur autour d'une plaie infectée"
       ],
       "example_contexts_en": [
-        "Student example 17",
-        "Product situation 17"
+        "a swollen and painful sprain",
+        "persistent inflammation of a joint",
+        "redness around an infected wound"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.018",
+      "key": "human_biology_medicine.dose_response",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
         "medicine_evidence"
       ],
-      "stage": 3,
+      "stage": 2,
+      "order": 17,
+      "required": true,
+      "prerequisite_keys": [
+        "human_biology_medicine.medical_uncertainty"
+      ],
+      "fallback_key": "human_biology_medicine.what_is_a_drug",
+      "title_fr": "La relation dose-effet",
+      "title_en": "The dose-response relationship",
+      "summary_fr": "Comprendre la courbe qui relie une dose à un effet et la marge entre efficacité et toxicité.",
+      "summary_en": "Understand the curve linking dose to effect and the margin between efficacy and toxicity.",
+      "learning_goals_fr": [
+        "Décrire l'allure d'une courbe dose-effet.",
+        "Expliquer ce qu'est une marge thérapeutique étroite."
+      ],
+      "learning_goals_en": [
+        "Describe the shape of a dose-response curve.",
+        "Explain what a narrow therapeutic margin is."
+      ],
+      "tutor_focus_fr": "Fais décrire l'allure d'une courbe dose-effet, puis demande ce qu'implique une marge thérapeutique étroite pour la surveillance.",
+      "tutor_focus_en": "Have the student describe the shape of a dose-response curve, then ask what a narrow margin implies for monitoring.",
+      "example_contexts_fr": [
+        "un effet qui n'augmente plus au-delà d'une dose",
+        "une substance efficace à faible dose et toxique au-delà",
+        "un ajustement de dose selon le poids"
+      ],
+      "example_contexts_en": [
+        "an effect that stops rising beyond a dose",
+        "a substance effective at low dose and toxic above",
+        "a dose adjusted to body weight"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.drug_journey",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 2,
       "order": 18,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.017"
+        "human_biology_medicine.dose_response"
       ],
-      "fallback_key": "human_biology_medicine.016",
-      "title_fr": "Biologie humaine et médecine - étape 18",
-      "title_en": "Human biology and medicine - step 18",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 3.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 3.",
+      "fallback_key": "human_biology_medicine.what_is_a_drug",
+      "title_fr": "Le trajet d'un médicament dans le corps",
+      "title_en": "The journey of a medicine through the body",
+      "summary_fr": "Suivre absorption, distribution, métabolisme et élimination pour comprendre la durée d'action.",
+      "summary_en": "Follow absorption, distribution, metabolism and elimination to understand duration of action.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 18.",
-        "L'appliquer dans un exemple court."
+        "Ordonner les quatre étapes du devenir d'un médicament.",
+        "Expliquer ce que la demi-vie détermine dans un schéma de prise."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 18.",
-        "Apply it in a short example."
+        "Order the four steps of a medicine's fate.",
+        "Explain what half-life determines in a dosing schedule."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais ordonner les quatre étapes, puis demande pourquoi certains médicaments se prennent une fois par jour et d'autres trois fois.",
+      "tutor_focus_en": "Have the student order the four steps, then ask why some medicines are taken once a day and others three times.",
       "example_contexts_fr": [
-        "Exemple étudiant 18",
-        "Situation produit 18"
+        "un médicament pris trois fois par jour",
+        "une prise à jeun ou pendant le repas",
+        "une élimination ralentie chez une personne âgée"
       ],
       "example_contexts_en": [
-        "Student example 18",
-        "Product situation 18"
+        "a medicine taken three times a day",
+        "a dose taken fasting or with a meal",
+        "slowed elimination in an older person"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.019",
+      "key": "human_biology_medicine.neuron_signal",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
       "stage": 3,
       "order": 19,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.018"
+        "human_biology_medicine.respiration_gas_exchange"
       ],
-      "fallback_key": "human_biology_medicine.017",
-      "title_fr": "Biologie humaine et médecine - étape 19",
-      "title_en": "Human biology and medicine - step 19",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 3.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 3.",
+      "fallback_key": "human_biology_medicine.respiration_gas_exchange",
+      "title_fr": "Comment un neurone transmet un signal",
+      "title_en": "How a neuron transmits a signal",
+      "summary_fr": "Distinguer la propagation électrique le long de l'axone de la transmission chimique à la synapse.",
+      "summary_en": "Tell apart electrical propagation along the axon and chemical transmission at the synapse.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 19.",
-        "L'appliquer dans un exemple court."
+        "Décrire les deux modes de transmission successifs.",
+        "Expliquer ce qui limite la vitesse d'un influx."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 19.",
-        "Apply it in a short example."
+        "Describe the two successive transmission modes.",
+        "Explain what limits the speed of an impulse."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais suivre un signal depuis un récepteur cutané jusqu'au cerveau, en distinguant les deux modes de transmission.",
+      "tutor_focus_en": "Have the student follow a signal from a skin receptor to the brain, distinguishing the two transmission modes.",
       "example_contexts_fr": [
-        "Exemple étudiant 19",
-        "Situation produit 19"
+        "un réflexe de retrait au contact d'une surface brûlante",
+        "une main endormie après une compression",
+        "un message de douleur remontant depuis un pied"
       ],
       "example_contexts_en": [
-        "Student example 19",
-        "Product situation 19"
+        "a withdrawal reflex on touching a hot surface",
+        "a hand gone numb after compression",
+        "a pain message travelling up from a foot"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.020",
+      "key": "human_biology_medicine.digestion_absorption",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
       "stage": 3,
       "order": 20,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.019"
+        "human_biology_medicine.neuron_signal"
       ],
-      "fallback_key": "human_biology_medicine.018",
-      "title_fr": "Biologie humaine et médecine - étape 20",
-      "title_en": "Human biology and medicine - step 20",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 3.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 3.",
+      "fallback_key": "human_biology_medicine.respiration_gas_exchange",
+      "title_fr": "La digestion et l'absorption",
+      "title_en": "Digestion and absorption",
+      "summary_fr": "Suivre la transformation mécanique et chimique des aliments jusqu'au passage dans le sang.",
+      "summary_en": "Follow the mechanical and chemical transformation of food until it enters the blood.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 20.",
-        "L'appliquer dans un exemple court."
+        "Associer chaque organe digestif à sa transformation principale.",
+        "Dire où et comment les nutriments passent dans le sang."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 20.",
-        "Apply it in a short example."
+        "Match each digestive organ to its main transformation.",
+        "Say where and how nutrients pass into the blood."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais suivre un morceau de pain de la bouche jusqu'au sang, en nommant les transformations à chaque étape.",
+      "tutor_focus_en": "Have the student follow a piece of bread from mouth to blood, naming the transformation at each step.",
       "example_contexts_fr": [
-        "Exemple étudiant 20",
-        "Situation produit 20"
+        "un morceau de pain mâché puis avalé",
+        "un repas gras qui ralentit la vidange de l'estomac",
+        "une prise de médicament pendant le repas"
       ],
       "example_contexts_en": [
-        "Student example 20",
-        "Product situation 20"
+        "a piece of bread chewed then swallowed",
+        "a fatty meal slowing stomach emptying",
+        "a medicine taken during a meal"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.021",
+      "key": "human_biology_medicine.kidney_filtration",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
       "stage": 3,
       "order": 21,
-      "required": true,
+      "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.020"
+        "human_biology_medicine.digestion_absorption"
       ],
-      "fallback_key": "human_biology_medicine.019",
-      "title_fr": "Biologie humaine et médecine - étape 21",
-      "title_en": "Human biology and medicine - step 21",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 3.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 3.",
+      "fallback_key": "human_biology_medicine.respiration_gas_exchange",
+      "title_fr": "La filtration rénale",
+      "title_en": "Kidney filtration",
+      "summary_fr": "Comprendre l'enchaînement filtration, réabsorption et sécrétion qui produit l'urine.",
+      "summary_en": "Understand the chain of filtration, reabsorption and secretion that produces urine.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 21.",
-        "L'appliquer dans un exemple court."
+        "Ordonner les trois étapes de formation de l'urine.",
+        "Expliquer pourquoi le volume filtré dépasse largement le volume émis."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 21.",
-        "Apply it in a short example."
+        "Order the three steps of urine formation.",
+        "Explain why the filtered volume far exceeds the emitted volume."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer le volume filtré chaque jour et le volume d'urine émis, puis demande ce qui explique l'écart.",
+      "tutor_focus_en": "Have the student compare the daily filtered volume and the emitted urine volume, then explain the gap.",
       "example_contexts_fr": [
-        "Exemple étudiant 21",
-        "Situation produit 21"
+        "une journée sans boire suffisamment",
+        "une urine plus foncée le matin",
+        "une consommation importante d'eau en une heure"
       ],
       "example_contexts_en": [
-        "Student example 21",
-        "Product situation 21"
+        "a day without drinking enough",
+        "darker urine in the morning",
+        "a large water intake within an hour"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.022",
+      "key": "human_biology_medicine.hormonal_regulation",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 22,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.021"
+        "human_biology_medicine.kidney_filtration"
       ],
-      "fallback_key": "human_biology_medicine.020",
-      "title_fr": "Biologie humaine et médecine - étape 22",
-      "title_en": "Human biology and medicine - step 22",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 4.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 4.",
+      "fallback_key": "human_biology_medicine.respiration_gas_exchange",
+      "title_fr": "Les hormones et la régulation à distance",
+      "title_en": "Hormones and regulation at a distance",
+      "summary_fr": "Comprendre une communication lente et diffuse fondée sur des récepteurs spécifiques.",
+      "summary_en": "Understand a slow, diffuse communication based on specific receptors.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 22.",
-        "L'appliquer dans un exemple court."
+        "Comparer signal nerveux et signal hormonal sur trois critères.",
+        "Expliquer pourquoi seules certaines cellules répondent à une hormone."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 22.",
-        "Apply it in a short example."
+        "Compare nerve and hormone signals on three criteria.",
+        "Explain why only some cells respond to a hormone."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer la réponse nerveuse et la réponse hormonale à un même stress, puis demande pourquoi toutes les cellules ne réagissent pas.",
+      "tutor_focus_en": "Have the student compare the nervous and hormonal response to the same stress, then ask why not all cells react.",
       "example_contexts_fr": [
-        "Exemple étudiant 22",
-        "Situation produit 22"
+        "une montée d'adrénaline lors d'une frayeur",
+        "une régulation de la glycémie après un repas",
+        "une croissance étalée sur plusieurs années"
       ],
       "example_contexts_en": [
-        "Student example 22",
-        "Product situation 22"
+        "an adrenaline surge during a fright",
+        "blood sugar regulation after a meal",
+        "growth spread over several years"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.023",
+      "key": "human_biology_medicine.antibiotic_resistance",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_disease"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 23,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.022"
+        "human_biology_medicine.inflammation"
       ],
-      "fallback_key": "human_biology_medicine.021",
-      "title_fr": "Biologie humaine et médecine - étape 23",
-      "title_en": "Human biology and medicine - step 23",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 4.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 4.",
+      "fallback_key": "human_biology_medicine.inflammation",
+      "title_fr": "La résistance aux antibiotiques",
+      "title_en": "Antibiotic resistance",
+      "summary_fr": "Comprendre la sélection de bactéries résistantes et ses conséquences collectives.",
+      "summary_en": "Understand the selection of resistant bacteria and its collective consequences.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 23.",
-        "L'appliquer dans un exemple court."
+        "Expliquer le mécanisme de sélection des bactéries résistantes.",
+        "Dire pourquoi la résistance est un problème collectif."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 23.",
-        "Apply it in a short example."
+        "Explain the selection mechanism of resistant bacteria.",
+        "Say why resistance is a collective problem."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qui arrive aux bactéries survivantes après un traitement incomplet, puis demande l'effet à l'échelle d'une population.",
+      "tutor_focus_en": "Have the student explain what happens to surviving bacteria after an incomplete course, then ask the effect at population scale.",
       "example_contexts_fr": [
-        "Exemple étudiant 23",
-        "Situation produit 23"
+        "un traitement interrompu dès la disparition des symptômes",
+        "un usage massif d'antibiotiques en élevage",
+        "une infection hospitalière difficile à traiter"
       ],
       "example_contexts_en": [
-        "Student example 23",
-        "Product situation 23"
+        "a course stopped as soon as symptoms disappear",
+        "heavy antibiotic use in livestock farming",
+        "a hospital infection that is hard to treat"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.024",
+      "key": "human_biology_medicine.cancer_mechanisms",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_disease"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 24,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.023"
+        "human_biology_medicine.antibiotic_resistance"
       ],
-      "fallback_key": "human_biology_medicine.022",
-      "title_fr": "Biologie humaine et médecine - étape 24",
-      "title_en": "Human biology and medicine - step 24",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 4.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 4.",
+      "fallback_key": "human_biology_medicine.inflammation",
+      "title_fr": "Comment naît un cancer",
+      "title_en": "How a cancer arises",
+      "summary_fr": "Comprendre l'accumulation d'altérations qui libère une cellule des contrôles de division.",
+      "summary_en": "Understand the accumulation of alterations that frees a cell from division controls.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 24.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi une seule mutation ne suffit généralement pas.",
+        "Distinguer une tumeur locale d'une dissémination."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 24.",
-        "Apply it in a short example."
+        "Explain why a single mutation is usually not enough.",
+        "Tell a local tumour apart from a dissemination."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi plusieurs altérations sont nécessaires, puis demande ce que change une dissémination à distance. Reste général et n'évoque aucun cas personnel.",
+      "tutor_focus_en": "Have the student explain why several alterations are needed, then ask what distant spread changes. Stay general and avoid any personal case.",
       "example_contexts_fr": [
-        "Exemple étudiant 24",
-        "Situation produit 24"
+        "une exposition prolongée à un agent cancérigène",
+        "des mécanismes de réparation de l'ADN défaillants",
+        "une tumeur détectée à un stade précoce"
       ],
       "example_contexts_en": [
-        "Student example 24",
-        "Product situation 24"
+        "prolonged exposure to a carcinogenic agent",
+        "failing DNA repair mechanisms",
+        "a tumour detected at an early stage"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.025",
+      "key": "human_biology_medicine.autoimmune_disease",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_disease"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 25,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.024"
+        "human_biology_medicine.cancer_mechanisms"
       ],
-      "fallback_key": "human_biology_medicine.023",
-      "title_fr": "Biologie humaine et médecine - étape 25",
-      "title_en": "Human biology and medicine - step 25",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 4.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 4.",
+      "fallback_key": "human_biology_medicine.inflammation",
+      "title_fr": "Les maladies auto-immunes",
+      "title_en": "Autoimmune diseases",
+      "summary_fr": "Comprendre une réponse immunitaire dirigée contre les propres tissus de l'organisme.",
+      "summary_en": "Understand an immune response directed against the body's own tissues.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 25.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'est une perte de tolérance immunitaire.",
+        "Dire pourquoi ces maladies évoluent souvent par poussées."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 25.",
-        "Apply it in a short example."
+        "Explain what a loss of immune tolerance is.",
+        "Say why these diseases often progress in flares."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce que signifie une perte de tolérance, puis demande pourquoi l'évolution se fait souvent par poussées. Reste général.",
+      "tutor_focus_en": "Have the student explain what loss of tolerance means, then ask why progression often happens in flares. Stay general.",
       "example_contexts_fr": [
-        "Exemple étudiant 25",
-        "Situation produit 25"
+        "une atteinte articulaire évoluant par poussées",
+        "une destruction progressive de cellules productrices d'hormone",
+        "un traitement qui module la réponse immunitaire"
       ],
       "example_contexts_en": [
-        "Student example 25",
-        "Product situation 25"
+        "joint involvement progressing in flares",
+        "progressive destruction of hormone-producing cells",
+        "a treatment that modulates the immune response"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.026",
+      "key": "human_biology_medicine.genetic_disease",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_disease"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 26,
-      "required": true,
-      "prerequisite_keys": [
-        "human_biology_medicine.025"
-      ],
-      "fallback_key": "human_biology_medicine.024",
-      "title_fr": "Biologie humaine et médecine - étape 26",
-      "title_en": "Human biology and medicine - step 26",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 4.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 4.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 26.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 26.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 26",
-        "Situation produit 26"
-      ],
-      "example_contexts_en": [
-        "Student example 26",
-        "Product situation 26"
-      ],
-      "safety_category": "medical_educational"
-    },
-    {
-      "key": "human_biology_medicine.027",
-      "domain_id": "human_biology_medicine",
-      "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
-      ],
-      "stage": 4,
-      "order": 27,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.026"
+        "human_biology_medicine.autoimmune_disease"
       ],
-      "fallback_key": "human_biology_medicine.025",
-      "title_fr": "Biologie humaine et médecine - étape 27",
-      "title_en": "Human biology and medicine - step 27",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 4.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 4.",
+      "fallback_key": "human_biology_medicine.inflammation",
+      "title_fr": "Les maladies génétiques",
+      "title_en": "Genetic diseases",
+      "summary_fr": "Distinguer une maladie liée à un seul gène d'une prédisposition multifactorielle.",
+      "summary_en": "Tell apart a single-gene disease and a multifactorial predisposition.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 27.",
-        "L'appliquer dans un exemple court."
+        "Comparer maladie monogénique et prédisposition multifactorielle.",
+        "Expliquer ce qu'un facteur de risque génétique ne détermine pas."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 27.",
-        "Apply it in a short example."
+        "Compare a monogenic disease and a multifactorial predisposition.",
+        "Explain what a genetic risk factor does not determine."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer une maladie monogénique et une prédisposition, puis demande ce qu'un résultat génétique ne permet pas de conclure. Reste général.",
+      "tutor_focus_en": "Have the student compare a monogenic disease and a predisposition, then ask what a genetic result cannot conclude. Stay general.",
       "example_contexts_fr": [
-        "Exemple étudiant 27",
-        "Situation produit 27"
+        "une maladie transmise selon un schéma familial clair",
+        "une prédisposition combinée à un mode de vie",
+        "un test génétique proposé au grand public"
       ],
       "example_contexts_en": [
-        "Student example 27",
-        "Product situation 27"
+        "a disease transmitted along a clear family pattern",
+        "a predisposition combined with lifestyle",
+        "a genetic test marketed to the general public"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.028",
+      "key": "human_biology_medicine.clinical_trial_phases",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
         "medicine_evidence"
       ],
-      "stage": 4,
+      "stage": 3,
+      "order": 27,
+      "required": true,
+      "prerequisite_keys": [
+        "human_biology_medicine.drug_journey"
+      ],
+      "fallback_key": "human_biology_medicine.drug_journey",
+      "title_fr": "Les phases d'un essai clinique",
+      "title_en": "The phases of a clinical trial",
+      "summary_fr": "Associer chaque phase à la question qu'elle cherche à trancher et à sa population.",
+      "summary_en": "Match each phase to the question it aims to settle and to its population.",
+      "learning_goals_fr": [
+        "Associer chaque phase à sa question principale.",
+        "Expliquer pourquoi un effet rare n'apparaît qu'après commercialisation."
+      ],
+      "learning_goals_en": [
+        "Match each phase to its main question.",
+        "Explain why a rare effect only appears after marketing."
+      ],
+      "tutor_focus_fr": "Fais associer chaque phase à sa question, puis demande pourquoi un effet indésirable rare échappe souvent aux essais.",
+      "tutor_focus_en": "Have the student match each phase to its question, then ask why a rare adverse effect often escapes trials.",
+      "example_contexts_fr": [
+        "un essai de tolérance sur quelques dizaines de volontaires",
+        "une comparaison à un traitement existant sur des milliers de patients",
+        "un effet indésirable détecté après plusieurs années d'usage"
+      ],
+      "example_contexts_en": [
+        "a tolerance trial on a few dozen volunteers",
+        "a comparison to an existing treatment on thousands of patients",
+        "an adverse effect detected after years of use"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.placebo_control",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 3,
       "order": 28,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.027"
+        "human_biology_medicine.clinical_trial_phases"
       ],
-      "fallback_key": "human_biology_medicine.026",
-      "title_fr": "Biologie humaine et médecine - étape 28",
-      "title_en": "Human biology and medicine - step 28",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 4.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 4.",
+      "fallback_key": "human_biology_medicine.drug_journey",
+      "title_fr": "Le placebo et le groupe témoin",
+      "title_en": "Placebo and the control group",
+      "summary_fr": "Comprendre pourquoi un groupe de comparaison est nécessaire pour attribuer un effet au traitement.",
+      "summary_en": "Understand why a comparison group is needed to attribute an effect to the treatment.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 28.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'un groupe témoin permet d'isoler.",
+        "Citer deux phénomènes confondus avec un effet du traitement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 28.",
-        "Apply it in a short example."
+        "Explain what a control group isolates.",
+        "Name two phenomena confused with a treatment effect."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi une amélioration observée sans groupe témoin ne prouve rien, puis demande deux explications alternatives.",
+      "tutor_focus_en": "Have the student explain why an improvement without a control group proves nothing, then give two alternative explanations.",
       "example_contexts_fr": [
-        "Exemple étudiant 28",
-        "Situation produit 28"
+        "une amélioration observée sans comparaison",
+        "une maladie qui guérit spontanément en une semaine",
+        "un essai où les deux groupes s'améliorent"
       ],
       "example_contexts_en": [
-        "Student example 28",
-        "Product situation 28"
+        "an improvement observed with no comparison",
+        "a condition that resolves on its own within a week",
+        "a trial where both groups improve"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.029",
+      "key": "human_biology_medicine.randomization_blinding",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
         "medicine_evidence"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 29,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.028"
+        "human_biology_medicine.placebo_control"
       ],
-      "fallback_key": "human_biology_medicine.027",
-      "title_fr": "Biologie humaine et médecine - étape 29",
-      "title_en": "Human biology and medicine - step 29",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 5.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 5.",
+      "fallback_key": "human_biology_medicine.drug_journey",
+      "title_fr": "Randomisation et insu",
+      "title_en": "Randomisation and blinding",
+      "summary_fr": "Comprendre ce que le tirage au sort et l'aveugle éliminent comme biais.",
+      "summary_en": "Understand which biases random allocation and blinding eliminate.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 29.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce que la randomisation équilibre entre les groupes.",
+        "Dire ce que l'insu protège chez le patient et chez l'évaluateur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 29.",
-        "Apply it in a short example."
+        "Explain what randomisation balances between groups.",
+        "Say what blinding protects in the patient and in the assessor."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce que la randomisation équilibre, puis demande ce qui se passe si l'évaluateur connaît le groupe de chaque patient.",
+      "tutor_focus_en": "Have the student explain what randomisation balances, then ask what happens if the assessor knows each patient's group.",
       "example_contexts_fr": [
-        "Exemple étudiant 29",
-        "Situation produit 29"
+        "deux groupes constitués par tirage au sort",
+        "un évaluateur qui connaît le traitement reçu",
+        "un essai où les patients devinent leur groupe"
       ],
       "example_contexts_en": [
-        "Student example 29",
-        "Product situation 29"
+        "two groups formed by random allocation",
+        "an assessor who knows the treatment received",
+        "a trial where patients guess their group"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.030",
+      "key": "human_biology_medicine.pharmacovigilance",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
         "medicine_evidence"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 30,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.029"
+        "human_biology_medicine.randomization_blinding"
       ],
-      "fallback_key": "human_biology_medicine.028",
-      "title_fr": "Biologie humaine et médecine - étape 30",
-      "title_en": "Human biology and medicine - step 30",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 5.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 5.",
+      "fallback_key": "human_biology_medicine.drug_journey",
+      "title_fr": "La pharmacovigilance",
+      "title_en": "Pharmacovigilance",
+      "summary_fr": "Comprendre la surveillance après commercialisation et ce qu'un signalement isolé prouve.",
+      "summary_en": "Understand post-marketing surveillance and what an isolated report proves.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 30.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi la surveillance continue après l'autorisation.",
+        "Dire ce qu'un signalement isolé permet et ne permet pas de conclure."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 30.",
-        "Apply it in a short example."
+        "Explain why surveillance continues after authorisation.",
+        "Say what an isolated report can and cannot establish."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qu'un signalement isolé permet de conclure, puis demande ce qu'il faut pour établir un lien de causalité.",
+      "tutor_focus_en": "Have the student explain what an isolated report establishes, then ask what is needed to show causality.",
       "example_contexts_fr": [
-        "Exemple étudiant 30",
-        "Situation produit 30"
+        "un signalement isolé après une vaccination",
+        "un effet rare détecté sur un million de doses",
+        "un retrait de médicament décidé après plusieurs années"
       ],
       "example_contexts_en": [
-        "Student example 30",
-        "Product situation 30"
+        "an isolated report after a vaccination",
+        "a rare effect detected across a million doses",
+        "a medicine withdrawn after several years"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.031",
+      "key": "human_biology_medicine.brain_regions",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 31,
       "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.030"
+        "human_biology_medicine.hormonal_regulation"
       ],
-      "fallback_key": "human_biology_medicine.029",
-      "title_fr": "Biologie humaine et médecine - étape 31",
-      "title_en": "Human biology and medicine - step 31",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 5.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 5.",
+      "fallback_key": "human_biology_medicine.hormonal_regulation",
+      "title_fr": "Les grandes régions du cerveau",
+      "title_en": "The major brain regions",
+      "summary_fr": "Associer des fonctions à des régions tout en évitant la caricature des zones isolées.",
+      "summary_en": "Match functions to regions while avoiding the caricature of isolated areas.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 31.",
-        "L'appliquer dans un exemple court."
+        "Associer trois régions à leurs fonctions dominantes.",
+        "Expliquer pourquoi une fonction mobilise plusieurs régions."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 31.",
-        "Apply it in a short example."
+        "Match three regions to their dominant functions.",
+        "Explain why one function recruits several regions."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais associer trois régions à leurs fonctions, puis demande pourquoi parler d'une zone unique du langage est réducteur.",
+      "tutor_focus_en": "Have the student match three regions to their functions, then ask why speaking of a single language area is reductive.",
       "example_contexts_fr": [
-        "Exemple étudiant 31",
-        "Situation produit 31"
+        "la production et la compréhension du langage",
+        "la coordination d'un geste précis",
+        "la mémorisation d'un itinéraire"
       ],
       "example_contexts_en": [
-        "Student example 31",
-        "Product situation 31"
+        "producing and understanding language",
+        "coordinating a precise gesture",
+        "memorising a route"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.032",
+      "key": "human_biology_medicine.liver_functions",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 32,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.031"
+        "human_biology_medicine.brain_regions"
       ],
-      "fallback_key": "human_biology_medicine.030",
-      "title_fr": "Biologie humaine et médecine - étape 32",
-      "title_en": "Human biology and medicine - step 32",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 5.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 5.",
+      "fallback_key": "human_biology_medicine.hormonal_regulation",
+      "title_fr": "Les fonctions du foie",
+      "title_en": "The functions of the liver",
+      "summary_fr": "Comprendre pourquoi un même organe assure stockage, synthèse et transformation des substances.",
+      "summary_en": "Understand why one organ handles storage, synthesis and transformation of substances.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 32.",
-        "L'appliquer dans un exemple court."
+        "Citer trois fonctions distinctes du foie.",
+        "Expliquer le rôle du foie dans le devenir d'un médicament."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 32.",
-        "Apply it in a short example."
+        "Name three distinct liver functions.",
+        "Explain the liver's role in the fate of a medicine."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais citer trois fonctions du foie, puis demande pourquoi un médicament avalé n'a pas le même effet qu'un médicament injecté.",
+      "tutor_focus_en": "Have the student name three liver functions, then ask why a swallowed medicine does not act like an injected one.",
       "example_contexts_fr": [
-        "Exemple étudiant 32",
-        "Situation produit 32"
+        "un médicament avalé qui passe d'abord par le foie",
+        "une réserve de sucre mobilisée pendant la nuit",
+        "des protéines du sang fabriquées en continu"
       ],
       "example_contexts_en": [
-        "Student example 32",
-        "Product situation 32"
+        "a swallowed medicine passing through the liver first",
+        "a sugar reserve mobilised overnight",
+        "blood proteins produced continuously"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.033",
+      "key": "human_biology_medicine.blood_composition",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 33,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.032"
+        "human_biology_medicine.liver_functions"
       ],
-      "fallback_key": "human_biology_medicine.031",
-      "title_fr": "Biologie humaine et médecine - étape 33",
-      "title_en": "Human biology and medicine - step 33",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 5.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 5.",
+      "fallback_key": "human_biology_medicine.hormonal_regulation",
+      "title_fr": "La composition du sang",
+      "title_en": "The composition of blood",
+      "summary_fr": "Relier chaque composant du sang à sa fonction et lire un bilan sanguin de façon générale.",
+      "summary_en": "Connect each blood component to its function and read a blood panel in general terms.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 33.",
-        "L'appliquer dans un exemple court."
+        "Associer trois composants sanguins à leur fonction.",
+        "Expliquer ce qu'un taux anormal signale en général."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 33.",
-        "Apply it in a short example."
+        "Match three blood components to their function.",
+        "Explain what an abnormal level signals in general."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais associer trois composants du sang à leur fonction, puis demande ce qu'un taux abaissé pourrait signaler de façon générale, sans interpréter de cas personnel.",
+      "tutor_focus_en": "Have the student match three blood components to their function, then ask what a low level could signal in general, without interpreting a personal case.",
       "example_contexts_fr": [
-        "Exemple étudiant 33",
-        "Situation produit 33"
+        "un don du sang et ses composants séparés",
+        "une plaie qui cesse de saigner",
+        "un transport d'oxygène vers les muscles"
       ],
       "example_contexts_en": [
-        "Student example 33",
-        "Product situation 33"
+        "a blood donation separated into components",
+        "a wound that stops bleeding",
+        "oxygen transported to the muscles"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.034",
+      "key": "human_biology_medicine.sleep_and_circadian",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
-        "medicine_evidence"
+        "medicine_body"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 34,
       "required": false,
       "prerequisite_keys": [
-        "human_biology_medicine.033"
+        "human_biology_medicine.blood_composition"
       ],
-      "fallback_key": "human_biology_medicine.032",
-      "title_fr": "Biologie humaine et médecine - étape 34",
-      "title_en": "Human biology and medicine - step 34",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 5.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 5.",
+      "fallback_key": "human_biology_medicine.hormonal_regulation",
+      "title_fr": "Le sommeil et l'horloge biologique",
+      "title_en": "Sleep and the biological clock",
+      "summary_fr": "Comprendre l'alternance des cycles de sommeil et le rôle de la lumière comme synchroniseur.",
+      "summary_en": "Understand the alternation of sleep cycles and the role of light as a synchroniser.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 34.",
-        "L'appliquer dans un exemple court."
+        "Décrire la succession des stades au cours d'un cycle.",
+        "Expliquer le rôle de la lumière dans le réglage de l'horloge."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 34.",
-        "Apply it in a short example."
+        "Describe the succession of stages within a cycle.",
+        "Explain the role of light in setting the clock."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire l'enchaînement des stades d'un cycle, puis demande pourquoi la lumière du matin avance l'horloge interne.",
+      "tutor_focus_en": "Have the student describe the succession of stages in one cycle, then ask why morning light advances the internal clock.",
       "example_contexts_fr": [
-        "Exemple étudiant 34",
-        "Situation produit 34"
+        "un décalage horaire après un vol long",
+        "un travail de nuit répété plusieurs semaines",
+        "un réveil difficile en plein cycle profond"
       ],
       "example_contexts_en": [
-        "Student example 34",
-        "Product situation 34"
+        "jet lag after a long flight",
+        "night work repeated over several weeks",
+        "a hard awakening in the middle of deep sleep"
       ],
       "safety_category": "medical_educational"
     },
     {
-      "key": "human_biology_medicine.035",
+      "key": "human_biology_medicine.cardiovascular_risk",
       "domain_id": "human_biology_medicine",
       "objective_ids": [
-        "medicine_body",
-        "medicine_disease",
+        "medicine_disease"
+      ],
+      "stage": 4,
+      "order": 35,
+      "required": true,
+      "prerequisite_keys": [
+        "human_biology_medicine.genetic_disease"
+      ],
+      "fallback_key": "human_biology_medicine.genetic_disease",
+      "title_fr": "Comment se construit un risque cardiovasculaire",
+      "title_en": "How cardiovascular risk builds up",
+      "summary_fr": "Comprendre l'accumulation lente de facteurs qui aboutit à un événement brutal.",
+      "summary_en": "Understand the slow accumulation of factors leading to a sudden event.",
+      "learning_goals_fr": [
+        "Distinguer un facteur de risque modifiable d'un facteur non modifiable.",
+        "Expliquer pourquoi le risque se calcule globalement et non facteur par facteur."
+      ],
+      "learning_goals_en": [
+        "Tell a modifiable risk factor apart from a non-modifiable one.",
+        "Explain why risk is computed globally rather than factor by factor."
+      ],
+      "tutor_focus_fr": "Fais distinguer facteurs modifiables et non modifiables, puis demande pourquoi un score global vaut mieux qu'un seul chiffre. Reste général.",
+      "tutor_focus_en": "Have the student separate modifiable and non-modifiable factors, then ask why a global score beats a single figure. Stay general.",
+      "example_contexts_fr": [
+        "un dépôt qui se constitue sur des décennies",
+        "un score de risque calculé en population",
+        "un événement aigu survenant sans signe préalable"
+      ],
+      "example_contexts_en": [
+        "a deposit building over decades",
+        "a risk score computed at population level",
+        "an acute event occurring with no prior sign"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.diabetes_mechanism",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_disease"
+      ],
+      "stage": 4,
+      "order": 36,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.cardiovascular_risk"
+      ],
+      "fallback_key": "human_biology_medicine.genetic_disease",
+      "title_fr": "Le mécanisme du diabète",
+      "title_en": "The mechanism of diabetes",
+      "summary_fr": "Distinguer un défaut de production d'insuline d'une résistance des tissus à son action.",
+      "summary_en": "Tell apart a defect in insulin production and a tissue resistance to its action.",
+      "learning_goals_fr": [
+        "Comparer les deux principaux mécanismes.",
+        "Expliquer pourquoi une glycémie élevée abîme les vaisseaux à long terme."
+      ],
+      "learning_goals_en": [
+        "Compare the two main mechanisms.",
+        "Explain why high blood sugar damages vessels over time."
+      ],
+      "tutor_focus_fr": "Fais comparer les deux mécanismes principaux, puis demande pourquoi les complications touchent surtout les petits vaisseaux. Reste général.",
+      "tutor_focus_en": "Have the student compare the two main mechanisms, then ask why complications mostly affect small vessels. Stay general.",
+      "example_contexts_fr": [
+        "une insuline absente faute de cellules productrices",
+        "des tissus qui répondent mal à l'insuline présente",
+        "un suivi de glycémie sur plusieurs mois"
+      ],
+      "example_contexts_en": [
+        "insulin absent for lack of producing cells",
+        "tissues responding poorly to available insulin",
+        "blood sugar monitored over several months"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.neurodegenerative_disease",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_disease"
+      ],
+      "stage": 4,
+      "order": 37,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.diabetes_mechanism"
+      ],
+      "fallback_key": "human_biology_medicine.genetic_disease",
+      "title_fr": "Les maladies neurodégénératives",
+      "title_en": "Neurodegenerative diseases",
+      "summary_fr": "Comprendre une perte progressive de neurones et le décalage entre lésions et symptômes.",
+      "summary_en": "Understand a progressive loss of neurons and the lag between lesions and symptoms.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi les symptômes apparaissent tardivement.",
+        "Distinguer un déclin cognitif attendu d'un processus pathologique."
+      ],
+      "learning_goals_en": [
+        "Explain why symptoms appear late.",
+        "Tell an expected cognitive decline apart from a pathological process."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi les symptômes apparaissent longtemps après les premières lésions. Reste général et n'évoque aucun cas personnel.",
+      "tutor_focus_en": "Have the student explain why symptoms appear long after the first lesions. Stay general and avoid any personal case.",
+      "example_contexts_fr": [
+        "des lésions présentes des années avant les symptômes",
+        "une compensation par d'autres circuits neuronaux",
+        "un suivi de recherche sur plusieurs années"
+      ],
+      "example_contexts_en": [
+        "lesions present years before symptoms",
+        "compensation by other neural circuits",
+        "a research follow-up over several years"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.mental_health_biology",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_disease"
+      ],
+      "stage": 4,
+      "order": 38,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.neurodegenerative_disease"
+      ],
+      "fallback_key": "human_biology_medicine.genetic_disease",
+      "title_fr": "Ce que la biologie explique des troubles psychiques",
+      "title_en": "What biology explains about mental health conditions",
+      "summary_fr": "Situer la part biologique parmi les facteurs psychologiques et sociaux, sans réduction abusive.",
+      "summary_en": "Place the biological share among psychological and social factors, without undue reduction.",
+      "learning_goals_fr": [
+        "Citer trois familles de facteurs impliqués dans un trouble.",
+        "Expliquer pourquoi une explication uniquement chimique est réductrice."
+      ],
+      "learning_goals_en": [
+        "Name three families of factors involved in a condition.",
+        "Explain why a purely chemical account is reductive."
+      ],
+      "tutor_focus_fr": "Fais citer trois familles de facteurs, puis demande pourquoi une explication uniquement chimique est insuffisante. Reste général.",
+      "tutor_focus_en": "Have the student name three families of factors, then ask why a purely chemical account is insufficient. Stay general.",
+      "example_contexts_fr": [
+        "une vulnérabilité familiale associée à un événement de vie",
+        "une explication publique réduite à un déséquilibre chimique",
+        "un accompagnement combinant plusieurs approches"
+      ],
+      "example_contexts_en": [
+        "a family vulnerability combined with a life event",
+        "a public account reduced to a chemical imbalance",
+        "care combining several approaches"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.relative_absolute_risk",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 4,
+      "order": 39,
+      "required": true,
+      "prerequisite_keys": [
+        "human_biology_medicine.pharmacovigilance"
+      ],
+      "fallback_key": "human_biology_medicine.pharmacovigilance",
+      "title_fr": "Risque relatif et risque absolu",
+      "title_en": "Relative and absolute risk",
+      "summary_fr": "Traduire une réduction annoncée en pourcentage en effet réellement attendu dans une population.",
+      "summary_en": "Translate an announced percentage reduction into the effect actually expected in a population.",
+      "learning_goals_fr": [
+        "Convertir une réduction relative en réduction absolue.",
+        "Expliquer pourquoi la présentation relative impressionne davantage."
+      ],
+      "learning_goals_en": [
+        "Convert a relative reduction into an absolute one.",
+        "Explain why the relative presentation impresses more."
+      ],
+      "tutor_focus_fr": "Fais convertir une réduction de 50 % appliquée à un risque de 2 pour 1000, puis demande laquelle des deux formulations informe le mieux.",
+      "tutor_focus_en": "Have the student convert a 50% reduction applied to a risk of 2 per 1000, then ask which framing informs better.",
+      "example_contexts_fr": [
+        "un titre annonçant un risque divisé par deux",
+        "un risque initial de deux cas pour mille",
+        "une communication publique sur un traitement préventif"
+      ],
+      "example_contexts_en": [
+        "a headline announcing a risk halved",
+        "a baseline risk of two cases per thousand",
+        "public communication about a preventive treatment"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.number_needed_to_treat",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 4,
+      "order": 40,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.relative_absolute_risk"
+      ],
+      "fallback_key": "human_biology_medicine.pharmacovigilance",
+      "title_fr": "Le nombre de sujets à traiter",
+      "title_en": "The number needed to treat",
+      "summary_fr": "Traduire un bénéfice statistique en nombre de personnes à traiter pour éviter un événement.",
+      "summary_en": "Translate a statistical benefit into how many people must be treated to avoid one event.",
+      "learning_goals_fr": [
+        "Calculer un nombre de sujets à traiter à partir d'une réduction absolue.",
+        "Comparer bénéfice attendu et effets indésirables attendus."
+      ],
+      "learning_goals_en": [
+        "Compute a number needed to treat from an absolute reduction.",
+        "Compare expected benefit with expected adverse effects."
+      ],
+      "tutor_focus_fr": "Fais calculer un nombre de sujets à traiter à partir d'une réduction absolue, puis demande comment le comparer aux effets indésirables.",
+      "tutor_focus_en": "Have the student compute a number needed to treat from an absolute reduction, then compare it with adverse effects.",
+      "example_contexts_fr": [
+        "un traitement préventif à large échelle",
+        "un bénéfice obtenu chez une personne sur cent traitées",
+        "un effet indésirable survenant chez une personne sur cinquante"
+      ],
+      "example_contexts_en": [
+        "a large-scale preventive treatment",
+        "a benefit obtained in one person out of a hundred treated",
+        "an adverse effect occurring in one person out of fifty"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.screening_tradeoffs",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 4,
+      "order": 41,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.number_needed_to_treat"
+      ],
+      "fallback_key": "human_biology_medicine.pharmacovigilance",
+      "title_fr": "Les compromis d'un dépistage",
+      "title_en": "The trade-offs of screening",
+      "summary_fr": "Peser bénéfice attendu, faux positifs et surdiagnostic avant d'élargir un dépistage.",
+      "summary_en": "Weigh expected benefit, false positives and overdiagnosis before broadening a screening programme.",
+      "learning_goals_fr": [
+        "Expliquer ce qu'est un surdiagnostic.",
+        "Dire pourquoi dépister plus largement n'est pas toujours bénéfique."
+      ],
+      "learning_goals_en": [
+        "Explain what overdiagnosis is.",
+        "Say why screening more widely is not always beneficial."
+      ],
+      "tutor_focus_fr": "Fais estimer le nombre de faux positifs d'un dépistage en population, puis demande ce que le surdiagnostic ajoute comme coût.",
+      "tutor_focus_en": "Have the student estimate the false positives of a population screening, then ask what overdiagnosis adds as a cost.",
+      "example_contexts_fr": [
+        "un dépistage proposé à toute une classe d'âge",
+        "des examens complémentaires déclenchés par un faux positif",
+        "une anomalie détectée qui n'aurait jamais causé de symptôme"
+      ],
+      "example_contexts_en": [
+        "a screening offered to a whole age group",
+        "follow-up tests triggered by a false positive",
+        "a detected anomaly that would never have caused symptoms"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.vaccine_mechanism",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 4,
+      "order": 42,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.screening_tradeoffs"
+      ],
+      "fallback_key": "human_biology_medicine.pharmacovigilance",
+      "title_fr": "Comment fonctionne un vaccin",
+      "title_en": "How a vaccine works",
+      "summary_fr": "Relier la présentation d'un antigène à la mémoire immunitaire et à la protection collective.",
+      "summary_en": "Connect antigen presentation to immune memory and to population-level protection.",
+      "learning_goals_fr": [
+        "Décrire le mécanisme de la mémoire immunitaire induite.",
+        "Expliquer ce que la couverture vaccinale change pour une population."
+      ],
+      "learning_goals_en": [
+        "Describe the mechanism of induced immune memory.",
+        "Explain what vaccine coverage changes for a population."
+      ],
+      "tutor_focus_fr": "Fais décrire ce qui se passe lors de la première puis de la seconde rencontre avec l'agent, puis demande l'effet d'une couverture élevée.",
+      "tutor_focus_en": "Have the student describe the first then the second encounter with the agent, then ask the effect of high coverage.",
+      "example_contexts_fr": [
+        "une première exposition sous forme vaccinale",
+        "une couverture élevée protégeant des personnes non vaccinées",
+        "un rappel administré à distance de la première dose"
+      ],
+      "example_contexts_en": [
+        "a first exposure in vaccine form",
+        "high coverage protecting unvaccinated people",
+        "a booster given long after the first dose"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.reproduction_development",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_body"
+      ],
+      "stage": 5,
+      "order": 43,
+      "required": true,
+      "prerequisite_keys": [
+        "human_biology_medicine.sleep_and_circadian"
+      ],
+      "fallback_key": "human_biology_medicine.sleep_and_circadian",
+      "title_fr": "Reproduction et développement embryonnaire",
+      "title_en": "Reproduction and embryonic development",
+      "summary_fr": "Suivre les grandes étapes qui mènent d'une cellule unique à un organisme différencié.",
+      "summary_en": "Follow the major steps from a single cell to a differentiated organism.",
+      "learning_goals_fr": [
+        "Ordonner les grandes étapes du développement précoce.",
+        "Expliquer ce que signifie la différenciation cellulaire."
+      ],
+      "learning_goals_en": [
+        "Order the major steps of early development.",
+        "Explain what cell differentiation means."
+      ],
+      "tutor_focus_fr": "Fais ordonner les grandes étapes du développement précoce, puis demande comment des cellules identiques deviennent différentes.",
+      "tutor_focus_en": "Have the student order the major steps of early development, then ask how identical cells become different.",
+      "example_contexts_fr": [
+        "une cellule unique devenue un organisme complet",
+        "des cellules identiques qui se spécialisent",
+        "un suivi de grossesse par imagerie"
+      ],
+      "example_contexts_en": [
+        "a single cell becoming a full organism",
+        "identical cells that specialise",
+        "a pregnancy followed through imaging"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.skin_barrier",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_body"
+      ],
+      "stage": 5,
+      "order": 44,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.reproduction_development"
+      ],
+      "fallback_key": "human_biology_medicine.sleep_and_circadian",
+      "title_fr": "La peau comme organe",
+      "title_en": "The skin as an organ",
+      "summary_fr": "Comprendre les fonctions de barrière, de régulation thermique et de perception de la peau.",
+      "summary_en": "Understand the barrier, thermal regulation and sensing functions of the skin.",
+      "learning_goals_fr": [
+        "Citer trois fonctions de la peau au-delà de la protection.",
+        "Décrire les étapes de la cicatrisation d'une plaie."
+      ],
+      "learning_goals_en": [
+        "Name three skin functions beyond protection.",
+        "Describe the steps of wound healing."
+      ],
+      "tutor_focus_fr": "Fais citer trois fonctions de la peau, puis demande de décrire les étapes de la cicatrisation d'une coupure superficielle.",
+      "tutor_focus_en": "Have the student name three skin functions, then describe the healing steps of a superficial cut.",
+      "example_contexts_fr": [
+        "une coupure superficielle qui cicatrise",
+        "une transpiration abondante par forte chaleur",
+        "une exposition solaire prolongée"
+      ],
+      "example_contexts_en": [
+        "a superficial cut healing over",
+        "heavy sweating in hot weather",
+        "prolonged sun exposure"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.aging_physiology",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_body"
+      ],
+      "stage": 5,
+      "order": 45,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.skin_barrier"
+      ],
+      "fallback_key": "human_biology_medicine.sleep_and_circadian",
+      "title_fr": "Ce que le vieillissement change dans l'organisme",
+      "title_en": "What ageing changes in the body",
+      "summary_fr": "Distinguer les modifications physiologiques attendues des processus pathologiques.",
+      "summary_en": "Tell expected physiological changes apart from pathological processes.",
+      "learning_goals_fr": [
+        "Citer trois changements physiologiques liés à l'âge.",
+        "Distinguer un changement attendu d'un signe pathologique."
+      ],
+      "learning_goals_en": [
+        "Name three physiological changes linked to age.",
+        "Tell an expected change apart from a pathological sign."
+      ],
+      "tutor_focus_fr": "Fais distinguer trois changements attendus avec l'âge et un processus pathologique, en restant général et sans évoquer de cas personnel.",
+      "tutor_focus_en": "Have the student separate three expected age-related changes from a pathological process, staying general and avoiding personal cases.",
+      "example_contexts_fr": [
+        "une masse musculaire qui diminue avec les décennies",
+        "une récupération plus lente après un effort",
+        "une audition moins fine dans les aigus"
+      ],
+      "example_contexts_en": [
+        "muscle mass decreasing over decades",
+        "slower recovery after exercise",
+        "reduced hearing in high frequencies"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.exercise_adaptation",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_body"
+      ],
+      "stage": 5,
+      "order": 46,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.aging_physiology"
+      ],
+      "fallback_key": "human_biology_medicine.sleep_and_circadian",
+      "title_fr": "Comment le corps s'adapte à l'effort répété",
+      "title_en": "How the body adapts to repeated exercise",
+      "summary_fr": "Comprendre l'adaptation progressive du cœur, des muscles et du métabolisme à l'entraînement.",
+      "summary_en": "Understand the gradual adaptation of heart, muscles and metabolism to training.",
+      "learning_goals_fr": [
+        "Décrire deux adaptations physiologiques à l'entraînement.",
+        "Expliquer le rôle de la récupération dans l'adaptation."
+      ],
+      "learning_goals_en": [
+        "Describe two physiological adaptations to training.",
+        "Explain the role of recovery in adaptation."
+      ],
+      "tutor_focus_fr": "Fais décrire deux adaptations obtenues après plusieurs semaines d'entraînement, puis demande pourquoi la récupération en fait partie.",
+      "tutor_focus_en": "Have the student describe two adaptations obtained after several weeks of training, then ask why recovery is part of it.",
+      "example_contexts_fr": [
+        "un rythme cardiaque de repos qui baisse",
+        "une même distance parcourue plus facilement",
+        "une reprise après plusieurs mois d'arrêt"
+      ],
+      "example_contexts_en": [
+        "a resting heart rate going down",
+        "the same distance covered more easily",
+        "resuming after several months off"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.epidemic_dynamics",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_disease"
+      ],
+      "stage": 5,
+      "order": 47,
+      "required": true,
+      "prerequisite_keys": [
+        "human_biology_medicine.mental_health_biology"
+      ],
+      "fallback_key": "human_biology_medicine.mental_health_biology",
+      "title_fr": "La dynamique d'une épidémie",
+      "title_en": "The dynamics of an epidemic",
+      "summary_fr": "Relier le nombre de reproduction, le délai entre contaminations et l'effet des mesures.",
+      "summary_en": "Connect the reproduction number, the delay between infections and the effect of measures.",
+      "learning_goals_fr": [
+        "Interpréter un nombre de reproduction supérieur ou inférieur à un.",
+        "Expliquer le décalage entre une mesure et son effet visible."
+      ],
+      "learning_goals_en": [
+        "Interpret a reproduction number above or below one.",
+        "Explain the lag between a measure and its visible effect."
+      ],
+      "tutor_focus_fr": "Fais interpréter un nombre de reproduction de 1,3, puis demande pourquoi l'effet d'une mesure met deux semaines à se voir.",
+      "tutor_focus_en": "Have the student interpret a reproduction number of 1.3, then ask why a measure takes two weeks to show its effect.",
+      "example_contexts_fr": [
+        "un nombre de reproduction estimé à 1,3",
+        "une courbe de cas qui continue de monter après une mesure",
+        "une couverture vaccinale partielle dans une population"
+      ],
+      "example_contexts_en": [
+        "a reproduction number estimated at 1.3",
+        "a case curve still rising after a measure",
+        "partial vaccine coverage in a population"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.chronic_disease_progression",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_disease"
+      ],
+      "stage": 5,
+      "order": 48,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.epidemic_dynamics"
+      ],
+      "fallback_key": "human_biology_medicine.mental_health_biology",
+      "title_fr": "L'évolution d'une maladie chronique",
+      "title_en": "The course of a chronic disease",
+      "summary_fr": "Comprendre une trajectoire longue faite de stabilité, de poussées et d'adaptations du suivi.",
+      "summary_en": "Understand a long trajectory of stability, flares and adjustments to follow-up.",
+      "learning_goals_fr": [
+        "Décrire les phases typiques d'une trajectoire chronique.",
+        "Expliquer le rôle du suivi régulier dans cette trajectoire."
+      ],
+      "learning_goals_en": [
+        "Describe the typical phases of a chronic trajectory.",
+        "Explain the role of regular follow-up along that trajectory."
+      ],
+      "tutor_focus_fr": "Fais décrire les phases d'une trajectoire chronique, puis demande à quoi sert un suivi régulier en période stable. Reste général.",
+      "tutor_focus_en": "Have the student describe the phases of a chronic trajectory, then ask what regular follow-up achieves in a stable period. Stay general.",
+      "example_contexts_fr": [
+        "une période stable de plusieurs années",
+        "une poussée déclenchée par une infection",
+        "un ajustement de suivi après un changement d'état"
+      ],
+      "example_contexts_en": [
+        "a stable period lasting several years",
+        "a flare triggered by an infection",
+        "a follow-up adjusted after a change in condition"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.comorbidity",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_disease"
+      ],
+      "stage": 5,
+      "order": 49,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.chronic_disease_progression"
+      ],
+      "fallback_key": "human_biology_medicine.mental_health_biology",
+      "title_fr": "Les comorbidités",
+      "title_en": "Comorbidities",
+      "summary_fr": "Comprendre pourquoi plusieurs maladies simultanées compliquent le raisonnement médical.",
+      "summary_en": "Understand why several simultaneous diseases complicate medical reasoning.",
+      "learning_goals_fr": [
+        "Expliquer comment deux maladies peuvent aggraver leurs effets mutuels.",
+        "Dire pourquoi les recommandations isolées se contredisent parfois."
+      ],
+      "learning_goals_en": [
+        "Explain how two diseases can worsen each other's effects.",
+        "Say why isolated guidelines sometimes contradict each other."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi deux recommandations distinctes peuvent devenir contradictoires chez une même personne. Reste général.",
+      "tutor_focus_en": "Have the student explain why two separate guidelines can become contradictory for one person. Stay general.",
+      "example_contexts_fr": [
+        "deux recommandations qui s'opposent pour un même patient",
+        "des essais cliniques excluant les patients complexes",
+        "un suivi coordonné entre plusieurs spécialités"
+      ],
+      "example_contexts_en": [
+        "two guidelines conflicting for one patient",
+        "clinical trials excluding complex patients",
+        "care coordinated across several specialties"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.rare_disease_diagnosis",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_disease"
+      ],
+      "stage": 5,
+      "order": 50,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.comorbidity"
+      ],
+      "fallback_key": "human_biology_medicine.mental_health_biology",
+      "title_fr": "Le parcours diagnostique d'une maladie rare",
+      "title_en": "The diagnostic journey of a rare disease",
+      "summary_fr": "Comprendre pourquoi une maladie rare met souvent des années à être identifiée.",
+      "summary_en": "Understand why a rare disease often takes years to be identified.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi les hypothèses fréquentes sont explorées en premier.",
+        "Dire ce qu'un registre de maladies rares apporte."
+      ],
+      "learning_goals_en": [
+        "Explain why frequent hypotheses are explored first.",
+        "Say what a rare disease registry brings."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi les hypothèses les plus fréquentes sont explorées d'abord, puis demande ce qu'un registre change. Reste général.",
+      "tutor_focus_en": "Have the student explain why the most frequent hypotheses are explored first, then ask what a registry changes. Stay general.",
+      "example_contexts_fr": [
+        "un symptôme compatible avec vingt maladies courantes",
+        "un délai de plusieurs années avant identification",
+        "un registre national regroupant des cas dispersés"
+      ],
+      "example_contexts_en": [
+        "a symptom compatible with twenty common diseases",
+        "a delay of several years before identification",
+        "a national registry gathering scattered cases"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.evidence_hierarchy",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
         "medicine_evidence"
       ],
       "stage": 5,
-      "order": 35,
-      "required": false,
+      "order": 51,
+      "required": true,
       "prerequisite_keys": [
-        "human_biology_medicine.034"
+        "human_biology_medicine.vaccine_mechanism"
       ],
-      "fallback_key": "human_biology_medicine.033",
-      "title_fr": "Biologie humaine et médecine - étape 35",
-      "title_en": "Human biology and medicine - step 35",
-      "summary_fr": "Construire une brique claire du parcours Biologie humaine et médecine au niveau 5.",
-      "summary_en": "Build one clear building block of the Human biology and medicine path at level 5.",
+      "fallback_key": "human_biology_medicine.vaccine_mechanism",
+      "title_fr": "La hiérarchie des preuves",
+      "title_en": "The hierarchy of evidence",
+      "summary_fr": "Classer les sources selon leur capacité à établir un lien de cause à effet.",
+      "summary_en": "Rank sources by their ability to establish a cause-and-effect link.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 35.",
-        "L'appliquer dans un exemple court."
+        "Classer quatre types d'études par niveau de preuve.",
+        "Dire pourquoi une étude observationnelle ne conclut pas à la causalité."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 35.",
-        "Apply it in a short example."
+        "Rank four study types by evidence level.",
+        "Say why an observational study does not conclude causality."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais classer quatre sources par niveau de preuve, puis demande pourquoi un témoignage individuel se situe en bas du classement.",
+      "tutor_focus_en": "Have the student rank four sources by evidence level, then ask why an individual testimony sits at the bottom.",
       "example_contexts_fr": [
-        "Exemple étudiant 35",
-        "Situation produit 35"
+        "un témoignage individuel relayé en ligne",
+        "une étude observationnelle sur dix mille personnes",
+        "un essai randomisé contre placebo"
       ],
       "example_contexts_en": [
-        "Student example 35",
-        "Product situation 35"
+        "an individual testimony shared online",
+        "an observational study on ten thousand people",
+        "a randomised placebo-controlled trial"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.meta_analysis",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 5,
+      "order": 52,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.evidence_hierarchy"
+      ],
+      "fallback_key": "human_biology_medicine.vaccine_mechanism",
+      "title_fr": "La méta-analyse",
+      "title_en": "Meta-analysis",
+      "summary_fr": "Comprendre l'agrégation de plusieurs études et ce que l'hétérogénéité entre elles signale.",
+      "summary_en": "Understand the aggregation of several studies and what heterogeneity between them signals.",
+      "learning_goals_fr": [
+        "Expliquer ce qu'une méta-analyse gagne par rapport à une étude isolée.",
+        "Dire ce qu'une forte hétérogénéité doit faire suspecter."
+      ],
+      "learning_goals_en": [
+        "Explain what a meta-analysis gains over a single study.",
+        "Say what strong heterogeneity should raise as a suspicion."
+      ],
+      "tutor_focus_fr": "Fais expliquer ce qu'une méta-analyse apporte, puis demande ce qu'il faut conclure quand les études incluses se contredisent.",
+      "tutor_focus_en": "Have the student explain what a meta-analysis adds, then ask what to conclude when included studies contradict each other.",
+      "example_contexts_fr": [
+        "douze études de tailles très différentes",
+        "des résultats contradictoires entre deux pays",
+        "une conclusion reposant surtout sur une seule grande étude"
+      ],
+      "example_contexts_en": [
+        "twelve studies of very different sizes",
+        "contradictory results between two countries",
+        "a conclusion resting mostly on one large study"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.publication_bias",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 5,
+      "order": 53,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.meta_analysis"
+      ],
+      "fallback_key": "human_biology_medicine.vaccine_mechanism",
+      "title_fr": "Le biais de publication",
+      "title_en": "Publication bias",
+      "summary_fr": "Comprendre comment la non-publication des résultats négatifs déforme l'état des connaissances.",
+      "summary_en": "Understand how not publishing negative results distorts the state of knowledge.",
+      "learning_goals_fr": [
+        "Expliquer l'effet de la non-publication des essais négatifs.",
+        "Citer un dispositif qui limite ce biais."
+      ],
+      "learning_goals_en": [
+        "Explain the effect of unpublished negative trials.",
+        "Name a mechanism that limits this bias."
+      ],
+      "tutor_focus_fr": "Fais expliquer ce que change la non-publication de dix essais négatifs sur douze, puis demande quel dispositif corrige ce problème.",
+      "tutor_focus_en": "Have the student explain what ten unpublished negative trials out of twelve change, then ask which mechanism fixes it.",
+      "example_contexts_fr": [
+        "dix essais négatifs jamais publiés",
+        "un registre d'essais déclarés avant leur démarrage",
+        "une littérature qui semble unanimement favorable"
+      ],
+      "example_contexts_en": [
+        "ten negative trials never published",
+        "a trial registry filled in before the study starts",
+        "a literature that looks unanimously favourable"
+      ],
+      "safety_category": "medical_educational"
+    },
+    {
+      "key": "human_biology_medicine.reading_guidelines",
+      "domain_id": "human_biology_medicine",
+      "objective_ids": [
+        "medicine_evidence"
+      ],
+      "stage": 5,
+      "order": 54,
+      "required": false,
+      "prerequisite_keys": [
+        "human_biology_medicine.publication_bias"
+      ],
+      "fallback_key": "human_biology_medicine.vaccine_mechanism",
+      "title_fr": "Lire une recommandation médicale",
+      "title_en": "Reading a clinical guideline",
+      "summary_fr": "Comprendre le niveau de preuve, la force d'une recommandation et les conflits d'intérêts déclarés.",
+      "summary_en": "Understand evidence level, strength of recommendation and declared conflicts of interest.",
+      "learning_goals_fr": [
+        "Distinguer force de recommandation et niveau de preuve.",
+        "Repérer les éléments de transparence attendus dans un document."
+      ],
+      "learning_goals_en": [
+        "Tell strength of recommendation apart from evidence level.",
+        "Spot the transparency elements expected in a document."
+      ],
+      "tutor_focus_fr": "Fais distinguer force de recommandation et niveau de preuve dans un extrait, puis demande quels éléments de transparence vérifier.",
+      "tutor_focus_en": "Have the student separate strength of recommendation from evidence level in an extract, then ask which transparency elements to check.",
+      "example_contexts_fr": [
+        "une recommandation forte fondée sur un niveau de preuve faible",
+        "une mise à jour publiée cinq ans après la précédente",
+        "une déclaration de liens d'intérêts en fin de document"
+      ],
+      "example_contexts_en": [
+        "a strong recommendation based on weak evidence",
+        "an update published five years after the previous one",
+        "a conflict-of-interest statement at the end of the document"
       ],
       "safety_category": "medical_educational"
     }

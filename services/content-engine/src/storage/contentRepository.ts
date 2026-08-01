@@ -24,6 +24,11 @@ import type {
   LearningSessionRecord
 } from "../learning/learningTypes.js";
 import type { LearningAdaptationMode } from "../learning/sessionLifecycle.js";
+import {
+  DEFAULT_LEARNING_GENERATION_MAX_ATTEMPTS,
+  isReclaimableLearningSession,
+  type LearningGenerationLockState
+} from "../learning/generationLock.js";
 import { buildBusinessStoryEditorialMemory, buildBusinessStoryMemoryContext } from "../generation/editorialMemory.js";
 import {
   buildMiniCaseMemoryContext,
@@ -1592,7 +1597,7 @@ export class ContentRepository {
   async listLearningSessions(pathId: string): Promise<LearningSessionRecord[]> {
     const { data, error } = await this.supabase
       .from("learning_sessions")
-      .select("id,path_id,curriculum_step_key,session_number,adaptation_mode,generation_status,status,opened_at,started_at,completed_at")
+      .select("id,path_id,curriculum_step_key,session_number,repetition_index,adaptation_mode,generation_status,status,opened_at,started_at,completed_at")
       .eq("path_id", pathId)
       .order("session_number", { ascending: true })
       .returns<LearningSessionRecord[]>();
@@ -1636,6 +1641,7 @@ export class ContentRepository {
     dailyDropId: string;
     curriculumStepKey: string;
     sessionNumber: number;
+    repetitionIndex: number;
     adaptationMode: LearningAdaptationMode;
     language: string;
     inputHash: string;
@@ -1648,6 +1654,7 @@ export class ContentRepository {
         daily_drop_id: input.dailyDropId,
         curriculum_step_key: input.curriculumStepKey,
         session_number: input.sessionNumber,
+        repetition_index: input.repetitionIndex,
         adaptation_mode: input.adaptationMode,
         language: input.language,
         input_hash: input.inputHash,
@@ -1667,10 +1674,10 @@ export class ContentRepository {
     if (error && isUniqueConflict(error)) {
       const { data: existing, error: selectError } = await this.supabase
         .from("learning_sessions")
-        .select("id,generation_status,generation_attempts")
+        .select("id,generation_status,generation_attempts,generation_locked_at")
         .eq("path_id", input.pathId)
         .eq("session_number", input.sessionNumber)
-        .single<{ id: string; generation_status: string; generation_attempts: number | null }>();
+        .single<ExistingLearningSessionClaimRow>();
 
       if (selectError) {
         throwPersistenceError({
@@ -1680,45 +1687,52 @@ export class ContentRepository {
         });
       }
 
-      if (existing.generation_status === "failed") {
-        const nextAttempt = (existing.generation_attempts ?? 0) + 1;
-
-        if (nextAttempt > maxAttempts) {
-          return { claimed: false, sessionId: existing.id, exhausted: true };
-        }
-
-        const { data: reclaimed, error: reclaimError } = await this.supabase
-          .from("learning_sessions")
-          .update({
-            daily_drop_id: input.dailyDropId,
-            curriculum_step_key: input.curriculumStepKey,
-            adaptation_mode: input.adaptationMode,
-            language: input.language,
-            input_hash: input.inputHash,
-            generation_status: "generating",
-            generation_attempts: nextAttempt,
-            generation_locked_at: new Date().toISOString(),
-            last_generation_error: null
-          })
-          .eq("id", existing.id)
-          .eq("generation_status", "failed")
-          .select("id")
-          .maybeSingle<{ id: string }>();
-
-        if (reclaimError) {
-          throwPersistenceError({
-            table: "learning_sessions",
-            action: "reclaim failed learning session",
-            error: reclaimError
-          });
-        }
-
-        if (reclaimed) {
-          return { claimed: true, sessionId: reclaimed.id };
-        }
+      if (!isReclaimableLearningSession(existing)) {
+        return { claimed: false, sessionId: existing.id };
       }
 
-      return { claimed: false, sessionId: existing.id };
+      const nextAttempt = (existing.generation_attempts ?? 0) + 1;
+      if (nextAttempt > maxAttempts) {
+        return { claimed: false, sessionId: existing.id, exhausted: true };
+      }
+
+      // Conditional update on the exact status and lock the row was read with:
+      // two workers racing on the same stale session, only one update matches.
+      let reclaimQuery = this.supabase
+        .from("learning_sessions")
+        .update({
+          daily_drop_id: input.dailyDropId,
+          curriculum_step_key: input.curriculumStepKey,
+          repetition_index: input.repetitionIndex,
+          adaptation_mode: input.adaptationMode,
+          language: input.language,
+          input_hash: input.inputHash,
+          generation_status: "generating",
+          generation_attempts: nextAttempt,
+          generation_locked_at: new Date().toISOString(),
+          last_generation_error: null
+        })
+        .eq("id", existing.id)
+        .eq("generation_status", existing.generation_status)
+        .eq("generation_attempts", existing.generation_attempts ?? 0);
+
+      reclaimQuery = existing.generation_locked_at
+        ? reclaimQuery.eq("generation_locked_at", existing.generation_locked_at)
+        : reclaimQuery.is("generation_locked_at", null);
+
+      const { data: reclaimed, error: reclaimError } = await reclaimQuery
+        .select("id")
+        .maybeSingle<{ id: string }>();
+
+      if (reclaimError) {
+        throwPersistenceError({
+          table: "learning_sessions",
+          action: "reclaim stale learning session",
+          error: reclaimError
+        });
+      }
+
+      return reclaimed ? { claimed: true, sessionId: reclaimed.id } : { claimed: false, sessionId: existing.id };
     }
 
     throwPersistenceError({
@@ -1726,6 +1740,25 @@ export class ContentRepository {
       action: "insert learning session claim",
       error
     });
+  }
+
+  async markLearningPathCompleted(input: { pathId: string }): Promise<void> {
+    const { error } = await this.supabase
+      .from("user_learning_paths")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString()
+      })
+      .eq("id", input.pathId)
+      .eq("status", "active");
+
+    if (error) {
+      throwPersistenceError({
+        table: "user_learning_paths",
+        action: "mark learning path completed",
+        error
+      });
+    }
   }
 
   async markLearningSessionReady(input: {
@@ -2161,11 +2194,16 @@ function normalizeArticlesCount(value: number | null): number {
   return Number.isFinite(value) && value && value > 0 ? Math.floor(value) : 1;
 }
 
+type ExistingLearningSessionClaimRow = LearningGenerationLockState & { id: string };
+
 function readLearningGenerationMaxAttempts(): number {
-  const raw = Number.parseInt(process.env.LEARNING_GENERATION_MAX_ATTEMPTS ?? "3", 10);
+  const raw = Number.parseInt(
+    process.env.LEARNING_GENERATION_MAX_ATTEMPTS ?? String(DEFAULT_LEARNING_GENERATION_MAX_ATTEMPTS),
+    10
+  );
 
   if (!Number.isFinite(raw) || raw < 1) {
-    return 3;
+    return DEFAULT_LEARNING_GENERATION_MAX_ATTEMPTS;
   }
 
   return Math.min(raw, 10);

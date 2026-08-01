@@ -3,7 +3,7 @@
   "version": "v1",
   "steps": [
     {
-      "key": "artificial_intelligence.001",
+      "key": "artificial_intelligence.what_is_a_model",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -15,32 +15,34 @@
       "required": true,
       "prerequisite_keys": [],
       "fallback_key": null,
-      "title_fr": "Intelligence artificielle - étape 1",
-      "title_en": "Artificial intelligence - step 1",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 1.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 1.",
+      "title_fr": "Ce qu'est un modèle : une fonction apprise sur des exemples",
+      "title_en": "What a model is: a function learned from examples",
+      "summary_fr": "Comprendre qu'un modèle n'est pas une règle écrite à la main mais des paramètres ajustés sur des données.",
+      "summary_en": "Understand that a model is not a hand-written rule but parameters fitted on data.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 1.",
-        "L'appliquer dans un exemple court."
+        "Distinguer un programme écrit par une personne d'un modèle appris.",
+        "Dire ce que contient un modèle une fois entraîné."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 1.",
-        "Apply it in a short example."
+        "Tell apart a program written by a person and a learned model.",
+        "Say what a trained model actually contains."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer un filtre anti-spam écrit à la main et un filtre appris, puis demande ce que contient exactement le fichier du modèle.",
+      "tutor_focus_en": "Have the student compare a hand-written spam filter with a learned one, then ask what the model file actually contains.",
       "example_contexts_fr": [
-        "Exemple étudiant 1",
-        "Situation produit 1"
+        "un filtre anti-spam qui apprend sur des messages signalés",
+        "une estimation de prix immobilier à partir de ventes passées",
+        "une reconnaissance de chiffres écrits à la main"
       ],
       "example_contexts_en": [
-        "Student example 1",
-        "Product situation 1"
+        "a spam filter learning from reported messages",
+        "a house price estimate from past sales",
+        "recognition of handwritten digits"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.002",
+      "key": "artificial_intelligence.data_features_labels",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -49,37 +51,39 @@
       ],
       "stage": 1,
       "order": 2,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.001"
+        "artificial_intelligence.what_is_a_model"
       ],
       "fallback_key": null,
-      "title_fr": "Intelligence artificielle - étape 2",
-      "title_en": "Artificial intelligence - step 2",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 1.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 1.",
+      "title_fr": "Données, caractéristiques et étiquettes",
+      "title_en": "Data, features and labels",
+      "summary_fr": "Structurer un jeu de données en lignes, colonnes explicatives et colonne à prédire.",
+      "summary_en": "Structure a dataset into rows, explanatory columns and the column to predict.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 2.",
-        "L'appliquer dans un exemple court."
+        "Séparer les caractéristiques de la cible dans un tableau donné.",
+        "Repérer une colonne qui contient déjà la réponse."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 2.",
-        "Apply it in a short example."
+        "Separate features from the target in a given table.",
+        "Spot a column that already contains the answer."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais désigner les caractéristiques et la cible dans un tableau de prêts bancaires, puis demande quelle colonne rendrait la prédiction triviale.",
+      "tutor_focus_en": "Have the student point out features and target in a table of bank loans, then ask which column would make the prediction trivial.",
       "example_contexts_fr": [
-        "Exemple étudiant 2",
-        "Situation produit 2"
+        "un tableau de demandes de prêt avec leur issue",
+        "des mesures météo et la pluie du lendemain",
+        "des trajets de livraison et leur durée réelle"
       ],
       "example_contexts_en": [
-        "Student example 2",
-        "Product situation 2"
+        "a table of loan applications with their outcome",
+        "weather measurements and next-day rain",
+        "delivery trips and their actual duration"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.003",
+      "key": "artificial_intelligence.training_vs_inference",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -88,37 +92,39 @@
       ],
       "stage": 1,
       "order": 3,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.002"
+        "artificial_intelligence.data_features_labels"
       ],
-      "fallback_key": "artificial_intelligence.001",
-      "title_fr": "Intelligence artificielle - étape 3",
-      "title_en": "Artificial intelligence - step 3",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 1.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Entraînement et inférence : deux moments distincts",
+      "title_en": "Training and inference: two distinct moments",
+      "summary_fr": "Séparer la phase où le modèle ajuste ses paramètres de la phase où il répond à une demande.",
+      "summary_en": "Separate the phase where the model fits its parameters from the phase where it answers.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 3.",
-        "L'appliquer dans un exemple court."
+        "Dire à quel moment le modèle apprend et à quel moment il ne change plus.",
+        "Comparer le coût des deux phases."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 3.",
-        "Apply it in a short example."
+        "Say when the model learns and when it no longer changes.",
+        "Compare the cost of the two phases."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer si un modèle apprend de la question que l'utilisateur vient de poser, puis demande ce qu'il faudrait pour qu'il l'apprenne vraiment.",
+      "tutor_focus_en": "Have the student explain whether a model learns from the question just asked, then ask what it would take for it to really learn it.",
       "example_contexts_fr": [
-        "Exemple étudiant 3",
-        "Situation produit 3"
+        "un assistant qui répond à une question posée aujourd'hui",
+        "une recommandation musicale recalculée chaque nuit",
+        "un modèle de traduction embarqué sur un téléphone"
       ],
       "example_contexts_en": [
-        "Student example 3",
-        "Product situation 3"
+        "an assistant answering a question asked today",
+        "a music recommendation recomputed every night",
+        "a translation model embedded in a phone"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.004",
+      "key": "artificial_intelligence.ai_ml_dl_scope",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -127,37 +133,39 @@
       ],
       "stage": 1,
       "order": 4,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.003"
+        "artificial_intelligence.training_vs_inference"
       ],
-      "fallback_key": "artificial_intelligence.002",
-      "title_fr": "Intelligence artificielle - étape 4",
-      "title_en": "Artificial intelligence - step 4",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 1.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 1.",
+      "fallback_key": null,
+      "title_fr": "IA, apprentissage automatique, apprentissage profond : trois cercles emboîtés",
+      "title_en": "AI, machine learning, deep learning: three nested circles",
+      "summary_fr": "Situer les trois termes les uns par rapport aux autres et rattacher un système donné au bon cercle.",
+      "summary_en": "Place the three terms relative to each other and assign a given system to the right circle.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 4.",
-        "L'appliquer dans un exemple court."
+        "Ordonner les trois notions du plus large au plus étroit.",
+        "Classer trois systèmes réels dans le bon cercle."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 4.",
-        "Apply it in a short example."
+        "Order the three notions from broadest to narrowest.",
+        "Classify three real systems into the right circle."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais classer un moteur de règles fiscales, un détecteur de fraude statistique et un modèle de langue, puis demande le critère utilisé pour trancher.",
+      "tutor_focus_en": "Have the student classify a tax rule engine, a statistical fraud detector and a language model, then ask which criterion they used.",
       "example_contexts_fr": [
-        "Exemple étudiant 4",
-        "Situation produit 4"
+        "un moteur de règles pour le calcul d'impôts",
+        "un détecteur de fraude entraîné sur des transactions",
+        "un assistant conversationnel généraliste"
       ],
       "example_contexts_en": [
-        "Student example 4",
-        "Product situation 4"
+        "a rule engine computing taxes",
+        "a fraud detector trained on transactions",
+        "a general-purpose conversational assistant"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.005",
+      "key": "artificial_intelligence.probabilistic_answers",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -166,154 +174,156 @@
       ],
       "stage": 1,
       "order": 5,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.004"
+        "artificial_intelligence.ai_ml_dl_scope"
       ],
-      "fallback_key": "artificial_intelligence.003",
-      "title_fr": "Intelligence artificielle - étape 5",
-      "title_en": "Artificial intelligence - step 5",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 1.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Pourquoi un modèle donne une réponse probable et non certaine",
+      "title_en": "Why a model gives a probable answer, not a certain one",
+      "summary_fr": "Comprendre qu'une sortie de modèle est un pari statistique assorti d'un degré de confiance.",
+      "summary_en": "Understand that a model output is a statistical bet carrying a confidence level.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 5.",
-        "L'appliquer dans un exemple court."
+        "Interpréter un score de confiance de 0,7 sur une classification.",
+        "Dire pourquoi une réponse fausse peut être donnée avec assurance."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 5.",
-        "Apply it in a short example."
+        "Interpret a 0.7 confidence score on a classification.",
+        "Say why a wrong answer can be delivered confidently."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais interpréter une prédiction à 70 % de confiance, puis demande combien d'erreurs sont attendues sur cent cas de ce type.",
+      "tutor_focus_en": "Have the student interpret a prediction at 70% confidence, then ask how many errors to expect over a hundred such cases.",
       "example_contexts_fr": [
-        "Exemple étudiant 5",
-        "Situation produit 5"
+        "un diagnostic automatique de panne annoncé à 70 %",
+        "une détection de fraude sur un paiement inhabituel",
+        "une suggestion de réponse dans une messagerie"
       ],
       "example_contexts_en": [
-        "Student example 5",
-        "Product situation 5"
+        "an automatic fault diagnosis announced at 70%",
+        "fraud detection on an unusual payment",
+        "a suggested reply in a messaging app"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.006",
+      "key": "artificial_intelligence.tokens_and_text",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
       "stage": 1,
       "order": 6,
       "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.005"
+        "artificial_intelligence.probabilistic_answers"
       ],
-      "fallback_key": "artificial_intelligence.004",
-      "title_fr": "Intelligence artificielle - étape 6",
-      "title_en": "Artificial intelligence - step 6",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 1.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Comment un modèle de langue découpe le texte en tokens",
+      "title_en": "How a language model splits text into tokens",
+      "summary_fr": "Voir qu'un modèle lit des morceaux de mots et non des lettres ni des mots entiers.",
+      "summary_en": "See that a model reads word pieces rather than letters or whole words.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 6.",
-        "L'appliquer dans un exemple court."
+        "Découper une phrase courte en tokens plausibles.",
+        "Expliquer pourquoi compter les caractères d'un mot est difficile pour un modèle."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 6.",
-        "Apply it in a short example."
+        "Split a short sentence into plausible tokens.",
+        "Explain why counting the letters of a word is hard for a model."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais découper une phrase en tokens plausibles, puis demande pourquoi le modèle se trompe en comptant les lettres d'un mot rare.",
+      "tutor_focus_en": "Have the student split a sentence into plausible tokens, then ask why the model miscounts the letters of a rare word.",
       "example_contexts_fr": [
-        "Exemple étudiant 6",
-        "Situation produit 6"
+        "un mot rare découpé en plusieurs morceaux",
+        "une facture de service au million de tokens",
+        "un texte en français plus coûteux qu'en anglais à longueur égale"
       ],
       "example_contexts_en": [
-        "Student example 6",
-        "Product situation 6"
+        "a rare word split into several pieces",
+        "a service bill priced per million tokens",
+        "a French text costing more than English at equal length"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.007",
+      "key": "artificial_intelligence.supervised_vs_unsupervised",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_machine_learning"
       ],
       "stage": 1,
       "order": 7,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.006"
+        "artificial_intelligence.probabilistic_answers"
       ],
-      "fallback_key": "artificial_intelligence.005",
-      "title_fr": "Intelligence artificielle - étape 7",
-      "title_en": "Artificial intelligence - step 7",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 1.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Apprentissage supervisé et non supervisé",
+      "title_en": "Supervised and unsupervised learning",
+      "summary_fr": "Choisir la famille d'algorithmes selon que les exemples portent ou non une réponse connue.",
+      "summary_en": "Pick the algorithm family depending on whether the examples carry a known answer.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 7.",
-        "L'appliquer dans un exemple court."
+        "Classer trois problèmes en supervisé ou non supervisé.",
+        "Dire ce que coûte l'étiquetage des données."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 7.",
-        "Apply it in a short example."
+        "Classify three problems as supervised or unsupervised.",
+        "Say what labelling data costs."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais classer une prévision de churn, une segmentation de clients et une détection d'anomalies, puis demande ce qui manque pour rendre le deuxième supervisé.",
+      "tutor_focus_en": "Have the student classify churn prediction, customer segmentation and anomaly detection, then ask what is missing to make the second supervised.",
       "example_contexts_fr": [
-        "Exemple étudiant 7",
-        "Situation produit 7"
+        "une prévision de départ de clients à partir d'historiques",
+        "une segmentation de clientèle sans catégories prédéfinies",
+        "une détection d'anomalies sur des capteurs industriels"
       ],
       "example_contexts_en": [
-        "Student example 7",
-        "Product situation 7"
+        "predicting customer churn from history",
+        "segmenting customers with no predefined categories",
+        "detecting anomalies on industrial sensors"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.008",
+      "key": "artificial_intelligence.calling_model_api",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
         "ai_building"
       ],
-      "stage": 2,
+      "stage": 1,
       "order": 8,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.007"
+        "artificial_intelligence.probabilistic_answers"
       ],
-      "fallback_key": "artificial_intelligence.006",
-      "title_fr": "Intelligence artificielle - étape 8",
-      "title_en": "Artificial intelligence - step 8",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 2.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 2.",
+      "fallback_key": null,
+      "title_fr": "Ce qui se passe quand une application appelle un modèle",
+      "title_en": "What happens when an application calls a model",
+      "summary_fr": "Suivre le trajet d'un appel d'API de modèle : requête, jetons consommés, réponse, coût.",
+      "summary_en": "Follow a model API call: request, tokens consumed, response, cost.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 8.",
-        "L'appliquer dans un exemple court."
+        "Décrire le contenu d'une requête envoyée à un modèle.",
+        "Dire d'où vient la facturation d'un appel."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 8.",
-        "Apply it in a short example."
+        "Describe the content of a request sent to a model.",
+        "Say where the billing of a call comes from."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire le contenu exact d'une requête à un modèle, puis demande ce qui augmente la facture pour un même service.",
+      "tutor_focus_en": "Have the student describe the exact content of a request to a model, then ask what inflates the bill for the same service.",
       "example_contexts_fr": [
-        "Exemple étudiant 8",
-        "Situation produit 8"
+        "un chatbot de support intégré à un site",
+        "une génération de description produit dans un back-office",
+        "une facture mensuelle qui triple sans hausse d'utilisateurs"
       ],
       "example_contexts_en": [
-        "Student example 8",
-        "Product situation 8"
+        "a support chatbot embedded in a website",
+        "product description generation in a back office",
+        "a monthly bill tripling with no more users"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.009",
+      "key": "artificial_intelligence.train_test_split",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -322,37 +332,39 @@
       ],
       "stage": 2,
       "order": 9,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.008"
+        "artificial_intelligence.probabilistic_answers"
       ],
-      "fallback_key": "artificial_intelligence.007",
-      "title_fr": "Intelligence artificielle - étape 9",
-      "title_en": "Artificial intelligence - step 9",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 2.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 2.",
+      "fallback_key": "artificial_intelligence.probabilistic_answers",
+      "title_fr": "Pourquoi on garde des données jamais vues",
+      "title_en": "Why we keep data the model has never seen",
+      "summary_fr": "Séparer entraînement, validation et test pour mesurer autre chose que de la mémorisation.",
+      "summary_en": "Split training, validation and test data to measure something other than memorisation.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 9.",
-        "L'appliquer dans un exemple court."
+        "Expliquer le rôle de chacun des trois jeux de données.",
+        "Repérer une fuite de données entre entraînement et test."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 9.",
-        "Apply it in a short example."
+        "Explain the role of each of the three datasets.",
+        "Spot a data leak between training and test."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi un score de 100 % sur les données d'entraînement n'apprend rien, puis demande comment une fuite peut se glisser dans un découpage temporel.",
+      "tutor_focus_en": "Have the student explain why 100% on training data teaches nothing, then ask how a leak can slip into a time-based split.",
       "example_contexts_fr": [
-        "Exemple étudiant 9",
-        "Situation produit 9"
+        "un modèle de prévision de ventes évalué sur l'année écoulée",
+        "des photos du même patient présentes dans les deux jeux",
+        "un concours de science des données avec un jeu caché"
       ],
       "example_contexts_en": [
-        "Student example 9",
-        "Product situation 9"
+        "a sales forecast model evaluated on the past year",
+        "photos of the same patient present in both sets",
+        "a data science contest with a hidden test set"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.010",
+      "key": "artificial_intelligence.overfitting_intuition",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -361,37 +373,39 @@
       ],
       "stage": 2,
       "order": 10,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.009"
+        "artificial_intelligence.train_test_split"
       ],
-      "fallback_key": "artificial_intelligence.008",
-      "title_fr": "Intelligence artificielle - étape 10",
-      "title_en": "Artificial intelligence - step 10",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 2.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 2.",
+      "fallback_key": "artificial_intelligence.probabilistic_answers",
+      "title_fr": "Sur-apprentissage : mémoriser au lieu de généraliser",
+      "title_en": "Overfitting: memorising instead of generalising",
+      "summary_fr": "Reconnaître l'écart entre performance d'entraînement et performance réelle comme signal de sur-apprentissage.",
+      "summary_en": "Read the gap between training performance and real performance as an overfitting signal.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 10.",
-        "L'appliquer dans un exemple court."
+        "Lire un écart entre score d'entraînement et score de test.",
+        "Citer deux causes fréquentes de sur-apprentissage."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 10.",
-        "Apply it in a short example."
+        "Read a gap between training score and test score.",
+        "Name two frequent causes of overfitting."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais diagnostiquer un modèle à 99 % en entraînement et 62 % en test, puis demande deux corrections possibles et leur effet attendu.",
+      "tutor_focus_en": "Have the student diagnose a model at 99% training and 62% test, then ask for two fixes and their expected effect.",
       "example_contexts_fr": [
-        "Exemple étudiant 10",
-        "Situation produit 10"
+        "un modèle de scoring entraîné sur trois cents dossiers",
+        "un détecteur d'objets qui ne reconnaît que les photos du studio",
+        "une prévision qui fonctionnait avant un changement de tarif"
       ],
       "example_contexts_en": [
-        "Student example 10",
-        "Product situation 10"
+        "a scoring model trained on three hundred files",
+        "an object detector that only recognises studio photos",
+        "a forecast that worked before a pricing change"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.011",
+      "key": "artificial_intelligence.bias_in_data",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -402,35 +416,37 @@
       "order": 11,
       "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.010"
+        "artificial_intelligence.overfitting_intuition"
       ],
-      "fallback_key": "artificial_intelligence.009",
-      "title_fr": "Intelligence artificielle - étape 11",
-      "title_en": "Artificial intelligence - step 11",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 2.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 2.",
+      "fallback_key": "artificial_intelligence.probabilistic_answers",
+      "title_fr": "Comment un biais des données devient un biais du modèle",
+      "title_en": "How a bias in the data becomes a bias in the model",
+      "summary_fr": "Suivre le chemin d'une sous-représentation dans les données jusqu'à une décision systématiquement défavorable.",
+      "summary_en": "Follow the path from under-representation in data to a systematically unfavourable decision.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 11.",
-        "L'appliquer dans un exemple court."
+        "Identifier une population sous-représentée dans un jeu de données.",
+        "Expliquer pourquoi la précision globale peut masquer ce biais."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 11.",
-        "Apply it in a short example."
+        "Identify an under-represented population in a dataset.",
+        "Explain why overall accuracy can hide that bias."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais analyser un modèle de recrutement entraîné sur dix ans d'embauches passées, puis demande quelle mesure par sous-groupe révélerait le problème.",
+      "tutor_focus_en": "Have the student analyse a hiring model trained on ten years of past hires, then ask which per-subgroup measurement would expose the problem.",
       "example_contexts_fr": [
-        "Exemple étudiant 11",
-        "Situation produit 11"
+        "un tri de candidatures appris sur les embauches passées",
+        "une reconnaissance vocale entraînée sur peu d'accents",
+        "un score de risque calibré sur une seule région"
       ],
       "example_contexts_en": [
-        "Student example 11",
-        "Product situation 11"
+        "application screening learned from past hires",
+        "speech recognition trained on few accents",
+        "a risk score calibrated on a single region"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.012",
+      "key": "artificial_intelligence.compute_and_data_cost",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
         "ai_foundations",
@@ -439,929 +455,1672 @@
       ],
       "stage": 2,
       "order": 12,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.011"
+        "artificial_intelligence.bias_in_data"
       ],
-      "fallback_key": "artificial_intelligence.010",
-      "title_fr": "Intelligence artificielle - étape 12",
-      "title_en": "Artificial intelligence - step 12",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 2.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 2.",
+      "fallback_key": "artificial_intelligence.probabilistic_answers",
+      "title_fr": "Ce que coûte un entraînement : données, calcul, énergie",
+      "title_en": "What training costs: data, compute, energy",
+      "summary_fr": "Relier taille du modèle, volume de données et facture de calcul pour juger un projet réaliste.",
+      "summary_en": "Connect model size, data volume and compute bill to judge whether a project is realistic.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 12.",
-        "L'appliquer dans un exemple court."
+        "Comparer l'ordre de grandeur d'un entraînement complet et d'un ajustement fin.",
+        "Dire ce qui rend une inférence coûteuse à grande échelle."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 12.",
-        "Apply it in a short example."
+        "Compare the order of magnitude of full training and of fine-tuning.",
+        "Say what makes inference expensive at scale."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer le coût d'un entraînement complet et celui d'un ajustement fin, puis demande ce qui domine la facture d'un service à un million de requêtes par jour.",
+      "tutor_focus_en": "Have the student compare the cost of full training and of fine-tuning, then ask what dominates the bill of a service at a million requests per day.",
       "example_contexts_fr": [
-        "Exemple étudiant 12",
-        "Situation produit 12"
+        "une équipe qui veut entraîner son propre modèle de langue",
+        "un ajustement fin sur deux mille exemples internes",
+        "un service qui traite un million de requêtes par jour"
       ],
       "example_contexts_en": [
-        "Student example 12",
-        "Product situation 12"
+        "a team wanting to train its own language model",
+        "a fine-tune on two thousand internal examples",
+        "a service handling a million requests per day"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.013",
+      "key": "artificial_intelligence.next_token_prediction",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
       "stage": 2,
       "order": 13,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.012"
+        "artificial_intelligence.compute_and_data_cost"
       ],
-      "fallback_key": "artificial_intelligence.011",
-      "title_fr": "Intelligence artificielle - étape 13",
-      "title_en": "Artificial intelligence - step 13",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 2.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 2.",
+      "fallback_key": "artificial_intelligence.tokens_and_text",
+      "title_fr": "Prédire le token suivant : le mécanisme de base d'un modèle de langue",
+      "title_en": "Next-token prediction: the base mechanism of a language model",
+      "summary_fr": "Comprendre qu'un texte long est produit un token à la fois, chacun conditionné par les précédents.",
+      "summary_en": "Understand that long text is produced one token at a time, each conditioned on the previous ones.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 13.",
-        "L'appliquer dans un exemple court."
+        "Décrire la boucle de génération token par token.",
+        "Expliquer pourquoi une erreur au début oriente toute la suite."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 13.",
-        "Apply it in a short example."
+        "Describe the token-by-token generation loop.",
+        "Explain why an early mistake steers the whole continuation."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais dérouler la génération des cinq premiers tokens d'une phrase, puis demande l'effet d'un premier token mal choisi.",
+      "tutor_focus_en": "Have the student unroll the generation of the first five tokens of a sentence, then ask the effect of a badly chosen first token.",
       "example_contexts_fr": [
-        "Exemple étudiant 13",
-        "Situation produit 13"
+        "une réponse d'assistant qui part dans une mauvaise direction",
+        "une complétion de code proposée dans un éditeur",
+        "un résumé qui reprend le ton du début du texte"
       ],
       "example_contexts_en": [
-        "Student example 13",
-        "Product situation 13"
+        "an assistant answer drifting in the wrong direction",
+        "a code completion suggested in an editor",
+        "a summary echoing the tone of the opening"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.014",
+      "key": "artificial_intelligence.temperature_sampling",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
       "stage": 2,
       "order": 14,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.013"
+        "artificial_intelligence.next_token_prediction"
       ],
-      "fallback_key": "artificial_intelligence.012",
-      "title_fr": "Intelligence artificielle - étape 14",
-      "title_en": "Artificial intelligence - step 14",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 2.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 2.",
+      "fallback_key": "artificial_intelligence.tokens_and_text",
+      "title_fr": "Température et échantillonnage : pourquoi deux réponses diffèrent",
+      "title_en": "Temperature and sampling: why two answers differ",
+      "summary_fr": "Relier le réglage de température à la variabilité des sorties et au risque d'invention.",
+      "summary_en": "Connect the temperature setting to output variability and to the risk of invention.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 14.",
-        "L'appliquer dans un exemple court."
+        "Prévoir l'effet d'une température basse et d'une température haute.",
+        "Choisir un réglage adapté à une tâche factuelle."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 14.",
-        "Apply it in a short example."
+        "Predict the effect of a low and of a high temperature.",
+        "Choose a setting suited to a factual task."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais choisir une température pour une extraction de données puis pour une génération d'idées, en demandant de justifier chaque choix.",
+      "tutor_focus_en": "Have the student choose a temperature for data extraction then for idea generation, justifying each choice.",
       "example_contexts_fr": [
-        "Exemple étudiant 14",
-        "Situation produit 14"
+        "une extraction de champs depuis une facture",
+        "une génération de titres publicitaires",
+        "deux exécutions du même prompt qui donnent des réponses différentes"
       ],
       "example_contexts_en": [
-        "Student example 14",
-        "Product situation 14"
+        "extracting fields from an invoice",
+        "generating advertising headlines",
+        "two runs of the same prompt returning different answers"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.015",
+      "key": "artificial_intelligence.linear_regression",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_machine_learning"
       ],
-      "stage": 3,
+      "stage": 2,
       "order": 15,
-      "required": false,
-      "prerequisite_keys": [
-        "artificial_intelligence.014"
-      ],
-      "fallback_key": "artificial_intelligence.013",
-      "title_fr": "Intelligence artificielle - étape 15",
-      "title_en": "Artificial intelligence - step 15",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 3.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 3.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 15.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 15.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 15",
-        "Situation produit 15"
-      ],
-      "example_contexts_en": [
-        "Student example 15",
-        "Product situation 15"
-      ],
-      "safety_category": "standard"
-    },
-    {
-      "key": "artificial_intelligence.016",
-      "domain_id": "artificial_intelligence",
-      "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
-      ],
-      "stage": 3,
-      "order": 16,
       "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.015"
+        "artificial_intelligence.compute_and_data_cost"
       ],
-      "fallback_key": "artificial_intelligence.014",
-      "title_fr": "Intelligence artificielle - étape 16",
-      "title_en": "Artificial intelligence - step 16",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 3.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 3.",
+      "fallback_key": "artificial_intelligence.supervised_vs_unsupervised",
+      "title_fr": "La régression linéaire : ajuster une droite et lire ses coefficients",
+      "title_en": "Linear regression: fitting a line and reading its coefficients",
+      "summary_fr": "Interpréter la pente et l'ordonnée à l'origine comme une relation quantifiée entre deux variables.",
+      "summary_en": "Interpret slope and intercept as a quantified relation between two variables.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 16.",
-        "L'appliquer dans un exemple court."
+        "Interpréter un coefficient en unités métier.",
+        "Repérer une relation manifestement non linéaire."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 16.",
-        "Apply it in a short example."
+        "Interpret a coefficient in business units.",
+        "Spot a clearly non-linear relation."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais interpréter un coefficient de surface sur un prix immobilier, puis demande ce qui invalide la droite quand la relation se courbe.",
+      "tutor_focus_en": "Have the student interpret a floor-area coefficient on a property price, then ask what invalidates the line when the relation curves.",
       "example_contexts_fr": [
-        "Exemple étudiant 16",
-        "Situation produit 16"
+        "un prix au mètre carré estimé sur des ventes récentes",
+        "une consommation électrique en fonction de la température",
+        "un chiffre d'affaires en fonction du budget publicitaire"
       ],
       "example_contexts_en": [
-        "Student example 16",
-        "Product situation 16"
+        "a price per square metre estimated from recent sales",
+        "electricity consumption against temperature",
+        "revenue against advertising budget"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.017",
+      "key": "artificial_intelligence.loss_function",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_machine_learning"
       ],
-      "stage": 3,
-      "order": 17,
+      "stage": 2,
+      "order": 16,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.016"
+        "artificial_intelligence.linear_regression"
       ],
-      "fallback_key": "artificial_intelligence.015",
-      "title_fr": "Intelligence artificielle - étape 17",
-      "title_en": "Artificial intelligence - step 17",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 3.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 3.",
+      "fallback_key": "artificial_intelligence.supervised_vs_unsupervised",
+      "title_fr": "Ce que mesure une fonction de perte",
+      "title_en": "What a loss function measures",
+      "summary_fr": "Comprendre que le choix de la perte définit quelle erreur le modèle acceptera de commettre.",
+      "summary_en": "Understand that choosing the loss defines which error the model agrees to make.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 17.",
-        "L'appliquer dans un exemple court."
+        "Comparer erreur absolue et erreur quadratique sur une valeur aberrante.",
+        "Choisir une perte cohérente avec un enjeu métier."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 17.",
-        "Apply it in a short example."
+        "Compare absolute and squared error on an outlier.",
+        "Choose a loss consistent with a business stake."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer l'effet d'une valeur aberrante sur deux pertes, puis demande laquelle choisir quand les grosses erreurs coûtent très cher.",
+      "tutor_focus_en": "Have the student compare the effect of an outlier on two losses, then ask which to choose when big errors are very costly.",
       "example_contexts_fr": [
-        "Exemple étudiant 17",
-        "Situation produit 17"
+        "une prévision de stock où la rupture coûte plus que le surstock",
+        "un jeu de mesures contenant une valeur aberrante",
+        "une estimation de délai de livraison"
       ],
       "example_contexts_en": [
-        "Student example 17",
-        "Product situation 17"
+        "a stock forecast where a shortage costs more than surplus",
+        "a measurement set containing an outlier",
+        "a delivery time estimate"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.018",
+      "key": "artificial_intelligence.prompt_structure",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
         "ai_building"
       ],
-      "stage": 3,
+      "stage": 2,
+      "order": 17,
+      "required": true,
+      "prerequisite_keys": [
+        "artificial_intelligence.compute_and_data_cost"
+      ],
+      "fallback_key": "artificial_intelligence.calling_model_api",
+      "title_fr": "Structurer un prompt : rôle, consigne, format attendu",
+      "title_en": "Structuring a prompt: role, instruction, expected format",
+      "summary_fr": "Écrire une instruction dont la sortie est prévisible parce que le format est imposé.",
+      "summary_en": "Write an instruction whose output is predictable because the format is imposed.",
+      "learning_goals_fr": [
+        "Séparer contexte, tâche et format attendu dans une instruction.",
+        "Réécrire une consigne vague en consigne vérifiable."
+      ],
+      "learning_goals_en": [
+        "Separate context, task and expected format in an instruction.",
+        "Rewrite a vague instruction into a verifiable one."
+      ],
+      "tutor_focus_fr": "Fais réécrire une consigne vague en trois blocs séparés, puis demande comment vérifier automatiquement que la sortie respecte le format.",
+      "tutor_focus_en": "Have the student rewrite a vague instruction into three separate blocks, then ask how to check the output format automatically.",
+      "example_contexts_fr": [
+        "un résumé d'e-mail client en trois puces",
+        "une classification de tickets en quatre catégories fixes",
+        "une consigne qui produit un texte différent à chaque exécution"
+      ],
+      "example_contexts_en": [
+        "a customer email summarised into three bullets",
+        "ticket classification into four fixed categories",
+        "an instruction producing different text on each run"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.structured_output",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 2,
       "order": 18,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.017"
+        "artificial_intelligence.prompt_structure"
       ],
-      "fallback_key": "artificial_intelligence.016",
-      "title_fr": "Intelligence artificielle - étape 18",
-      "title_en": "Artificial intelligence - step 18",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 3.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 3.",
+      "fallback_key": "artificial_intelligence.calling_model_api",
+      "title_fr": "Obtenir une sortie JSON exploitable",
+      "title_en": "Getting usable JSON output",
+      "summary_fr": "Imposer un schéma de sortie et prévoir ce qui se passe quand le modèle s'en écarte.",
+      "summary_en": "Impose an output schema and plan for what happens when the model departs from it.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 18.",
-        "L'appliquer dans un exemple court."
+        "Décrire un schéma minimal pour une extraction de données.",
+        "Choisir le comportement de l'application face à une sortie invalide."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 18.",
-        "Apply it in a short example."
+        "Describe a minimal schema for a data extraction.",
+        "Choose how the application behaves on invalid output."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire un schéma pour extraire trois champs d'une facture, puis demande ce que doit faire l'application si un champ manque.",
+      "tutor_focus_en": "Have the student describe a schema extracting three invoice fields, then ask what the application must do if a field is missing.",
       "example_contexts_fr": [
-        "Exemple étudiant 18",
-        "Situation produit 18"
+        "l'extraction du montant et de la date d'une facture",
+        "une réponse tronquée au milieu d'un objet JSON",
+        "une intégration qui refuse un champ inconnu"
       ],
       "example_contexts_en": [
-        "Student example 18",
-        "Product situation 18"
+        "extracting the amount and date of an invoice",
+        "a response truncated in the middle of a JSON object",
+        "an integration rejecting an unknown field"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.019",
+      "key": "artificial_intelligence.embeddings_meaning",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
       "stage": 3,
       "order": 19,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.018"
+        "artificial_intelligence.temperature_sampling"
       ],
-      "fallback_key": "artificial_intelligence.017",
-      "title_fr": "Intelligence artificielle - étape 19",
-      "title_en": "Artificial intelligence - step 19",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 3.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 3.",
+      "fallback_key": "artificial_intelligence.temperature_sampling",
+      "title_fr": "Les plongements vectoriels : représenter le sens par des nombres",
+      "title_en": "Embeddings: representing meaning with numbers",
+      "summary_fr": "Comprendre qu'un texte devient un vecteur dont la proximité approche la proximité de sens.",
+      "summary_en": "Understand that a text becomes a vector whose closeness approximates closeness in meaning.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 19.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce que mesure la similarité entre deux vecteurs.",
+        "Citer un cas où deux textes proches en vecteur ont un sens opposé."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 19.",
-        "Apply it in a short example."
+        "Explain what similarity between two vectors measures.",
+        "Give a case where two close vectors carry opposite meaning."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais classer trois phrases par proximité de sens, puis demande pourquoi une négation peut rester très proche de la phrase affirmative.",
+      "tutor_focus_en": "Have the student rank three sentences by closeness of meaning, then ask why a negation can stay very close to the affirmative sentence.",
       "example_contexts_fr": [
-        "Exemple étudiant 19",
-        "Situation produit 19"
+        "une recherche interne qui trouve des documents sans le mot exact",
+        "des articles regroupés par thème automatiquement",
+        "une phrase et sa négation jugées très proches"
       ],
       "example_contexts_en": [
-        "Student example 19",
-        "Product situation 19"
+        "an internal search finding documents without the exact word",
+        "articles automatically grouped by theme",
+        "a sentence and its negation judged very close"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.020",
+      "key": "artificial_intelligence.attention_mechanism",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
       "stage": 3,
       "order": 20,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.019"
+        "artificial_intelligence.embeddings_meaning"
       ],
-      "fallback_key": "artificial_intelligence.018",
-      "title_fr": "Intelligence artificielle - étape 20",
-      "title_en": "Artificial intelligence - step 20",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 3.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 3.",
+      "fallback_key": "artificial_intelligence.temperature_sampling",
+      "title_fr": "Ce que fait le mécanisme d'attention",
+      "title_en": "What the attention mechanism does",
+      "summary_fr": "Comprendre comment un modèle pondère les mots du contexte pour interpréter le mot courant.",
+      "summary_en": "Understand how a model weighs context words to interpret the current word.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 20.",
-        "L'appliquer dans un exemple court."
+        "Expliquer la pondération des mots du contexte sur un exemple d'ambiguïté.",
+        "Dire pourquoi l'attention coûte cher quand le texte s'allonge."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 20.",
-        "Apply it in a short example."
+        "Explain context weighting on an ambiguity example.",
+        "Say why attention gets expensive as text grows longer."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais désigner les mots qui lèvent l'ambiguïté de « il » dans une phrase, puis demande comment ce coût évolue avec la longueur du texte.",
+      "tutor_focus_en": "Have the student point out the words resolving “it” in a sentence, then ask how that cost grows with text length.",
       "example_contexts_fr": [
-        "Exemple étudiant 20",
-        "Situation produit 20"
+        "un pronom qui renvoie à l'un de deux personnages",
+        "un long contrat où une clause dépend d'une définition initiale",
+        "une traduction où le genre du mot dépend du contexte"
       ],
       "example_contexts_en": [
-        "Student example 20",
-        "Product situation 20"
+        "a pronoun referring to one of two characters",
+        "a long contract where a clause depends on an early definition",
+        "a translation where word gender depends on context"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.021",
+      "key": "artificial_intelligence.hallucination_causes",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
       "stage": 3,
       "order": 21,
-      "required": true,
+      "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.020"
+        "artificial_intelligence.attention_mechanism"
       ],
-      "fallback_key": "artificial_intelligence.019",
-      "title_fr": "Intelligence artificielle - étape 21",
-      "title_en": "Artificial intelligence - step 21",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 3.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 3.",
+      "fallback_key": "artificial_intelligence.temperature_sampling",
+      "title_fr": "Pourquoi un modèle invente une référence",
+      "title_en": "Why a model invents a reference",
+      "summary_fr": "Relier l'invention à l'objectif de plausibilité plutôt qu'à une base de faits consultée.",
+      "summary_en": "Connect invention to an objective of plausibility rather than a consulted fact base.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 21.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi une citation inventée paraît crédible.",
+        "Citer deux dispositifs qui réduisent le risque d'invention."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 21.",
-        "Apply it in a short example."
+        "Explain why a fabricated citation looks credible.",
+        "Name two mechanisms that reduce the risk of invention."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais analyser une réponse contenant une référence inexistante, puis demande quel dispositif aurait empêché de la publier.",
+      "tutor_focus_en": "Have the student analyse an answer containing a non-existent reference, then ask which mechanism would have blocked publication.",
       "example_contexts_fr": [
-        "Exemple étudiant 21",
-        "Situation produit 21"
+        "une note juridique citant un article de loi inexistant",
+        "une bibliographie générée pour un mémoire",
+        "un numéro de version de bibliothèque inventé"
       ],
       "example_contexts_en": [
-        "Student example 21",
-        "Product situation 21"
+        "a legal note citing a non-existent statute",
+        "a bibliography generated for a dissertation",
+        "an invented library version number"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.022",
+      "key": "artificial_intelligence.context_window",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 22,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.021"
+        "artificial_intelligence.hallucination_causes"
       ],
-      "fallback_key": "artificial_intelligence.020",
-      "title_fr": "Intelligence artificielle - étape 22",
-      "title_en": "Artificial intelligence - step 22",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 4.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 4.",
+      "fallback_key": "artificial_intelligence.temperature_sampling",
+      "title_fr": "La fenêtre de contexte et ce qui en sort",
+      "title_en": "The context window and what falls out of it",
+      "summary_fr": "Comprendre la limite de contexte et l'effet de la troncature sur une conversation longue.",
+      "summary_en": "Understand the context limit and the effect of truncation on a long conversation.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 22.",
-        "L'appliquer dans un exemple court."
+        "Calculer si un document tient dans une fenêtre donnée.",
+        "Expliquer ce que le modèle oublie lorsque la fenêtre est dépassée."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 22.",
-        "Apply it in a short example."
+        "Compute whether a document fits in a given window.",
+        "Explain what the model forgets once the window overflows."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais estimer si un rapport de cinquante pages tient dans une fenêtre donnée, puis demande quelles informations disparaissent en premier.",
+      "tutor_focus_en": "Have the student estimate whether a fifty-page report fits a given window, then ask which information disappears first.",
       "example_contexts_fr": [
-        "Exemple étudiant 22",
-        "Situation produit 22"
+        "une conversation longue qui oublie la consigne initiale",
+        "un rapport de cinquante pages soumis en une fois",
+        "un historique de support client accumulé sur six mois"
       ],
       "example_contexts_en": [
-        "Student example 22",
-        "Product situation 22"
+        "a long conversation forgetting the initial instruction",
+        "a fifty-page report submitted at once",
+        "six months of accumulated support history"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.023",
+      "key": "artificial_intelligence.gradient_descent",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_machine_learning"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 23,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.022"
+        "artificial_intelligence.loss_function"
       ],
-      "fallback_key": "artificial_intelligence.021",
-      "title_fr": "Intelligence artificielle - étape 23",
-      "title_en": "Artificial intelligence - step 23",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 4.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 4.",
+      "fallback_key": "artificial_intelligence.loss_function",
+      "title_fr": "La descente de gradient pas à pas",
+      "title_en": "Gradient descent step by step",
+      "summary_fr": "Suivre l'ajustement itératif des paramètres et l'effet du pas d'apprentissage sur la convergence.",
+      "summary_en": "Follow the iterative adjustment of parameters and the effect of the learning rate on convergence.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 23.",
-        "L'appliquer dans un exemple court."
+        "Décrire une itération complète de mise à jour des paramètres.",
+        "Prévoir le comportement avec un pas trop grand ou trop petit."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 23.",
-        "Apply it in a short example."
+        "Describe one full parameter update iteration.",
+        "Predict the behaviour with a too large or too small step."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais dérouler trois itérations sur une fonction à une variable, puis demande ce qui se passe si le pas double à chaque fois.",
+      "tutor_focus_en": "Have the student run three iterations on a one-variable function, then ask what happens if the step doubles each time.",
       "example_contexts_fr": [
-        "Exemple étudiant 23",
-        "Situation produit 23"
+        "une courbe d'erreur qui descend puis stagne",
+        "un entraînement qui diverge dès les premières étapes",
+        "un modèle qui n'améliore plus rien après mille itérations"
       ],
       "example_contexts_en": [
-        "Student example 23",
-        "Product situation 23"
+        "an error curve dropping then flattening",
+        "a training run diverging from the first steps",
+        "a model improving nothing after a thousand iterations"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.024",
+      "key": "artificial_intelligence.classification_threshold",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_machine_learning"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 24,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.023"
+        "artificial_intelligence.gradient_descent"
       ],
-      "fallback_key": "artificial_intelligence.022",
-      "title_fr": "Intelligence artificielle - étape 24",
-      "title_en": "Artificial intelligence - step 24",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 4.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 4.",
+      "fallback_key": "artificial_intelligence.loss_function",
+      "title_fr": "Le seuil de décision d'un classifieur",
+      "title_en": "The decision threshold of a classifier",
+      "summary_fr": "Transformer une probabilité en décision et mesurer l'effet du seuil sur les deux types d'erreurs.",
+      "summary_en": "Turn a probability into a decision and measure the threshold's effect on both error types.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 24.",
-        "L'appliquer dans un exemple court."
+        "Expliquer l'effet d'un seuil abaissé sur les faux positifs.",
+        "Fixer un seuil à partir d'un coût métier."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 24.",
-        "Apply it in a short example."
+        "Explain the effect of lowering the threshold on false positives.",
+        "Set a threshold from a business cost."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais fixer un seuil pour une détection de fraude, puis demande combien de clients honnêtes seront bloqués à ce seuil.",
+      "tutor_focus_en": "Have the student set a threshold for fraud detection, then ask how many honest customers get blocked at that threshold.",
       "example_contexts_fr": [
-        "Exemple étudiant 24",
-        "Situation produit 24"
+        "une détection de fraude bancaire",
+        "un filtre de modération de commentaires",
+        "un test de dépistage à visée éducative"
       ],
       "example_contexts_en": [
-        "Student example 24",
-        "Product situation 24"
+        "bank fraud detection",
+        "a comment moderation filter",
+        "a screening test used as a teaching example"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.025",
+      "key": "artificial_intelligence.precision_recall",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_machine_learning"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 25,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.024"
+        "artificial_intelligence.classification_threshold"
       ],
-      "fallback_key": "artificial_intelligence.023",
-      "title_fr": "Intelligence artificielle - étape 25",
-      "title_en": "Artificial intelligence - step 25",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 4.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 4.",
+      "fallback_key": "artificial_intelligence.loss_function",
+      "title_fr": "Précision et rappel : choisir son erreur",
+      "title_en": "Precision and recall: choosing your error",
+      "summary_fr": "Calculer précision et rappel sur une matrice de confusion et arbitrer selon l'usage.",
+      "summary_en": "Compute precision and recall from a confusion matrix and arbitrate by use case.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 25.",
-        "L'appliquer dans un exemple court."
+        "Calculer précision et rappel à partir d'une matrice de confusion.",
+        "Dire laquelle privilégier pour un usage donné."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 25.",
-        "Apply it in a short example."
+        "Compute precision and recall from a confusion matrix.",
+        "Say which to favour for a given use."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer précision et rappel sur une matrice de confusion donnée, puis demande laquelle privilégier pour un filtre anti-spam.",
+      "tutor_focus_en": "Have the student compute precision and recall on a given confusion matrix, then ask which to favour for a spam filter.",
       "example_contexts_fr": [
-        "Exemple étudiant 25",
-        "Situation produit 25"
+        "un filtre anti-spam qui bloque un message important",
+        "une recherche documentaire dans un fonds juridique",
+        "une alerte de maintenance préventive"
       ],
       "example_contexts_en": [
-        "Student example 25",
-        "Product situation 25"
+        "a spam filter blocking an important message",
+        "document search in a legal archive",
+        "a preventive maintenance alert"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.026",
+      "key": "artificial_intelligence.cross_validation",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_machine_learning"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 26,
-      "required": true,
-      "prerequisite_keys": [
-        "artificial_intelligence.025"
-      ],
-      "fallback_key": "artificial_intelligence.024",
-      "title_fr": "Intelligence artificielle - étape 26",
-      "title_en": "Artificial intelligence - step 26",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 4.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 4.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 26.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 26.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 26",
-        "Situation produit 26"
-      ],
-      "example_contexts_en": [
-        "Student example 26",
-        "Product situation 26"
-      ],
-      "safety_category": "standard"
-    },
-    {
-      "key": "artificial_intelligence.027",
-      "domain_id": "artificial_intelligence",
-      "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
-      ],
-      "stage": 4,
-      "order": 27,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.026"
+        "artificial_intelligence.precision_recall"
       ],
-      "fallback_key": "artificial_intelligence.025",
-      "title_fr": "Intelligence artificielle - étape 27",
-      "title_en": "Artificial intelligence - step 27",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 4.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 4.",
+      "fallback_key": "artificial_intelligence.loss_function",
+      "title_fr": "La validation croisée",
+      "title_en": "Cross-validation",
+      "summary_fr": "Estimer la performance d'un modèle sur peu de données sans dépendre d'un découpage chanceux.",
+      "summary_en": "Estimate model performance on little data without depending on a lucky split.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 27.",
-        "L'appliquer dans un exemple court."
+        "Décrire une validation croisée en cinq blocs.",
+        "Dire pourquoi elle est nécessaire quand les données sont rares."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 27.",
-        "Apply it in a short example."
+        "Describe a five-fold cross-validation.",
+        "Say why it is needed when data is scarce."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire une validation croisée en cinq blocs, puis demande ce qu'elle change pour un jeu de deux cents exemples.",
+      "tutor_focus_en": "Have the student describe a five-fold cross-validation, then ask what it changes for a set of two hundred examples.",
       "example_contexts_fr": [
-        "Exemple étudiant 27",
-        "Situation produit 27"
+        "un jeu de deux cents dossiers médicaux anonymisés",
+        "deux découpages qui donnent des scores très différents",
+        "une comparaison entre trois modèles candidats"
       ],
       "example_contexts_en": [
-        "Student example 27",
-        "Product situation 27"
+        "a set of two hundred anonymised medical files",
+        "two splits giving very different scores",
+        "a comparison between three candidate models"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.028",
+      "key": "artificial_intelligence.rag_pipeline",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
         "ai_building"
       ],
-      "stage": 4,
+      "stage": 3,
+      "order": 27,
+      "required": true,
+      "prerequisite_keys": [
+        "artificial_intelligence.structured_output"
+      ],
+      "fallback_key": "artificial_intelligence.structured_output",
+      "title_fr": "Comment fonctionne une architecture RAG",
+      "title_en": "How a RAG architecture works",
+      "summary_fr": "Enchaîner recherche de passages pertinents et génération pour répondre à partir de documents propres.",
+      "summary_en": "Chain retrieval of relevant passages and generation to answer from your own documents.",
+      "learning_goals_fr": [
+        "Ordonner les étapes indexation, recherche, assemblage, génération.",
+        "Dire quelle étape est en cause quand la réponse cite un mauvais document."
+      ],
+      "learning_goals_en": [
+        "Order the indexing, retrieval, assembly and generation stages.",
+        "Say which stage is at fault when the answer cites the wrong document."
+      ],
+      "tutor_focus_fr": "Fais ordonner les étapes d'une chaîne RAG, puis demande quelle étape corriger quand la réponse s'appuie sur le mauvais document.",
+      "tutor_focus_en": "Have the student order the stages of a RAG chain, then ask which stage to fix when the answer relies on the wrong document.",
+      "example_contexts_fr": [
+        "un assistant qui répond à partir du manuel interne",
+        "une réponse correcte mais fondée sur une version périmée du document",
+        "une base documentaire de dix mille pages"
+      ],
+      "example_contexts_en": [
+        "an assistant answering from the internal handbook",
+        "a correct answer based on an outdated document version",
+        "a documentation base of ten thousand pages"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.chunking_strategy",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 3,
       "order": 28,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.027"
+        "artificial_intelligence.rag_pipeline"
       ],
-      "fallback_key": "artificial_intelligence.026",
-      "title_fr": "Intelligence artificielle - étape 28",
-      "title_en": "Artificial intelligence - step 28",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 4.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 4.",
+      "fallback_key": "artificial_intelligence.structured_output",
+      "title_fr": "Découper des documents pour la recherche",
+      "title_en": "Chunking documents for retrieval",
+      "summary_fr": "Choisir une taille de fragment qui garde le sens complet sans noyer la recherche.",
+      "summary_en": "Choose a chunk size that keeps meaning complete without drowning the search.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 28.",
-        "L'appliquer dans un exemple court."
+        "Expliquer l'effet d'un fragment trop court et d'un fragment trop long.",
+        "Proposer un découpage adapté à un document structuré."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 28.",
-        "Apply it in a short example."
+        "Explain the effect of a too short and a too long chunk.",
+        "Propose a chunking suited to a structured document."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais découper un contrat en fragments, puis demande ce qui se perd si une clause est coupée en deux.",
+      "tutor_focus_en": "Have the student chunk a contract, then ask what is lost when a clause is split in two.",
       "example_contexts_fr": [
-        "Exemple étudiant 28",
-        "Situation produit 28"
+        "un contrat dont une clause est coupée en deux fragments",
+        "un manuel technique organisé en sections numérotées",
+        "une transcription de réunion sans titres"
       ],
       "example_contexts_en": [
-        "Student example 28",
-        "Product situation 28"
+        "a contract whose clause is split across two chunks",
+        "a technical manual organised in numbered sections",
+        "a meeting transcript with no headings"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.029",
+      "key": "artificial_intelligence.vector_search",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
         "ai_building"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 29,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.028"
+        "artificial_intelligence.chunking_strategy"
       ],
-      "fallback_key": "artificial_intelligence.027",
-      "title_fr": "Intelligence artificielle - étape 29",
-      "title_en": "Artificial intelligence - step 29",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 5.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 5.",
+      "fallback_key": "artificial_intelligence.structured_output",
+      "title_fr": "La recherche par similarité vectorielle",
+      "title_en": "Vector similarity search",
+      "summary_fr": "Comparer recherche par mots-clés et recherche vectorielle, et combiner les deux quand c'est utile.",
+      "summary_en": "Compare keyword search and vector search, and combine both when useful.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 29.",
-        "L'appliquer dans un exemple court."
+        "Citer un cas où la recherche par mots-clés bat la recherche vectorielle.",
+        "Expliquer ce qu'apporte une recherche hybride."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 29.",
-        "Apply it in a short example."
+        "Give a case where keyword search beats vector search.",
+        "Explain what hybrid search brings."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer les résultats des deux recherches sur une référence produit exacte, puis demande comment les combiner.",
+      "tutor_focus_en": "Have the student compare both searches on an exact product reference, then ask how to combine them.",
       "example_contexts_fr": [
-        "Exemple étudiant 29",
-        "Situation produit 29"
+        "une référence produit exacte cherchée par un client",
+        "une question posée avec d'autres mots que le document",
+        "un corpus contenant beaucoup d'acronymes internes"
       ],
       "example_contexts_en": [
-        "Student example 29",
-        "Product situation 29"
+        "an exact product reference searched by a customer",
+        "a question asked with different words than the document",
+        "a corpus full of internal acronyms"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.030",
+      "key": "artificial_intelligence.latency_cost_budget",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
         "ai_building"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 30,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.029"
+        "artificial_intelligence.vector_search"
       ],
-      "fallback_key": "artificial_intelligence.028",
-      "title_fr": "Intelligence artificielle - étape 30",
-      "title_en": "Artificial intelligence - step 30",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 5.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 5.",
+      "fallback_key": "artificial_intelligence.structured_output",
+      "title_fr": "Budget de latence et de coût par requête",
+      "title_en": "Latency and cost budget per request",
+      "summary_fr": "Répartir un budget de temps et d'argent entre les étapes d'une chaîne de génération.",
+      "summary_en": "Split a time and money budget across the stages of a generation chain.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 30.",
-        "L'appliquer dans un exemple court."
+        "Décomposer la latence d'une réponse en étapes mesurables.",
+        "Identifier l'étape à optimiser en premier."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 30.",
-        "Apply it in a short example."
+        "Break down response latency into measurable stages.",
+        "Identify the stage to optimise first."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décomposer une réponse de quatre secondes en étapes chiffrées, puis demande laquelle optimiser en premier et pourquoi.",
+      "tutor_focus_en": "Have the student break a four-second response into timed stages, then ask which to optimise first and why.",
       "example_contexts_fr": [
-        "Exemple étudiant 30",
-        "Situation produit 30"
+        "un assistant qui répond en quatre secondes",
+        "une chaîne qui appelle deux modèles successifs",
+        "un budget mensuel dépassé en trois semaines"
       ],
       "example_contexts_en": [
-        "Student example 30",
-        "Product situation 30"
+        "an assistant answering in four seconds",
+        "a chain calling two models in sequence",
+        "a monthly budget exhausted in three weeks"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.031",
+      "key": "artificial_intelligence.pretraining_finetuning",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 31,
       "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.030"
+        "artificial_intelligence.context_window"
       ],
-      "fallback_key": "artificial_intelligence.029",
-      "title_fr": "Intelligence artificielle - étape 31",
-      "title_en": "Artificial intelligence - step 31",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 5.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 5.",
+      "fallback_key": "artificial_intelligence.context_window",
+      "title_fr": "Pré-entraînement, ajustement fin et alignement",
+      "title_en": "Pre-training, fine-tuning and alignment",
+      "summary_fr": "Distinguer les trois étapes qui transforment un modèle brut en assistant utilisable.",
+      "summary_en": "Tell apart the three stages that turn a raw model into a usable assistant.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 31.",
-        "L'appliquer dans un exemple court."
+        "Associer chaque étape au type de données qu'elle consomme.",
+        "Dire quelle étape corrige un ton inadapté."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 31.",
-        "Apply it in a short example."
+        "Match each stage to the kind of data it consumes.",
+        "Say which stage fixes an inappropriate tone."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais associer chaque étape aux données qu'elle utilise, puis demande laquelle corrigerait un modèle au style trop familier.",
+      "tutor_focus_en": "Have the student match each stage to its data, then ask which one would fix a model whose style is too casual.",
       "example_contexts_fr": [
-        "Exemple étudiant 31",
-        "Situation produit 31"
+        "un modèle brut qui complète du texte sans répondre aux questions",
+        "un assistant spécialisé sur le vocabulaire d'une entreprise",
+        "un modèle qui refuse une demande dangereuse"
       ],
       "example_contexts_en": [
-        "Student example 31",
-        "Product situation 31"
+        "a raw model completing text instead of answering",
+        "an assistant specialised in a company's vocabulary",
+        "a model refusing a dangerous request"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.032",
+      "key": "artificial_intelligence.learning_from_preferences",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 32,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.031"
+        "artificial_intelligence.pretraining_finetuning"
       ],
-      "fallback_key": "artificial_intelligence.030",
-      "title_fr": "Intelligence artificielle - étape 32",
-      "title_en": "Artificial intelligence - step 32",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 5.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 5.",
+      "fallback_key": "artificial_intelligence.context_window",
+      "title_fr": "Apprendre à partir de préférences humaines",
+      "title_en": "Learning from human preferences",
+      "summary_fr": "Comprendre comment des comparaisons entre deux réponses orientent le comportement d'un modèle.",
+      "summary_en": "Understand how comparisons between two answers steer a model's behaviour.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 32.",
-        "L'appliquer dans un exemple court."
+        "Décrire la boucle comparaison, modèle de récompense, ajustement.",
+        "Citer un effet indésirable d'une récompense mal définie."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 32.",
-        "Apply it in a short example."
+        "Describe the loop of comparison, reward model and tuning.",
+        "Name an unwanted effect of a badly defined reward."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire la boucle d'apprentissage par préférences, puis demande ce qui arrive si les évaluateurs préfèrent systématiquement les réponses longues.",
+      "tutor_focus_en": "Have the student describe the preference learning loop, then ask what happens if raters systematically prefer long answers.",
       "example_contexts_fr": [
-        "Exemple étudiant 32",
-        "Situation produit 32"
+        "deux réponses proposées à des évaluateurs humains",
+        "un assistant devenu exagérément complaisant",
+        "des réponses de plus en plus longues sans gain d'information"
       ],
       "example_contexts_en": [
-        "Student example 32",
-        "Product situation 32"
+        "two answers shown to human raters",
+        "an assistant that became excessively agreeable",
+        "answers growing longer with no added information"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.033",
+      "key": "artificial_intelligence.eval_benchmarks",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 33,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.032"
+        "artificial_intelligence.learning_from_preferences"
       ],
-      "fallback_key": "artificial_intelligence.031",
-      "title_fr": "Intelligence artificielle - étape 33",
-      "title_en": "Artificial intelligence - step 33",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 5.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 5.",
+      "fallback_key": "artificial_intelligence.context_window",
+      "title_fr": "Ce que mesure vraiment un score de benchmark",
+      "title_en": "What a benchmark score really measures",
+      "summary_fr": "Lire un classement de modèles en tenant compte de la contamination et de l'écart avec l'usage réel.",
+      "summary_en": "Read a model leaderboard accounting for contamination and the gap with real usage.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 33.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'une contamination du jeu de test invalide.",
+        "Dire pourquoi un score élevé ne garantit pas un bon usage métier."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 33.",
-        "Apply it in a short example."
+        "Explain what test-set contamination invalidates.",
+        "Say why a high score does not guarantee good business use."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais critiquer une annonce de score record, puis demande quelle évaluation serait pertinente pour un cas d'usage précis.",
+      "tutor_focus_en": "Have the student critique a record-score announcement, then ask which evaluation would be relevant for one precise use case.",
       "example_contexts_fr": [
-        "Exemple étudiant 33",
-        "Situation produit 33"
+        "un classement public de modèles de langue",
+        "un jeu de test publié depuis trois ans sur Internet",
+        "un modèle excellent en examen mais faible sur des e-mails clients"
       ],
       "example_contexts_en": [
-        "Student example 33",
-        "Product situation 33"
+        "a public leaderboard of language models",
+        "a test set published on the internet three years ago",
+        "a model excellent at exams but weak on customer emails"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.034",
+      "key": "artificial_intelligence.prompt_sensitivity",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
-        "ai_building"
+        "ai_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 34,
       "required": false,
       "prerequisite_keys": [
-        "artificial_intelligence.033"
+        "artificial_intelligence.eval_benchmarks"
       ],
-      "fallback_key": "artificial_intelligence.032",
-      "title_fr": "Intelligence artificielle - étape 34",
-      "title_en": "Artificial intelligence - step 34",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 5.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 5.",
+      "fallback_key": "artificial_intelligence.context_window",
+      "title_fr": "Pourquoi une reformulation change la réponse",
+      "title_en": "Why rewording changes the answer",
+      "summary_fr": "Mesurer la sensibilité d'un modèle à la formulation et en tirer une méthode de test.",
+      "summary_en": "Measure a model's sensitivity to phrasing and turn it into a testing method.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 34.",
-        "L'appliquer dans un exemple court."
+        "Construire deux formulations équivalentes d'une même demande.",
+        "Décider quand une variation de réponse est acceptable."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 34.",
-        "Apply it in a short example."
+        "Build two equivalent phrasings of one request.",
+        "Decide when a variation in the answer is acceptable."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais écrire deux formulations équivalentes d'une même consigne, puis demande comment vérifier que le modèle répond pareil sur cinquante cas.",
+      "tutor_focus_en": "Have the student write two equivalent phrasings of one instruction, then ask how to check the model answers the same over fifty cases.",
       "example_contexts_fr": [
-        "Exemple étudiant 34",
-        "Situation produit 34"
+        "une même question posée poliment puis sèchement",
+        "une consigne traduite du français vers l'anglais",
+        "un ordre de champs modifié dans une demande d'extraction"
       ],
       "example_contexts_en": [
-        "Student example 34",
-        "Product situation 34"
+        "the same question asked politely then bluntly",
+        "an instruction translated from French to English",
+        "a reordered field list in an extraction request"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "artificial_intelligence.035",
+      "key": "artificial_intelligence.decision_trees_forests",
       "domain_id": "artificial_intelligence",
       "objective_ids": [
-        "ai_foundations",
-        "ai_machine_learning",
+        "ai_machine_learning"
+      ],
+      "stage": 4,
+      "order": 35,
+      "required": true,
+      "prerequisite_keys": [
+        "artificial_intelligence.cross_validation"
+      ],
+      "fallback_key": "artificial_intelligence.cross_validation",
+      "title_fr": "Arbres de décision et forêts aléatoires",
+      "title_en": "Decision trees and random forests",
+      "summary_fr": "Comprendre la construction d'un arbre par découpes successives et l'apport du vote d'un ensemble.",
+      "summary_en": "Understand tree construction by successive splits and what an ensemble vote adds.",
+      "learning_goals_fr": [
+        "Lire un arbre de décision et suivre le chemin d'un exemple.",
+        "Expliquer ce qu'apporte le vote de plusieurs arbres."
+      ],
+      "learning_goals_en": [
+        "Read a decision tree and follow one example's path.",
+        "Explain what the vote of several trees brings."
+      ],
+      "tutor_focus_fr": "Fais suivre un dossier dans un petit arbre de décision, puis demande pourquoi cent arbres différents se trompent moins souvent qu'un seul.",
+      "tutor_focus_en": "Have the student follow a file through a small decision tree, then ask why a hundred different trees are wrong less often than one.",
+      "example_contexts_fr": [
+        "un dossier de prêt suivi de nœud en nœud",
+        "un arbre profond qui colle exactement aux données d'entraînement",
+        "un score de risque qui doit rester explicable"
+      ],
+      "example_contexts_en": [
+        "a loan file followed node by node",
+        "a deep tree matching the training data exactly",
+        "a risk score that must stay explainable"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.feature_engineering",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_machine_learning"
+      ],
+      "stage": 4,
+      "order": 36,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.decision_trees_forests"
+      ],
+      "fallback_key": "artificial_intelligence.cross_validation",
+      "title_fr": "Construire une caractéristique utile",
+      "title_en": "Building a useful feature",
+      "summary_fr": "Transformer une donnée brute en variable porteuse d'information pour le modèle.",
+      "summary_en": "Turn raw data into a variable that carries information for the model.",
+      "learning_goals_fr": [
+        "Dériver deux caractéristiques utiles à partir d'une date brute.",
+        "Repérer une caractéristique qui ne sera pas disponible au moment de la prédiction."
+      ],
+      "learning_goals_en": [
+        "Derive two useful features from a raw date.",
+        "Spot a feature that will not be available at prediction time."
+      ],
+      "tutor_focus_fr": "Fais dériver trois variables à partir d'une date de commande, puis demande laquelle ne serait pas connue au moment de prédire.",
+      "tutor_focus_en": "Have the student derive three variables from an order date, then ask which one would not be known at prediction time.",
+      "example_contexts_fr": [
+        "une date de commande transformée en jour de semaine",
+        "une adresse convertie en distance au dépôt",
+        "un texte libre résumé en longueur et en présence de mots-clés"
+      ],
+      "example_contexts_en": [
+        "an order date turned into a weekday",
+        "an address converted into distance to the depot",
+        "free text reduced to length and keyword presence"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.regularization",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_machine_learning"
+      ],
+      "stage": 4,
+      "order": 37,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.feature_engineering"
+      ],
+      "fallback_key": "artificial_intelligence.cross_validation",
+      "title_fr": "Régularisation : pénaliser la complexité",
+      "title_en": "Regularisation: penalising complexity",
+      "summary_fr": "Ajouter une pénalité sur les coefficients pour préférer un modèle plus simple et plus stable.",
+      "summary_en": "Add a penalty on coefficients to prefer a simpler and more stable model.",
+      "learning_goals_fr": [
+        "Expliquer ce qu'une pénalité impose aux coefficients.",
+        "Prévoir l'effet d'une pénalité trop forte."
+      ],
+      "learning_goals_en": [
+        "Explain what a penalty imposes on coefficients.",
+        "Predict the effect of a too strong penalty."
+      ],
+      "tutor_focus_fr": "Fais comparer les coefficients avec et sans pénalité, puis demande ce qui se passe quand la pénalité devient très grande.",
+      "tutor_focus_en": "Have the student compare coefficients with and without penalty, then ask what happens when the penalty becomes very large.",
+      "example_contexts_fr": [
+        "un modèle à trois cents variables et cinq cents exemples",
+        "des coefficients qui changent complètement d'un mois à l'autre",
+        "une sélection automatique des variables utiles"
+      ],
+      "example_contexts_en": [
+        "a model with three hundred variables and five hundred examples",
+        "coefficients changing completely from month to month",
+        "an automatic selection of useful variables"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.imbalanced_data",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_machine_learning"
+      ],
+      "stage": 4,
+      "order": 38,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.regularization"
+      ],
+      "fallback_key": "artificial_intelligence.cross_validation",
+      "title_fr": "Données déséquilibrées et métriques trompeuses",
+      "title_en": "Imbalanced data and misleading metrics",
+      "summary_fr": "Reconnaître qu'une exactitude élevée peut décrire un modèle qui ne détecte jamais la classe rare.",
+      "summary_en": "Recognise that high accuracy can describe a model that never detects the rare class.",
+      "learning_goals_fr": [
+        "Calculer l'exactitude d'un modèle qui prédit toujours la classe majoritaire.",
+        "Choisir une métrique adaptée à une classe rare."
+      ],
+      "learning_goals_en": [
+        "Compute the accuracy of a model always predicting the majority class.",
+        "Choose a metric suited to a rare class."
+      ],
+      "tutor_focus_fr": "Fais calculer l'exactitude d'un modèle qui répond toujours « non » sur un problème à 1 % de positifs, puis demande quelle métrique utiliser.",
+      "tutor_focus_en": "Have the student compute the accuracy of a model always answering “no” on a 1% positive problem, then ask which metric to use.",
+      "example_contexts_fr": [
+        "une fraude présente dans un paiement sur mille",
+        "une panne rare sur une flotte de machines",
+        "un modèle à 99 % d'exactitude qui ne détecte rien"
+      ],
+      "example_contexts_en": [
+        "fraud present in one payment out of a thousand",
+        "a rare failure across a fleet of machines",
+        "a 99% accurate model detecting nothing"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.tool_calling",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 4,
+      "order": 39,
+      "required": true,
+      "prerequisite_keys": [
+        "artificial_intelligence.latency_cost_budget"
+      ],
+      "fallback_key": "artificial_intelligence.latency_cost_budget",
+      "title_fr": "Donner des outils à un modèle",
+      "title_en": "Giving tools to a model",
+      "summary_fr": "Décrire des fonctions appelables et contrôler ce que le modèle a le droit de déclencher.",
+      "summary_en": "Describe callable functions and control what the model is allowed to trigger.",
+      "learning_goals_fr": [
+        "Décrire un outil par son nom, ses paramètres et son effet.",
+        "Dire quels outils ne doivent jamais être exposés sans confirmation."
+      ],
+      "learning_goals_en": [
+        "Describe a tool by its name, parameters and effect.",
+        "Say which tools must never be exposed without confirmation."
+      ],
+      "tutor_focus_fr": "Fais décrire deux outils avec leurs paramètres, puis demande lequel exige une confirmation humaine avant exécution.",
+      "tutor_focus_en": "Have the student describe two tools with their parameters, then ask which one requires human confirmation before running.",
+      "example_contexts_fr": [
+        "une consultation de stock en lecture seule",
+        "un remboursement client déclenché automatiquement",
+        "un envoi d'e-mail au nom de l'entreprise"
+      ],
+      "example_contexts_en": [
+        "a read-only stock lookup",
+        "a customer refund triggered automatically",
+        "an email sent on behalf of the company"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.agent_loop",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 4,
+      "order": 40,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.tool_calling"
+      ],
+      "fallback_key": "artificial_intelligence.latency_cost_budget",
+      "title_fr": "La boucle d'un agent et sa condition d'arrêt",
+      "title_en": "An agent loop and its stopping condition",
+      "summary_fr": "Encadrer une boucle observer-décider-agir par un budget d'étapes et un critère de succès.",
+      "summary_en": "Bound an observe-decide-act loop with a step budget and a success criterion.",
+      "learning_goals_fr": [
+        "Décrire une itération complète de la boucle d'un agent.",
+        "Définir une condition d'arrêt vérifiable."
+      ],
+      "learning_goals_en": [
+        "Describe one full iteration of an agent loop.",
+        "Define a verifiable stopping condition."
+      ],
+      "tutor_focus_fr": "Fais définir la condition d'arrêt d'un agent de recherche documentaire, puis demande ce qui se passe sans limite d'étapes.",
+      "tutor_focus_en": "Have the student define the stopping condition of a document research agent, then ask what happens with no step limit.",
+      "example_contexts_fr": [
+        "un agent qui relance indéfiniment le même appel",
+        "une tâche de recherche en plusieurs étapes",
+        "un budget de dix appels d'outils par demande"
+      ],
+      "example_contexts_en": [
+        "an agent retrying the same call forever",
+        "a multi-step research task",
+        "a budget of ten tool calls per request"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.guardrails_validation",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 4,
+      "order": 41,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.agent_loop"
+      ],
+      "fallback_key": "artificial_intelligence.latency_cost_budget",
+      "title_fr": "Valider une sortie de modèle avant de l'utiliser",
+      "title_en": "Validating a model output before using it",
+      "summary_fr": "Placer des vérifications déterministes entre la génération et l'action effectuée par le produit.",
+      "summary_en": "Place deterministic checks between generation and the action the product performs.",
+      "learning_goals_fr": [
+        "Lister les contrôles à appliquer avant d'enregistrer une sortie.",
+        "Choisir le comportement en cas d'échec de validation."
+      ],
+      "learning_goals_en": [
+        "List the checks to apply before persisting an output.",
+        "Choose the behaviour when validation fails."
+      ],
+      "tutor_focus_fr": "Fais lister les contrôles avant d'enregistrer un montant extrait automatiquement, puis demande quoi faire quand un contrôle échoue.",
+      "tutor_focus_en": "Have the student list the checks before saving an automatically extracted amount, then ask what to do when a check fails.",
+      "example_contexts_fr": [
+        "un montant extrait puis enregistré en comptabilité",
+        "un texte publié directement sur un site public",
+        "une réponse contenant une donnée personnelle"
+      ],
+      "example_contexts_en": [
+        "an amount extracted then written into accounting",
+        "text published directly on a public site",
+        "an answer containing personal data"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.caching_llm_calls",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 4,
+      "order": 42,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.guardrails_validation"
+      ],
+      "fallback_key": "artificial_intelligence.latency_cost_budget",
+      "title_fr": "Mettre en cache des réponses de modèle",
+      "title_en": "Caching model responses",
+      "summary_fr": "Identifier les appels réellement répétés et construire une clé de cache qui ne mélange pas deux demandes.",
+      "summary_en": "Identify genuinely repeated calls and build a cache key that never merges two requests.",
+      "learning_goals_fr": [
+        "Construire une clé de cache à partir des éléments qui changent la réponse.",
+        "Citer un cas où le cache produirait une réponse fausse."
+      ],
+      "learning_goals_en": [
+        "Build a cache key from the elements that change the answer.",
+        "Give a case where the cache would return a wrong answer."
+      ],
+      "tutor_focus_fr": "Fais construire la clé de cache d'une génération de description produit, puis demande ce qui arriverait si la langue n'entrait pas dans la clé.",
+      "tutor_focus_en": "Have the student build the cache key of a product description generation, then ask what happens if language is not part of the key.",
+      "example_contexts_fr": [
+        "la même question posée par cent utilisateurs",
+        "une génération identique dans deux langues différentes",
+        "un prompt modifié sans changement de clé"
+      ],
+      "example_contexts_en": [
+        "the same question asked by a hundred users",
+        "an identical generation in two different languages",
+        "a prompt changed without changing the key"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.reasoning_steps",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_foundations"
+      ],
+      "stage": 5,
+      "order": 43,
+      "required": true,
+      "prerequisite_keys": [
+        "artificial_intelligence.prompt_sensitivity"
+      ],
+      "fallback_key": "artificial_intelligence.prompt_sensitivity",
+      "title_fr": "Raisonnement pas à pas et ses limites",
+      "title_en": "Step-by-step reasoning and its limits",
+      "summary_fr": "Comprendre ce que le raisonnement explicite améliore et pourquoi il ne garantit pas la justesse.",
+      "summary_en": "Understand what explicit reasoning improves and why it does not guarantee correctness.",
+      "learning_goals_fr": [
+        "Citer un type de tâche où le raisonnement explicite aide nettement.",
+        "Expliquer pourquoi une justification cohérente peut accompagner un résultat faux."
+      ],
+      "learning_goals_en": [
+        "Name a task type where explicit reasoning clearly helps.",
+        "Explain why a coherent justification can accompany a wrong result."
+      ],
+      "tutor_focus_fr": "Fais analyser une résolution détaillée qui aboutit à un résultat faux, puis demande à quelle étape la vérification aurait dû intervenir.",
+      "tutor_focus_en": "Have the student analyse a detailed solution reaching a wrong result, then ask at which step verification should have happened.",
+      "example_contexts_fr": [
+        "un problème arithmétique à plusieurs étapes",
+        "une justification élégante mais fausse",
+        "un calcul de dates avec années bissextiles"
+      ],
+      "example_contexts_en": [
+        "a multi-step arithmetic problem",
+        "an elegant but wrong justification",
+        "a date computation involving leap years"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.model_distillation",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_foundations"
+      ],
+      "stage": 5,
+      "order": 44,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.reasoning_steps"
+      ],
+      "fallback_key": "artificial_intelligence.prompt_sensitivity",
+      "title_fr": "Distiller un grand modèle en petit modèle",
+      "title_en": "Distilling a large model into a small one",
+      "summary_fr": "Comprendre le transfert de comportement d'un grand modèle vers un modèle plus petit et moins cher.",
+      "summary_en": "Understand the transfer of behaviour from a large model to a smaller, cheaper one.",
+      "learning_goals_fr": [
+        "Décrire ce que le petit modèle apprend du grand.",
+        "Dire ce qui se dégrade en premier après distillation."
+      ],
+      "learning_goals_en": [
+        "Describe what the small model learns from the large one.",
+        "Say what degrades first after distillation."
+      ],
+      "tutor_focus_fr": "Fais décrire ce que le petit modèle apprend exactement, puis demande sur quel type de tâche l'écart réapparaît en premier.",
+      "tutor_focus_en": "Have the student describe exactly what the small model learns, then ask on which task type the gap reappears first.",
+      "example_contexts_fr": [
+        "un modèle embarqué sur un téléphone sans réseau",
+        "un service de classification à très fort volume",
+        "un assistant spécialisé sur un seul domaine métier"
+      ],
+      "example_contexts_en": [
+        "a model embedded on a phone with no network",
+        "a very high volume classification service",
+        "an assistant specialised in a single business domain"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.multimodal_models",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_foundations"
+      ],
+      "stage": 5,
+      "order": 45,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.model_distillation"
+      ],
+      "fallback_key": "artificial_intelligence.prompt_sensitivity",
+      "title_fr": "Ce qu'un modèle multimodal aligne réellement",
+      "title_en": "What a multimodal model actually aligns",
+      "summary_fr": "Comprendre la mise en correspondance d'images et de textes dans un même espace de représentation.",
+      "summary_en": "Understand how images and texts are mapped into a shared representation space.",
+      "learning_goals_fr": [
+        "Expliquer ce que signifie aligner une image et une légende.",
+        "Citer une erreur typique de lecture d'image."
+      ],
+      "learning_goals_en": [
+        "Explain what aligning an image and a caption means.",
+        "Name a typical image-reading error."
+      ],
+      "tutor_focus_fr": "Fais expliquer comment une image et sa légende deviennent comparables, puis demande pourquoi un tableau chiffré photographié reste difficile à lire.",
+      "tutor_focus_en": "Have the student explain how an image and its caption become comparable, then ask why a photographed numeric table stays hard to read.",
+      "example_contexts_fr": [
+        "une photo de facture dont on extrait le montant",
+        "une recherche d'images par description textuelle",
+        "un graphique photographié dont on demande la tendance"
+      ],
+      "example_contexts_en": [
+        "a photographed invoice whose amount is extracted",
+        "an image search from a text description",
+        "a photographed chart whose trend is requested"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.interpretability_probes",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_foundations"
+      ],
+      "stage": 5,
+      "order": 46,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.multimodal_models"
+      ],
+      "fallback_key": "artificial_intelligence.prompt_sensitivity",
+      "title_fr": "Ouvrir la boîte : sondes et interprétabilité",
+      "title_en": "Opening the box: probes and interpretability",
+      "summary_fr": "Découvrir les méthodes qui relient une décision du modèle à des éléments internes ou à des entrées.",
+      "summary_en": "Discover the methods linking a model decision to internal elements or to inputs.",
+      "learning_goals_fr": [
+        "Distinguer une explication locale d'une explication globale.",
+        "Dire ce qu'une carte d'importance ne prouve pas."
+      ],
+      "learning_goals_en": [
+        "Tell apart a local explanation and a global explanation.",
+        "Say what an importance map does not prove."
+      ],
+      "tutor_focus_fr": "Fais interpréter une carte d'importance sur un refus de crédit, puis demande ce que cette carte ne permet pas de conclure.",
+      "tutor_focus_en": "Have the student interpret an importance map on a credit refusal, then ask what that map cannot establish.",
+      "example_contexts_fr": [
+        "un refus de crédit à justifier auprès d'un client",
+        "une image dont on colore les zones décisives",
+        "un audit réglementaire d'un modèle de scoring"
+      ],
+      "example_contexts_en": [
+        "a credit refusal to justify to a customer",
+        "an image with decisive regions highlighted",
+        "a regulatory audit of a scoring model"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.neural_network_layers",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_machine_learning"
+      ],
+      "stage": 5,
+      "order": 47,
+      "required": true,
+      "prerequisite_keys": [
+        "artificial_intelligence.imbalanced_data"
+      ],
+      "fallback_key": "artificial_intelligence.imbalanced_data",
+      "title_fr": "Ce qu'ajoute une couche cachée",
+      "title_en": "What a hidden layer adds",
+      "summary_fr": "Comprendre pourquoi une non-linéarité permet d'apprendre des frontières qu'une droite ne peut pas tracer.",
+      "summary_en": "Understand why a non-linearity allows learning boundaries a straight line cannot draw.",
+      "learning_goals_fr": [
+        "Expliquer le rôle de la fonction d'activation.",
+        "Donner un problème qu'un modèle linéaire ne peut pas résoudre."
+      ],
+      "learning_goals_en": [
+        "Explain the role of the activation function.",
+        "Give a problem a linear model cannot solve."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi empiler des couches sans activation revient à une seule couche, puis demande un problème que cela rendrait insoluble.",
+      "tutor_focus_en": "Have the student explain why stacking layers without activation collapses to one layer, then ask which problem that makes unsolvable.",
+      "example_contexts_fr": [
+        "une séparation de deux nuages de points imbriqués",
+        "une reconnaissance de chiffres manuscrits",
+        "un réseau à dix couches sans fonction d'activation"
+      ],
+      "example_contexts_en": [
+        "separating two interlocked point clouds",
+        "recognising handwritten digits",
+        "a ten-layer network with no activation function"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.backpropagation",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_machine_learning"
+      ],
+      "stage": 5,
+      "order": 48,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.neural_network_layers"
+      ],
+      "fallback_key": "artificial_intelligence.imbalanced_data",
+      "title_fr": "La rétropropagation",
+      "title_en": "Backpropagation",
+      "summary_fr": "Comprendre comment l'erreur finale est répartie sur chaque paramètre pour le corriger.",
+      "summary_en": "Understand how the final error is distributed onto each parameter to correct it.",
+      "learning_goals_fr": [
+        "Décrire le sens de circulation de l'erreur dans le réseau.",
+        "Expliquer ce qu'est un gradient qui s'évanouit."
+      ],
+      "learning_goals_en": [
+        "Describe the direction the error travels through the network.",
+        "Explain what a vanishing gradient is."
+      ],
+      "tutor_focus_fr": "Fais décrire le trajet de l'erreur de la sortie vers les premières couches, puis demande pourquoi les premières couches apprennent parfois très lentement.",
+      "tutor_focus_en": "Have the student describe the error's path from output to first layers, then ask why early layers sometimes learn very slowly.",
+      "example_contexts_fr": [
+        "un réseau profond dont les premières couches n'évoluent plus",
+        "une erreur de sortie répartie sur des milliers de poids",
+        "un entraînement suivi couche par couche"
+      ],
+      "example_contexts_en": [
+        "a deep network whose first layers stop changing",
+        "an output error spread over thousands of weights",
+        "a training run monitored layer by layer"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.clustering_kmeans",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_machine_learning"
+      ],
+      "stage": 5,
+      "order": 49,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.backpropagation"
+      ],
+      "fallback_key": "artificial_intelligence.imbalanced_data",
+      "title_fr": "Le regroupement par k-moyennes",
+      "title_en": "K-means clustering",
+      "summary_fr": "Former des groupes sans étiquettes et mesurer ce que le choix du nombre de groupes impose.",
+      "summary_en": "Form groups without labels and see what choosing the number of groups imposes.",
+      "learning_goals_fr": [
+        "Décrire l'alternance affectation et recalcul des centres.",
+        "Expliquer pourquoi deux exécutions peuvent donner des groupes différents."
+      ],
+      "learning_goals_en": [
+        "Describe the alternation of assignment and centre recomputation.",
+        "Explain why two runs can produce different groups."
+      ],
+      "tutor_focus_fr": "Fais dérouler deux itérations de k-moyennes sur six points, puis demande comment choisir le nombre de groupes sans étiquettes.",
+      "tutor_focus_en": "Have the student run two k-means iterations over six points, then ask how to choose the number of groups without labels.",
+      "example_contexts_fr": [
+        "une segmentation de clients par montant et fréquence d'achat",
+        "des capteurs regroupés par profil de mesure",
+        "deux exécutions qui produisent des groupes différents"
+      ],
+      "example_contexts_en": [
+        "customer segmentation by purchase amount and frequency",
+        "sensors grouped by measurement profile",
+        "two runs producing different groups"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.dimensionality_reduction",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_machine_learning"
+      ],
+      "stage": 5,
+      "order": 50,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.clustering_kmeans"
+      ],
+      "fallback_key": "artificial_intelligence.imbalanced_data",
+      "title_fr": "Réduction de dimension et analyse en composantes principales",
+      "title_en": "Dimensionality reduction and principal component analysis",
+      "summary_fr": "Projeter des données à nombreuses variables en gardant l'essentiel de leur variance.",
+      "summary_en": "Project data with many variables while keeping most of its variance.",
+      "learning_goals_fr": [
+        "Expliquer ce que conserve une projection en deux dimensions.",
+        "Dire ce qui est perdu et pourquoi c'est parfois acceptable."
+      ],
+      "learning_goals_en": [
+        "Explain what a two-dimensional projection preserves.",
+        "Say what is lost and why that is sometimes acceptable."
+      ],
+      "tutor_focus_fr": "Fais interpréter une projection expliquant 80 % de la variance, puis demande ce que représentent les 20 % restants.",
+      "tutor_focus_en": "Have the student interpret a projection explaining 80% of variance, then ask what the remaining 20% represents.",
+      "example_contexts_fr": [
+        "cinquante mesures de capteurs projetées sur un plan",
+        "une visualisation de clients en deux dimensions",
+        "un modèle accéléré en réduisant les variables d'entrée"
+      ],
+      "example_contexts_en": [
+        "fifty sensor measurements projected onto a plane",
+        "a two-dimensional visualisation of customers",
+        "a model sped up by reducing input variables"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.product_eval_set",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
         "ai_building"
       ],
       "stage": 5,
-      "order": 35,
-      "required": false,
+      "order": 51,
+      "required": true,
       "prerequisite_keys": [
-        "artificial_intelligence.034"
+        "artificial_intelligence.caching_llm_calls"
       ],
-      "fallback_key": "artificial_intelligence.033",
-      "title_fr": "Intelligence artificielle - étape 35",
-      "title_en": "Artificial intelligence - step 35",
-      "summary_fr": "Construire une brique claire du parcours Intelligence artificielle au niveau 5.",
-      "summary_en": "Build one clear building block of the Artificial intelligence path at level 5.",
+      "fallback_key": "artificial_intelligence.caching_llm_calls",
+      "title_fr": "Construire un jeu d'évaluation pour son produit",
+      "title_en": "Building an evaluation set for your product",
+      "summary_fr": "Constituer des cas représentatifs et une règle de notation stable pour comparer deux versions.",
+      "summary_en": "Assemble representative cases and a stable scoring rule to compare two versions.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 35.",
-        "L'appliquer dans un exemple court."
+        "Choisir des cas qui couvrent les usages réels et les cas difficiles.",
+        "Définir une notation reproductible par deux personnes différentes."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 35.",
-        "Apply it in a short example."
+        "Choose cases covering real usage and hard cases.",
+        "Define a scoring reproducible by two different people."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais constituer dix cas d'évaluation pour un assistant de support, puis demande comment noter sans dépendre de l'humeur de l'évaluateur.",
+      "tutor_focus_en": "Have the student assemble ten evaluation cases for a support assistant, then ask how to score without depending on the rater's mood.",
       "example_contexts_fr": [
-        "Exemple étudiant 35",
-        "Situation produit 35"
+        "une comparaison entre deux versions d'un prompt",
+        "un changement de modèle fournisseur",
+        "des cas rares signalés par le service client"
       ],
       "example_contexts_en": [
-        "Student example 35",
-        "Product situation 35"
+        "a comparison between two prompt versions",
+        "a change of model provider",
+        "rare cases reported by customer service"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.fallback_and_degradation",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 5,
+      "order": 52,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.product_eval_set"
+      ],
+      "fallback_key": "artificial_intelligence.caching_llm_calls",
+      "title_fr": "Que faire quand le modèle échoue",
+      "title_en": "What to do when the model fails",
+      "summary_fr": "Concevoir une dégradation lisible plutôt qu'une erreur brute quand la génération est impossible.",
+      "summary_en": "Design a readable degradation rather than a raw error when generation is impossible.",
+      "learning_goals_fr": [
+        "Distinguer réessai, repli et échec assumé.",
+        "Choisir la réponse produit quand aucune génération n'aboutit."
+      ],
+      "learning_goals_en": [
+        "Tell apart retry, fallback and accepted failure.",
+        "Choose the product answer when no generation succeeds."
+      ],
+      "tutor_focus_fr": "Fais choisir le comportement produit quand le modèle est indisponible dix minutes, puis demande ce que l'utilisateur doit voir exactement.",
+      "tutor_focus_en": "Have the student choose the product behaviour when the model is down for ten minutes, then ask what the user must see exactly.",
+      "example_contexts_fr": [
+        "une panne du fournisseur pendant dix minutes",
+        "une sortie invalide malgré deux tentatives",
+        "un dépassement de quota en pleine journée"
+      ],
+      "example_contexts_en": [
+        "a provider outage lasting ten minutes",
+        "an invalid output despite two attempts",
+        "a quota exceeded in the middle of the day"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.finetuning_vs_prompting",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 5,
+      "order": 53,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.fallback_and_degradation"
+      ],
+      "fallback_key": "artificial_intelligence.caching_llm_calls",
+      "title_fr": "Ajuster un modèle ou améliorer le prompt",
+      "title_en": "Fine-tuning a model or improving the prompt",
+      "summary_fr": "Arbitrer entre ajustement fin, exemples dans le prompt et recherche documentaire selon le problème observé.",
+      "summary_en": "Arbitrate between fine-tuning, in-prompt examples and retrieval based on the observed problem.",
+      "learning_goals_fr": [
+        "Associer un symptôme observé au bon levier de correction.",
+        "Citer ce que l'ajustement fin ne corrige pas."
+      ],
+      "learning_goals_en": [
+        "Match an observed symptom to the right corrective lever.",
+        "State what fine-tuning does not fix."
+      ],
+      "tutor_focus_fr": "Fais choisir le levier adapté à trois symptômes : mauvais format, faits manquants, ton inadapté, en demandant de justifier.",
+      "tutor_focus_en": "Have the student pick the right lever for three symptoms: wrong format, missing facts, wrong tone, justifying each.",
+      "example_contexts_fr": [
+        "un format de sortie régulièrement incorrect",
+        "des faits internes absents des réponses",
+        "un ton inadapté à la marque"
+      ],
+      "example_contexts_en": [
+        "an output format regularly incorrect",
+        "internal facts missing from answers",
+        "a tone that does not match the brand"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "artificial_intelligence.prompt_injection_defense",
+      "domain_id": "artificial_intelligence",
+      "objective_ids": [
+        "ai_building"
+      ],
+      "stage": 5,
+      "order": 54,
+      "required": false,
+      "prerequisite_keys": [
+        "artificial_intelligence.finetuning_vs_prompting"
+      ],
+      "fallback_key": "artificial_intelligence.caching_llm_calls",
+      "title_fr": "Se protéger de l'injection de prompt",
+      "title_en": "Defending against prompt injection",
+      "summary_fr": "Traiter tout contenu externe comme non fiable et séparer les instructions des données lues.",
+      "summary_en": "Treat all external content as untrusted and keep instructions separate from read data.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi un document lu peut contenir une instruction hostile.",
+        "Citer deux protections qui limitent l'impact d'une injection."
+      ],
+      "learning_goals_en": [
+        "Explain why a read document can contain a hostile instruction.",
+        "Name two protections limiting the impact of an injection."
+      ],
+      "tutor_focus_fr": "Fais analyser une page web contenant une instruction cachée destinée à l'assistant, puis demande quelles limites d'outils réduisent le risque.",
+      "tutor_focus_en": "Have the student analyse a web page containing a hidden instruction aimed at the assistant, then ask which tool limits reduce the risk.",
+      "example_contexts_fr": [
+        "une page web lue par un assistant de navigation",
+        "un e-mail entrant contenant une consigne cachée",
+        "un document partagé par un tiers externe"
+      ],
+      "example_contexts_en": [
+        "a web page read by a browsing assistant",
+        "an incoming email carrying a hidden instruction",
+        "a document shared by an external third party"
       ],
       "safety_category": "standard"
     }

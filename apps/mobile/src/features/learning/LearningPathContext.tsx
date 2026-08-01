@@ -20,6 +20,7 @@ import {
   type NormalizedSupabaseError
 } from "../../lib/supabase";
 import { useAuth } from "../auth";
+import { LEARNING_SETUP_DRAFT_KEY } from "./learningSetupDraft";
 import {
   learningDomainOrder,
   mockLearningDomains,
@@ -662,7 +663,11 @@ function isLearningHealthcheckReady(value: unknown): boolean {
     payload.domain_count === 7 &&
     payload.objective_count === 21 &&
     payload.start_rpc_ready === true &&
-    payload.session_lifecycle_ready === true
+    payload.session_lifecycle_ready === true &&
+    payload.columns_ready === true &&
+    payload.functions_ready === true &&
+    payload.constraints_ready === true &&
+    payload.rls_ready === true
   );
 }
 
@@ -772,5 +777,5 @@ async function readLearningOutbox(): Promise<LearningOutboxEvent[]> {
 }
 
 export async function clearLearningSetupDraft() {
-  await AsyncStorage.removeItem("personewsap:learning-setup-draft:v1");
+  await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY);
 }

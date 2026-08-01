@@ -12,6 +12,12 @@ import type { Language } from "../../types/domain";
 import { SelectableCard } from "../onboarding";
 import { getCurrentLevelLabel, getCurrentLevelOptions, getTargetLevelLabel, getTargetLevelOptions } from "./learningLevels";
 import { getLearningCopy } from "./learningCopy";
+import {
+  LEARNING_SETUP_DRAFT_KEY,
+  parseLearningSetupDraft,
+  reconcileLearningSetupDraft,
+  type LearningSetupStep
+} from "./learningSetupDraft";
 import { useLearningPath } from "./LearningPathContext";
 import type {
   LearningCurrentLevel,
@@ -24,8 +30,7 @@ import {
   localizeLearningField
 } from "./learningTypes";
 
-type SetupStep = 0 | 1 | 2 | 3 | 4;
-const LEARNING_SETUP_DRAFT_KEY = "personewsap:learning-setup-draft:v1";
+type SetupStep = LearningSetupStep;
 
 export function LearningSetupScreen({ language }: { language: Language | null | undefined }) {
   const router = useRouter();
@@ -38,7 +43,9 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
   const {
     domains,
     disableLearningPath,
+    error,
     objectives,
+    reload,
     startPath,
     status
   } = useLearningPath();
@@ -49,6 +56,11 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
   const [objectiveId, setObjectiveId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The draft is only written back once it has been read and reconciled with the
+  // live data, so an empty initial state can never overwrite it.
+  const [draftHydrated, setDraftHydrated] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  const loadFailed = status === "error";
 
   const selectedDomain = domains.find((domain) => domain.id === domainId) ?? null;
   const selectedObjective = objectives.find((objective) => objective.id === objectiveId) ?? null;
@@ -62,11 +74,12 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
   const currentOptions = getCurrentLevelOptions(language);
   const targetOptions = getTargetLevelOptions(language);
   const canContinue =
-    (step === 0 && Boolean(domainId)) ||
-    (step === 1 && Boolean(currentLevel)) ||
-    (step === 2 && Boolean(targetLevel)) ||
-    (step === 3 && Boolean(objectiveId)) ||
-    step === 4;
+    !loadFailed &&
+    ((step === 0 && Boolean(domainId)) ||
+      (step === 1 && Boolean(currentLevel)) ||
+      (step === 2 && Boolean(targetLevel)) ||
+      (step === 3 && Boolean(objectiveId)) ||
+      step === 4);
 
   useEffect(() => {
     trackAnalyticsEvent("learning_setup_started", {
@@ -75,39 +88,38 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
   }, [language]);
 
   useEffect(() => {
+    // Hydration needs the live domains and orientations to check the draft
+    // against them, so it waits for a successful load and runs exactly once.
+    if (draftHydrated || status !== "ready") {
+      return;
+    }
+
     let cancelled = false;
 
     async function restoreDraft() {
       try {
         const value = await AsyncStorage.getItem(LEARNING_SETUP_DRAFT_KEY);
-        if (!value || cancelled) {
+        if (cancelled) {
           return;
         }
-        const draft = JSON.parse(value) as Partial<{
-          currentLevel: LearningCurrentLevel;
-          currentStep: SetupStep;
-          domainId: string;
-          objectiveId: string;
-          targetLevel: LearningTargetLevel;
-        }>;
-        if (typeof draft.domainId === "string") {
-          setDomainId(draft.domainId);
-        }
-        if (typeof draft.objectiveId === "string") {
-          setObjectiveId(draft.objectiveId);
-        }
-        if (isCurrentLevel(draft.currentLevel)) {
-          setCurrentLevel(draft.currentLevel);
-        }
-        if (isTargetLevel(draft.targetLevel)) {
-          setTargetLevel(draft.targetLevel);
-        }
-        if (typeof draft.currentStep === "number" && draft.currentStep >= 0 && draft.currentStep <= 4) {
-          setStep(draft.currentStep);
-        }
-      } catch (error) {
+
+        const restored = reconcileLearningSetupDraft(parseLearningSetupDraft(value), {
+          domains,
+          objectives
+        });
+
+        setDomainId(restored.domainId);
+        setObjectiveId(restored.objectiveId);
+        setCurrentLevel(restored.currentLevel);
+        setTargetLevel(restored.targetLevel);
+        setStep(restored.currentStep);
+      } catch (restoreError) {
         if (__DEV__) {
-          console.warn("[LearningSetup] Could not restore draft", error);
+          console.warn("[LearningSetup] Could not restore draft", restoreError);
+        }
+      } finally {
+        if (!cancelled) {
+          setDraftHydrated(true);
         }
       }
     }
@@ -117,9 +129,13 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [domains, draftHydrated, objectives, status]);
 
   useEffect(() => {
+    if (!draftHydrated) {
+      return;
+    }
+
     void AsyncStorage.setItem(
       LEARNING_SETUP_DRAFT_KEY,
       JSON.stringify({
@@ -131,7 +147,21 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
         updatedAt: new Date().toISOString()
       })
     );
-  }, [currentLevel, domainId, objectiveId, step, targetLevel]);
+  }, [currentLevel, domainId, draftHydrated, objectiveId, step, targetLevel]);
+
+  useEffect(() => {
+    if (!loadFailed || !error) {
+      return;
+    }
+    if (__DEV__) {
+      console.warn("[LearningSetup] learning path data failed to load", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+    }
+  }, [error, loadFailed]);
 
   const moveNext = () => {
     if (!canContinue) {
@@ -180,6 +210,13 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     router.replace("/(tabs)/today");
   };
 
+  const handleRetry = async () => {
+    setReloading(true);
+    setErrorMessage(null);
+    await reload();
+    setReloading(false);
+  };
+
   const handleNotNow = async () => {
     setSubmitting(true);
     const result = await disableLearningPath();
@@ -216,7 +253,31 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
         </Card>
       ) : null}
 
-      {step === 0 ? (
+      {loadFailed ? (
+        <View style={styles.step}>
+          <Card padding="lg">
+            <View style={styles.errorCard}>
+              <AppText variant="subtitle">{copy.loadErrorTitle}</AppText>
+              <AppText color="muted" variant="body">
+                {copy.loadErrorBody}
+              </AppText>
+              {error?.message ? (
+                <AppText color="muted" variant="caption">
+                  {error.message}
+                </AppText>
+              ) : null}
+              <PrimaryButton
+                disabled={reloading}
+                label={reloading ? copy.retrying : copy.retry}
+                loading={reloading}
+                onPress={handleRetry}
+              />
+            </View>
+          </Card>
+        </View>
+      ) : null}
+
+      {!loadFailed && step === 0 ? (
         <SelectionStep title={copy.domainTitle}>
           {domains.map((domain) => (
             <SelectableCard
@@ -237,7 +298,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
         </SelectionStep>
       ) : null}
 
-      {step === 1 ? (
+      {!loadFailed && step === 1 ? (
         <SelectionStep title={copy.currentLevelTitle}>
           {currentOptions.map((option) => (
             <SelectableCard
@@ -260,7 +321,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
         </SelectionStep>
       ) : null}
 
-      {step === 2 ? (
+      {!loadFailed && step === 2 ? (
         <SelectionStep title={copy.targetLevelTitle}>
           {targetOptions.map((option) => (
             <SelectableCard
@@ -277,7 +338,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
         </SelectionStep>
       ) : null}
 
-      {step === 3 ? (
+      {!loadFailed && step === 3 ? (
         <SelectionStep title={copy.objectiveTitle}>
           {filteredObjectives.length === 0 ? (
             <Card padding="md" tone="muted">
@@ -302,7 +363,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
         </SelectionStep>
       ) : null}
 
-      {step === 4 && selectedDomain && selectedObjective && currentLevel && targetLevel ? (
+      {!loadFailed && step === 4 && selectedDomain && selectedObjective && currentLevel && targetLevel ? (
         <ConfirmationStep
           currentLevel={currentLevel}
           domain={selectedDomain}
@@ -325,7 +386,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
         ) : fromOnboarding ? (
           <SecondaryButton disabled={submitting} label={copy.notNow} onPress={handleNotNow} />
         ) : null}
-        {step < 4 ? (
+        {loadFailed ? null : step < 4 ? (
           <PrimaryButton disabled={!canContinue || submitting} label={copy.next} onPress={moveNext} />
         ) : (
           <PrimaryButton
@@ -407,17 +468,12 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function isCurrentLevel(value: unknown): value is LearningCurrentLevel {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 7;
-}
-
-function isTargetLevel(value: unknown): value is LearningTargetLevel {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 5;
-}
-
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     actions: {
+      gap: tokens.space.md
+    },
+    errorCard: {
       gap: tokens.space.md
     },
     header: {

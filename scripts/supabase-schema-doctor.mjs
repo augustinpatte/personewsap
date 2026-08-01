@@ -225,6 +225,42 @@ async function runStaticMigrationAudit() {
     "migration prevents two visible unstarted learning sessions per path"
   );
 
+  assertRegex(
+    sql,
+    /add\s+column\s+if\s+not\s+exists\s+repetition_index\s+smallint/i,
+    "migration stores the repetition index that distinguishes a repeated learning step"
+  );
+
+  assertRegex(
+    sql,
+    /add\s+column\s+if\s+not\s+exists\s+generation_locked_at\s+timestamptz/i,
+    "migration keeps a generation lock timestamp for stale session recovery"
+  );
+
+  assertRegex(
+    sql,
+    /idx_learning_sessions_generation_lock/i,
+    "migration indexes stale learning generation locks"
+  );
+
+  assertRegex(
+    sql,
+    /'start_rpc_ready',\s*v_start_rpc_ready/i,
+    "healthcheck computes start_rpc_ready instead of hard-coding it"
+  );
+
+  assertRegex(
+    sql,
+    /'session_lifecycle_ready',\s*v_session_lifecycle_ready/i,
+    "healthcheck computes session_lifecycle_ready instead of hard-coding it"
+  );
+
+  assertRegex(
+    sql,
+    /Learning paths schema is incompatible/i,
+    "hardening migration fails explicitly on an incompatible learning schema"
+  );
+
   for (const table of [...REQUIRED_TABLES, ...SUPPORTING_TABLES]) {
     assertRegex(
       sql,

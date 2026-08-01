@@ -3,7 +3,7 @@
   "version": "v1",
   "steps": [
     {
-      "key": "cybersecurity.001",
+      "key": "cybersecurity.cia_triad",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -15,32 +15,34 @@
       "required": true,
       "prerequisite_keys": [],
       "fallback_key": null,
-      "title_fr": "Cybersécurité - étape 1",
-      "title_en": "Cybersecurity - step 1",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 1.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 1.",
+      "title_fr": "Confidentialité, intégrité, disponibilité",
+      "title_en": "Confidentiality, integrity, availability",
+      "summary_fr": "Classer un incident selon la propriété de sécurité qu'il met en défaut.",
+      "summary_en": "Classify an incident by the security property it breaks.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 1.",
-        "L'appliquer dans un exemple court."
+        "Définir les trois propriétés avec un exemple chacune.",
+        "Classer trois incidents réels dans la bonne catégorie."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 1.",
-        "Apply it in a short example."
+        "Define the three properties with one example each.",
+        "Classify three real incidents into the right category."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais classer trois incidents dans les trois propriétés, puis demande lequel serait le plus grave pour un hôpital et pourquoi.",
+      "tutor_focus_en": "Have the student classify three incidents across the three properties, then ask which would hurt a hospital most and why.",
       "example_contexts_fr": [
-        "Exemple étudiant 1",
-        "Situation produit 1"
+        "un fichier client copié par un tiers",
+        "un montant de facture modifié dans une base",
+        "un site inaccessible pendant une journée"
       ],
       "example_contexts_en": [
-        "Student example 1",
-        "Product situation 1"
+        "a customer file copied by a third party",
+        "an invoice amount altered in a database",
+        "a site unreachable for a day"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.002",
+      "key": "cybersecurity.threat_model",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -49,37 +51,39 @@
       ],
       "stage": 1,
       "order": 2,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.001"
+        "cybersecurity.cia_triad"
       ],
       "fallback_key": null,
-      "title_fr": "Cybersécurité - étape 2",
-      "title_en": "Cybersecurity - step 2",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 1.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 1.",
+      "title_fr": "Ce qu'est un modèle de menace",
+      "title_en": "What a threat model is",
+      "summary_fr": "Nommer ce que l'on protège, contre qui et jusqu'où avant de choisir des protections.",
+      "summary_en": "Name what you protect, against whom and how far, before choosing protections.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 2.",
-        "L'appliquer dans un exemple court."
+        "Formuler un modèle de menace en trois questions.",
+        "Expliquer pourquoi une protection sans menace identifiée est inutile."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 2.",
-        "Apply it in a short example."
+        "Frame a threat model in three questions.",
+        "Explain why a protection without an identified threat is useless."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais formuler le modèle de menace d'un journaliste puis celui d'une boutique en ligne, et demande ce qui change entre les deux.",
+      "tutor_focus_en": "Have the student frame the threat model of a journalist then of an online shop, and ask what changes between them.",
       "example_contexts_fr": [
-        "Exemple étudiant 2",
-        "Situation produit 2"
+        "un journaliste protégeant ses sources",
+        "une boutique en ligne et ses données de paiement",
+        "un particulier qui craint surtout le vol de son téléphone"
       ],
       "example_contexts_en": [
-        "Student example 2",
-        "Product situation 2"
+        "a journalist protecting sources",
+        "an online shop and its payment data",
+        "an individual mainly worried about phone theft"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.003",
+      "key": "cybersecurity.authentication_authorization",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -88,37 +92,39 @@
       ],
       "stage": 1,
       "order": 3,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.002"
+        "cybersecurity.threat_model"
       ],
-      "fallback_key": "cybersecurity.001",
-      "title_fr": "Cybersécurité - étape 3",
-      "title_en": "Cybersecurity - step 3",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 1.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Authentification et autorisation",
+      "title_en": "Authentication and authorisation",
+      "summary_fr": "Séparer la preuve d'identité de la décision d'accorder un accès.",
+      "summary_en": "Separate proving identity from deciding to grant access.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 3.",
-        "L'appliquer dans un exemple court."
+        "Distinguer les deux notions sur un cas concret.",
+        "Repérer un système qui authentifie sans autoriser correctement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 3.",
-        "Apply it in a short example."
+        "Tell the two notions apart on a concrete case.",
+        "Spot a system that authenticates but authorises badly."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais analyser un cas où un utilisateur authentifié accède à des données qui ne le concernent pas, puis demande quelle étape a échoué.",
+      "tutor_focus_en": "Have the student analyse a case where a logged-in user reaches data that is not theirs, then ask which step failed.",
       "example_contexts_fr": [
-        "Exemple étudiant 3",
-        "Situation produit 3"
+        "un badge d'immeuble qui ouvre tous les étages",
+        "un employé connecté qui voit les dossiers d'un collègue",
+        "un compte administrateur utilisé pour un usage courant"
       ],
       "example_contexts_en": [
-        "Student example 3",
-        "Product situation 3"
+        "a building badge that opens every floor",
+        "a signed-in employee seeing a colleague's files",
+        "an administrator account used for daily work"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.004",
+      "key": "cybersecurity.password_reuse_risk",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -127,37 +133,39 @@
       ],
       "stage": 1,
       "order": 4,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.003"
+        "cybersecurity.authentication_authorization"
       ],
-      "fallback_key": "cybersecurity.002",
-      "title_fr": "Cybersécurité - étape 4",
-      "title_en": "Cybersecurity - step 4",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 1.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Pourquoi un mot de passe unique par service",
+      "title_en": "Why every service needs its own password",
+      "summary_fr": "Comprendre comment une fuite sur un site compromet tous les comptes partageant le même mot de passe.",
+      "summary_en": "Understand how one site's breach compromises every account sharing that password.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 4.",
-        "L'appliquer dans un exemple court."
+        "Décrire l'enchaînement d'une fuite vers d'autres comptes.",
+        "Expliquer ce qu'un gestionnaire de mots de passe résout."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 4.",
-        "Apply it in a short example."
+        "Describe the chain from a breach to other accounts.",
+        "Explain what a password manager solves."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire ce qu'un attaquant fait d'une liste de couples adresse et mot de passe issue d'une fuite ancienne.",
+      "tutor_focus_en": "Have the student describe what an attacker does with a list of address and password pairs from an old breach.",
       "example_contexts_fr": [
-        "Exemple étudiant 4",
-        "Situation produit 4"
+        "une fuite d'un forum abandonné depuis cinq ans",
+        "une même adresse e-mail utilisée partout",
+        "un gestionnaire de mots de passe installé sur deux appareils"
       ],
       "example_contexts_en": [
-        "Student example 4",
-        "Product situation 4"
+        "a breach of a forum abandoned five years ago",
+        "the same email address used everywhere",
+        "a password manager installed on two devices"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.005",
+      "key": "cybersecurity.phishing_recognition",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -166,154 +174,156 @@
       ],
       "stage": 1,
       "order": 5,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.004"
+        "cybersecurity.password_reuse_risk"
       ],
-      "fallback_key": "cybersecurity.003",
-      "title_fr": "Cybersécurité - étape 5",
-      "title_en": "Cybersecurity - step 5",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 1.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Reconnaître une tentative d'hameçonnage",
+      "title_en": "Recognising a phishing attempt",
+      "summary_fr": "Repérer les signaux d'un message frauduleux et adopter un réflexe de vérification hors canal.",
+      "summary_en": "Spot the signals of a fraudulent message and build an out-of-band verification reflex.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 5.",
-        "L'appliquer dans un exemple court."
+        "Citer quatre signaux d'alerte dans un message.",
+        "Décrire la vérification à effectuer avant toute action."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 5.",
-        "Apply it in a short example."
+        "Name four warning signals in a message.",
+        "Describe the verification to run before acting."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais analyser un message urgent demandant une action immédiate, puis demande quelle vérification indépendante effectuer.",
+      "tutor_focus_en": "Have the student analyse an urgent message demanding immediate action, then ask which independent check to run.",
       "example_contexts_fr": [
-        "Exemple étudiant 5",
-        "Situation produit 5"
+        "un message annonçant la suspension d'un compte",
+        "une demande de virement urgente attribuée à un dirigeant",
+        "un lien affichant un nom de domaine presque correct"
       ],
       "example_contexts_en": [
-        "Student example 5",
-        "Product situation 5"
+        "a message announcing an account suspension",
+        "an urgent transfer request attributed to an executive",
+        "a link showing an almost-correct domain name"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.006",
+      "key": "cybersecurity.authentication_factors",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
       "stage": 1,
       "order": 6,
       "required": true,
       "prerequisite_keys": [
-        "cybersecurity.005"
+        "cybersecurity.phishing_recognition"
       ],
-      "fallback_key": "cybersecurity.004",
-      "title_fr": "Cybersécurité - étape 6",
-      "title_en": "Cybersecurity - step 6",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 1.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Les facteurs d'authentification",
+      "title_en": "Authentication factors",
+      "summary_fr": "Distinguer ce que l'on sait, ce que l'on possède et ce que l'on est, et combiner deux catégories.",
+      "summary_en": "Tell apart something you know, own and are, and combine two different categories.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 6.",
-        "L'appliquer dans un exemple court."
+        "Classer trois moyens d'authentification par catégorie.",
+        "Expliquer pourquoi deux facteurs de la même catégorie n'ajoutent rien."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 6.",
-        "Apply it in a short example."
+        "Sort three authentication means by category.",
+        "Explain why two factors of the same category add nothing."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais classer trois moyens d'authentification, puis demande pourquoi deux mots de passe ne valent pas une double authentification.",
+      "tutor_focus_en": "Have the student sort three authentication means, then ask why two passwords do not amount to two-factor authentication.",
       "example_contexts_fr": [
-        "Exemple étudiant 6",
-        "Situation produit 6"
+        "un code reçu sur une application dédiée",
+        "une empreinte digitale sur un téléphone",
+        "une question secrète dont la réponse est publique"
       ],
       "example_contexts_en": [
-        "Student example 6",
-        "Product situation 6"
+        "a code received in a dedicated app",
+        "a fingerprint on a phone",
+        "a secret question whose answer is public"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.007",
+      "key": "cybersecurity.ports_and_services",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_network_defense"
       ],
       "stage": 1,
       "order": 7,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.006"
+        "cybersecurity.phishing_recognition"
       ],
-      "fallback_key": "cybersecurity.005",
-      "title_fr": "Cybersécurité - étape 7",
-      "title_en": "Cybersecurity - step 7",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 1.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Ports et services exposés",
+      "title_en": "Ports and exposed services",
+      "summary_fr": "Comprendre qu'un service à l'écoute sur un port est une porte visible depuis le réseau.",
+      "summary_en": "Understand that a service listening on a port is a door visible from the network.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 7.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'un port ouvert signifie concrètement.",
+        "Identifier un service qui ne devrait pas être exposé."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 7.",
-        "Apply it in a short example."
+        "Explain what an open port concretely means.",
+        "Identify a service that should not be exposed."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister les services qu'un serveur web doit exposer, puis demande lesquels doivent rester accessibles uniquement en interne.",
+      "tutor_focus_en": "Have the student list the services a web server must expose, then ask which should stay internal only.",
       "example_contexts_fr": [
-        "Exemple étudiant 7",
-        "Situation produit 7"
+        "un serveur web exposant aussi sa base de données",
+        "un service d'administration accessible depuis Internet",
+        "un port ouvert par une application installée par défaut"
       ],
       "example_contexts_en": [
-        "Student example 7",
-        "Product situation 7"
+        "a web server also exposing its database",
+        "an administration service reachable from the internet",
+        "a port opened by a default-installed application"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.008",
+      "key": "cybersecurity.https_protection",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
         "cyber_app_cloud"
       ],
-      "stage": 2,
+      "stage": 1,
       "order": 8,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.007"
+        "cybersecurity.phishing_recognition"
       ],
-      "fallback_key": "cybersecurity.006",
-      "title_fr": "Cybersécurité - étape 8",
-      "title_en": "Cybersecurity - step 8",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 2.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 2.",
+      "fallback_key": null,
+      "title_fr": "Ce que HTTPS protège",
+      "title_en": "What HTTPS protects",
+      "summary_fr": "Délimiter la protection du transport et ce qui reste visible ou vulnérable ailleurs.",
+      "summary_en": "Delimit transport protection and what stays visible or vulnerable elsewhere.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 8.",
-        "L'appliquer dans un exemple court."
+        "Dire ce qu'un tiers sur le réseau peut encore observer.",
+        "Expliquer pourquoi HTTPS ne rend pas un site fiable."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 8.",
-        "Apply it in a short example."
+        "Say what a third party on the network can still observe.",
+        "Explain why HTTPS does not make a site trustworthy."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister ce qu'un observateur du réseau voit encore malgré HTTPS, puis demande ce que le cadenas ne garantit pas.",
+      "tutor_focus_en": "Have the student list what a network observer still sees despite HTTPS, then ask what the padlock does not guarantee.",
       "example_contexts_fr": [
-        "Exemple étudiant 8",
-        "Situation produit 8"
+        "une connexion à un site depuis un café",
+        "un site frauduleux affichant un cadenas",
+        "des données stockées en clair sur le serveur"
       ],
       "example_contexts_en": [
-        "Student example 8",
-        "Product situation 8"
+        "a connection to a site from a café",
+        "a fraudulent site displaying a padlock",
+        "data stored in clear text on the server"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.009",
+      "key": "cybersecurity.attack_surface",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -322,37 +332,39 @@
       ],
       "stage": 2,
       "order": 9,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.008"
+        "cybersecurity.phishing_recognition"
       ],
-      "fallback_key": "cybersecurity.007",
-      "title_fr": "Cybersécurité - étape 9",
-      "title_en": "Cybersecurity - step 9",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 2.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 2.",
+      "fallback_key": "cybersecurity.phishing_recognition",
+      "title_fr": "La surface d'attaque",
+      "title_en": "The attack surface",
+      "summary_fr": "Inventorier les points d'entrée exposés et réduire ceux qui ne servent à personne.",
+      "summary_en": "Inventory the exposed entry points and remove the ones nobody uses.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 9.",
-        "L'appliquer dans un exemple court."
+        "Lister les points d'entrée d'un système donné.",
+        "Identifier un service exposé sans usage réel."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 9.",
-        "Apply it in a short example."
+        "List the entry points of a given system.",
+        "Identify an exposed service with no real use."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister les points d'entrée d'une petite entreprise, puis demande lequel peut être fermé sans gêner personne.",
+      "tutor_focus_en": "Have the student list the entry points of a small company, then ask which can be closed without inconveniencing anyone.",
       "example_contexts_fr": [
-        "Exemple étudiant 9",
-        "Situation produit 9"
+        "une imprimante accessible depuis Internet",
+        "un ancien site de campagne resté en ligne",
+        "un accès distant ouvert pour un prestataire parti"
       ],
       "example_contexts_en": [
-        "Student example 9",
-        "Product situation 9"
+        "a printer reachable from the internet",
+        "an old campaign website still online",
+        "a remote access left open for a departed contractor"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.010",
+      "key": "cybersecurity.defense_in_depth",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -361,37 +373,39 @@
       ],
       "stage": 2,
       "order": 10,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.009"
+        "cybersecurity.attack_surface"
       ],
-      "fallback_key": "cybersecurity.008",
-      "title_fr": "Cybersécurité - étape 10",
-      "title_en": "Cybersecurity - step 10",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 2.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 2.",
+      "fallback_key": "cybersecurity.phishing_recognition",
+      "title_fr": "La défense en profondeur",
+      "title_en": "Defence in depth",
+      "summary_fr": "Empiler des protections indépendantes pour qu'une seule faille ne suffise pas.",
+      "summary_en": "Stack independent protections so that one failure is never enough.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 10.",
-        "L'appliquer dans un exemple court."
+        "Décrire trois couches de protection indépendantes.",
+        "Expliquer pourquoi une seule barrière est insuffisante."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 10.",
-        "Apply it in a short example."
+        "Describe three independent protection layers.",
+        "Explain why a single barrier is insufficient."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire les couches qui séparent un attaquant d'une base de données, puis demande laquelle manque le plus souvent.",
+      "tutor_focus_en": "Have the student describe the layers separating an attacker from a database, then ask which one is most often missing.",
       "example_contexts_fr": [
-        "Exemple étudiant 10",
-        "Situation produit 10"
+        "un attaquant qui a déjà obtenu un mot de passe valide",
+        "un poste de travail infecté dans un réseau interne",
+        "une sauvegarde stockée hors du réseau principal"
       ],
       "example_contexts_en": [
-        "Student example 10",
-        "Product situation 10"
+        "an attacker who already holds a valid password",
+        "an infected workstation inside an internal network",
+        "a backup stored outside the main network"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.011",
+      "key": "cybersecurity.patch_management",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -402,35 +416,37 @@
       "order": 11,
       "required": true,
       "prerequisite_keys": [
-        "cybersecurity.010"
+        "cybersecurity.defense_in_depth"
       ],
-      "fallback_key": "cybersecurity.009",
-      "title_fr": "Cybersécurité - étape 11",
-      "title_en": "Cybersecurity - step 11",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 2.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 2.",
+      "fallback_key": "cybersecurity.phishing_recognition",
+      "title_fr": "Pourquoi les mises à jour comptent",
+      "title_en": "Why updates matter",
+      "summary_fr": "Comprendre la course entre la publication d'un correctif et son exploitation par des attaquants.",
+      "summary_en": "Understand the race between a patch being published and attackers exploiting it.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 11.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce que la publication d'un correctif révèle.",
+        "Proposer un délai de correction selon la criticité."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 11.",
-        "Apply it in a short example."
+        "Explain what publishing a patch reveals.",
+        "Propose a remediation delay based on criticality."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi une faille devient plus dangereuse après publication du correctif, puis demande un délai raisonnable d'application.",
+      "tutor_focus_en": "Have the student explain why a flaw gets more dangerous after its patch is published, then propose a reasonable rollout delay.",
       "example_contexts_fr": [
-        "Exemple étudiant 11",
-        "Situation produit 11"
+        "un correctif publié pour un serveur exposé",
+        "un logiciel maintenu mais jamais redémarré",
+        "un équipement dont le fabricant a cessé le support"
       ],
       "example_contexts_en": [
-        "Student example 11",
-        "Product situation 11"
+        "a patch published for an exposed server",
+        "software that is maintained but never restarted",
+        "a device whose vendor ended support"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.012",
+      "key": "cybersecurity.risk_prioritization",
       "domain_id": "cybersecurity",
       "objective_ids": [
         "cyber_foundations",
@@ -439,929 +455,1672 @@
       ],
       "stage": 2,
       "order": 12,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.011"
+        "cybersecurity.patch_management"
       ],
-      "fallback_key": "cybersecurity.010",
-      "title_fr": "Cybersécurité - étape 12",
-      "title_en": "Cybersecurity - step 12",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 2.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 2.",
+      "fallback_key": "cybersecurity.phishing_recognition",
+      "title_fr": "Prioriser un risque : probabilité et impact",
+      "title_en": "Prioritising a risk: likelihood and impact",
+      "summary_fr": "Classer des risques par produit probabilité-impact plutôt que par crainte subjective.",
+      "summary_en": "Rank risks by likelihood times impact rather than by subjective fear.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 12.",
-        "L'appliquer dans un exemple court."
+        "Positionner trois risques sur une matrice probabilité-impact.",
+        "Justifier de ne pas traiter un risque immédiatement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 12.",
-        "Apply it in a short example."
+        "Place three risks on a likelihood-impact matrix.",
+        "Justify not addressing a risk immediately."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais positionner trois risques sur une matrice, puis demande lequel traiter en premier avec un budget limité.",
+      "tutor_focus_en": "Have the student place three risks on a matrix, then ask which to treat first with a limited budget.",
       "example_contexts_fr": [
-        "Exemple étudiant 12",
-        "Situation produit 12"
+        "un risque rare mais catastrophique",
+        "un incident fréquent au coût faible",
+        "un budget de sécurité limité à un seul chantier"
       ],
       "example_contexts_en": [
-        "Student example 12",
-        "Product situation 12"
+        "a rare but catastrophic risk",
+        "a frequent incident with low cost",
+        "a security budget limited to one project"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.013",
+      "key": "cybersecurity.symmetric_asymmetric",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
       "stage": 2,
       "order": 13,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.012"
+        "cybersecurity.risk_prioritization"
       ],
-      "fallback_key": "cybersecurity.011",
-      "title_fr": "Cybersécurité - étape 13",
-      "title_en": "Cybersecurity - step 13",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 2.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 2.",
+      "fallback_key": "cybersecurity.authentication_factors",
+      "title_fr": "Chiffrement symétrique et asymétrique",
+      "title_en": "Symmetric and asymmetric encryption",
+      "summary_fr": "Comparer les deux familles sur la distribution des clés et sur la vitesse.",
+      "summary_en": "Compare both families on key distribution and on speed.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 13.",
-        "L'appliquer dans un exemple court."
+        "Dire quel problème l'asymétrique résout que le symétrique ne résout pas.",
+        "Expliquer pourquoi les deux sont utilisés ensemble."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 13.",
-        "Apply it in a short example."
+        "Say which problem asymmetric solves that symmetric does not.",
+        "Explain why both are used together."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer comment deux inconnus établissent un secret commun, puis demande pourquoi la suite des échanges revient au symétrique.",
+      "tutor_focus_en": "Have the student explain how two strangers establish a shared secret, then ask why the rest of the exchange returns to symmetric.",
       "example_contexts_fr": [
-        "Exemple étudiant 13",
-        "Situation produit 13"
+        "deux personnes qui ne se sont jamais rencontrées",
+        "un fichier chiffré sur un disque dur personnel",
+        "un échange de clés au début d'une connexion sécurisée"
       ],
       "example_contexts_en": [
-        "Student example 13",
-        "Product situation 13"
+        "two people who have never met",
+        "a file encrypted on a personal hard drive",
+        "a key exchange at the start of a secure connection"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.014",
+      "key": "cybersecurity.password_hashing",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
       "stage": 2,
       "order": 14,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.013"
+        "cybersecurity.symmetric_asymmetric"
       ],
-      "fallback_key": "cybersecurity.012",
-      "title_fr": "Cybersécurité - étape 14",
-      "title_en": "Cybersecurity - step 14",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 2.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 2.",
+      "fallback_key": "cybersecurity.authentication_factors",
+      "title_fr": "Pourquoi les mots de passe sont hachés et salés",
+      "title_en": "Why passwords are hashed and salted",
+      "summary_fr": "Comprendre le stockage d'une empreinte lente et salée plutôt que du mot de passe lui-même.",
+      "summary_en": "Understand storing a slow, salted fingerprint rather than the password itself.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 14.",
-        "L'appliquer dans un exemple court."
+        "Expliquer le rôle du sel contre les tables précalculées.",
+        "Dire pourquoi une fonction lente est préférable ici."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 14.",
-        "Apply it in a short example."
+        "Explain the role of the salt against precomputed tables.",
+        "Say why a slow function is preferable here."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qu'un attaquant obtient en volant une table de mots de passe correctement hachés et salés.",
+      "tutor_focus_en": "Have the student explain what an attacker gets from stealing a correctly hashed and salted password table.",
       "example_contexts_fr": [
-        "Exemple étudiant 14",
-        "Situation produit 14"
+        "une base de comptes utilisateurs exfiltrée",
+        "deux utilisateurs ayant choisi le même mot de passe",
+        "un service qui envoie le mot de passe en clair par e-mail"
       ],
       "example_contexts_en": [
-        "Student example 14",
-        "Product situation 14"
+        "an exfiltrated user account database",
+        "two users who picked the same password",
+        "a service emailing the password in clear text"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.015",
+      "key": "cybersecurity.firewall_rules",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_network_defense"
       ],
-      "stage": 3,
+      "stage": 2,
       "order": 15,
-      "required": false,
-      "prerequisite_keys": [
-        "cybersecurity.014"
-      ],
-      "fallback_key": "cybersecurity.013",
-      "title_fr": "Cybersécurité - étape 15",
-      "title_en": "Cybersecurity - step 15",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 3.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 3.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 15.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 15.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 15",
-        "Situation produit 15"
-      ],
-      "example_contexts_en": [
-        "Student example 15",
-        "Product situation 15"
-      ],
-      "safety_category": "cyber_defensive"
-    },
-    {
-      "key": "cybersecurity.016",
-      "domain_id": "cybersecurity",
-      "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
-      ],
-      "stage": 3,
-      "order": 16,
       "required": true,
       "prerequisite_keys": [
-        "cybersecurity.015"
+        "cybersecurity.risk_prioritization"
       ],
-      "fallback_key": "cybersecurity.014",
-      "title_fr": "Cybersécurité - étape 16",
-      "title_en": "Cybersecurity - step 16",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 3.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 3.",
+      "fallback_key": "cybersecurity.ports_and_services",
+      "title_fr": "Ce que fait un pare-feu",
+      "title_en": "What a firewall does",
+      "summary_fr": "Écrire des règles de filtrage qui refusent par défaut et n'autorisent que le nécessaire.",
+      "summary_en": "Write filtering rules that deny by default and allow only what is needed.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 16.",
-        "L'appliquer dans un exemple court."
+        "Rédiger un jeu de règles à refus par défaut.",
+        "Expliquer pourquoi l'ordre des règles compte."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 16.",
-        "Apply it in a short example."
+        "Write a deny-by-default rule set.",
+        "Explain why rule order matters."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais rédiger trois règles pour un serveur web, puis demande ce qu'une règle d'autorisation large placée en premier annule.",
+      "tutor_focus_en": "Have the student write three rules for a web server, then ask what a broad allow rule placed first cancels.",
       "example_contexts_fr": [
-        "Exemple étudiant 16",
-        "Situation produit 16"
+        "un serveur web accessible uniquement en HTTPS",
+        "une règle temporaire jamais retirée",
+        "un accès d'administration limité à quelques adresses"
       ],
       "example_contexts_en": [
-        "Student example 16",
-        "Product situation 16"
+        "a web server reachable over HTTPS only",
+        "a temporary rule never removed",
+        "administration access limited to a few addresses"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.017",
+      "key": "cybersecurity.vpn_scope",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_network_defense"
       ],
-      "stage": 3,
-      "order": 17,
+      "stage": 2,
+      "order": 16,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.016"
+        "cybersecurity.firewall_rules"
       ],
-      "fallback_key": "cybersecurity.015",
-      "title_fr": "Cybersécurité - étape 17",
-      "title_en": "Cybersecurity - step 17",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 3.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 3.",
+      "fallback_key": "cybersecurity.ports_and_services",
+      "title_fr": "Ce qu'un VPN protège et ne protège pas",
+      "title_en": "What a VPN protects and does not protect",
+      "summary_fr": "Délimiter la protection d'un tunnel chiffré et ce qui reste exposé au-delà.",
+      "summary_en": "Delimit what an encrypted tunnel protects and what stays exposed beyond it.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 17.",
-        "L'appliquer dans un exemple court."
+        "Dire ce qu'un VPN cache et à qui.",
+        "Citer une menace qu'un VPN ne réduit pas."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 17.",
-        "Apply it in a short example."
+        "Say what a VPN hides and from whom.",
+        "Name a threat a VPN does not reduce."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister ce qu'un VPN protège sur un réseau public, puis demande ce qu'il ne change absolument pas.",
+      "tutor_focus_en": "Have the student list what a VPN protects on a public network, then ask what it changes nothing about.",
       "example_contexts_fr": [
-        "Exemple étudiant 17",
-        "Situation produit 17"
+        "une connexion depuis le réseau Wi-Fi d'un aéroport",
+        "un site consulté qui suit l'utilisateur avec un compte",
+        "un poste déjà infecté qui se connecte au VPN"
       ],
       "example_contexts_en": [
-        "Student example 17",
-        "Product situation 17"
+        "a connection from an airport Wi-Fi network",
+        "a visited site tracking the user through an account",
+        "an already infected machine connecting to the VPN"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.018",
+      "key": "cybersecurity.input_validation",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
         "cyber_app_cloud"
       ],
-      "stage": 3,
+      "stage": 2,
+      "order": 17,
+      "required": true,
+      "prerequisite_keys": [
+        "cybersecurity.risk_prioritization"
+      ],
+      "fallback_key": "cybersecurity.https_protection",
+      "title_fr": "Valider les entrées côté serveur",
+      "title_en": "Validating input on the server",
+      "summary_fr": "Comprendre pourquoi toute validation faite dans le navigateur peut être contournée.",
+      "summary_en": "Understand why any validation done in the browser can be bypassed.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi une validation côté client ne protège pas.",
+        "Définir une validation stricte pour un champ donné."
+      ],
+      "learning_goals_en": [
+        "Explain why client-side validation does not protect.",
+        "Define a strict validation for a given field."
+      ],
+      "tutor_focus_fr": "Fais expliquer comment une contrainte de formulaire peut être contournée, puis demande la validation serveur correspondante.",
+      "tutor_focus_en": "Have the student explain how a form constraint can be bypassed, then ask for the matching server-side validation.",
+      "example_contexts_fr": [
+        "un champ de quantité limité à cent dans le formulaire",
+        "un prix envoyé par le navigateur lors d'un achat",
+        "un identifiant de commande modifié dans l'URL"
+      ],
+      "example_contexts_en": [
+        "a quantity field capped at a hundred in the form",
+        "a price sent by the browser during a purchase",
+        "an order identifier edited in the URL"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.secrets_management",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 2,
       "order": 18,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.017"
+        "cybersecurity.input_validation"
       ],
-      "fallback_key": "cybersecurity.016",
-      "title_fr": "Cybersécurité - étape 18",
-      "title_en": "Cybersecurity - step 18",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 3.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 3.",
+      "fallback_key": "cybersecurity.https_protection",
+      "title_fr": "Ne pas mettre de secret dans le code",
+      "title_en": "Keeping secrets out of the code",
+      "summary_fr": "Sortir les secrets du dépôt et prévoir leur rotation après une exposition.",
+      "summary_en": "Move secrets out of the repository and plan their rotation after exposure.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 18.",
-        "L'appliquer dans un exemple court."
+        "Citer trois endroits où un secret ne doit jamais figurer.",
+        "Décrire la réaction à une clé publiée par erreur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 18.",
-        "Apply it in a short example."
+        "Name three places a secret must never appear.",
+        "Describe the reaction to a key published by mistake."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire les actions à mener quand une clé d'API a été publiée dans un dépôt public il y a un mois.",
+      "tutor_focus_en": "Have the student describe the actions to take when an API key was published in a public repository a month ago.",
       "example_contexts_fr": [
-        "Exemple étudiant 18",
-        "Situation produit 18"
+        "une clé d'API laissée dans un fichier de configuration",
+        "un mot de passe visible dans l'historique du dépôt",
+        "un secret affiché dans les journaux d'une application"
       ],
       "example_contexts_en": [
-        "Student example 18",
-        "Product situation 18"
+        "an API key left in a configuration file",
+        "a password visible in the repository history",
+        "a secret printed in an application's logs"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.019",
+      "key": "cybersecurity.certificates_and_trust",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
       "stage": 3,
       "order": 19,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.018"
+        "cybersecurity.password_hashing"
       ],
-      "fallback_key": "cybersecurity.017",
-      "title_fr": "Cybersécurité - étape 19",
-      "title_en": "Cybersecurity - step 19",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 3.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 3.",
+      "fallback_key": "cybersecurity.password_hashing",
+      "title_fr": "Certificats et autorités de certification",
+      "title_en": "Certificates and certificate authorities",
+      "summary_fr": "Comprendre la chaîne de confiance qui relie un certificat de site à une racine installée.",
+      "summary_en": "Understand the trust chain linking a site certificate to an installed root.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 19.",
-        "L'appliquer dans un exemple court."
+        "Décrire la chaîne de confiance d'un certificat de site.",
+        "Dire ce qu'un certificat prouve et ce qu'il ne prouve pas."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 19.",
-        "Apply it in a short example."
+        "Describe the trust chain of a site certificate.",
+        "Say what a certificate proves and what it does not."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais dérouler la chaîne de confiance d'un certificat, puis demande ce qu'un certificat valide ne garantit pas sur le site visité.",
+      "tutor_focus_en": "Have the student walk a certificate's trust chain, then ask what a valid certificate does not guarantee about the site.",
       "example_contexts_fr": [
-        "Exemple étudiant 19",
-        "Situation produit 19"
+        "un site de phishing muni d'un certificat valide",
+        "une autorité racine installée par défaut dans un navigateur",
+        "un certificat expiré depuis deux jours"
       ],
       "example_contexts_en": [
-        "Student example 19",
-        "Product situation 19"
+        "a phishing site holding a valid certificate",
+        "a root authority preinstalled in a browser",
+        "a certificate expired two days ago"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.020",
+      "key": "cybersecurity.social_engineering",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
       "stage": 3,
       "order": 20,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.019"
+        "cybersecurity.certificates_and_trust"
       ],
-      "fallback_key": "cybersecurity.018",
-      "title_fr": "Cybersécurité - étape 20",
-      "title_en": "Cybersecurity - step 20",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 3.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 3.",
+      "fallback_key": "cybersecurity.password_hashing",
+      "title_fr": "L'ingénierie sociale",
+      "title_en": "Social engineering",
+      "summary_fr": "Comprendre les leviers psychologiques exploités et les procédures qui y résistent.",
+      "summary_en": "Understand the psychological levers exploited and the procedures that resist them.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 20.",
-        "L'appliquer dans un exemple court."
+        "Nommer trois leviers psychologiques utilisés contre un employé.",
+        "Concevoir une procédure qui résiste à la pression."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 20.",
-        "Apply it in a short example."
+        "Name three psychological levers used against an employee.",
+        "Design a procedure that resists pressure."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais concevoir une procédure de validation des virements qui résiste à un appel urgent d'un supposé dirigeant.",
+      "tutor_focus_en": "Have the student design a payment validation procedure that resists an urgent call from a supposed executive.",
       "example_contexts_fr": [
-        "Exemple étudiant 20",
-        "Situation produit 20"
+        "un appel urgent attribué à la direction",
+        "un prestataire inconnu qui réclame un accès immédiat",
+        "une demande formulée juste avant un week-end"
       ],
       "example_contexts_en": [
-        "Student example 20",
-        "Product situation 20"
+        "an urgent call attributed to management",
+        "an unknown contractor demanding immediate access",
+        "a request made right before a weekend"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.021",
+      "key": "cybersecurity.malware_families",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
       "stage": 3,
       "order": 21,
-      "required": true,
+      "required": false,
       "prerequisite_keys": [
-        "cybersecurity.020"
+        "cybersecurity.social_engineering"
       ],
-      "fallback_key": "cybersecurity.019",
-      "title_fr": "Cybersécurité - étape 21",
-      "title_en": "Cybersecurity - step 21",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 3.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 3.",
+      "fallback_key": "cybersecurity.password_hashing",
+      "title_fr": "Les familles de logiciels malveillants",
+      "title_en": "Malware families",
+      "summary_fr": "Classer les menaces par objectif afin de choisir la protection et la réaction adaptées.",
+      "summary_en": "Classify threats by objective in order to pick the right protection and reaction.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 21.",
-        "L'appliquer dans un exemple court."
+        "Associer trois familles à leur objectif principal.",
+        "Choisir la protection prioritaire selon la famille."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 21.",
-        "Apply it in a short example."
+        "Match three families to their main objective.",
+        "Choose the priority protection for each family."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais associer trois familles à leur objectif, puis demande quelle protection prioritaire découle de chacune.",
+      "tutor_focus_en": "Have the student match three families to their objective, then ask which priority protection follows from each.",
       "example_contexts_fr": [
-        "Exemple étudiant 21",
-        "Situation produit 21"
+        "des fichiers d'entreprise soudain illisibles",
+        "un poste qui envoie des données vers l'extérieur la nuit",
+        "un ordinateur exceptionnellement lent depuis une semaine"
       ],
       "example_contexts_en": [
-        "Student example 21",
-        "Product situation 21"
+        "company files suddenly unreadable",
+        "a machine sending data outward at night",
+        "a computer unusually slow for a week"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.022",
+      "key": "cybersecurity.backup_strategy",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 22,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.021"
+        "cybersecurity.malware_families"
       ],
-      "fallback_key": "cybersecurity.020",
-      "title_fr": "Cybersécurité - étape 22",
-      "title_en": "Cybersecurity - step 22",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 4.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 4.",
+      "fallback_key": "cybersecurity.password_hashing",
+      "title_fr": "La règle de sauvegarde 3-2-1",
+      "title_en": "The 3-2-1 backup rule",
+      "summary_fr": "Concevoir des sauvegardes qui survivent à un incident touchant tout le réseau.",
+      "summary_en": "Design backups that survive an incident affecting the whole network.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 22.",
-        "L'appliquer dans un exemple court."
+        "Énoncer la règle et l'appliquer à un cas concret.",
+        "Expliquer pourquoi une sauvegarde doit être testée et isolée."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 22.",
-        "Apply it in a short example."
+        "State the rule and apply it to a concrete case.",
+        "Explain why a backup must be tested and isolated."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais concevoir un plan de sauvegarde pour une PME, puis demande ce qui se passe si les sauvegardes sont accessibles depuis le réseau.",
+      "tutor_focus_en": "Have the student design a backup plan for a small company, then ask what happens if backups are reachable from the network.",
       "example_contexts_fr": [
-        "Exemple étudiant 22",
-        "Situation produit 22"
+        "une PME dont les serveurs sont chiffrés par une attaque",
+        "une sauvegarde jamais restaurée depuis deux ans",
+        "un disque de sauvegarde branché en permanence"
       ],
       "example_contexts_en": [
-        "Student example 22",
-        "Product situation 22"
+        "a company whose servers are encrypted by an attack",
+        "a backup never restored in two years",
+        "a backup drive permanently plugged in"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.023",
+      "key": "cybersecurity.network_segmentation",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_network_defense"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 23,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.022"
+        "cybersecurity.vpn_scope"
       ],
-      "fallback_key": "cybersecurity.021",
-      "title_fr": "Cybersécurité - étape 23",
-      "title_en": "Cybersecurity - step 23",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 4.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 4.",
+      "fallback_key": "cybersecurity.vpn_scope",
+      "title_fr": "La segmentation réseau",
+      "title_en": "Network segmentation",
+      "summary_fr": "Découper un réseau pour qu'un poste compromis n'atteigne pas les systèmes critiques.",
+      "summary_en": "Split a network so a compromised machine cannot reach critical systems.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 23.",
-        "L'appliquer dans un exemple court."
+        "Proposer un découpage en trois zones justifiées.",
+        "Expliquer ce que la segmentation ralentit chez un attaquant."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 23.",
-        "Apply it in a short example."
+        "Propose a justified split into three zones.",
+        "Explain what segmentation slows down for an attacker."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais découper le réseau d'une PME en trois zones, puis demande ce qu'un poste compromis peut encore atteindre.",
+      "tutor_focus_en": "Have the student split a small company network into three zones, then ask what a compromised machine can still reach.",
       "example_contexts_fr": [
-        "Exemple étudiant 23",
-        "Situation produit 23"
+        "un poste d'accueil sur le même réseau que la comptabilité",
+        "des caméras connectées au réseau bureautique",
+        "un environnement de test relié à la production"
       ],
       "example_contexts_en": [
-        "Student example 23",
-        "Product situation 23"
+        "a reception desk machine on the accounting network",
+        "connected cameras on the office network",
+        "a test environment linked to production"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.024",
+      "key": "cybersecurity.detection_vs_prevention",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_network_defense"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 24,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.023"
+        "cybersecurity.network_segmentation"
       ],
-      "fallback_key": "cybersecurity.022",
-      "title_fr": "Cybersécurité - étape 24",
-      "title_en": "Cybersecurity - step 24",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 4.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 4.",
+      "fallback_key": "cybersecurity.vpn_scope",
+      "title_fr": "Détection et prévention d'intrusion",
+      "title_en": "Intrusion detection and prevention",
+      "summary_fr": "Arbitrer entre alerter et bloquer selon le coût d'un blocage injustifié.",
+      "summary_en": "Arbitrate between alerting and blocking based on the cost of a wrong block.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 24.",
-        "L'appliquer dans un exemple court."
+        "Comparer détection et blocage sur le risque de faux positif.",
+        "Choisir le mode adapté à un service donné."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 24.",
-        "Apply it in a short example."
+        "Compare detection and blocking on false positive risk.",
+        "Choose the right mode for a given service."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais choisir entre alerter et bloquer pour un service de paiement, puis demande le coût d'un blocage injustifié.",
+      "tutor_focus_en": "Have the student choose between alerting and blocking for a payment service, then ask the cost of a wrong block.",
       "example_contexts_fr": [
-        "Exemple étudiant 24",
-        "Situation produit 24"
+        "un service de paiement bloqué à tort en pleine journée",
+        "un trafic inhabituel détecté la nuit",
+        "une signature d'attaque déclenchée par un usage légitime"
       ],
       "example_contexts_en": [
-        "Student example 24",
-        "Product situation 24"
+        "a payment service wrongly blocked mid-day",
+        "unusual traffic detected at night",
+        "an attack signature triggered by legitimate usage"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.025",
+      "key": "cybersecurity.log_collection",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_network_defense"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 25,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.024"
+        "cybersecurity.detection_vs_prevention"
       ],
-      "fallback_key": "cybersecurity.023",
-      "title_fr": "Cybersécurité - étape 25",
-      "title_en": "Cybersecurity - step 25",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 4.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 4.",
+      "fallback_key": "cybersecurity.vpn_scope",
+      "title_fr": "Collecte et centralisation des journaux",
+      "title_en": "Log collection and centralisation",
+      "summary_fr": "Choisir quoi journaliser, où le conserver et comment garder les traces exploitables.",
+      "summary_en": "Choose what to log, where to keep it and how to keep the traces usable.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 25.",
-        "L'appliquer dans un exemple court."
+        "Lister les journaux indispensables à une enquête.",
+        "Expliquer pourquoi les journaux doivent quitter la machine."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 25.",
-        "Apply it in a short example."
+        "List the logs essential to an investigation.",
+        "Explain why logs must leave the machine."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister les journaux nécessaires pour reconstituer une intrusion, puis demande ce qu'un attaquant efface en premier.",
+      "tutor_focus_en": "Have the student list the logs needed to reconstruct an intrusion, then ask what an attacker erases first.",
       "example_contexts_fr": [
-        "Exemple étudiant 25",
-        "Situation produit 25"
+        "une machine dont les journaux ont été effacés",
+        "des horloges désynchronisées entre deux serveurs",
+        "une rétention de journaux limitée à sept jours"
       ],
       "example_contexts_en": [
-        "Student example 25",
-        "Product situation 25"
+        "a machine whose logs were wiped",
+        "clocks out of sync between two servers",
+        "a log retention limited to seven days"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.026",
+      "key": "cybersecurity.vulnerability_scanning",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_network_defense"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 26,
-      "required": true,
-      "prerequisite_keys": [
-        "cybersecurity.025"
-      ],
-      "fallback_key": "cybersecurity.024",
-      "title_fr": "Cybersécurité - étape 26",
-      "title_en": "Cybersecurity - step 26",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 4.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 4.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 26.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 26.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 26",
-        "Situation produit 26"
-      ],
-      "example_contexts_en": [
-        "Student example 26",
-        "Product situation 26"
-      ],
-      "safety_category": "cyber_defensive"
-    },
-    {
-      "key": "cybersecurity.027",
-      "domain_id": "cybersecurity",
-      "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
-      ],
-      "stage": 4,
-      "order": 27,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.026"
+        "cybersecurity.log_collection"
       ],
-      "fallback_key": "cybersecurity.025",
-      "title_fr": "Cybersécurité - étape 27",
-      "title_en": "Cybersecurity - step 27",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 4.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 4.",
+      "fallback_key": "cybersecurity.vpn_scope",
+      "title_fr": "Le scan de vulnérabilités",
+      "title_en": "Vulnerability scanning",
+      "summary_fr": "Interpréter un rapport de scan et prioriser sans se noyer dans les scores bruts.",
+      "summary_en": "Interpret a scan report and prioritise without drowning in raw scores.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 27.",
-        "L'appliquer dans un exemple court."
+        "Interpréter un score de gravité en tenant compte de l'exposition.",
+        "Justifier de traiter une faille moyenne avant une faille critique."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 27.",
-        "Apply it in a short example."
+        "Interpret a severity score accounting for exposure.",
+        "Justify fixing a medium flaw before a critical one."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais prioriser trois vulnérabilités dont la plus grave concerne un serveur interne isolé, et demande de justifier l'ordre.",
+      "tutor_focus_en": "Have the student prioritise three vulnerabilities where the worst affects an isolated internal server, and justify the order.",
       "example_contexts_fr": [
-        "Exemple étudiant 27",
-        "Situation produit 27"
+        "une faille critique sur une machine sans accès réseau",
+        "une faille moyenne sur le serveur public principal",
+        "un rapport contenant huit cents lignes"
       ],
       "example_contexts_en": [
-        "Student example 27",
-        "Product situation 27"
+        "a critical flaw on a machine with no network access",
+        "a medium flaw on the main public server",
+        "a report containing eight hundred lines"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.028",
+      "key": "cybersecurity.sql_injection_defense",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
         "cyber_app_cloud"
       ],
-      "stage": 4,
+      "stage": 3,
+      "order": 27,
+      "required": true,
+      "prerequisite_keys": [
+        "cybersecurity.secrets_management"
+      ],
+      "fallback_key": "cybersecurity.secrets_management",
+      "title_fr": "Se protéger de l'injection SQL",
+      "title_en": "Defending against SQL injection",
+      "summary_fr": "Séparer le code de la donnée grâce aux requêtes paramétrées plutôt qu'au filtrage de caractères.",
+      "summary_en": "Separate code from data using parameterised queries rather than character filtering.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi la concaténation de chaînes est dangereuse.",
+        "Réécrire une requête vulnérable en requête paramétrée."
+      ],
+      "learning_goals_en": [
+        "Explain why string concatenation is dangerous.",
+        "Rewrite a vulnerable query as a parameterised one."
+      ],
+      "tutor_focus_fr": "Fais réécrire une requête construite par concaténation en requête paramétrée, puis demande pourquoi filtrer les apostrophes ne suffit pas.",
+      "tutor_focus_en": "Have the student rewrite a concatenated query as a parameterised one, then ask why filtering quotes is not enough.",
+      "example_contexts_fr": [
+        "un formulaire de recherche interrogeant une base",
+        "une page de connexion construisant sa requête à la main",
+        "un filtre de caractères contourné par un encodage"
+      ],
+      "example_contexts_en": [
+        "a search form querying a database",
+        "a login page building its query by hand",
+        "a character filter bypassed through encoding"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.xss_defense",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 3,
       "order": 28,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.027"
+        "cybersecurity.sql_injection_defense"
       ],
-      "fallback_key": "cybersecurity.026",
-      "title_fr": "Cybersécurité - étape 28",
-      "title_en": "Cybersecurity - step 28",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 4.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 4.",
+      "fallback_key": "cybersecurity.secrets_management",
+      "title_fr": "Se protéger du script intersite",
+      "title_en": "Defending against cross-site scripting",
+      "summary_fr": "Échapper les contenus fournis par les utilisateurs au moment de l'affichage.",
+      "summary_en": "Escape user-supplied content at the moment it is rendered.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 28.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'un contenu non échappé permet dans un navigateur.",
+        "Choisir l'échappement adapté au contexte d'affichage."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 28.",
-        "Apply it in a short example."
+        "Explain what unescaped content enables in a browser.",
+        "Choose the escaping suited to the rendering context."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qui se passe quand un commentaire contenant du code est affiché tel quel, puis demande où appliquer l'échappement.",
+      "tutor_focus_en": "Have the student explain what happens when a comment containing code is displayed as-is, then ask where to apply escaping.",
       "example_contexts_fr": [
-        "Exemple étudiant 28",
-        "Situation produit 28"
+        "un commentaire affiché sur une page publique",
+        "un nom d'utilisateur repris dans une page de profil",
+        "un paramètre d'URL réaffiché dans un message d'erreur"
       ],
       "example_contexts_en": [
-        "Student example 28",
-        "Product situation 28"
+        "a comment displayed on a public page",
+        "a username echoed on a profile page",
+        "a URL parameter echoed in an error message"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.029",
+      "key": "cybersecurity.session_management",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
         "cyber_app_cloud"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 29,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.028"
+        "cybersecurity.xss_defense"
       ],
-      "fallback_key": "cybersecurity.027",
-      "title_fr": "Cybersécurité - étape 29",
-      "title_en": "Cybersecurity - step 29",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 5.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 5.",
+      "fallback_key": "cybersecurity.secrets_management",
+      "title_fr": "Gérer les sessions et les cookies",
+      "title_en": "Managing sessions and cookies",
+      "summary_fr": "Protéger un jeton de session par ses attributs, sa durée et son renouvellement.",
+      "summary_en": "Protect a session token through its attributes, its lifetime and its renewal.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 29.",
-        "L'appliquer dans un exemple court."
+        "Citer les attributs qui protègent un cookie de session.",
+        "Expliquer pourquoi renouveler l'identifiant après connexion."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 29.",
-        "Apply it in a short example."
+        "Name the attributes that protect a session cookie.",
+        "Explain why the identifier is renewed after login."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister les attributs d'un cookie de session sûr, puis demande ce qu'un vol de jeton permet malgré un bon mot de passe.",
+      "tutor_focus_en": "Have the student list the attributes of a safe session cookie, then ask what a stolen token allows despite a strong password.",
       "example_contexts_fr": [
-        "Exemple étudiant 29",
-        "Situation produit 29"
+        "un jeton de session volé sur un poste partagé",
+        "une session qui ne expire jamais",
+        "un identifiant de session inchangé après connexion"
       ],
       "example_contexts_en": [
-        "Student example 29",
-        "Product situation 29"
+        "a session token stolen on a shared machine",
+        "a session that never expires",
+        "a session identifier unchanged after login"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.030",
+      "key": "cybersecurity.broken_access_control",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
         "cyber_app_cloud"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 30,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.029"
+        "cybersecurity.session_management"
       ],
-      "fallback_key": "cybersecurity.028",
-      "title_fr": "Cybersécurité - étape 30",
-      "title_en": "Cybersecurity - step 30",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 5.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 5.",
+      "fallback_key": "cybersecurity.secrets_management",
+      "title_fr": "Les défauts de contrôle d'accès",
+      "title_en": "Broken access control",
+      "summary_fr": "Vérifier les droits côté serveur pour chaque objet demandé, pas seulement à l'affichage.",
+      "summary_en": "Check permissions on the server for every requested object, not only at display time.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 30.",
-        "L'appliquer dans un exemple court."
+        "Repérer un accès direct à un objet non contrôlé.",
+        "Décrire le contrôle à effectuer à chaque requête."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 30.",
-        "Apply it in a short example."
+        "Spot a direct object access with no check.",
+        "Describe the check to run on every request."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais analyser une URL où changer un identifiant affiche la facture d'un autre client, puis demande le contrôle manquant.",
+      "tutor_focus_en": "Have the student analyse a URL where changing an identifier shows another customer's invoice, then ask for the missing check.",
       "example_contexts_fr": [
-        "Exemple étudiant 30",
-        "Situation produit 30"
+        "un identifiant de facture incrémenté dans l'URL",
+        "un bouton masqué mais dont l'appel reste possible",
+        "un rôle vérifié uniquement à l'affichage du menu"
       ],
       "example_contexts_en": [
-        "Student example 30",
-        "Product situation 30"
+        "an invoice identifier incremented in the URL",
+        "a hidden button whose call still works",
+        "a role checked only when rendering the menu"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.031",
+      "key": "cybersecurity.key_management",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 31,
       "required": true,
       "prerequisite_keys": [
-        "cybersecurity.030"
+        "cybersecurity.backup_strategy"
       ],
-      "fallback_key": "cybersecurity.029",
-      "title_fr": "Cybersécurité - étape 31",
-      "title_en": "Cybersecurity - step 31",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 5.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 5.",
+      "fallback_key": "cybersecurity.backup_strategy",
+      "title_fr": "La gestion des clés",
+      "title_en": "Key management",
+      "summary_fr": "Organiser génération, stockage, rotation et révocation des clés sur toute leur durée de vie.",
+      "summary_en": "Organise generation, storage, rotation and revocation of keys across their lifetime.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 31.",
-        "L'appliquer dans un exemple court."
+        "Décrire le cycle de vie complet d'une clé.",
+        "Expliquer ce qu'une rotation limite comme dégât."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 31.",
-        "Apply it in a short example."
+        "Describe the full life cycle of a key.",
+        "Explain what damage rotation limits."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire le cycle de vie d'une clé, puis demande ce qu'il faut faire immédiatement quand une clé est suspectée compromise.",
+      "tutor_focus_en": "Have the student describe a key's life cycle, then ask what to do immediately when a key is suspected compromised.",
       "example_contexts_fr": [
-        "Exemple étudiant 31",
-        "Situation produit 31"
+        "une clé de chiffrement en service depuis six ans",
+        "un développeur qui quitte l'entreprise",
+        "une clé retrouvée dans un dépôt de code public"
       ],
       "example_contexts_en": [
-        "Student example 31",
-        "Product situation 31"
+        "an encryption key in service for six years",
+        "a developer leaving the company",
+        "a key found in a public code repository"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.032",
+      "key": "cybersecurity.digital_signatures",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 32,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.031"
+        "cybersecurity.key_management"
       ],
-      "fallback_key": "cybersecurity.030",
-      "title_fr": "Cybersécurité - étape 32",
-      "title_en": "Cybersecurity - step 32",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 5.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 5.",
+      "fallback_key": "cybersecurity.backup_strategy",
+      "title_fr": "Signature numérique et non-répudiation",
+      "title_en": "Digital signatures and non-repudiation",
+      "summary_fr": "Distinguer ce qu'une signature garantit sur l'origine et sur l'intégrité d'un document.",
+      "summary_en": "Separate what a signature guarantees about origin and about document integrity.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 32.",
-        "L'appliquer dans un exemple court."
+        "Dire ce qu'une signature valide établit exactement.",
+        "Expliquer ce qu'une clé volée retire à cette garantie."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 32.",
-        "Apply it in a short example."
+        "Say what a valid signature exactly establishes.",
+        "Explain what a stolen key removes from that guarantee."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qu'une signature valide prouve, puis demande ce qui change si la clé privée a été copiée trois mois plus tôt.",
+      "tutor_focus_en": "Have the student explain what a valid signature proves, then ask what changes if the private key was copied three months earlier.",
       "example_contexts_fr": [
-        "Exemple étudiant 32",
-        "Situation produit 32"
+        "un contrat signé électroniquement",
+        "une mise à jour logicielle signée par son éditeur",
+        "une clé privée copiée à l'insu de son détenteur"
       ],
       "example_contexts_en": [
-        "Student example 32",
-        "Product situation 32"
+        "a contract signed electronically",
+        "a software update signed by its publisher",
+        "a private key copied without its owner knowing"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.033",
+      "key": "cybersecurity.data_minimization",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 33,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.032"
+        "cybersecurity.digital_signatures"
       ],
-      "fallback_key": "cybersecurity.031",
-      "title_fr": "Cybersécurité - étape 33",
-      "title_en": "Cybersecurity - step 33",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 5.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 5.",
+      "fallback_key": "cybersecurity.backup_strategy",
+      "title_fr": "Minimisation des données",
+      "title_en": "Data minimisation",
+      "summary_fr": "Réduire l'impact d'une fuite en ne collectant et ne conservant que le nécessaire.",
+      "summary_en": "Reduce the impact of a breach by collecting and keeping only what is needed.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 33.",
-        "L'appliquer dans un exemple court."
+        "Identifier les données collectées sans usage réel.",
+        "Fixer une durée de conservation justifiée."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 33.",
-        "Apply it in a short example."
+        "Identify data collected with no real use.",
+        "Set a justified retention period."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais examiner un formulaire d'inscription et supprimer les champs inutiles, puis demande une durée de conservation justifiée.",
+      "tutor_focus_en": "Have the student review a signup form and drop useless fields, then set a justified retention period.",
       "example_contexts_fr": [
-        "Exemple étudiant 33",
-        "Situation produit 33"
+        "un formulaire demandant la date de naissance sans raison",
+        "des journaux conservés depuis cinq ans",
+        "une copie de pièce d'identité gardée après vérification"
       ],
       "example_contexts_en": [
-        "Student example 33",
-        "Product situation 33"
+        "a form asking for a birth date with no reason",
+        "logs kept for five years",
+        "an identity document copy kept after verification"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.034",
+      "key": "cybersecurity.security_awareness",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
-        "cyber_app_cloud"
+        "cyber_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 34,
       "required": false,
       "prerequisite_keys": [
-        "cybersecurity.033"
+        "cybersecurity.data_minimization"
       ],
-      "fallback_key": "cybersecurity.032",
-      "title_fr": "Cybersécurité - étape 34",
-      "title_en": "Cybersecurity - step 34",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 5.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 5.",
+      "fallback_key": "cybersecurity.backup_strategy",
+      "title_fr": "Construire une sensibilisation efficace",
+      "title_en": "Building effective security awareness",
+      "summary_fr": "Concevoir une sensibilisation mesurable qui change les comportements plutôt que la culpabilité.",
+      "summary_en": "Design measurable awareness that changes behaviour rather than assigning blame.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 34.",
-        "L'appliquer dans un exemple court."
+        "Définir un indicateur de progrès mesurable.",
+        "Expliquer pourquoi punir le signalement dégrade la sécurité."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 34.",
-        "Apply it in a short example."
+        "Define a measurable progress indicator.",
+        "Explain why punishing reports degrades security."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais définir deux indicateurs de sensibilisation, puis demande ce qui arrive si les employés craignent de signaler une erreur.",
+      "tutor_focus_en": "Have the student define two awareness indicators, then ask what happens when employees fear reporting a mistake.",
       "example_contexts_fr": [
-        "Exemple étudiant 34",
-        "Situation produit 34"
+        "un employé qui n'ose pas signaler un clic malheureux",
+        "une campagne de test d'hameçonnage interne",
+        "une formation annuelle suivie sans effet mesurable"
       ],
       "example_contexts_en": [
-        "Student example 34",
-        "Product situation 34"
+        "an employee afraid to report an unlucky click",
+        "an internal phishing simulation campaign",
+        "an annual training with no measurable effect"
       ],
       "safety_category": "cyber_defensive"
     },
     {
-      "key": "cybersecurity.035",
+      "key": "cybersecurity.alert_correlation",
       "domain_id": "cybersecurity",
       "objective_ids": [
-        "cyber_foundations",
-        "cyber_network_defense",
+        "cyber_network_defense"
+      ],
+      "stage": 4,
+      "order": 35,
+      "required": true,
+      "prerequisite_keys": [
+        "cybersecurity.vulnerability_scanning"
+      ],
+      "fallback_key": "cybersecurity.vulnerability_scanning",
+      "title_fr": "La corrélation d'alertes",
+      "title_en": "Alert correlation",
+      "summary_fr": "Relier des événements isolés pour distinguer un incident réel d'un bruit permanent.",
+      "summary_en": "Link isolated events to tell a real incident apart from permanent noise.",
+      "learning_goals_fr": [
+        "Construire une règle de corrélation à partir de deux événements.",
+        "Expliquer le coût opérationnel d'un excès d'alertes."
+      ],
+      "learning_goals_en": [
+        "Build a correlation rule from two events.",
+        "Explain the operational cost of alert overload."
+      ],
+      "tutor_focus_fr": "Fais construire une règle reliant un échec de connexion répété à une connexion réussie inhabituelle, et demande son taux de faux positifs attendu.",
+      "tutor_focus_en": "Have the student build a rule linking repeated login failures to an unusual success, and ask its expected false positive rate.",
+      "example_contexts_fr": [
+        "cent échecs de connexion suivis d'une réussite",
+        "une équipe qui reçoit trois mille alertes par jour",
+        "une connexion réussie depuis deux pays en dix minutes"
+      ],
+      "example_contexts_en": [
+        "a hundred login failures followed by a success",
+        "a team receiving three thousand alerts a day",
+        "a successful login from two countries in ten minutes"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.incident_response_phases",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_network_defense"
+      ],
+      "stage": 4,
+      "order": 36,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.alert_correlation"
+      ],
+      "fallback_key": "cybersecurity.vulnerability_scanning",
+      "title_fr": "Les phases d'une réponse à incident",
+      "title_en": "The phases of incident response",
+      "summary_fr": "Ordonner détection, confinement, éradication, rétablissement et retour d'expérience.",
+      "summary_en": "Order detection, containment, eradication, recovery and lessons learned.",
+      "learning_goals_fr": [
+        "Ordonner les phases et dire ce que chacune vise.",
+        "Expliquer pourquoi éteindre un serveur trop vite peut nuire."
+      ],
+      "learning_goals_en": [
+        "Order the phases and state what each aims at.",
+        "Explain why powering a server off too early can hurt."
+      ],
+      "tutor_focus_fr": "Fais ordonner les phases sur un cas concret, puis demande pourquoi le confinement précède l'éradication.",
+      "tutor_focus_en": "Have the student order the phases on a concrete case, then ask why containment comes before eradication.",
+      "example_contexts_fr": [
+        "un serveur compromis découvert un vendredi soir",
+        "une décision d'isoler une machine sans l'éteindre",
+        "un retour d'expérience rédigé deux semaines après"
+      ],
+      "example_contexts_en": [
+        "a compromised server discovered on a Friday evening",
+        "a decision to isolate a machine without powering it off",
+        "a lessons-learned report written two weeks later"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.availability_attacks",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_network_defense"
+      ],
+      "stage": 4,
+      "order": 37,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.incident_response_phases"
+      ],
+      "fallback_key": "cybersecurity.vulnerability_scanning",
+      "title_fr": "Absorber une saturation de service",
+      "title_en": "Absorbing a service saturation",
+      "summary_fr": "Préparer les protections qui maintiennent un service disponible pendant une saturation.",
+      "summary_en": "Prepare the protections that keep a service available during a saturation event.",
+      "learning_goals_fr": [
+        "Citer trois protections qui absorbent une charge anormale.",
+        "Expliquer pourquoi la préparation compte plus que la réaction."
+      ],
+      "learning_goals_en": [
+        "Name three protections that absorb abnormal load.",
+        "Explain why preparation matters more than reaction."
+      ],
+      "tutor_focus_fr": "Fais lister les protections à mettre en place avant un pic anormal, puis demande lesquelles ne peuvent plus être activées en urgence.",
+      "tutor_focus_en": "Have the student list the protections to set up before an abnormal spike, then ask which cannot be enabled in a hurry.",
+      "example_contexts_fr": [
+        "un site public saturé pendant une opération commerciale",
+        "un service dépendant d'un seul fournisseur d'accès",
+        "un contrat de mitigation signé après l'incident"
+      ],
+      "example_contexts_en": [
+        "a public site saturated during a sales event",
+        "a service depending on a single access provider",
+        "a mitigation contract signed after the incident"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.endpoint_detection",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_network_defense"
+      ],
+      "stage": 4,
+      "order": 38,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.availability_attacks"
+      ],
+      "fallback_key": "cybersecurity.vulnerability_scanning",
+      "title_fr": "La détection sur les postes",
+      "title_en": "Endpoint detection",
+      "summary_fr": "Comprendre ce qu'un agent observe sur un poste et ce qu'il ne peut pas voir.",
+      "summary_en": "Understand what an agent observes on a machine and what it cannot see.",
+      "learning_goals_fr": [
+        "Citer trois comportements suspects observables sur un poste.",
+        "Expliquer les limites d'une détection par signature."
+      ],
+      "learning_goals_en": [
+        "Name three suspicious behaviours observable on a machine.",
+        "Explain the limits of signature-based detection."
+      ],
+      "tutor_focus_fr": "Fais citer trois comportements suspects sur un poste, puis demande pourquoi la détection par signature seule ne suffit plus.",
+      "tutor_focus_en": "Have the student name three suspicious behaviours on a machine, then ask why signature detection alone no longer suffices.",
+      "example_contexts_fr": [
+        "un outil d'administration légitime utilisé anormalement",
+        "un document bureautique qui lance un script",
+        "un logiciel jamais vu ailleurs dans le parc"
+      ],
+      "example_contexts_en": [
+        "a legitimate admin tool used abnormally",
+        "an office document launching a script",
+        "software never seen elsewhere in the fleet"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.delegated_access",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 4,
+      "order": 39,
+      "required": true,
+      "prerequisite_keys": [
+        "cybersecurity.broken_access_control"
+      ],
+      "fallback_key": "cybersecurity.broken_access_control",
+      "title_fr": "Déléguer un accès sans partager son mot de passe",
+      "title_en": "Delegating access without sharing a password",
+      "summary_fr": "Comprendre l'échange de jetons à portée limitée et révocable entre trois parties.",
+      "summary_en": "Understand the exchange of limited-scope, revocable tokens between three parties.",
+      "learning_goals_fr": [
+        "Décrire les trois rôles impliqués dans une délégation d'accès.",
+        "Expliquer ce qu'une portée limitée empêche."
+      ],
+      "learning_goals_en": [
+        "Describe the three roles involved in access delegation.",
+        "Explain what a limited scope prevents."
+      ],
+      "tutor_focus_fr": "Fais décrire les trois rôles d'une délégation d'accès, puis demande ce qu'une portée trop large permettrait à l'application tierce.",
+      "tutor_focus_en": "Have the student describe the three roles of access delegation, then ask what an overly broad scope would let the third-party app do.",
+      "example_contexts_fr": [
+        "une application tierce qui lit un agenda",
+        "un accès révoqué depuis les paramètres du compte",
+        "une portée demandant plus de droits que nécessaire"
+      ],
+      "example_contexts_en": [
+        "a third-party app reading a calendar",
+        "an access revoked from the account settings",
+        "a scope requesting more rights than needed"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.least_privilege_cloud",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 4,
+      "order": 40,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.delegated_access"
+      ],
+      "fallback_key": "cybersecurity.broken_access_control",
+      "title_fr": "Le moindre privilège dans le cloud",
+      "title_en": "Least privilege in the cloud",
+      "summary_fr": "Attribuer à chaque composant les seules permissions dont il a besoin pour fonctionner.",
+      "summary_en": "Grant each component only the permissions it needs to work.",
+      "learning_goals_fr": [
+        "Réduire une permission trop large à un besoin réel.",
+        "Expliquer ce qu'un rôle trop permissif aggrave lors d'un incident."
+      ],
+      "learning_goals_en": [
+        "Narrow an overly broad permission to a real need.",
+        "Explain what an over-permissive role worsens during an incident."
+      ],
+      "tutor_focus_fr": "Fais réduire une permission d'écriture globale au strict nécessaire, puis demande ce que cela change en cas de compromission.",
+      "tutor_focus_en": "Have the student narrow a global write permission to the strict minimum, then ask what it changes if compromised.",
+      "example_contexts_fr": [
+        "un service disposant d'un accès complet au stockage",
+        "un rôle d'administration attribué par facilité",
+        "une clé de service partagée entre trois applications"
+      ],
+      "example_contexts_en": [
+        "a service holding full access to storage",
+        "an admin role granted for convenience",
+        "a service key shared across three applications"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.container_isolation",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 4,
+      "order": 41,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.least_privilege_cloud"
+      ],
+      "fallback_key": "cybersecurity.broken_access_control",
+      "title_fr": "L'isolation des conteneurs",
+      "title_en": "Container isolation",
+      "summary_fr": "Comprendre ce qu'un conteneur isole réellement et ce qu'il partage avec l'hôte.",
+      "summary_en": "Understand what a container actually isolates and what it shares with the host.",
+      "learning_goals_fr": [
+        "Dire ce qu'un conteneur partage avec le système hôte.",
+        "Citer deux réglages qui renforcent son isolation."
+      ],
+      "learning_goals_en": [
+        "Say what a container shares with the host system.",
+        "Name two settings that strengthen its isolation."
+      ],
+      "tutor_focus_fr": "Fais comparer l'isolation d'un conteneur et celle d'une machine virtuelle, puis demande deux réglages qui réduisent le risque.",
+      "tutor_focus_en": "Have the student compare container and virtual machine isolation, then ask for two settings that reduce risk.",
+      "example_contexts_fr": [
+        "un conteneur exécuté avec les droits administrateur",
+        "un dossier de l'hôte monté dans un conteneur",
+        "une image construite à partir d'une base non maintenue"
+      ],
+      "example_contexts_en": [
+        "a container running with administrator rights",
+        "a host folder mounted inside a container",
+        "an image built from an unmaintained base"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.dependency_vulnerabilities",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 4,
+      "order": 42,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.container_isolation"
+      ],
+      "fallback_key": "cybersecurity.broken_access_control",
+      "title_fr": "Les vulnérabilités des dépendances",
+      "title_en": "Dependency vulnerabilities",
+      "summary_fr": "Suivre les bibliothèques tierces et décider quand une alerte concerne réellement l'application.",
+      "summary_en": "Track third-party libraries and decide when an alert really concerns the application.",
+      "learning_goals_fr": [
+        "Vérifier si une faille annoncée est réellement atteignable.",
+        "Choisir entre mise à jour immédiate et contournement."
+      ],
+      "learning_goals_en": [
+        "Check whether an announced flaw is actually reachable.",
+        "Choose between immediate update and a workaround."
+      ],
+      "tutor_focus_fr": "Fais vérifier si une faille signalée dans une dépendance est atteignable dans l'application, puis demande la décision à prendre.",
+      "tutor_focus_en": "Have the student check whether a reported dependency flaw is reachable in the application, then ask for the decision.",
+      "example_contexts_fr": [
+        "une alerte sur une bibliothèque utilisée pour une seule fonction",
+        "une dépendance indirecte présente huit niveaux plus bas",
+        "une mise à jour majeure qui casse l'application"
+      ],
+      "example_contexts_en": [
+        "an alert on a library used for a single function",
+        "an indirect dependency eight levels down",
+        "a major update that breaks the application"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.zero_trust",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_foundations"
+      ],
+      "stage": 5,
+      "order": 43,
+      "required": true,
+      "prerequisite_keys": [
+        "cybersecurity.security_awareness"
+      ],
+      "fallback_key": "cybersecurity.security_awareness",
+      "title_fr": "Le modèle zero trust",
+      "title_en": "The zero trust model",
+      "summary_fr": "Remplacer la confiance accordée au réseau interne par une vérification à chaque accès.",
+      "summary_en": "Replace trust granted to the internal network with verification at every access.",
+      "learning_goals_fr": [
+        "Expliquer ce que le modèle abandonne comme hypothèse.",
+        "Décrire ce qui est vérifié à chaque requête."
+      ],
+      "learning_goals_en": [
+        "Explain which assumption the model abandons.",
+        "Describe what is verified on each request."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi la position réseau ne suffit plus à accorder un accès, puis demande ce qu'il faut vérifier à la place.",
+      "tutor_focus_en": "Have the student explain why network position no longer justifies access, then ask what must be verified instead.",
+      "example_contexts_fr": [
+        "un poste connecté au réseau interne mais compromis",
+        "un salarié en télétravail depuis un lieu public",
+        "un prestataire disposant d'un accès temporaire"
+      ],
+      "example_contexts_en": [
+        "a machine on the internal network but compromised",
+        "an employee working remotely from a public place",
+        "a contractor holding temporary access"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.threat_intelligence",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_foundations"
+      ],
+      "stage": 5,
+      "order": 44,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.zero_trust"
+      ],
+      "fallback_key": "cybersecurity.security_awareness",
+      "title_fr": "Le renseignement sur les menaces",
+      "title_en": "Threat intelligence",
+      "summary_fr": "Transformer une information sur des attaquants en décision de défense concrète.",
+      "summary_en": "Turn information about attackers into a concrete defensive decision.",
+      "learning_goals_fr": [
+        "Distinguer une information exploitable d'un simple indicateur.",
+        "Traduire un rapport de menace en action de défense."
+      ],
+      "learning_goals_en": [
+        "Tell actionable intelligence apart from a bare indicator.",
+        "Translate a threat report into a defensive action."
+      ],
+      "tutor_focus_fr": "Fais traduire un rapport décrivant une campagne d'attaque en trois actions défensives concrètes et priorisées.",
+      "tutor_focus_en": "Have the student turn a report describing an attack campaign into three concrete, prioritised defensive actions.",
+      "example_contexts_fr": [
+        "un rapport public décrivant une campagne visant un secteur",
+        "une liste d'indicateurs techniques déjà obsolètes",
+        "un signalement partagé entre entreprises d'un même secteur"
+      ],
+      "example_contexts_en": [
+        "a public report describing a campaign against one sector",
+        "a list of technical indicators already outdated",
+        "a warning shared between companies of one industry"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.supply_chain_risk",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_foundations"
+      ],
+      "stage": 5,
+      "order": 45,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.threat_intelligence"
+      ],
+      "fallback_key": "cybersecurity.security_awareness",
+      "title_fr": "Le risque fournisseur",
+      "title_en": "Supplier risk",
+      "summary_fr": "Évaluer ce qu'un prestataire compromis permettrait d'atteindre dans le système d'information.",
+      "summary_en": "Assess what a compromised supplier would let an attacker reach in your systems.",
+      "learning_goals_fr": [
+        "Cartographier les accès accordés à des tiers.",
+        "Définir une exigence de sécurité contractuelle utile."
+      ],
+      "learning_goals_en": [
+        "Map the accesses granted to third parties.",
+        "Define a useful contractual security requirement."
+      ],
+      "tutor_focus_fr": "Fais cartographier les accès d'un prestataire de maintenance, puis demande ce qu'un attaquant obtiendrait en le compromettant.",
+      "tutor_focus_en": "Have the student map a maintenance supplier's access, then ask what an attacker would obtain by compromising it.",
+      "example_contexts_fr": [
+        "un prestataire de maintenance disposant d'un accès permanent",
+        "un outil externe intégré dans toutes les pages du site",
+        "une bibliothèque logicielle maintenue par une seule personne"
+      ],
+      "example_contexts_en": [
+        "a maintenance supplier holding permanent access",
+        "an external tool embedded in every page of the site",
+        "a software library maintained by a single person"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.security_governance",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_foundations"
+      ],
+      "stage": 5,
+      "order": 46,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.supply_chain_risk"
+      ],
+      "fallback_key": "cybersecurity.security_awareness",
+      "title_fr": "Politique de sécurité et responsabilité",
+      "title_en": "Security policy and accountability",
+      "summary_fr": "Écrire des règles applicables et désigner qui décide et qui assume un risque accepté.",
+      "summary_en": "Write applicable rules and name who decides and who owns an accepted risk.",
+      "learning_goals_fr": [
+        "Distinguer une règle applicable d'une intention vague.",
+        "Identifier qui doit formellement accepter un risque résiduel."
+      ],
+      "learning_goals_en": [
+        "Tell an applicable rule apart from a vague intention.",
+        "Identify who must formally accept a residual risk."
+      ],
+      "tutor_focus_fr": "Fais réécrire une règle vague en règle vérifiable, puis demande qui doit signer l'acceptation d'un risque résiduel.",
+      "tutor_focus_en": "Have the student rewrite a vague rule into a checkable one, then ask who must sign off a residual risk.",
+      "example_contexts_fr": [
+        "une politique qui interdit tout sans exception praticable",
+        "un risque accepté sans trace écrite",
+        "une exception accordée oralement à une équipe"
+      ],
+      "example_contexts_en": [
+        "a policy forbidding everything with no workable exception",
+        "an accepted risk with no written trace",
+        "an exception granted verbally to one team"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.threat_hunting",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_network_defense"
+      ],
+      "stage": 5,
+      "order": 47,
+      "required": true,
+      "prerequisite_keys": [
+        "cybersecurity.endpoint_detection"
+      ],
+      "fallback_key": "cybersecurity.endpoint_detection",
+      "title_fr": "La chasse aux menaces",
+      "title_en": "Threat hunting",
+      "summary_fr": "Partir d'une hypothèse plutôt que d'une alerte pour chercher une compromission silencieuse.",
+      "summary_en": "Start from a hypothesis rather than an alert to look for a silent compromise.",
+      "learning_goals_fr": [
+        "Formuler une hypothèse de chasse vérifiable dans les journaux.",
+        "Dire ce qu'une chasse infructueuse apporte quand même."
+      ],
+      "learning_goals_en": [
+        "Frame a hunting hypothesis verifiable in the logs.",
+        "Say what an unsuccessful hunt still brings."
+      ],
+      "tutor_focus_fr": "Fais formuler une hypothèse de chasse vérifiable dans les journaux existants, puis demande ce que prouve un résultat négatif.",
+      "tutor_focus_en": "Have the student frame a hunting hypothesis checkable in existing logs, then ask what a negative result proves.",
+      "example_contexts_fr": [
+        "une compromission présente depuis six mois sans alerte",
+        "une hypothèse fondée sur une technique d'attaque connue",
+        "une recherche qui ne trouve finalement rien"
+      ],
+      "example_contexts_en": [
+        "a compromise present for six months with no alert",
+        "a hypothesis based on a known attack technique",
+        "a search that finds nothing in the end"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.forensic_timeline",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_network_defense"
+      ],
+      "stage": 5,
+      "order": 48,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.threat_hunting"
+      ],
+      "fallback_key": "cybersecurity.endpoint_detection",
+      "title_fr": "Reconstituer une chronologie d'incident",
+      "title_en": "Reconstructing an incident timeline",
+      "summary_fr": "Assembler des traces de sources différentes en une chronologie fiable et datée.",
+      "summary_en": "Assemble traces from different sources into one reliable, timestamped timeline.",
+      "learning_goals_fr": [
+        "Ordonner des traces provenant de trois sources distinctes.",
+        "Expliquer l'importance d'une référence de temps commune."
+      ],
+      "learning_goals_en": [
+        "Order traces coming from three distinct sources.",
+        "Explain the importance of a shared time reference."
+      ],
+      "tutor_focus_fr": "Fais reconstituer une chronologie à partir de trois sources aux horloges décalées, puis demande comment lever l'ambiguïté.",
+      "tutor_focus_en": "Have the student rebuild a timeline from three sources with skewed clocks, then ask how to resolve the ambiguity.",
+      "example_contexts_fr": [
+        "un pare-feu, un serveur et un poste aux horloges différentes",
+        "une trace effacée sur une seule des trois sources",
+        "un incident dont l'origine remonte à plusieurs semaines"
+      ],
+      "example_contexts_en": [
+        "a firewall, a server and a workstation with different clocks",
+        "a trace erased on only one of the three sources",
+        "an incident whose origin goes back several weeks"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.joint_exercises",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_network_defense"
+      ],
+      "stage": 5,
+      "order": 49,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.forensic_timeline"
+      ],
+      "fallback_key": "cybersecurity.endpoint_detection",
+      "title_fr": "L'exercice conjoint attaque-défense",
+      "title_en": "Joint attack-defence exercises",
+      "summary_fr": "Organiser un exercice autorisé où les défenseurs mesurent leur détection en temps réel.",
+      "summary_en": "Organise an authorised exercise where defenders measure their detection in real time.",
+      "learning_goals_fr": [
+        "Définir le périmètre et les règles d'un exercice autorisé.",
+        "Choisir les indicateurs de détection à mesurer."
+      ],
+      "learning_goals_en": [
+        "Define the scope and rules of an authorised exercise.",
+        "Choose the detection indicators to measure."
+      ],
+      "tutor_focus_fr": "Fais définir le périmètre, l'autorisation écrite et deux indicateurs de détection pour un exercice interne.",
+      "tutor_focus_en": "Have the student define the scope, the written authorisation and two detection indicators for an internal exercise.",
+      "example_contexts_fr": [
+        "un exercice planifié avec autorisation écrite de la direction",
+        "un délai moyen de détection mesuré pendant l'exercice",
+        "une action d'exercice confondue avec une vraie attaque"
+      ],
+      "example_contexts_en": [
+        "an exercise planned with written management approval",
+        "a mean detection time measured during the exercise",
+        "an exercise action mistaken for a real attack"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.business_continuity",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_network_defense"
+      ],
+      "stage": 5,
+      "order": 50,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.joint_exercises"
+      ],
+      "fallback_key": "cybersecurity.endpoint_detection",
+      "title_fr": "Plan de continuité et reprise",
+      "title_en": "Continuity and recovery planning",
+      "summary_fr": "Fixer une durée d'interruption et une perte de données acceptables, puis dimensionner en conséquence.",
+      "summary_en": "Set an acceptable outage duration and data loss, then size the plan accordingly.",
+      "learning_goals_fr": [
+        "Définir une durée d'interruption et une perte de données acceptables.",
+        "Vérifier qu'un plan a été réellement testé."
+      ],
+      "learning_goals_en": [
+        "Define an acceptable outage duration and data loss.",
+        "Check that a plan has actually been tested."
+      ],
+      "tutor_focus_fr": "Fais fixer une durée d'interruption acceptable pour un service critique, puis demande ce que cela impose aux sauvegardes.",
+      "tutor_focus_en": "Have the student set an acceptable outage duration for a critical service, then ask what that imposes on backups.",
+      "example_contexts_fr": [
+        "un service de facturation arrêté quatre heures",
+        "une reprise testée uniquement sur le papier",
+        "des données perdues depuis la dernière sauvegarde nocturne"
+      ],
+      "example_contexts_en": [
+        "a billing service down for four hours",
+        "a recovery tested only on paper",
+        "data lost since the last nightly backup"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.secure_development_lifecycle",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
         "cyber_app_cloud"
       ],
       "stage": 5,
-      "order": 35,
-      "required": false,
+      "order": 51,
+      "required": true,
       "prerequisite_keys": [
-        "cybersecurity.034"
+        "cybersecurity.dependency_vulnerabilities"
       ],
-      "fallback_key": "cybersecurity.033",
-      "title_fr": "Cybersécurité - étape 35",
-      "title_en": "Cybersecurity - step 35",
-      "summary_fr": "Construire une brique claire du parcours Cybersécurité au niveau 5.",
-      "summary_en": "Build one clear building block of the Cybersecurity path at level 5.",
+      "fallback_key": "cybersecurity.dependency_vulnerabilities",
+      "title_fr": "Intégrer la sécurité au cycle de développement",
+      "title_en": "Building security into the development cycle",
+      "summary_fr": "Placer les contrôles de sécurité au moment où une correction coûte le moins cher.",
+      "summary_en": "Place security checks where a fix costs the least.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 35.",
-        "L'appliquer dans un exemple court."
+        "Associer trois contrôles aux étapes du cycle.",
+        "Expliquer pourquoi un audit final seul coûte plus cher."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 35.",
-        "Apply it in a short example."
+        "Match three checks to the stages of the cycle.",
+        "Explain why a final audit alone costs more."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais placer trois contrôles de sécurité aux bonnes étapes du cycle, puis demande le coût d'une correction découverte en production.",
+      "tutor_focus_en": "Have the student place three security checks at the right stages, then ask the cost of a fix found in production.",
       "example_contexts_fr": [
-        "Exemple étudiant 35",
-        "Situation produit 35"
+        "une faille de conception découverte la veille du lancement",
+        "un contrôle automatique exécuté à chaque proposition de code",
+        "un audit annuel réalisé après la mise en production"
       ],
       "example_contexts_en": [
-        "Student example 35",
-        "Product situation 35"
+        "a design flaw found the day before launch",
+        "an automated check run on every code proposal",
+        "an annual audit performed after release"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.architecture_threat_modeling",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 5,
+      "order": 52,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.secure_development_lifecycle"
+      ],
+      "fallback_key": "cybersecurity.dependency_vulnerabilities",
+      "title_fr": "Modéliser les menaces d'une architecture",
+      "title_en": "Threat modelling an architecture",
+      "summary_fr": "Analyser un schéma d'architecture pour repérer les frontières de confiance et leurs risques.",
+      "summary_en": "Analyse an architecture diagram to find trust boundaries and their risks.",
+      "learning_goals_fr": [
+        "Tracer les frontières de confiance sur un schéma.",
+        "Associer une contre-mesure à chaque frontière franchie."
+      ],
+      "learning_goals_en": [
+        "Draw the trust boundaries on a diagram.",
+        "Attach a countermeasure to each boundary crossed."
+      ],
+      "tutor_focus_fr": "Fais tracer les frontières de confiance d'une architecture à trois composants, puis demande une contre-mesure par frontière.",
+      "tutor_focus_en": "Have the student draw the trust boundaries of a three-component architecture, then give one countermeasure per boundary.",
+      "example_contexts_fr": [
+        "une application mobile appelant une API publique",
+        "un service interne qui fait confiance à son appelant",
+        "un flux de données traversant un partenaire externe"
+      ],
+      "example_contexts_en": [
+        "a mobile app calling a public API",
+        "an internal service trusting its caller",
+        "a data flow crossing an external partner"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.cloud_misconfiguration",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 5,
+      "order": 53,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.architecture_threat_modeling"
+      ],
+      "fallback_key": "cybersecurity.dependency_vulnerabilities",
+      "title_fr": "Les erreurs de configuration cloud",
+      "title_en": "Cloud misconfiguration",
+      "summary_fr": "Repérer les réglages par défaut qui exposent des données sans qu'aucune faille soit exploitée.",
+      "summary_en": "Spot the default settings that expose data without any flaw being exploited.",
+      "learning_goals_fr": [
+        "Citer trois configurations fréquemment exposées.",
+        "Décrire un contrôle automatique qui les détecte."
+      ],
+      "learning_goals_en": [
+        "Name three frequently exposed configurations.",
+        "Describe an automated check that detects them."
+      ],
+      "tutor_focus_fr": "Fais citer trois configurations exposant des données sans faille logicielle, puis demande comment les détecter automatiquement.",
+      "tutor_focus_en": "Have the student name three configurations exposing data with no software flaw, then ask how to detect them automatically.",
+      "example_contexts_fr": [
+        "un espace de stockage accessible publiquement",
+        "une base de données ouverte sans mot de passe",
+        "un journal de débogage exposé sur Internet"
+      ],
+      "example_contexts_en": [
+        "a storage bucket left publicly readable",
+        "a database open with no password",
+        "a debug log exposed on the internet"
+      ],
+      "safety_category": "cyber_defensive"
+    },
+    {
+      "key": "cybersecurity.api_abuse_protection",
+      "domain_id": "cybersecurity",
+      "objective_ids": [
+        "cyber_app_cloud"
+      ],
+      "stage": 5,
+      "order": 54,
+      "required": false,
+      "prerequisite_keys": [
+        "cybersecurity.cloud_misconfiguration"
+      ],
+      "fallback_key": "cybersecurity.dependency_vulnerabilities",
+      "title_fr": "Protéger une API des abus",
+      "title_en": "Protecting an API from abuse",
+      "summary_fr": "Limiter le débit, détecter l'énumération et protéger les points d'entrée coûteux.",
+      "summary_en": "Limit rate, detect enumeration and protect expensive endpoints.",
+      "learning_goals_fr": [
+        "Choisir une limite de débit adaptée à un point d'entrée.",
+        "Repérer un usage automatisé dans des journaux d'API."
+      ],
+      "learning_goals_en": [
+        "Choose a rate limit suited to an endpoint.",
+        "Spot automated usage in API logs."
+      ],
+      "tutor_focus_fr": "Fais fixer une limite de débit pour un point d'entrée de connexion, puis demande comment repérer une énumération de comptes.",
+      "tutor_focus_en": "Have the student set a rate limit for a login endpoint, then ask how to spot account enumeration.",
+      "example_contexts_fr": [
+        "un point d'entrée de connexion appelé mille fois par minute",
+        "une recherche coûteuse appelée en boucle",
+        "des identifiants testés séquentiellement"
+      ],
+      "example_contexts_en": [
+        "a login endpoint called a thousand times per minute",
+        "an expensive search called in a loop",
+        "identifiers tested sequentially"
       ],
       "safety_category": "cyber_defensive"
     }

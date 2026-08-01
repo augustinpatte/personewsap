@@ -3,7 +3,7 @@
   "version": "v1",
   "steps": [
     {
-      "key": "mathematics.001",
+      "key": "mathematics.number_sets",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -15,32 +15,34 @@
       "required": true,
       "prerequisite_keys": [],
       "fallback_key": null,
-      "title_fr": "Mathématiques - étape 1",
-      "title_en": "Mathematics - step 1",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 1.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 1.",
+      "title_fr": "Les ensembles de nombres et pourquoi ils s'étendent",
+      "title_en": "Number sets and why they keep extending",
+      "summary_fr": "Comprendre chaque extension des nombres comme la réponse à une opération jusque-là impossible.",
+      "summary_en": "Understand each extension of numbers as the answer to a previously impossible operation.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 1.",
-        "L'appliquer dans un exemple court."
+        "Associer chaque ensemble à l'opération qui a exigé sa création.",
+        "Dire à quel ensemble appartient un nombre donné."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 1.",
-        "Apply it in a short example."
+        "Match each set to the operation that required its creation.",
+        "Say which set a given number belongs to."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais dire quelle opération devient possible en passant des entiers aux rationnels puis aux réels, avec un exemple à chaque étape.",
+      "tutor_focus_en": "Have the student say which operation becomes possible moving from integers to rationals then to reals, with an example each time.",
       "example_contexts_fr": [
-        "Exemple étudiant 1",
-        "Situation produit 1"
+        "un partage de trois gâteaux entre quatre personnes",
+        "une température descendue sous zéro",
+        "la diagonale d'un carré de côté un"
       ],
       "example_contexts_en": [
-        "Student example 1",
-        "Product situation 1"
+        "sharing three cakes among four people",
+        "a temperature below zero",
+        "the diagonal of a unit square"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.002",
+      "key": "mathematics.proportions_percentages",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -49,37 +51,39 @@
       ],
       "stage": 1,
       "order": 2,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.001"
+        "mathematics.number_sets"
       ],
       "fallback_key": null,
-      "title_fr": "Mathématiques - étape 2",
-      "title_en": "Mathematics - step 2",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 1.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 1.",
+      "title_fr": "Proportions, pourcentages et variations relatives",
+      "title_en": "Proportions, percentages and relative changes",
+      "summary_fr": "Manipuler les pourcentages successifs et distinguer un écart en points d'un écart en pourcentage.",
+      "summary_en": "Handle successive percentages and separate a change in points from a relative change.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 2.",
-        "L'appliquer dans un exemple court."
+        "Calculer l'effet d'une hausse suivie d'une baisse du même pourcentage.",
+        "Distinguer une variation en points d'une variation relative."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 2.",
-        "Apply it in a short example."
+        "Compute the effect of a rise followed by an equal-percentage fall.",
+        "Tell apart a change in points and a relative change."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer le prix final après une hausse de 20 % puis une baisse de 20 %, puis demande pourquoi on ne revient pas au prix initial.",
+      "tutor_focus_en": "Have the student compute the final price after a 20% rise then a 20% discount, then ask why it does not return to the start.",
       "example_contexts_fr": [
-        "Exemple étudiant 2",
-        "Situation produit 2"
+        "un prix augmenté de 20 % puis soldé de 20 %",
+        "un taux passé de 4 % à 6 %",
+        "une part de marché annoncée en hausse de moitié"
       ],
       "example_contexts_en": [
-        "Student example 2",
-        "Product situation 2"
+        "a price raised 20% then discounted 20%",
+        "a rate moving from 4% to 6%",
+        "a market share announced as up by half"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.003",
+      "key": "mathematics.equation_meaning",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -88,37 +92,39 @@
       ],
       "stage": 1,
       "order": 3,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.002"
+        "mathematics.proportions_percentages"
       ],
-      "fallback_key": "mathematics.001",
-      "title_fr": "Mathématiques - étape 3",
-      "title_en": "Mathematics - step 3",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 1.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Ce qu'une équation affirme vraiment",
+      "title_en": "What an equation actually states",
+      "summary_fr": "Lire une équation comme une contrainte sur une inconnue plutôt que comme un calcul à effectuer.",
+      "summary_en": "Read an equation as a constraint on an unknown rather than a calculation to perform.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 3.",
-        "L'appliquer dans un exemple court."
+        "Traduire un énoncé en équation et nommer l'inconnue.",
+        "Vérifier qu'une valeur proposée satisfait l'équation."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 3.",
-        "Apply it in a short example."
+        "Translate a statement into an equation and name the unknown.",
+        "Check whether a proposed value satisfies the equation."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais traduire un énoncé simple en équation, puis demande de vérifier deux valeurs candidates et d'expliquer ce que « résoudre » signifie.",
+      "tutor_focus_en": "Have the student translate a simple statement into an equation, then check two candidate values and explain what “solving” means.",
       "example_contexts_fr": [
-        "Exemple étudiant 3",
-        "Situation produit 3"
+        "un budget partagé entre trois postes de dépense",
+        "une distance parcourue à vitesse constante",
+        "un ingrédient dont on cherche la quantité dans une recette"
       ],
       "example_contexts_en": [
-        "Student example 3",
-        "Product situation 3"
+        "a budget split across three spending lines",
+        "a distance covered at constant speed",
+        "an ingredient quantity to find in a recipe"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.004",
+      "key": "mathematics.reading_a_graph",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -127,37 +133,39 @@
       ],
       "stage": 1,
       "order": 4,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.003"
+        "mathematics.equation_meaning"
       ],
-      "fallback_key": "mathematics.002",
-      "title_fr": "Mathématiques - étape 4",
-      "title_en": "Mathematics - step 4",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 1.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Lire un graphique sans se faire tromper",
+      "title_en": "Reading a chart without being fooled",
+      "summary_fr": "Vérifier les axes, l'échelle et l'origine avant d'interpréter une courbe ou un histogramme.",
+      "summary_en": "Check axes, scale and origin before interpreting a curve or a histogram.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 4.",
-        "L'appliquer dans un exemple court."
+        "Repérer un axe tronqué et son effet sur l'impression visuelle.",
+        "Reformuler ce qu'un graphique montre réellement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 4.",
-        "Apply it in a short example."
+        "Spot a truncated axis and its effect on the visual impression.",
+        "Restate what a chart actually shows."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais critiquer un graphique dont l'axe vertical commence à 90, puis demande de reformuler l'évolution réelle en une phrase.",
+      "tutor_focus_en": "Have the student critique a chart whose vertical axis starts at 90, then restate the real change in one sentence.",
       "example_contexts_fr": [
-        "Exemple étudiant 4",
-        "Situation produit 4"
+        "un graphique de ventes dont l'axe commence à 90",
+        "une échelle logarithmique dans un article scientifique",
+        "un histogramme aux classes de largeurs inégales"
       ],
       "example_contexts_en": [
-        "Student example 4",
-        "Product situation 4"
+        "a sales chart whose axis starts at 90",
+        "a logarithmic scale in a scientific article",
+        "a histogram with unequal class widths"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.005",
+      "key": "mathematics.units_and_magnitudes",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -166,154 +174,156 @@
       ],
       "stage": 1,
       "order": 5,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.004"
+        "mathematics.reading_a_graph"
       ],
-      "fallback_key": "mathematics.003",
-      "title_fr": "Mathématiques - étape 5",
-      "title_en": "Mathematics - step 5",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 1.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Unités, conversions et ordres de grandeur",
+      "title_en": "Units, conversions and orders of magnitude",
+      "summary_fr": "Contrôler un résultat par ses unités et par une estimation avant de le croire.",
+      "summary_en": "Check a result through its units and through an estimate before believing it.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 5.",
-        "L'appliquer dans un exemple court."
+        "Vérifier la cohérence des unités d'un calcul.",
+        "Estimer un ordre de grandeur avant de calculer précisément."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 5.",
-        "Apply it in a short example."
+        "Check the unit consistency of a computation.",
+        "Estimate an order of magnitude before computing precisely."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais estimer un ordre de grandeur avant tout calcul, puis demande d'utiliser les unités pour détecter une erreur de formule.",
+      "tutor_focus_en": "Have the student estimate an order of magnitude before any computation, then use units to catch a formula error.",
       "example_contexts_fr": [
-        "Exemple étudiant 5",
-        "Situation produit 5"
+        "une consommation annoncée en kilowattheures",
+        "une vitesse convertie de kilomètres par heure en mètres par seconde",
+        "un devis dont le total est cent fois trop grand"
       ],
       "example_contexts_en": [
-        "Student example 5",
-        "Product situation 5"
+        "a consumption announced in kilowatt-hours",
+        "a speed converted from kilometres per hour to metres per second",
+        "a quote whose total is a hundred times too large"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.006",
+      "key": "mathematics.inequalities_intervals",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
       "stage": 1,
       "order": 6,
       "required": true,
       "prerequisite_keys": [
-        "mathematics.005"
+        "mathematics.units_and_magnitudes"
       ],
-      "fallback_key": "mathematics.004",
-      "title_fr": "Mathématiques - étape 6",
-      "title_en": "Mathematics - step 6",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 1.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Inégalités et intervalles",
+      "title_en": "Inequalities and intervals",
+      "summary_fr": "Résoudre une inégalité en surveillant le sens du signe et exprimer la solution en intervalle.",
+      "summary_en": "Solve an inequality while watching the direction of the sign and express the solution as an interval.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 6.",
-        "L'appliquer dans un exemple court."
+        "Résoudre une inégalité comportant une multiplication par un négatif.",
+        "Écrire un ensemble de solutions sous forme d'intervalle."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 6.",
-        "Apply it in a short example."
+        "Solve an inequality involving multiplication by a negative.",
+        "Write a solution set as an interval."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais résoudre une inégalité où l'on multiplie par un nombre négatif, puis demande d'expliquer le changement de sens.",
+      "tutor_focus_en": "Have the student solve an inequality multiplied by a negative number, then explain the reversal of direction.",
       "example_contexts_fr": [
-        "Exemple étudiant 6",
-        "Situation produit 6"
+        "une condition de remise à partir d'un certain montant",
+        "une température maintenue dans une plage précise",
+        "une inégalité multipliée par un nombre négatif"
       ],
       "example_contexts_en": [
-        "Student example 6",
-        "Product situation 6"
+        "a discount condition above a given amount",
+        "a temperature kept inside a precise range",
+        "an inequality multiplied by a negative number"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.007",
+      "key": "mathematics.random_experiment",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_probability"
       ],
       "stage": 1,
       "order": 7,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.006"
+        "mathematics.units_and_magnitudes"
       ],
-      "fallback_key": "mathematics.005",
-      "title_fr": "Mathématiques - étape 7",
-      "title_en": "Mathematics - step 7",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 1.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Expérience aléatoire, issues et événements",
+      "title_en": "Random experiment, outcomes and events",
+      "summary_fr": "Décrire précisément l'univers des issues avant tout calcul de probabilité.",
+      "summary_en": "Describe the outcome space precisely before computing any probability.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 7.",
-        "L'appliquer dans un exemple court."
+        "Lister l'univers des issues d'une expérience simple.",
+        "Calculer une probabilité en situation d'équiprobabilité."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 7.",
-        "Apply it in a short example."
+        "List the outcome space of a simple experiment.",
+        "Compute a probability under equal likelihood."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister les issues du lancer de deux dés, puis demande pourquoi la somme 7 est plus probable que la somme 2.",
+      "tutor_focus_en": "Have the student list the outcomes of rolling two dice, then ask why a sum of 7 is more likely than a sum of 2.",
       "example_contexts_fr": [
-        "Exemple étudiant 7",
-        "Situation produit 7"
+        "le lancer de deux dés et la somme obtenue",
+        "un tirage au sort parmi trente élèves",
+        "une carte tirée dans un jeu de 52"
       ],
       "example_contexts_en": [
-        "Student example 7",
-        "Product situation 7"
+        "rolling two dice and reading the sum",
+        "a draw among thirty students",
+        "a card drawn from a 52-card deck"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.008",
+      "key": "mathematics.coordinates_and_vectors",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
         "math_technology"
       ],
-      "stage": 2,
+      "stage": 1,
       "order": 8,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.007"
+        "mathematics.units_and_magnitudes"
       ],
-      "fallback_key": "mathematics.006",
-      "title_fr": "Mathématiques - étape 8",
-      "title_en": "Mathematics - step 8",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 2.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 2.",
+      "fallback_key": null,
+      "title_fr": "Coordonnées et vecteurs",
+      "title_en": "Coordinates and vectors",
+      "summary_fr": "Représenter un déplacement par un couple de nombres et additionner deux déplacements.",
+      "summary_en": "Represent a displacement by a pair of numbers and add two displacements.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 8.",
-        "L'appliquer dans un exemple court."
+        "Additionner deux vecteurs et interpréter le résultat.",
+        "Distinguer un point d'un vecteur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 8.",
-        "Apply it in a short example."
+        "Add two vectors and interpret the result.",
+        "Tell a point apart from a vector."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais additionner deux déplacements successifs, puis demande pourquoi l'ordre de l'addition ne change pas l'arrivée.",
+      "tutor_focus_en": "Have the student add two successive displacements, then ask why the order of addition does not change the arrival.",
       "example_contexts_fr": [
-        "Exemple étudiant 8",
-        "Situation produit 8"
+        "deux déplacements successifs sur une carte",
+        "une position d'objet dans une image en pixels",
+        "une force appliquée dans deux directions"
       ],
       "example_contexts_en": [
-        "Student example 8",
-        "Product situation 8"
+        "two successive moves on a map",
+        "an object position in an image in pixels",
+        "a force applied in two directions"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.009",
+      "key": "mathematics.function_concept",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -322,37 +332,39 @@
       ],
       "stage": 2,
       "order": 9,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.008"
+        "mathematics.units_and_magnitudes"
       ],
-      "fallback_key": "mathematics.007",
-      "title_fr": "Mathématiques - étape 9",
-      "title_en": "Mathematics - step 9",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 2.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 2.",
+      "fallback_key": "mathematics.units_and_magnitudes",
+      "title_fr": "La notion de fonction : entrée, sortie, unicité",
+      "title_en": "The idea of a function: input, output, uniqueness",
+      "summary_fr": "Distinguer une fonction d'une simple relation grâce à l'unicité de l'image.",
+      "summary_en": "Tell a function apart from a mere relation through the uniqueness of the image.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 9.",
-        "L'appliquer dans un exemple court."
+        "Décider si une correspondance donnée est une fonction.",
+        "Nommer domaine et image sur un exemple concret."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 9.",
-        "Apply it in a short example."
+        "Decide whether a given correspondence is a function.",
+        "Name domain and range on a concrete example."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décider si trois correspondances sont des fonctions, puis demande de justifier le cas qui échoue.",
+      "tutor_focus_en": "Have the student decide whether three correspondences are functions, then justify the one that fails.",
       "example_contexts_fr": [
-        "Exemple étudiant 9",
-        "Situation produit 9"
+        "un tarif postal en fonction du poids",
+        "une correspondance entre élèves et notes de plusieurs matières",
+        "une machine qui rend toujours la même monnaie pour la même pièce"
       ],
       "example_contexts_en": [
-        "Student example 9",
-        "Product situation 9"
+        "a postage price as a function of weight",
+        "a correspondence between students and grades in several subjects",
+        "a machine always returning the same change for the same coin"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.010",
+      "key": "mathematics.algebraic_manipulation",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -361,37 +373,39 @@
       ],
       "stage": 2,
       "order": 10,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.009"
+        "mathematics.function_concept"
       ],
-      "fallback_key": "mathematics.008",
-      "title_fr": "Mathématiques - étape 10",
-      "title_en": "Mathematics - step 10",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 2.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 2.",
+      "fallback_key": "mathematics.units_and_magnitudes",
+      "title_fr": "Manipuler une expression sans changer sa valeur",
+      "title_en": "Transforming an expression without changing its value",
+      "summary_fr": "Appliquer les transformations autorisées et repérer celles qui font perdre des solutions.",
+      "summary_en": "Apply the allowed transformations and spot the ones that lose solutions.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 10.",
-        "L'appliquer dans un exemple court."
+        "Justifier chaque étape d'une transformation d'expression.",
+        "Repérer une division par une quantité pouvant être nulle."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 10.",
-        "Apply it in a short example."
+        "Justify each step of an expression transformation.",
+        "Spot a division by a quantity that may be zero."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais justifier chaque étape d'une simplification, puis demande où une division cache une perte de solution.",
+      "tutor_focus_en": "Have the student justify each step of a simplification, then ask where a division hides a lost solution.",
       "example_contexts_fr": [
-        "Exemple étudiant 10",
-        "Situation produit 10"
+        "une simplification qui fait disparaître une solution",
+        "une formule de physique isolée pour une variable",
+        "une identité remarquable utilisée pour factoriser"
       ],
       "example_contexts_en": [
-        "Student example 10",
-        "Product situation 10"
+        "a simplification that makes a solution disappear",
+        "a physics formula rearranged for one variable",
+        "a standard identity used to factorise"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.011",
+      "key": "mathematics.counterexample_power",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -402,35 +416,37 @@
       "order": 11,
       "required": true,
       "prerequisite_keys": [
-        "mathematics.010"
+        "mathematics.algebraic_manipulation"
       ],
-      "fallback_key": "mathematics.009",
-      "title_fr": "Mathématiques - étape 11",
-      "title_en": "Mathematics - step 11",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 2.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 2.",
+      "fallback_key": "mathematics.units_and_magnitudes",
+      "title_fr": "La force d'un contre-exemple",
+      "title_en": "The power of a counterexample",
+      "summary_fr": "Comprendre qu'un seul cas suffit à réfuter un énoncé général alors que mille cas ne le prouvent pas.",
+      "summary_en": "Understand that one case refutes a general claim while a thousand cases never prove it.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 11.",
-        "L'appliquer dans un exemple court."
+        "Réfuter un énoncé général par un contre-exemple.",
+        "Expliquer pourquoi des exemples favorables ne suffisent jamais."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 11.",
-        "Apply it in a short example."
+        "Refute a general statement with a counterexample.",
+        "Explain why favourable examples are never enough."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais trouver un contre-exemple à un énoncé faux mais crédible, puis demande combien d'exemples suffiraient à le prouver.",
+      "tutor_focus_en": "Have the student find a counterexample to a false but credible claim, then ask how many examples would prove it.",
       "example_contexts_fr": [
-        "Exemple étudiant 11",
-        "Situation produit 11"
+        "l'affirmation que tout nombre impair est premier",
+        "une règle vérifiée sur les dix premiers cas",
+        "une formule qui échoue seulement pour zéro"
       ],
       "example_contexts_en": [
-        "Student example 11",
-        "Product situation 11"
+        "the claim that every odd number is prime",
+        "a rule verified on the first ten cases",
+        "a formula failing only at zero"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.012",
+      "key": "mathematics.exact_and_approximate",
       "domain_id": "mathematics",
       "objective_ids": [
         "math_foundations",
@@ -439,929 +455,1672 @@
       ],
       "stage": 2,
       "order": 12,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.011"
+        "mathematics.counterexample_power"
       ],
-      "fallback_key": "mathematics.010",
-      "title_fr": "Mathématiques - étape 12",
-      "title_en": "Mathematics - step 12",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 2.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 2.",
+      "fallback_key": "mathematics.units_and_magnitudes",
+      "title_fr": "Valeur exacte et valeur approchée",
+      "title_en": "Exact value and approximate value",
+      "summary_fr": "Choisir entre forme exacte et arrondi, et suivre la propagation d'une erreur dans un calcul.",
+      "summary_en": "Choose between exact form and rounding, and follow how an error propagates in a computation.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 12.",
-        "L'appliquer dans un exemple court."
+        "Dire quand une forme exacte est préférable à un arrondi.",
+        "Estimer l'effet d'arrondis successifs sur un résultat final."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 12.",
-        "Apply it in a short example."
+        "Say when an exact form beats a rounded one.",
+        "Estimate the effect of successive roundings on a final result."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer un calcul mené en valeurs exactes puis avec des arrondis intermédiaires, et demande l'écart final obtenu.",
+      "tutor_focus_en": "Have the student compare a computation in exact values and with intermediate roundings, and ask for the final gap.",
       "example_contexts_fr": [
-        "Exemple étudiant 12",
-        "Situation produit 12"
+        "un devis calculé avec des arrondis à chaque ligne",
+        "une racine carrée laissée sous forme exacte",
+        "un taux d'intérêt arrondi au centième"
       ],
       "example_contexts_en": [
-        "Student example 12",
-        "Product situation 12"
+        "a quote computed with rounding on each line",
+        "a square root left in exact form",
+        "an interest rate rounded to the hundredth"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.013",
+      "key": "mathematics.linear_systems",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
       "stage": 2,
       "order": 13,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.012"
+        "mathematics.exact_and_approximate"
       ],
-      "fallback_key": "mathematics.011",
-      "title_fr": "Mathématiques - étape 13",
-      "title_en": "Mathematics - step 13",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 2.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 2.",
+      "fallback_key": "mathematics.inequalities_intervals",
+      "title_fr": "Résoudre un système de deux équations",
+      "title_en": "Solving a system of two equations",
+      "summary_fr": "Interpréter un système comme l'intersection de deux droites et reconnaître les cas sans solution.",
+      "summary_en": "Read a system as the intersection of two lines and recognise the cases with no solution.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 13.",
-        "L'appliquer dans un exemple court."
+        "Résoudre un système par substitution et par combinaison.",
+        "Reconnaître un système sans solution ou à une infinité de solutions."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 13.",
-        "Apply it in a short example."
+        "Solve a system by substitution and by combination.",
+        "Recognise a system with no solution or infinitely many."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais résoudre un système par deux méthodes, puis demande à quoi ressemble géométriquement un système sans solution.",
+      "tutor_focus_en": "Have the student solve a system by two methods, then ask what a system with no solution looks like geometrically.",
       "example_contexts_fr": [
-        "Exemple étudiant 13",
-        "Situation produit 13"
+        "deux tarifs d'abonnement égalisés à un certain usage",
+        "un mélange de deux produits à concentration donnée",
+        "deux droites parallèles tracées dans un repère"
       ],
       "example_contexts_en": [
-        "Student example 13",
-        "Product situation 13"
+        "two subscription plans equal at a certain usage",
+        "a mixture of two products at a given concentration",
+        "two parallel lines drawn in a coordinate frame"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.014",
+      "key": "mathematics.quadratic_roots",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
       "stage": 2,
       "order": 14,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.013"
+        "mathematics.linear_systems"
       ],
-      "fallback_key": "mathematics.012",
-      "title_fr": "Mathématiques - étape 14",
-      "title_en": "Mathematics - step 14",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 2.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 2.",
+      "fallback_key": "mathematics.inequalities_intervals",
+      "title_fr": "Le discriminant et les racines d'un trinôme",
+      "title_en": "The discriminant and the roots of a quadratic",
+      "summary_fr": "Relier le signe du discriminant au nombre de racines et à la position de la parabole.",
+      "summary_en": "Connect the sign of the discriminant to the number of roots and to the parabola's position.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 14.",
-        "L'appliquer dans un exemple court."
+        "Calculer un discriminant et en déduire le nombre de racines.",
+        "Relier ce résultat à l'allure de la courbe."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 14.",
-        "Apply it in a short example."
+        "Compute a discriminant and deduce the number of roots.",
+        "Relate that result to the shape of the curve."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer trois discriminants de signes différents, puis demande de dessiner l'allure de chaque parabole correspondante.",
+      "tutor_focus_en": "Have the student compute three discriminants of different signs, then sketch the matching parabolas.",
       "example_contexts_fr": [
-        "Exemple étudiant 14",
-        "Situation produit 14"
+        "la trajectoire d'un ballon lancé en l'air",
+        "une aire maximale pour un périmètre donné",
+        "une équation sans solution réelle"
       ],
       "example_contexts_en": [
-        "Student example 14",
-        "Product situation 14"
+        "the path of a ball thrown into the air",
+        "a maximum area for a given perimeter",
+        "an equation with no real solution"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.015",
+      "key": "mathematics.counting_combinations",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_probability"
       ],
-      "stage": 3,
+      "stage": 2,
       "order": 15,
-      "required": false,
-      "prerequisite_keys": [
-        "mathematics.014"
-      ],
-      "fallback_key": "mathematics.013",
-      "title_fr": "Mathématiques - étape 15",
-      "title_en": "Mathematics - step 15",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 3.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 3.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 15.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 15.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 15",
-        "Situation produit 15"
-      ],
-      "example_contexts_en": [
-        "Student example 15",
-        "Product situation 15"
-      ],
-      "safety_category": "standard"
-    },
-    {
-      "key": "mathematics.016",
-      "domain_id": "mathematics",
-      "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
-      ],
-      "stage": 3,
-      "order": 16,
       "required": true,
       "prerequisite_keys": [
-        "mathematics.015"
+        "mathematics.exact_and_approximate"
       ],
-      "fallback_key": "mathematics.014",
-      "title_fr": "Mathématiques - étape 16",
-      "title_en": "Mathematics - step 16",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 3.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 3.",
+      "fallback_key": "mathematics.random_experiment",
+      "title_fr": "Dénombrer : arrangements et combinaisons",
+      "title_en": "Counting: arrangements and combinations",
+      "summary_fr": "Choisir la bonne formule de comptage selon que l'ordre compte ou non.",
+      "summary_en": "Pick the right counting formula depending on whether order matters.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 16.",
-        "L'appliquer dans un exemple court."
+        "Décider si l'ordre intervient dans un problème donné.",
+        "Calculer un nombre de combinaisons sans énumérer."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 16.",
-        "Apply it in a short example."
+        "Decide whether order matters in a given problem.",
+        "Compute a number of combinations without enumerating."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer le nombre de podiums possibles et le nombre d'équipes de trois, puis demande d'où vient la division.",
+      "tutor_focus_en": "Have the student compare the number of podiums and the number of three-person teams, then ask where the division comes from.",
       "example_contexts_fr": [
-        "Exemple étudiant 16",
-        "Situation produit 16"
+        "un podium à trois places parmi dix concurrents",
+        "une équipe de trois personnes choisie parmi dix",
+        "un code à quatre chiffres avec répétition autorisée"
       ],
       "example_contexts_en": [
-        "Student example 16",
-        "Product situation 16"
+        "a three-place podium among ten competitors",
+        "a three-person team chosen among ten",
+        "a four-digit code with repetition allowed"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.017",
+      "key": "mathematics.independence",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_probability"
       ],
-      "stage": 3,
-      "order": 17,
+      "stage": 2,
+      "order": 16,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.016"
+        "mathematics.counting_combinations"
       ],
-      "fallback_key": "mathematics.015",
-      "title_fr": "Mathématiques - étape 17",
-      "title_en": "Mathematics - step 17",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 3.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 3.",
+      "fallback_key": "mathematics.random_experiment",
+      "title_fr": "Événements indépendants",
+      "title_en": "Independent events",
+      "summary_fr": "Tester l'indépendance de deux événements plutôt que la supposer par intuition.",
+      "summary_en": "Test the independence of two events rather than assume it by intuition.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 17.",
-        "L'appliquer dans un exemple court."
+        "Vérifier l'indépendance par le produit des probabilités.",
+        "Citer un cas d'indépendance supposée à tort."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 17.",
-        "Apply it in a short example."
+        "Check independence through the product of probabilities.",
+        "Give a case where independence is wrongly assumed."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais vérifier l'indépendance de deux événements par le calcul, puis demande pourquoi une intuition de série est trompeuse.",
+      "tutor_focus_en": "Have the student check independence by computation, then ask why a streak intuition misleads.",
       "example_contexts_fr": [
-        "Exemple étudiant 17",
-        "Situation produit 17"
+        "une pièce lancée dix fois de suite",
+        "deux pannes de serveurs alimentés par la même source",
+        "un joueur convaincu qu'une couleur est « due »"
       ],
       "example_contexts_en": [
-        "Student example 17",
-        "Product situation 17"
+        "a coin tossed ten times in a row",
+        "two server failures sharing one power supply",
+        "a gambler convinced a colour is “due”"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.018",
+      "key": "mathematics.matrix_as_transformation",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
         "math_technology"
       ],
-      "stage": 3,
+      "stage": 2,
+      "order": 17,
+      "required": true,
+      "prerequisite_keys": [
+        "mathematics.exact_and_approximate"
+      ],
+      "fallback_key": "mathematics.coordinates_and_vectors",
+      "title_fr": "Une matrice comme transformation",
+      "title_en": "A matrix as a transformation",
+      "summary_fr": "Lire une matrice comme une opération géométrique appliquée à tout l'espace.",
+      "summary_en": "Read a matrix as a geometric operation applied to the whole space.",
+      "learning_goals_fr": [
+        "Décrire l'effet géométrique d'une matrice simple.",
+        "Identifier une matrice qui ne change rien."
+      ],
+      "learning_goals_en": [
+        "Describe the geometric effect of a simple matrix.",
+        "Identify a matrix that changes nothing."
+      ],
+      "tutor_focus_fr": "Fais appliquer une matrice à trois points d'un carré, puis demande de nommer la transformation obtenue.",
+      "tutor_focus_en": "Have the student apply a matrix to three corners of a square, then name the resulting transformation.",
+      "example_contexts_fr": [
+        "une image redimensionnée dans un éditeur",
+        "une rotation appliquée à un objet à l'écran",
+        "un aplatissement qui écrase une figure sur une droite"
+      ],
+      "example_contexts_en": [
+        "an image resized in an editor",
+        "a rotation applied to an on-screen object",
+        "a flattening that collapses a figure onto a line"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.slope_rate_of_change",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 2,
       "order": 18,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.017"
+        "mathematics.matrix_as_transformation"
       ],
-      "fallback_key": "mathematics.016",
-      "title_fr": "Mathématiques - étape 18",
-      "title_en": "Mathematics - step 18",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 3.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 3.",
+      "fallback_key": "mathematics.coordinates_and_vectors",
+      "title_fr": "La pente comme taux de variation",
+      "title_en": "Slope as a rate of change",
+      "summary_fr": "Interpréter une pente dans les unités du problème plutôt que comme un nombre abstrait.",
+      "summary_en": "Interpret a slope in the units of the problem rather than as an abstract number.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 18.",
-        "L'appliquer dans un exemple court."
+        "Calculer une pente entre deux points et l'exprimer en unités métier.",
+        "Distinguer une pente moyenne d'une pente instantanée."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 18.",
-        "Apply it in a short example."
+        "Compute a slope between two points and express it in business units.",
+        "Tell an average slope apart from an instantaneous one."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer une pente entre deux relevés et l'exprimer en euros par unité, puis demande ce qu'elle cache entre les deux points.",
+      "tutor_focus_en": "Have the student compute a slope between two readings and express it in euros per unit, then ask what it hides in between.",
       "example_contexts_fr": [
-        "Exemple étudiant 18",
-        "Situation produit 18"
+        "un coût qui augmente avec la quantité produite",
+        "une distance parcourue relevée toutes les heures",
+        "une consommation mesurée en début et fin de mois"
       ],
       "example_contexts_en": [
-        "Student example 18",
-        "Product situation 18"
+        "a cost rising with produced quantity",
+        "a distance recorded every hour",
+        "a consumption measured at the start and end of a month"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.019",
+      "key": "mathematics.logic_connectives",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
       "stage": 3,
       "order": 19,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.018"
+        "mathematics.quadratic_roots"
       ],
-      "fallback_key": "mathematics.017",
-      "title_fr": "Mathématiques - étape 19",
-      "title_en": "Mathematics - step 19",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 3.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 3.",
+      "fallback_key": "mathematics.quadratic_roots",
+      "title_fr": "Connecteurs logiques et tables de vérité",
+      "title_en": "Logical connectives and truth tables",
+      "summary_fr": "Formaliser un énoncé composé et déterminer sa valeur de vérité de façon mécanique.",
+      "summary_en": "Formalise a compound statement and determine its truth value mechanically.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 19.",
-        "L'appliquer dans un exemple court."
+        "Construire la table de vérité d'un énoncé à deux propositions.",
+        "Traduire une condition du langage courant en formule logique."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 19.",
-        "Apply it in a short example."
+        "Build the truth table of a statement with two propositions.",
+        "Translate an everyday condition into a logical formula."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais construire la table de vérité d'une condition d'accès à deux critères, puis demande la formulation exacte de son contraire.",
+      "tutor_focus_en": "Have the student build the truth table of a two-criterion access condition, then state its exact negation.",
       "example_contexts_fr": [
-        "Exemple étudiant 19",
-        "Situation produit 19"
+        "une condition d'accès combinant âge et abonnement",
+        "un filtre de recherche avec deux critères",
+        "une consigne ambiguë contenant « ou »"
       ],
       "example_contexts_en": [
-        "Student example 19",
-        "Product situation 19"
+        "an access condition combining age and subscription",
+        "a search filter with two criteria",
+        "an ambiguous instruction containing “or”"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.020",
+      "key": "mathematics.implication_contrapositive",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
       "stage": 3,
       "order": 20,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.019"
+        "mathematics.logic_connectives"
       ],
-      "fallback_key": "mathematics.018",
-      "title_fr": "Mathématiques - étape 20",
-      "title_en": "Mathematics - step 20",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 3.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 3.",
+      "fallback_key": "mathematics.quadratic_roots",
+      "title_fr": "Implication, réciproque et contraposée",
+      "title_en": "Implication, converse and contrapositive",
+      "summary_fr": "Distinguer un énoncé de sa réciproque et utiliser la contraposée comme outil de preuve.",
+      "summary_en": "Tell a statement apart from its converse and use the contrapositive as a proof tool.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 20.",
-        "L'appliquer dans un exemple court."
+        "Écrire la réciproque et la contraposée d'une implication.",
+        "Dire laquelle est toujours équivalente à l'énoncé initial."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 20.",
-        "Apply it in a short example."
+        "Write the converse and the contrapositive of an implication.",
+        "Say which one is always equivalent to the original statement."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais écrire réciproque et contraposée d'un énoncé donné, puis demande laquelle peut être fausse alors que l'énoncé est vrai.",
+      "tutor_focus_en": "Have the student write the converse and contrapositive of a given statement, then ask which can be false while the statement is true.",
       "example_contexts_fr": [
-        "Exemple étudiant 20",
-        "Situation produit 20"
+        "« s'il pleut, le sol est mouillé » et ses variantes",
+        "une condition suffisante confondue avec une condition nécessaire",
+        "un test médical dont on inverse la lecture"
       ],
       "example_contexts_en": [
-        "Student example 20",
-        "Product situation 20"
+        "“if it rains, the ground is wet” and its variants",
+        "a sufficient condition mistaken for a necessary one",
+        "a medical test whose reading is reversed"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.021",
+      "key": "mathematics.proof_by_induction",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
       "stage": 3,
       "order": 21,
-      "required": true,
+      "required": false,
       "prerequisite_keys": [
-        "mathematics.020"
+        "mathematics.implication_contrapositive"
       ],
-      "fallback_key": "mathematics.019",
-      "title_fr": "Mathématiques - étape 21",
-      "title_en": "Mathematics - step 21",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 3.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 3.",
+      "fallback_key": "mathematics.quadratic_roots",
+      "title_fr": "La démonstration par récurrence",
+      "title_en": "Proof by induction",
+      "summary_fr": "Établir une propriété pour tous les entiers à partir d'une initialisation et d'une hérédité.",
+      "summary_en": "Establish a property for all integers from a base case and an inductive step.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 21.",
-        "L'appliquer dans un exemple court."
+        "Rédiger les deux étapes d'une preuve par récurrence.",
+        "Repérer une récurrence dont l'initialisation est fausse."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 21.",
-        "Apply it in a short example."
+        "Write the two steps of an induction proof.",
+        "Spot an induction whose base case is false."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais rédiger les deux étapes pour la somme des n premiers entiers, puis demande ce qui casse si l'initialisation est omise.",
+      "tutor_focus_en": "Have the student write both steps for the sum of the first n integers, then ask what breaks if the base case is skipped.",
       "example_contexts_fr": [
-        "Exemple étudiant 21",
-        "Situation produit 21"
+        "la somme des n premiers entiers",
+        "une rangée de dominos dont l'un est mal placé",
+        "une formule vérifiée à partir de n égal 3 seulement"
       ],
       "example_contexts_en": [
-        "Student example 21",
-        "Product situation 21"
+        "the sum of the first n integers",
+        "a row of dominoes with one badly placed",
+        "a formula true only from n equal to 3"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.022",
+      "key": "mathematics.set_operations",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 22,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.021"
+        "mathematics.proof_by_induction"
       ],
-      "fallback_key": "mathematics.020",
-      "title_fr": "Mathématiques - étape 22",
-      "title_en": "Mathematics - step 22",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 4.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 4.",
+      "fallback_key": "mathematics.quadratic_roots",
+      "title_fr": "Opérations sur les ensembles et dénombrement",
+      "title_en": "Set operations and counting",
+      "summary_fr": "Utiliser union, intersection et complémentaire pour compter sans double comptage.",
+      "summary_en": "Use union, intersection and complement to count without double counting.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 22.",
-        "L'appliquer dans un exemple court."
+        "Appliquer la formule du cardinal d'une union.",
+        "Représenter une situation par un diagramme d'ensembles."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 22.",
-        "Apply it in a short example."
+        "Apply the formula for the size of a union.",
+        "Represent a situation with a set diagram."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais compter les personnes parlant au moins une de deux langues à partir de trois chiffres, puis demande d'où vient la soustraction.",
+      "tutor_focus_en": "Have the student count people speaking at least one of two languages from three figures, then ask where the subtraction comes from.",
       "example_contexts_fr": [
-        "Exemple étudiant 22",
-        "Situation produit 22"
+        "des clients abonnés à une offre, à l'autre ou aux deux",
+        "un sondage sur deux pratiques déclarées",
+        "un fichier fusionné contenant des doublons"
       ],
       "example_contexts_en": [
-        "Student example 22",
-        "Product situation 22"
+        "customers subscribed to one offer, the other or both",
+        "a survey about two declared practices",
+        "a merged file containing duplicates"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.023",
+      "key": "mathematics.conditional_probability",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_probability"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 23,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.022"
+        "mathematics.independence"
       ],
-      "fallback_key": "mathematics.021",
-      "title_fr": "Mathématiques - étape 23",
-      "title_en": "Mathematics - step 23",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 4.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 4.",
+      "fallback_key": "mathematics.independence",
+      "title_fr": "Probabilité conditionnelle",
+      "title_en": "Conditional probability",
+      "summary_fr": "Recalculer une probabilité en restreignant l'univers à l'information effectivement connue.",
+      "summary_en": "Recompute a probability by restricting the universe to the information actually known.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 23.",
-        "L'appliquer dans un exemple court."
+        "Calculer une probabilité conditionnelle sur un tableau croisé.",
+        "Expliquer pourquoi l'information disponible change le résultat."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 23.",
-        "Apply it in a short example."
+        "Compute a conditional probability from a cross table.",
+        "Explain why available information changes the result."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer une probabilité avant puis après une information supplémentaire, et demande d'expliquer l'écart.",
+      "tutor_focus_en": "Have the student compute a probability before and after extra information, and explain the gap.",
       "example_contexts_fr": [
-        "Exemple étudiant 23",
-        "Situation produit 23"
+        "un tableau croisant sexe et pratique sportive",
+        "un test positif chez une personne à faible risque",
+        "un client déjà connu comme mauvais payeur"
       ],
       "example_contexts_en": [
-        "Student example 23",
-        "Product situation 23"
+        "a table crossing gender and sport practice",
+        "a positive test in a low-risk person",
+        "a customer already known as a late payer"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.024",
+      "key": "mathematics.bayes_theorem",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_probability"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 24,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.023"
+        "mathematics.conditional_probability"
       ],
-      "fallback_key": "mathematics.022",
-      "title_fr": "Mathématiques - étape 24",
-      "title_en": "Mathematics - step 24",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 4.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 4.",
+      "fallback_key": "mathematics.independence",
+      "title_fr": "Le théorème de Bayes",
+      "title_en": "Bayes' theorem",
+      "summary_fr": "Renverser une probabilité conditionnelle en tenant compte de la fréquence de base.",
+      "summary_en": "Reverse a conditional probability while accounting for the base rate.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 24.",
-        "L'appliquer dans un exemple court."
+        "Calculer une probabilité a posteriori sur un cas de dépistage.",
+        "Expliquer l'effet d'une maladie rare sur le résultat."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 24.",
-        "Apply it in a short example."
+        "Compute a posterior probability on a screening case.",
+        "Explain the effect of a rare disease on the result."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer la probabilité d'être malade après un test positif pour une maladie rare, puis demande pourquoi le résultat surprend.",
+      "tutor_focus_en": "Have the student compute the probability of being ill after a positive test for a rare disease, then ask why the result surprises.",
       "example_contexts_fr": [
-        "Exemple étudiant 24",
-        "Situation produit 24"
+        "un dépistage d'une maladie touchant une personne sur mille",
+        "une alarme de sécurité qui se déclenche souvent à tort",
+        "un filtre anti-spam appliqué à un message rare"
       ],
       "example_contexts_en": [
-        "Student example 24",
-        "Product situation 24"
+        "screening for a disease affecting one person in a thousand",
+        "a security alarm often triggering wrongly",
+        "a spam filter applied to a rare message"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.025",
+      "key": "mathematics.expected_value",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_probability"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 25,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.024"
+        "mathematics.bayes_theorem"
       ],
-      "fallback_key": "mathematics.023",
-      "title_fr": "Mathématiques - étape 25",
-      "title_en": "Mathematics - step 25",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 4.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 4.",
+      "fallback_key": "mathematics.independence",
+      "title_fr": "L'espérance d'un gain aléatoire",
+      "title_en": "Expected value of a random gain",
+      "summary_fr": "Calculer la valeur moyenne d'un gain aléatoire et l'utiliser pour comparer deux décisions.",
+      "summary_en": "Compute the average value of a random gain and use it to compare two decisions.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 25.",
-        "L'appliquer dans un exemple court."
+        "Calculer l'espérance d'un jeu à trois issues.",
+        "Dire pourquoi une espérance positive ne garantit rien à court terme."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 25.",
-        "Apply it in a short example."
+        "Compute the expected value of a three-outcome game.",
+        "Say why a positive expectation guarantees nothing short term."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer l'espérance de deux offres concurrentes, puis demande pourquoi la meilleure espérance peut décevoir sur dix essais.",
+      "tutor_focus_en": "Have the student compute the expectation of two competing offers, then ask why the better one can disappoint over ten trials.",
       "example_contexts_fr": [
-        "Exemple étudiant 25",
-        "Situation produit 25"
+        "une extension de garantie proposée à l'achat",
+        "un jeu de loterie à trois lots",
+        "un investissement à trois scénarios chiffrés"
       ],
       "example_contexts_en": [
-        "Student example 25",
-        "Product situation 25"
+        "an extended warranty offered at purchase",
+        "a lottery with three prizes",
+        "an investment with three quantified scenarios"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.026",
+      "key": "mathematics.variance_spread",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_probability"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 26,
-      "required": true,
-      "prerequisite_keys": [
-        "mathematics.025"
-      ],
-      "fallback_key": "mathematics.024",
-      "title_fr": "Mathématiques - étape 26",
-      "title_en": "Mathematics - step 26",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 4.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 4.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 26.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 26.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 26",
-        "Situation produit 26"
-      ],
-      "example_contexts_en": [
-        "Student example 26",
-        "Product situation 26"
-      ],
-      "safety_category": "standard"
-    },
-    {
-      "key": "mathematics.027",
-      "domain_id": "mathematics",
-      "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
-      ],
-      "stage": 4,
-      "order": 27,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.026"
+        "mathematics.expected_value"
       ],
-      "fallback_key": "mathematics.025",
-      "title_fr": "Mathématiques - étape 27",
-      "title_en": "Mathematics - step 27",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 4.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 4.",
+      "fallback_key": "mathematics.independence",
+      "title_fr": "Variance et écart-type",
+      "title_en": "Variance and standard deviation",
+      "summary_fr": "Mesurer la dispersion et comprendre pourquoi deux séries de même moyenne ne se valent pas.",
+      "summary_en": "Measure spread and see why two series with the same mean are not equivalent.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 27.",
-        "L'appliquer dans un exemple court."
+        "Comparer deux séries de même moyenne par leur dispersion.",
+        "Interpréter un écart-type dans l'unité des données."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 27.",
-        "Apply it in a short example."
+        "Compare two series with the same mean by their spread.",
+        "Interpret a standard deviation in the unit of the data."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer deux séries de même moyenne mais de dispersions différentes, puis demande laquelle est préférable et pourquoi.",
+      "tutor_focus_en": "Have the student compare two series with equal means but different spread, then ask which is preferable and why.",
       "example_contexts_fr": [
-        "Exemple étudiant 27",
-        "Situation produit 27"
+        "deux fournisseurs au même délai moyen de livraison",
+        "deux classes à la même moyenne générale",
+        "un temps de réponse serveur très irrégulier"
       ],
       "example_contexts_en": [
-        "Student example 27",
-        "Product situation 27"
+        "two suppliers with the same average delivery time",
+        "two classes with the same overall average",
+        "a very irregular server response time"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.028",
+      "key": "mathematics.dot_product",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
         "math_technology"
       ],
-      "stage": 4,
+      "stage": 3,
+      "order": 27,
+      "required": true,
+      "prerequisite_keys": [
+        "mathematics.slope_rate_of_change"
+      ],
+      "fallback_key": "mathematics.slope_rate_of_change",
+      "title_fr": "Le produit scalaire et l'angle",
+      "title_en": "The dot product and angle",
+      "summary_fr": "Utiliser le produit scalaire pour mesurer l'alignement de deux vecteurs.",
+      "summary_en": "Use the dot product to measure how aligned two vectors are.",
+      "learning_goals_fr": [
+        "Calculer un produit scalaire et en déduire une orientation relative.",
+        "Reconnaître deux vecteurs orthogonaux."
+      ],
+      "learning_goals_en": [
+        "Compute a dot product and deduce a relative orientation.",
+        "Recognise two orthogonal vectors."
+      ],
+      "tutor_focus_fr": "Fais calculer le produit scalaire de deux vecteurs, puis demande ce que signale un résultat nul puis un résultat négatif.",
+      "tutor_focus_en": "Have the student compute the dot product of two vectors, then ask what a zero and then a negative result signals.",
+      "example_contexts_fr": [
+        "deux textes comparés par leurs vecteurs de mots",
+        "un éclairage dont l'intensité dépend de l'angle",
+        "deux directions perpendiculaires dans un plan"
+      ],
+      "example_contexts_en": [
+        "two texts compared through their word vectors",
+        "lighting whose intensity depends on the angle",
+        "two perpendicular directions in a plane"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.matrix_multiplication",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 3,
       "order": 28,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.027"
+        "mathematics.dot_product"
       ],
-      "fallback_key": "mathematics.026",
-      "title_fr": "Mathématiques - étape 28",
-      "title_en": "Mathematics - step 28",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 4.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 4.",
+      "fallback_key": "mathematics.slope_rate_of_change",
+      "title_fr": "Le produit matriciel",
+      "title_en": "Matrix multiplication",
+      "summary_fr": "Comprendre la composition de deux transformations et pourquoi l'ordre compte.",
+      "summary_en": "Understand the composition of two transformations and why order matters.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 28.",
-        "L'appliquer dans un exemple court."
+        "Effectuer un produit de deux matrices deux par deux.",
+        "Montrer sur un exemple que le produit n'est pas commutatif."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 28.",
-        "Apply it in a short example."
+        "Multiply two two-by-two matrices.",
+        "Show on an example that the product is not commutative."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais composer une rotation et une mise à l'échelle dans les deux ordres, puis demande de comparer les résultats.",
+      "tutor_focus_en": "Have the student compose a rotation and a scaling in both orders, then compare the results.",
       "example_contexts_fr": [
-        "Exemple étudiant 28",
-        "Situation produit 28"
+        "une rotation suivie d'un agrandissement",
+        "deux transformations enchaînées sur une image",
+        "une couche de réseau de neurones appliquée à un lot"
       ],
       "example_contexts_en": [
-        "Student example 28",
-        "Product situation 28"
+        "a rotation followed by an enlargement",
+        "two transformations chained on an image",
+        "a neural network layer applied to a batch"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.029",
+      "key": "mathematics.derivative_meaning",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
         "math_technology"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 29,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.028"
+        "mathematics.matrix_multiplication"
       ],
-      "fallback_key": "mathematics.027",
-      "title_fr": "Mathématiques - étape 29",
-      "title_en": "Mathematics - step 29",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 5.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 5.",
+      "fallback_key": "mathematics.slope_rate_of_change",
+      "title_fr": "La dérivée et la variation instantanée",
+      "title_en": "The derivative and instantaneous change",
+      "summary_fr": "Interpréter la dérivée comme vitesse instantanée et comme outil de recherche d'extremum.",
+      "summary_en": "Read the derivative as an instantaneous rate and as a tool for finding extrema.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 29.",
-        "L'appliquer dans un exemple court."
+        "Interpréter le signe de la dérivée sur un intervalle.",
+        "Localiser un maximum à partir de la dérivée."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 29.",
-        "Apply it in a short example."
+        "Interpret the sign of the derivative on an interval.",
+        "Locate a maximum from the derivative."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais localiser le maximum d'une fonction de profit par sa dérivée, puis demande ce que signale une dérivée négative ensuite.",
+      "tutor_focus_en": "Have the student locate the maximum of a profit function through its derivative, then ask what a negative derivative signals after it.",
       "example_contexts_fr": [
-        "Exemple étudiant 29",
-        "Situation produit 29"
+        "un profit maximal pour une quantité produite",
+        "une vitesse lue sur un compteur à un instant précis",
+        "une courbe de température qui atteint son sommet"
       ],
       "example_contexts_en": [
-        "Student example 29",
-        "Product situation 29"
+        "a maximum profit for a produced quantity",
+        "a speed read on a dial at a precise instant",
+        "a temperature curve reaching its peak"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.030",
+      "key": "mathematics.integral_meaning",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
         "math_technology"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 30,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.029"
+        "mathematics.derivative_meaning"
       ],
-      "fallback_key": "mathematics.028",
-      "title_fr": "Mathématiques - étape 30",
-      "title_en": "Mathematics - step 30",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 5.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 5.",
+      "fallback_key": "mathematics.slope_rate_of_change",
+      "title_fr": "L'intégrale comme accumulation",
+      "title_en": "The integral as accumulation",
+      "summary_fr": "Lire une intégrale comme la somme d'un débit sur une durée, avec ses unités.",
+      "summary_en": "Read an integral as the sum of a rate over a duration, units included.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 30.",
-        "L'appliquer dans un exemple court."
+        "Interpréter l'aire sous une courbe dans les unités du problème.",
+        "Relier une intégrale à la dérivée correspondante."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 30.",
-        "Apply it in a short example."
+        "Interpret the area under a curve in the problem's units.",
+        "Relate an integral to the matching derivative."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais interpréter l'aire sous une courbe de puissance en fonction du temps, puis demande l'unité du résultat.",
+      "tutor_focus_en": "Have the student interpret the area under a power-versus-time curve, then ask the unit of the result.",
       "example_contexts_fr": [
-        "Exemple étudiant 30",
-        "Situation produit 30"
+        "une consommation électrique cumulée sur une journée",
+        "une distance obtenue à partir d'une courbe de vitesse",
+        "un volume d'eau accumulé dans un réservoir"
       ],
       "example_contexts_en": [
-        "Student example 30",
-        "Product situation 30"
+        "electricity consumption accumulated over a day",
+        "a distance obtained from a speed curve",
+        "a water volume accumulated in a tank"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.031",
+      "key": "mathematics.proof_by_contradiction",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 31,
       "required": true,
       "prerequisite_keys": [
-        "mathematics.030"
+        "mathematics.set_operations"
       ],
-      "fallback_key": "mathematics.029",
-      "title_fr": "Mathématiques - étape 31",
-      "title_en": "Mathematics - step 31",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 5.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 5.",
+      "fallback_key": "mathematics.set_operations",
+      "title_fr": "Le raisonnement par l'absurde",
+      "title_en": "Proof by contradiction",
+      "summary_fr": "Supposer le contraire d'un énoncé et en tirer une contradiction pour établir sa vérité.",
+      "summary_en": "Assume the opposite of a statement and derive a contradiction to establish its truth.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 31.",
-        "L'appliquer dans un exemple court."
+        "Structurer une preuve par l'absurde en trois étapes.",
+        "Formuler correctement la négation de l'énoncé de départ."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 31.",
-        "Apply it in a short example."
+        "Structure a proof by contradiction in three steps.",
+        "Correctly formulate the negation of the initial statement."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais rédiger la preuve de l'irrationalité de la racine de deux, puis demande où se situe exactement la contradiction.",
+      "tutor_focus_en": "Have the student write the proof that the square root of two is irrational, then locate the exact contradiction.",
       "example_contexts_fr": [
-        "Exemple étudiant 31",
-        "Situation produit 31"
+        "l'irrationalité de la racine carrée de deux",
+        "l'infinité des nombres premiers",
+        "une hypothèse d'unicité qui mène à deux objets distincts"
       ],
       "example_contexts_en": [
-        "Student example 31",
-        "Product situation 31"
+        "the irrationality of the square root of two",
+        "the infinitude of prime numbers",
+        "a uniqueness assumption leading to two distinct objects"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.032",
+      "key": "mathematics.sequences_convergence",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 32,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.031"
+        "mathematics.proof_by_contradiction"
       ],
-      "fallback_key": "mathematics.030",
-      "title_fr": "Mathématiques - étape 32",
-      "title_en": "Mathematics - step 32",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 5.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 5.",
+      "fallback_key": "mathematics.set_operations",
+      "title_fr": "Suites et convergence",
+      "title_en": "Sequences and convergence",
+      "summary_fr": "Distinguer une suite qui s'approche d'une limite d'une suite qui croît sans borne.",
+      "summary_en": "Tell apart a sequence approaching a limit and a sequence growing without bound.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 32.",
-        "L'appliquer dans un exemple court."
+        "Décider si une suite simple converge ou diverge.",
+        "Expliquer ce que signifie s'approcher d'une limite."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 32.",
-        "Apply it in a short example."
+        "Decide whether a simple sequence converges or diverges.",
+        "Explain what approaching a limit means."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer les cinq premiers termes de deux suites, puis demande laquelle converge et comment le justifier.",
+      "tutor_focus_en": "Have the student compute the first five terms of two sequences, then say which converges and justify it.",
       "example_contexts_fr": [
-        "Exemple étudiant 32",
-        "Situation produit 32"
+        "un capital placé à intérêts composés",
+        "une distance divisée par deux à chaque étape",
+        "une somme infinie qui reste finie"
       ],
       "example_contexts_en": [
-        "Student example 32",
-        "Product situation 32"
+        "capital invested with compound interest",
+        "a distance halved at every step",
+        "an infinite sum that stays finite"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.033",
+      "key": "mathematics.exponential_logarithm",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 33,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.032"
+        "mathematics.sequences_convergence"
       ],
-      "fallback_key": "mathematics.031",
-      "title_fr": "Mathématiques - étape 33",
-      "title_en": "Mathematics - step 33",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 5.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 5.",
+      "fallback_key": "mathematics.set_operations",
+      "title_fr": "Exponentielle et logarithme",
+      "title_en": "Exponential and logarithm",
+      "summary_fr": "Reconnaître une croissance multiplicative et utiliser le logarithme pour la ramener à une droite.",
+      "summary_en": "Recognise multiplicative growth and use the logarithm to turn it into a straight line.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 33.",
-        "L'appliquer dans un exemple court."
+        "Distinguer une croissance linéaire d'une croissance exponentielle.",
+        "Utiliser le logarithme pour retrouver un temps de doublement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 33.",
-        "Apply it in a short example."
+        "Tell apart linear growth and exponential growth.",
+        "Use the logarithm to recover a doubling time."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer un temps de doublement à partir d'un taux de croissance, puis demande pourquoi une échelle logarithmique linéarise la courbe.",
+      "tutor_focus_en": "Have the student compute a doubling time from a growth rate, then ask why a logarithmic scale straightens the curve.",
       "example_contexts_fr": [
-        "Exemple étudiant 33",
-        "Situation produit 33"
+        "une épidémie dont les cas doublent chaque semaine",
+        "un capital placé à taux composé sur vingt ans",
+        "une courbe tracée en échelle logarithmique"
       ],
       "example_contexts_en": [
-        "Student example 33",
-        "Product situation 33"
+        "an epidemic whose cases double each week",
+        "capital compounded over twenty years",
+        "a curve plotted on a logarithmic scale"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.034",
+      "key": "mathematics.euclidean_algorithm",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
-        "math_technology"
+        "math_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 34,
       "required": false,
       "prerequisite_keys": [
-        "mathematics.033"
+        "mathematics.exponential_logarithm"
       ],
-      "fallback_key": "mathematics.032",
-      "title_fr": "Mathématiques - étape 34",
-      "title_en": "Mathematics - step 34",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 5.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 5.",
+      "fallback_key": "mathematics.set_operations",
+      "title_fr": "L'algorithme d'Euclide et le PGCD",
+      "title_en": "The Euclidean algorithm and the GCD",
+      "summary_fr": "Calculer un plus grand diviseur commun par divisions successives et comprendre pourquoi cela termine.",
+      "summary_en": "Compute a greatest common divisor by successive divisions and see why it terminates.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 34.",
-        "L'appliquer dans un exemple court."
+        "Dérouler l'algorithme sur deux nombres à trois chiffres.",
+        "Expliquer pourquoi la suite des restes finit par s'annuler."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 34.",
-        "Apply it in a short example."
+        "Run the algorithm on two three-digit numbers.",
+        "Explain why the sequence of remainders eventually hits zero."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais dérouler l'algorithme sur deux nombres à trois chiffres, puis demande pourquoi il se termine toujours.",
+      "tutor_focus_en": "Have the student run the algorithm on two three-digit numbers, then ask why it always terminates.",
       "example_contexts_fr": [
-        "Exemple étudiant 34",
-        "Situation produit 34"
+        "une fraction à réduire à sa forme irréductible",
+        "deux engrenages dont on cherche la période commune",
+        "un pavage régulier d'une pièce rectangulaire"
       ],
       "example_contexts_en": [
-        "Student example 34",
-        "Product situation 34"
+        "a fraction to reduce to lowest terms",
+        "two gears whose common period is sought",
+        "a regular tiling of a rectangular room"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "mathematics.035",
+      "key": "mathematics.normal_distribution",
       "domain_id": "mathematics",
       "objective_ids": [
-        "math_foundations",
-        "math_probability",
+        "math_probability"
+      ],
+      "stage": 4,
+      "order": 35,
+      "required": true,
+      "prerequisite_keys": [
+        "mathematics.variance_spread"
+      ],
+      "fallback_key": "mathematics.variance_spread",
+      "title_fr": "La loi normale",
+      "title_en": "The normal distribution",
+      "summary_fr": "Reconnaître les situations où la courbe en cloche s'applique et celles où elle induit en erreur.",
+      "summary_en": "Recognise where the bell curve applies and where it misleads.",
+      "learning_goals_fr": [
+        "Utiliser les repères à un et deux écarts-types.",
+        "Citer une grandeur qui ne suit pas une loi normale."
+      ],
+      "learning_goals_en": [
+        "Use the one and two standard deviation landmarks.",
+        "Name a quantity that does not follow a normal law."
+      ],
+      "tutor_focus_fr": "Fais estimer la proportion à moins de deux écarts-types de la moyenne, puis demande une grandeur pour laquelle ce modèle échoue.",
+      "tutor_focus_en": "Have the student estimate the share within two standard deviations of the mean, then name a quantity where the model fails.",
+      "example_contexts_fr": [
+        "les tailles adultes dans une population",
+        "les revenus dans un pays",
+        "une note d'examen centrée sur la moyenne"
+      ],
+      "example_contexts_en": [
+        "adult heights in a population",
+        "incomes in a country",
+        "an exam grade centred on the average"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.law_of_large_numbers",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_probability"
+      ],
+      "stage": 4,
+      "order": 36,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.normal_distribution"
+      ],
+      "fallback_key": "mathematics.variance_spread",
+      "title_fr": "La loi des grands nombres",
+      "title_en": "The law of large numbers",
+      "summary_fr": "Comprendre pourquoi une fréquence observée se rapproche d'une probabilité sans jamais « rattraper » le passé.",
+      "summary_en": "Understand why an observed frequency approaches a probability without ever “making up” for the past.",
+      "learning_goals_fr": [
+        "Expliquer ce que la loi garantit et sur quelle échelle.",
+        "Réfuter l'idée qu'un écart passé doit être compensé."
+      ],
+      "learning_goals_en": [
+        "Explain what the law guarantees and at which scale.",
+        "Refute the idea that a past deviation must be compensated."
+      ],
+      "tutor_focus_fr": "Fais expliquer ce qui se passe après une série de sept faces, puis demande ce que la loi garantit vraiment sur dix mille lancers.",
+      "tutor_focus_en": "Have the student explain what happens after seven heads in a row, then ask what the law really guarantees over ten thousand tosses.",
+      "example_contexts_fr": [
+        "sept faces consécutives au jeu de pile ou face",
+        "un taux de conversion mesuré sur cent visiteurs",
+        "un sondage réalisé sur mille personnes"
+      ],
+      "example_contexts_en": [
+        "seven consecutive heads in a coin game",
+        "a conversion rate measured on a hundred visitors",
+        "a survey run on a thousand people"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.sampling_bias",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_probability"
+      ],
+      "stage": 4,
+      "order": 37,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.law_of_large_numbers"
+      ],
+      "fallback_key": "mathematics.variance_spread",
+      "title_fr": "Échantillonnage et biais de sélection",
+      "title_en": "Sampling and selection bias",
+      "summary_fr": "Repérer comment le mode de recueil détermine la population réellement décrite.",
+      "summary_en": "Spot how the collection method decides which population is actually described.",
+      "learning_goals_fr": [
+        "Identifier la population effectivement représentée par un échantillon.",
+        "Expliquer pourquoi augmenter la taille ne corrige pas un biais."
+      ],
+      "learning_goals_en": [
+        "Identify the population a sample really represents.",
+        "Explain why increasing the size does not fix a bias."
+      ],
+      "tutor_focus_fr": "Fais identifier qui est réellement représenté par un sondage en ligne, puis demande si dix fois plus de réponses corrigeraient le problème.",
+      "tutor_focus_en": "Have the student identify who an online poll really represents, then ask whether ten times more answers would fix it.",
+      "example_contexts_fr": [
+        "un sondage diffusé sur un réseau social",
+        "des avis clients laissés spontanément",
+        "une étude menée uniquement en semaine"
+      ],
+      "example_contexts_en": [
+        "a poll shared on a social network",
+        "customer reviews left spontaneously",
+        "a study run only on weekdays"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.confidence_interval",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_probability"
+      ],
+      "stage": 4,
+      "order": 38,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.sampling_bias"
+      ],
+      "fallback_key": "mathematics.variance_spread",
+      "title_fr": "L'intervalle de confiance",
+      "title_en": "The confidence interval",
+      "summary_fr": "Interpréter correctement une marge d'erreur et ce qu'elle dit d'une estimation.",
+      "summary_en": "Correctly interpret a margin of error and what it says about an estimate.",
+      "learning_goals_fr": [
+        "Lire une marge d'erreur et en déduire une fourchette.",
+        "Réfuter une interprétation fausse d'un intervalle."
+      ],
+      "learning_goals_en": [
+        "Read a margin of error and derive a range.",
+        "Refute a wrong interpretation of an interval."
+      ],
+      "tutor_focus_fr": "Fais interpréter un sondage à 52 % avec trois points de marge, puis demande si l'écart entre deux candidats est significatif.",
+      "tutor_focus_en": "Have the student interpret a poll at 52% with three points of margin, then ask whether a gap between two candidates is meaningful.",
+      "example_contexts_fr": [
+        "un sondage à 52 % avec trois points de marge",
+        "deux candidats séparés par un point",
+        "un taux de panne estimé sur cinquante machines"
+      ],
+      "example_contexts_en": [
+        "a poll at 52% with three points of margin",
+        "two candidates one point apart",
+        "a failure rate estimated on fifty machines"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.eigenvectors",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 4,
+      "order": 39,
+      "required": true,
+      "prerequisite_keys": [
+        "mathematics.integral_meaning"
+      ],
+      "fallback_key": "mathematics.integral_meaning",
+      "title_fr": "Vecteurs propres et directions stables",
+      "title_en": "Eigenvectors and stable directions",
+      "summary_fr": "Identifier les directions qu'une transformation conserve et ce qu'elles révèlent du système.",
+      "summary_en": "Identify the directions a transformation preserves and what they reveal about the system.",
+      "learning_goals_fr": [
+        "Vérifier qu'un vecteur donné est vecteur propre d'une matrice.",
+        "Interpréter une valeur propre supérieure ou inférieure à un."
+      ],
+      "learning_goals_en": [
+        "Check that a given vector is an eigenvector of a matrix.",
+        "Interpret an eigenvalue above or below one."
+      ],
+      "tutor_focus_fr": "Fais vérifier qu'un vecteur est propre pour une matrice donnée, puis demande ce qu'implique une valeur propre supérieure à un après vingt itérations.",
+      "tutor_focus_en": "Have the student check a vector is an eigenvector, then ask what an eigenvalue above one implies after twenty iterations.",
+      "example_contexts_fr": [
+        "une population répartie entre deux villes après plusieurs années",
+        "un axe principal dans un nuage de points",
+        "une direction inchangée par une rotation d'axe"
+      ],
+      "example_contexts_en": [
+        "a population split between two cities after several years",
+        "a principal axis in a point cloud",
+        "a direction left unchanged by an axial rotation"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.gradient_multivariable",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 4,
+      "order": 40,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.eigenvectors"
+      ],
+      "fallback_key": "mathematics.integral_meaning",
+      "title_fr": "Le gradient d'une fonction à plusieurs variables",
+      "title_en": "The gradient of a multivariable function",
+      "summary_fr": "Utiliser le gradient comme direction de plus forte pente pour se déplacer dans un paysage.",
+      "summary_en": "Use the gradient as the steepest ascent direction to move through a landscape.",
+      "learning_goals_fr": [
+        "Interpréter le gradient comme direction de montée la plus rapide.",
+        "Dire ce qu'un gradient nul signale."
+      ],
+      "learning_goals_en": [
+        "Interpret the gradient as the direction of fastest increase.",
+        "Say what a zero gradient signals."
+      ],
+      "tutor_focus_fr": "Fais interpréter le gradient sur une carte de relief, puis demande ce que signale un gradient nul en un point.",
+      "tutor_focus_en": "Have the student interpret the gradient on a relief map, then ask what a zero gradient at a point signals.",
+      "example_contexts_fr": [
+        "une carte de relief parcourue dans le brouillard",
+        "un coût dépendant de deux réglages",
+        "un point où la pente s'annule dans toutes les directions"
+      ],
+      "example_contexts_en": [
+        "a relief map walked in fog",
+        "a cost depending on two settings",
+        "a point where the slope vanishes in every direction"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.convexity_optimization",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 4,
+      "order": 41,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.gradient_multivariable"
+      ],
+      "fallback_key": "mathematics.integral_meaning",
+      "title_fr": "Convexité et minimum global",
+      "title_en": "Convexity and the global minimum",
+      "summary_fr": "Comprendre pourquoi la convexité garantit qu'un minimum local est le minimum global.",
+      "summary_en": "Understand why convexity guarantees that a local minimum is the global one.",
+      "learning_goals_fr": [
+        "Reconnaître une fonction convexe sur un graphique.",
+        "Expliquer le risque d'un minimum local dans un cas non convexe."
+      ],
+      "learning_goals_en": [
+        "Recognise a convex function on a chart.",
+        "Explain the risk of a local minimum in a non-convex case."
+      ],
+      "tutor_focus_fr": "Fais comparer deux paysages d'optimisation, puis demande dans lequel un algorithme de descente peut rester coincé.",
+      "tutor_focus_en": "Have the student compare two optimisation landscapes, then ask in which a descent algorithm can get stuck.",
+      "example_contexts_fr": [
+        "un paysage à une seule cuvette",
+        "un paysage à plusieurs creux de profondeurs inégales",
+        "un algorithme relancé depuis plusieurs points de départ"
+      ],
+      "example_contexts_en": [
+        "a landscape with a single basin",
+        "a landscape with several dips of unequal depth",
+        "an algorithm restarted from several starting points"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.graph_theory_basics",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 4,
+      "order": 42,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.convexity_optimization"
+      ],
+      "fallback_key": "mathematics.integral_meaning",
+      "title_fr": "Graphes : sommets, arêtes et degrés",
+      "title_en": "Graphs: vertices, edges and degrees",
+      "summary_fr": "Modéliser un réseau par un graphe et lire ses propriétés élémentaires.",
+      "summary_en": "Model a network as a graph and read its elementary properties.",
+      "learning_goals_fr": [
+        "Modéliser une situation concrète par un graphe.",
+        "Relier la somme des degrés au nombre d'arêtes."
+      ],
+      "learning_goals_en": [
+        "Model a concrete situation as a graph.",
+        "Relate the sum of degrees to the number of edges."
+      ],
+      "tutor_focus_fr": "Fais modéliser un réseau de correspondances par un graphe, puis demande de vérifier la relation entre degrés et arêtes.",
+      "tutor_focus_en": "Have the student model a connection network as a graph, then check the relation between degrees and edges.",
+      "example_contexts_fr": [
+        "un réseau de lignes de bus avec correspondances",
+        "des relations d'amitié dans un groupe de dix personnes",
+        "des dépendances entre tâches d'un projet"
+      ],
+      "example_contexts_en": [
+        "a bus line network with interchanges",
+        "friendship links in a group of ten people",
+        "dependencies between the tasks of a project"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.quantifiers_negation",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_foundations"
+      ],
+      "stage": 5,
+      "order": 43,
+      "required": true,
+      "prerequisite_keys": [
+        "mathematics.euclidean_algorithm"
+      ],
+      "fallback_key": "mathematics.euclidean_algorithm",
+      "title_fr": "Quantificateurs et négation d'un énoncé",
+      "title_en": "Quantifiers and negating a statement",
+      "summary_fr": "Manipuler « pour tout » et « il existe » et écrire correctement la négation d'un énoncé quantifié.",
+      "summary_en": "Handle “for all” and “there exists” and correctly write the negation of a quantified statement.",
+      "learning_goals_fr": [
+        "Écrire la négation d'un énoncé à deux quantificateurs.",
+        "Expliquer pourquoi l'ordre des quantificateurs change le sens."
+      ],
+      "learning_goals_en": [
+        "Write the negation of a statement with two quantifiers.",
+        "Explain why quantifier order changes the meaning."
+      ],
+      "tutor_focus_fr": "Fais écrire la négation d'un énoncé à deux quantificateurs, puis demande ce que change l'inversion de leur ordre.",
+      "tutor_focus_en": "Have the student write the negation of a two-quantifier statement, then ask what swapping their order changes.",
+      "example_contexts_fr": [
+        "« tout étudiant a un tuteur » et « un tuteur pour tous »",
+        "une garantie de service formulée avec « pour tout »",
+        "la négation d'une promesse commerciale"
+      ],
+      "example_contexts_en": [
+        "“every student has a tutor” versus “one tutor for all”",
+        "a service guarantee phrased with “for all”",
+        "the negation of a commercial promise"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.modular_arithmetic",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_foundations"
+      ],
+      "stage": 5,
+      "order": 44,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.quantifiers_negation"
+      ],
+      "fallback_key": "mathematics.euclidean_algorithm",
+      "title_fr": "L'arithmétique modulaire",
+      "title_en": "Modular arithmetic",
+      "summary_fr": "Calculer avec des restes et utiliser la congruence pour raisonner sur des cycles.",
+      "summary_en": "Compute with remainders and use congruence to reason about cycles.",
+      "learning_goals_fr": [
+        "Calculer un reste sans effectuer la division complète.",
+        "Résoudre un problème de cycle par congruence."
+      ],
+      "learning_goals_en": [
+        "Compute a remainder without performing the full division.",
+        "Solve a cycle problem using congruence."
+      ],
+      "tutor_focus_fr": "Fais calculer le jour de la semaine dans mille jours, puis demande quelle opération modulaire a été utilisée.",
+      "tutor_focus_en": "Have the student compute the weekday in a thousand days, then ask which modular operation was used.",
+      "example_contexts_fr": [
+        "le jour de la semaine dans mille jours",
+        "une clé de contrôle sur un numéro de compte",
+        "une aiguille d'horloge après cent heures"
+      ],
+      "example_contexts_en": [
+        "the weekday in a thousand days",
+        "a check digit on an account number",
+        "a clock hand after a hundred hours"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.group_structure",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_foundations"
+      ],
+      "stage": 5,
+      "order": 45,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.modular_arithmetic"
+      ],
+      "fallback_key": "mathematics.euclidean_algorithm",
+      "title_fr": "La notion de groupe",
+      "title_en": "The idea of a group",
+      "summary_fr": "Reconnaître une structure algébrique commune derrière des objets très différents.",
+      "summary_en": "Recognise one algebraic structure shared by very different objects.",
+      "learning_goals_fr": [
+        "Vérifier les axiomes d'un groupe sur un exemple fini.",
+        "Citer deux exemples de groupes issus de contextes différents."
+      ],
+      "learning_goals_en": [
+        "Check the group axioms on a finite example.",
+        "Give two group examples from different contexts."
+      ],
+      "tutor_focus_fr": "Fais vérifier les axiomes sur les rotations d'un carré, puis demande quel autre exemple partage exactement la même structure.",
+      "tutor_focus_en": "Have the student check the axioms on the rotations of a square, then ask which other example shares exactly that structure.",
+      "example_contexts_fr": [
+        "les rotations qui laissent un carré inchangé",
+        "les entiers munis de l'addition",
+        "les permutations d'un jeu de trois cartes"
+      ],
+      "example_contexts_en": [
+        "the rotations leaving a square unchanged",
+        "the integers under addition",
+        "the permutations of a three-card deck"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.comparing_infinities",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_foundations"
+      ],
+      "stage": 5,
+      "order": 46,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.group_structure"
+      ],
+      "fallback_key": "mathematics.euclidean_algorithm",
+      "title_fr": "Comparer deux infinis",
+      "title_en": "Comparing two infinities",
+      "summary_fr": "Utiliser la mise en correspondance pour comparer des ensembles infinis sans les compter.",
+      "summary_en": "Use pairing to compare infinite sets without counting them.",
+      "learning_goals_fr": [
+        "Construire une bijection entre deux ensembles infinis.",
+        "Expliquer pourquoi les réels ne se mettent pas en liste."
+      ],
+      "learning_goals_en": [
+        "Build a bijection between two infinite sets.",
+        "Explain why the reals cannot be put in a list."
+      ],
+      "tutor_focus_fr": "Fais construire une correspondance entre entiers et entiers pairs, puis demande pourquoi la même méthode échoue pour les réels.",
+      "tutor_focus_en": "Have the student build a pairing between integers and even integers, then ask why the same method fails for the reals.",
+      "example_contexts_fr": [
+        "les entiers pairs mis en face des entiers",
+        "un hôtel infini qui accueille un client de plus",
+        "une liste censée contenir tous les nombres réels"
+      ],
+      "example_contexts_en": [
+        "even integers paired with all integers",
+        "an infinite hotel welcoming one more guest",
+        "a list claiming to hold every real number"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.hypothesis_testing",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_probability"
+      ],
+      "stage": 5,
+      "order": 47,
+      "required": true,
+      "prerequisite_keys": [
+        "mathematics.confidence_interval"
+      ],
+      "fallback_key": "mathematics.confidence_interval",
+      "title_fr": "Le test d'hypothèse et la p-valeur",
+      "title_en": "Hypothesis testing and the p-value",
+      "summary_fr": "Comprendre ce qu'une p-valeur mesure et ce qu'elle ne dit pas de l'hypothèse testée.",
+      "summary_en": "Understand what a p-value measures and what it does not say about the tested hypothesis.",
+      "learning_goals_fr": [
+        "Énoncer correctement ce que mesure une p-valeur.",
+        "Expliquer pourquoi multiplier les tests fabrique des découvertes."
+      ],
+      "learning_goals_en": [
+        "State correctly what a p-value measures.",
+        "Explain why running many tests manufactures discoveries."
+      ],
+      "tutor_focus_fr": "Fais reformuler ce que signifie une p-valeur de 0,03, puis demande ce qui arrive après vingt tests sur les mêmes données.",
+      "tutor_focus_en": "Have the student restate what a p-value of 0.03 means, then ask what happens after twenty tests on the same data.",
+      "example_contexts_fr": [
+        "un test A/B déclaré gagnant à 0,03",
+        "vingt hypothèses testées sur le même jeu de données",
+        "un résultat non reproduit par une seconde étude"
+      ],
+      "example_contexts_en": [
+        "an A/B test declared a winner at 0.03",
+        "twenty hypotheses tested on the same dataset",
+        "a result not reproduced by a second study"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.correlation_causation",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_probability"
+      ],
+      "stage": 5,
+      "order": 48,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.hypothesis_testing"
+      ],
+      "fallback_key": "mathematics.confidence_interval",
+      "title_fr": "Corrélation et causalité",
+      "title_en": "Correlation and causation",
+      "summary_fr": "Distinguer une association statistique d'un lien de cause à effet et repérer une variable cachée.",
+      "summary_en": "Tell a statistical association apart from a causal link and spot a hidden variable.",
+      "learning_goals_fr": [
+        "Proposer une variable de confusion pour une corrélation donnée.",
+        "Dire ce qu'une expérience randomisée apporte de plus."
+      ],
+      "learning_goals_en": [
+        "Propose a confounding variable for a given correlation.",
+        "Say what a randomised experiment adds."
+      ],
+      "tutor_focus_fr": "Fais proposer une variable cachée expliquant une corrélation surprenante, puis demande quelle expérience trancherait.",
+      "tutor_focus_en": "Have the student propose a hidden variable explaining a surprising correlation, then ask which experiment would settle it.",
+      "example_contexts_fr": [
+        "ventes de glaces et noyades corrélées en été",
+        "des utilisateurs d'une fonctionnalité plus fidèles que les autres",
+        "un médicament testé sans groupe témoin"
+      ],
+      "example_contexts_en": [
+        "ice cream sales and drownings correlated in summer",
+        "users of a feature more loyal than others",
+        "a drug tested without a control group"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.regression_to_the_mean",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_probability"
+      ],
+      "stage": 5,
+      "order": 49,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.correlation_causation"
+      ],
+      "fallback_key": "mathematics.confidence_interval",
+      "title_fr": "La régression vers la moyenne",
+      "title_en": "Regression to the mean",
+      "summary_fr": "Expliquer pourquoi une performance extrême est naturellement suivie d'une performance plus ordinaire.",
+      "summary_en": "Explain why an extreme performance is naturally followed by a more ordinary one.",
+      "learning_goals_fr": [
+        "Reconnaître une régression vers la moyenne dans une évaluation.",
+        "Expliquer pourquoi elle fait surestimer l'effet d'une intervention."
+      ],
+      "learning_goals_en": [
+        "Recognise regression to the mean in an evaluation.",
+        "Explain why it inflates the apparent effect of an intervention."
+      ],
+      "tutor_focus_fr": "Fais analyser une formation suivie par les moins performants, puis demande quelle part du progrès aurait eu lieu sans elle.",
+      "tutor_focus_en": "Have the student analyse a training given to the weakest performers, then ask how much progress would have happened anyway.",
+      "example_contexts_fr": [
+        "une formation réservée aux plus faibles d'une promotion",
+        "un traitement commencé au pire moment d'une douleur",
+        "une équipe brillante une saison puis moyenne la suivante"
+      ],
+      "example_contexts_en": [
+        "a training reserved for the weakest of a cohort",
+        "a treatment started at the worst moment of a pain",
+        "a team brilliant one season and average the next"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.markov_chains",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_probability"
+      ],
+      "stage": 5,
+      "order": 50,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.regression_to_the_mean"
+      ],
+      "fallback_key": "mathematics.confidence_interval",
+      "title_fr": "Les chaînes de Markov",
+      "title_en": "Markov chains",
+      "summary_fr": "Modéliser un système par des états et des probabilités de transition sans mémoire du passé.",
+      "summary_en": "Model a system with states and transition probabilities that ignore the past.",
+      "learning_goals_fr": [
+        "Écrire une matrice de transition à trois états.",
+        "Expliquer ce que l'absence de mémoire simplifie et ce qu'elle perd."
+      ],
+      "learning_goals_en": [
+        "Write a three-state transition matrix.",
+        "Explain what memorylessness simplifies and what it loses."
+      ],
+      "tutor_focus_fr": "Fais écrire une matrice de transition à trois états, puis demande ce que le modèle ignore volontairement du passé.",
+      "tutor_focus_en": "Have the student write a three-state transition matrix, then ask what the model deliberately ignores about the past.",
+      "example_contexts_fr": [
+        "un client qui passe d'actif à inactif puis revient",
+        "la météo modélisée par trois états quotidiens",
+        "un utilisateur naviguant entre trois pages d'un site"
+      ],
+      "example_contexts_en": [
+        "a customer moving from active to inactive and back",
+        "weather modelled by three daily states",
+        "a user navigating between three pages of a site"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.linear_independence_rank",
+      "domain_id": "mathematics",
+      "objective_ids": [
         "math_technology"
       ],
       "stage": 5,
-      "order": 35,
-      "required": false,
+      "order": 51,
+      "required": true,
       "prerequisite_keys": [
-        "mathematics.034"
+        "mathematics.graph_theory_basics"
       ],
-      "fallback_key": "mathematics.033",
-      "title_fr": "Mathématiques - étape 35",
-      "title_en": "Mathematics - step 35",
-      "summary_fr": "Construire une brique claire du parcours Mathématiques au niveau 5.",
-      "summary_en": "Build one clear building block of the Mathematics path at level 5.",
+      "fallback_key": "mathematics.graph_theory_basics",
+      "title_fr": "Indépendance linéaire et rang",
+      "title_en": "Linear independence and rank",
+      "summary_fr": "Détecter l'information redondante dans un ensemble de vecteurs ou de colonnes de données.",
+      "summary_en": "Detect redundant information in a set of vectors or data columns.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 35.",
-        "L'appliquer dans un exemple court."
+        "Décider si trois vecteurs sont linéairement indépendants.",
+        "Relier un rang déficient à une colonne redondante."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 35.",
-        "Apply it in a short example."
+        "Decide whether three vectors are linearly independent.",
+        "Link a deficient rank to a redundant column."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais repérer la colonne redondante d'un petit tableau de données, puis demande ce que cela implique pour un modèle linéaire.",
+      "tutor_focus_en": "Have the student spot the redundant column of a small data table, then ask what it implies for a linear model.",
       "example_contexts_fr": [
-        "Exemple étudiant 35",
-        "Situation produit 35"
+        "un tableau contenant à la fois un prix hors taxe et un prix TTC",
+        "trois capteurs dont l'un mesure la somme des deux autres",
+        "un système d'équations sans solution unique"
       ],
       "example_contexts_en": [
-        "Student example 35",
-        "Product situation 35"
+        "a table holding both a pre-tax and an all-tax price",
+        "three sensors where one measures the sum of the other two",
+        "a system of equations without a unique solution"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.combinatorial_explosion",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 5,
+      "order": 52,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.linear_independence_rank"
+      ],
+      "fallback_key": "mathematics.graph_theory_basics",
+      "title_fr": "L'explosion combinatoire",
+      "title_en": "Combinatorial explosion",
+      "summary_fr": "Estimer le nombre de possibilités d'un problème pour savoir si l'énumération est envisageable.",
+      "summary_en": "Estimate the number of possibilities of a problem to know whether enumeration is feasible.",
+      "learning_goals_fr": [
+        "Estimer le nombre de configurations d'un problème donné.",
+        "Décider si une recherche exhaustive est réaliste."
+      ],
+      "learning_goals_en": [
+        "Estimate the number of configurations of a given problem.",
+        "Decide whether exhaustive search is realistic."
+      ],
+      "tutor_focus_fr": "Fais estimer le nombre de tournées possibles pour quinze villes, puis demande si une machine rapide y changerait quelque chose.",
+      "tutor_focus_en": "Have the student estimate the number of routes for fifteen cities, then ask whether a faster machine would change anything.",
+      "example_contexts_fr": [
+        "une tournée de livraison passant par quinze villes",
+        "un emploi du temps à contraintes multiples",
+        "un mot de passe testé par force brute"
+      ],
+      "example_contexts_en": [
+        "a delivery route through fifteen cities",
+        "a timetable with multiple constraints",
+        "a password tested by brute force"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.frequency_decomposition",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 5,
+      "order": 53,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.combinatorial_explosion"
+      ],
+      "fallback_key": "mathematics.graph_theory_basics",
+      "title_fr": "La décomposition en fréquences",
+      "title_en": "Frequency decomposition",
+      "summary_fr": "Comprendre qu'un signal se décompose en composantes simples et ce que cela permet de faire.",
+      "summary_en": "Understand that a signal decomposes into simple components and what that enables.",
+      "learning_goals_fr": [
+        "Expliquer ce qu'une décomposition en fréquences révèle d'un signal.",
+        "Citer un traitement rendu possible par ce changement de point de vue."
+      ],
+      "learning_goals_en": [
+        "Explain what a frequency decomposition reveals about a signal.",
+        "Name a processing step made possible by that change of viewpoint."
+      ],
+      "tutor_focus_fr": "Fais expliquer comment isoler un bourdonnement dans un enregistrement, puis demande ce que la décomposition permet ensuite.",
+      "tutor_focus_en": "Have the student explain how to isolate a hum in a recording, then ask what the decomposition then allows.",
+      "example_contexts_fr": [
+        "un bourdonnement de 50 hertz dans un enregistrement",
+        "une image compressée en supprimant des détails fins",
+        "un accord de musique décomposé en notes"
+      ],
+      "example_contexts_en": [
+        "a 50 hertz hum in a recording",
+        "an image compressed by dropping fine detail",
+        "a musical chord decomposed into notes"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "mathematics.numerical_precision",
+      "domain_id": "mathematics",
+      "objective_ids": [
+        "math_technology"
+      ],
+      "stage": 5,
+      "order": 54,
+      "required": false,
+      "prerequisite_keys": [
+        "mathematics.frequency_decomposition"
+      ],
+      "fallback_key": "mathematics.graph_theory_basics",
+      "title_fr": "Erreurs d'arrondi en calcul numérique",
+      "title_en": "Rounding errors in numerical computation",
+      "summary_fr": "Comprendre pourquoi un calcul mathématiquement correct peut donner un résultat faux sur machine.",
+      "summary_en": "Understand why a mathematically correct computation can give a wrong result on a machine.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi 0,1 additionné trois fois ne donne pas exactement 0,3.",
+        "Citer une opération à éviter pour limiter la perte de précision."
+      ],
+      "learning_goals_en": [
+        "Explain why adding 0.1 three times does not give exactly 0.3.",
+        "Name an operation to avoid in order to limit precision loss."
+      ],
+      "tutor_focus_fr": "Fais expliquer le résultat surprenant d'une somme de décimaux, puis demande quelle réécriture limiterait l'erreur.",
+      "tutor_focus_en": "Have the student explain the surprising result of a decimal sum, then ask which rewriting would limit the error.",
+      "example_contexts_fr": [
+        "un total de facture faux d'un centime",
+        "une soustraction de deux nombres très proches",
+        "une somme de millions de petites valeurs"
+      ],
+      "example_contexts_en": [
+        "an invoice total wrong by one cent",
+        "a subtraction of two very close numbers",
+        "a sum of millions of small values"
       ],
       "safety_category": "standard"
     }

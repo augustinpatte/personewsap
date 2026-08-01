@@ -3,7 +3,7 @@
   "version": "v1",
   "steps": [
     {
-      "key": "computer_science.001",
+      "key": "computer_science.machine_layers",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -15,32 +15,34 @@
       "required": true,
       "prerequisite_keys": [],
       "fallback_key": null,
-      "title_fr": "Informatique - étape 1",
-      "title_en": "Computer science - step 1",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 1.",
-      "summary_en": "Build one clear building block of the Computer science path at level 1.",
+      "title_fr": "Les couches d'un ordinateur, du transistor à l'application",
+      "title_en": "The layers of a computer, from transistor to application",
+      "summary_fr": "Situer les cinq couches qui séparent un transistor de l'application ouverte à l'écran.",
+      "summary_en": "Place the five layers that separate a transistor from the application on screen.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 1.",
-        "L'appliquer dans un exemple court."
+        "Nommer dans l'ordre transistor, circuit, processeur, système d'exploitation, application.",
+        "Dire à quelle couche appartient un problème donné."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 1.",
-        "Apply it in a short example."
+        "Name transistor, circuit, processor, operating system and application in order.",
+        "Say which layer a given problem belongs to."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais nommer les couches de bas en haut, puis demande à quelle couche appartiennent trois problèmes concrets : un écran gelé, un calcul faux, une batterie qui chauffe.",
+      "tutor_focus_en": "Have the student name the layers bottom-up, then ask which layer owns three concrete problems: a frozen screen, a wrong calculation, a hot battery.",
       "example_contexts_fr": [
-        "Exemple étudiant 1",
-        "Situation produit 1"
+        "un téléphone qui ouvre une application de messagerie",
+        "une calculatrice à quatre opérations",
+        "un serveur qui héberge un site web"
       ],
       "example_contexts_en": [
-        "Student example 1",
-        "Product situation 1"
+        "a phone opening a messaging app",
+        "a four-function pocket calculator",
+        "a server hosting a website"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.002",
+      "key": "computer_science.binary_numbers",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -49,37 +51,39 @@
       ],
       "stage": 1,
       "order": 2,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.001"
+        "computer_science.machine_layers"
       ],
       "fallback_key": null,
-      "title_fr": "Informatique - étape 2",
-      "title_en": "Computer science - step 2",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 1.",
-      "summary_en": "Build one clear building block of the Computer science path at level 1.",
+      "title_fr": "Comment les nombres sont écrits en binaire",
+      "title_en": "How numbers are written in binary",
+      "summary_fr": "Convertir un petit nombre décimal en binaire et comprendre pourquoi la machine n'utilise que deux états.",
+      "summary_en": "Convert a small decimal number to binary and see why a machine only uses two states.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 2.",
-        "L'appliquer dans un exemple court."
+        "Convertir un nombre inférieur à 32 en binaire et l'inverse.",
+        "Expliquer pourquoi deux états suffisent à une machine électronique."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 2.",
-        "Apply it in a short example."
+        "Convert a number below 32 to binary and back.",
+        "Explain why two states are enough for an electronic machine."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais convertir 13 puis 40 en binaire en écrivant les puissances de deux, et demande combien de valeurs tiennent sur 8 bits.",
+      "tutor_focus_en": "Have the student convert 13 then 40 to binary by writing the powers of two, and ask how many values fit in 8 bits.",
       "example_contexts_fr": [
-        "Exemple étudiant 2",
-        "Situation produit 2"
+        "un compteur de likes qui passe de 255 à 256",
+        "une adresse IPv4 écrite en quatre octets",
+        "un interrupteur allumé ou éteint"
       ],
       "example_contexts_en": [
-        "Student example 2",
-        "Product situation 2"
+        "a like counter going from 255 to 256",
+        "an IPv4 address written as four bytes",
+        "a switch that is on or off"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.003",
+      "key": "computer_science.text_encoding",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -88,37 +92,39 @@
       ],
       "stage": 1,
       "order": 3,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.002"
+        "computer_science.binary_numbers"
       ],
-      "fallback_key": "computer_science.001",
-      "title_fr": "Informatique - étape 3",
-      "title_en": "Computer science - step 3",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 1.",
-      "summary_en": "Build one clear building block of the Computer science path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Pourquoi le texte a besoin d'Unicode et d'UTF-8",
+      "title_en": "Why text needs Unicode and UTF-8",
+      "summary_fr": "Comprendre qu'un caractère est un numéro et que l'encodage décide du nombre d'octets utilisés.",
+      "summary_en": "See that a character is a number and that the encoding decides how many bytes it takes.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 3.",
-        "L'appliquer dans un exemple court."
+        "Distinguer le caractère, son point de code Unicode et ses octets UTF-8.",
+        "Expliquer l'origine des caractères illisibles dans un fichier."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 3.",
-        "Apply it in a short example."
+        "Tell apart the character, its Unicode code point and its UTF-8 bytes.",
+        "Explain where unreadable characters in a file come from."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi « é » occupe deux octets en UTF-8 alors que « e » en occupe un, puis demande ce qui se passe si un fichier UTF-8 est lu en latin-1.",
+      "tutor_focus_en": "Have the student explain why “é” takes two bytes in UTF-8 while “e” takes one, then ask what happens when a UTF-8 file is read as latin-1.",
       "example_contexts_fr": [
-        "Exemple étudiant 3",
-        "Situation produit 3"
+        "un prénom accentué mal affiché dans un export CSV",
+        "un emoji qui compte pour plusieurs octets dans un SMS",
+        "un nom de fichier japonais copié sur une clé USB"
       ],
       "example_contexts_en": [
-        "Student example 3",
-        "Product situation 3"
+        "an accented first name broken in a CSV export",
+        "an emoji counting as several bytes in a text message",
+        "a Japanese file name copied onto a USB stick"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.004",
+      "key": "computer_science.what_is_algorithm",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -127,37 +133,39 @@
       ],
       "stage": 1,
       "order": 4,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.003"
+        "computer_science.text_encoding"
       ],
-      "fallback_key": "computer_science.002",
-      "title_fr": "Informatique - étape 4",
-      "title_en": "Computer science - step 4",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 1.",
-      "summary_en": "Build one clear building block of the Computer science path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Ce qu'est vraiment un algorithme",
+      "title_en": "What an algorithm really is",
+      "summary_fr": "Distinguer un algorithme d'un programme : une suite finie d'étapes non ambiguës qui termine.",
+      "summary_en": "Separate an algorithm from a program: a finite sequence of unambiguous steps that terminates.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 4.",
-        "L'appliquer dans un exemple court."
+        "Citer les trois propriétés d'un algorithme : entrées définies, étapes non ambiguës, terminaison.",
+        "Écrire en français les étapes d'une recherche du plus grand élément."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 4.",
-        "Apply it in a short example."
+        "State the three properties of an algorithm: defined inputs, unambiguous steps, termination.",
+        "Write in plain words the steps of a search for the largest element."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais rédiger en français les étapes pour trouver le maximum d'une liste, puis fais tester ces étapes sur une liste vide pour montrer le cas oublié.",
+      "tutor_focus_en": "Have the student write in plain words the steps to find the maximum of a list, then run those steps on an empty list to expose the forgotten case.",
       "example_contexts_fr": [
-        "Exemple étudiant 4",
-        "Situation produit 4"
+        "trouver le trajet le plus court dans une application de transport",
+        "classer des candidatures par date de dépôt",
+        "vérifier qu'un mot est un palindrome"
       ],
       "example_contexts_en": [
-        "Student example 4",
-        "Product situation 4"
+        "finding the shortest route in a transit app",
+        "sorting applications by submission date",
+        "checking whether a word is a palindrome"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.005",
+      "key": "computer_science.client_server",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -166,154 +174,156 @@
       ],
       "stage": 1,
       "order": 5,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.004"
+        "computer_science.what_is_algorithm"
       ],
-      "fallback_key": "computer_science.003",
-      "title_fr": "Informatique - étape 5",
-      "title_en": "Computer science - step 5",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 1.",
-      "summary_en": "Build one clear building block of the Computer science path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Client et serveur : qui demande, qui répond",
+      "title_en": "Client and server: who asks, who answers",
+      "summary_fr": "Poser le modèle requête-réponse et identifier ce qui tourne sur l'appareil et ce qui tourne à distance.",
+      "summary_en": "Set up the request-response model and identify what runs on the device and what runs remotely.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 5.",
-        "L'appliquer dans un exemple court."
+        "Décrire le trajet d'une requête et de sa réponse.",
+        "Dire quelle partie d'une application donnée est cliente et laquelle est serveur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 5.",
-        "Apply it in a short example."
+        "Describe the path of a request and its response.",
+        "Say which part of a given application is the client and which is the server."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais tracer la requête et la réponse d'un rafraîchissement de fil d'actualité, puis demande ce qui reste possible hors connexion.",
+      "tutor_focus_en": "Have the student trace the request and response of a feed refresh, then ask what still works offline.",
       "example_contexts_fr": [
-        "Exemple étudiant 5",
-        "Situation produit 5"
+        "une application météo qui rafraîchit ses prévisions",
+        "un site de réservation qui affiche les places restantes",
+        "une boîte mail qui télécharge les nouveaux messages"
       ],
       "example_contexts_en": [
-        "Student example 5",
-        "Product situation 5"
+        "a weather app refreshing its forecast",
+        "a booking site showing remaining seats",
+        "a mailbox downloading new messages"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.006",
+      "key": "computer_science.cpu_instruction_cycle",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
       "stage": 1,
       "order": 6,
       "required": true,
       "prerequisite_keys": [
-        "computer_science.005"
+        "computer_science.client_server"
       ],
-      "fallback_key": "computer_science.004",
-      "title_fr": "Informatique - étape 6",
-      "title_en": "Computer science - step 6",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 1.",
-      "summary_en": "Build one clear building block of the Computer science path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Comment un processeur exécute une instruction",
+      "title_en": "How a processor executes an instruction",
+      "summary_fr": "Dérouler le cycle chercher-décoder-exécuter sur une instruction d'addition.",
+      "summary_en": "Walk the fetch-decode-execute cycle through a single addition instruction.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 6.",
-        "L'appliquer dans un exemple court."
+        "Nommer les trois phases du cycle et le rôle du compteur ordinal.",
+        "Dire où sont lues les données et où est écrit le résultat."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 6.",
-        "Apply it in a short example."
+        "Name the three phases of the cycle and the role of the program counter.",
+        "Say where the data is read and where the result is written."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais dérouler pas à pas l'addition de deux registres, phase par phase, puis demande ce que devient le compteur ordinal après un saut.",
+      "tutor_focus_en": "Have the student walk an addition of two registers phase by phase, then ask what happens to the program counter after a jump.",
       "example_contexts_fr": [
-        "Exemple étudiant 6",
-        "Situation produit 6"
+        "l'addition de deux nombres dans une boucle de comptage",
+        "un branchement conditionnel qui change la suite du programme",
+        "une instruction de copie entre deux registres"
       ],
       "example_contexts_en": [
-        "Student example 6",
-        "Product situation 6"
+        "adding two numbers inside a counting loop",
+        "a conditional branch changing what runs next",
+        "a copy instruction between two registers"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.007",
+      "key": "computer_science.variables_and_types",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_programming"
       ],
       "stage": 1,
       "order": 7,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.006"
+        "computer_science.client_server"
       ],
-      "fallback_key": "computer_science.005",
-      "title_fr": "Informatique - étape 7",
-      "title_en": "Computer science - step 7",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 1.",
-      "summary_en": "Build one clear building block of the Computer science path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Variables et types : ce que la machine range vraiment",
+      "title_en": "Variables and types: what the machine actually stores",
+      "summary_fr": "Séparer le nom, la valeur et le type, et voir ce que le type autorise comme opérations.",
+      "summary_en": "Separate the name, the value and the type, and see what the type allows as operations.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 7.",
-        "L'appliquer dans un exemple court."
+        "Distinguer le nom d'une variable, sa valeur et son type.",
+        "Prévoir le résultat d'une addition entre un nombre et une chaîne."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 7.",
-        "Apply it in a short example."
+        "Tell apart a variable name, its value and its type.",
+        "Predict the result of adding a number to a string."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais prédire le résultat de \"2\" + 3 dans deux langages différents, puis demande ce que le type change pour la machine.",
+      "tutor_focus_en": "Have the student predict the result of \"2\" + 3 in two different languages, then ask what the type changes for the machine.",
       "example_contexts_fr": [
-        "Exemple étudiant 7",
-        "Situation produit 7"
+        "un âge saisi dans un formulaire et lu comme du texte",
+        "un prix décimal arrondi à l'affichage",
+        "un compteur remis à zéro à chaque tour de boucle"
       ],
       "example_contexts_en": [
-        "Student example 7",
-        "Product situation 7"
+        "an age typed in a form and read as text",
+        "a decimal price rounded for display",
+        "a counter reset to zero on each loop turn"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.008",
+      "key": "computer_science.what_is_database",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
         "cs_software_data"
       ],
-      "stage": 2,
+      "stage": 1,
       "order": 8,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.007"
+        "computer_science.client_server"
       ],
-      "fallback_key": "computer_science.006",
-      "title_fr": "Informatique - étape 8",
-      "title_en": "Computer science - step 8",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 2.",
-      "summary_en": "Build one clear building block of the Computer science path at level 2.",
+      "fallback_key": null,
+      "title_fr": "Ce qu'une base de données garantit qu'un fichier ne garantit pas",
+      "title_en": "What a database guarantees that a file does not",
+      "summary_fr": "Comparer un fichier partagé et une base sur les écritures simultanées et l'intégrité des données.",
+      "summary_en": "Compare a shared file and a database on concurrent writes and data integrity.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 8.",
-        "L'appliquer dans un exemple court."
+        "Citer trois garanties qu'une base apporte à un fichier partagé.",
+        "Décrire ce qui casse quand deux personnes écrivent le même fichier."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 8.",
-        "Apply it in a short example."
+        "State three guarantees a database adds over a shared file.",
+        "Describe what breaks when two people write the same file."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais raconter ce qui arrive à un tableur partagé modifié par deux personnes hors ligne, puis demande ce qu'une base aurait empêché.",
+      "tutor_focus_en": "Have the student narrate what happens to a shared spreadsheet edited offline by two people, then ask what a database would have prevented.",
       "example_contexts_fr": [
-        "Exemple étudiant 8",
-        "Situation produit 8"
+        "un tableur de stock partagé par deux magasins",
+        "un fichier de contacts recopié sur plusieurs postes",
+        "un registre de réservations tenu à la main"
       ],
       "example_contexts_en": [
-        "Student example 8",
-        "Product situation 8"
+        "a stock spreadsheet shared by two shops",
+        "a contact file copied onto several machines",
+        "a booking register kept by hand"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.009",
+      "key": "computer_science.source_to_execution",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -322,37 +332,39 @@
       ],
       "stage": 2,
       "order": 9,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.008"
+        "computer_science.client_server"
       ],
-      "fallback_key": "computer_science.007",
-      "title_fr": "Informatique - étape 9",
-      "title_en": "Computer science - step 9",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 2.",
-      "summary_en": "Build one clear building block of the Computer science path at level 2.",
+      "fallback_key": "computer_science.client_server",
+      "title_fr": "Du code source au programme qui s'exécute",
+      "title_en": "From source code to a running program",
+      "summary_fr": "Suivre le passage du texte source aux instructions machine, par compilation ou par interprétation.",
+      "summary_en": "Follow how source text becomes machine instructions, through compilation or interpretation.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 9.",
-        "L'appliquer dans un exemple court."
+        "Comparer compilation et interprétation sur le moment où l'erreur apparaît.",
+        "Nommer ce que produit un compilateur et ce que lit un interpréteur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 9.",
-        "Apply it in a short example."
+        "Compare compilation and interpretation by when the error shows up.",
+        "Name what a compiler produces and what an interpreter reads."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer une faute de frappe détectée à la compilation en Java et la même faute détectée à l'exécution en Python, puis demande laquelle coûte le plus cher en production.",
+      "tutor_focus_en": "Have the student compare a typo caught at compile time in Java with the same typo caught at run time in Python, then ask which one costs more in production.",
       "example_contexts_fr": [
-        "Exemple étudiant 9",
-        "Situation produit 9"
+        "une application mobile publiée sur un magasin d'applications",
+        "un script Python lancé dans un terminal",
+        "une page web dont le JavaScript s'exécute dans le navigateur"
       ],
       "example_contexts_en": [
-        "Student example 9",
-        "Product situation 9"
+        "a mobile app shipped to an app store",
+        "a Python script launched from a terminal",
+        "a web page whose JavaScript runs in the browser"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.010",
+      "key": "computer_science.abstraction_layers",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -361,37 +373,39 @@
       ],
       "stage": 2,
       "order": 10,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.009"
+        "computer_science.source_to_execution"
       ],
-      "fallback_key": "computer_science.008",
-      "title_fr": "Informatique - étape 10",
-      "title_en": "Computer science - step 10",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 2.",
-      "summary_en": "Build one clear building block of the Computer science path at level 2.",
+      "fallback_key": "computer_science.client_server",
+      "title_fr": "Pourquoi l'informatique empile des couches d'abstraction",
+      "title_en": "Why computing stacks layers of abstraction",
+      "summary_fr": "Voir qu'une abstraction cache des détails en échange d'un coût et d'une perte de contrôle.",
+      "summary_en": "See that an abstraction hides details in exchange for a cost and a loss of control.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 10.",
-        "L'appliquer dans un exemple court."
+        "Donner un exemple d'abstraction qui fait gagner du temps et un exemple qui coûte cher.",
+        "Expliquer ce qu'une abstraction qui fuit rend visible."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 10.",
-        "Apply it in a short example."
+        "Give one abstraction that saves time and one that costs dearly.",
+        "Explain what a leaky abstraction makes visible."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister ce que cache l'appel « enregistrer un fichier », puis demande ce que l'utilisateur découvre quand le disque est plein.",
+      "tutor_focus_en": "Have the student list what the call “save a file” hides, then ask what the user discovers when the disk is full.",
       "example_contexts_fr": [
-        "Exemple étudiant 10",
-        "Situation produit 10"
+        "un langage qui gère la mémoire à la place du développeur",
+        "un service de stockage en ligne présenté comme un dossier",
+        "une bibliothèque graphique qui masque le pilote de la carte"
       ],
       "example_contexts_en": [
-        "Student example 10",
-        "Product situation 10"
+        "a language that manages memory for the developer",
+        "an online storage service presented as a folder",
+        "a graphics library hiding the card driver"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.011",
+      "key": "computer_science.files_and_filesystem",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -402,35 +416,37 @@
       "order": 11,
       "required": true,
       "prerequisite_keys": [
-        "computer_science.010"
+        "computer_science.abstraction_layers"
       ],
-      "fallback_key": "computer_science.009",
-      "title_fr": "Informatique - étape 11",
-      "title_en": "Computer science - step 11",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 2.",
-      "summary_en": "Build one clear building block of the Computer science path at level 2.",
+      "fallback_key": "computer_science.client_server",
+      "title_fr": "Ce qu'est un fichier pour un système d'exploitation",
+      "title_en": "What a file is for an operating system",
+      "summary_fr": "Comprendre qu'un fichier est un nom, des métadonnées et une suite d'octets répartie sur le disque.",
+      "summary_en": "Understand that a file is a name, metadata and a byte sequence spread over the disk.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 11.",
-        "L'appliquer dans un exemple court."
+        "Distinguer le nom, le chemin, les métadonnées et le contenu.",
+        "Expliquer pourquoi supprimer un fichier n'efface pas immédiatement ses octets."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 11.",
-        "Apply it in a short example."
+        "Tell apart the name, the path, the metadata and the content.",
+        "Explain why deleting a file does not immediately erase its bytes."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire ce que contient l'entrée de répertoire d'un fichier photo, puis demande pourquoi un logiciel de récupération peut encore le retrouver après suppression.",
+      "tutor_focus_en": "Have the student describe what the directory entry of a photo file holds, then ask why recovery software can still find it after deletion.",
       "example_contexts_fr": [
-        "Exemple étudiant 11",
-        "Situation produit 11"
+        "une photo déplacée entre deux dossiers",
+        "un document verrouillé parce qu'il est déjà ouvert",
+        "une clé USB retirée pendant une copie"
       ],
       "example_contexts_en": [
-        "Student example 11",
-        "Product situation 11"
+        "a photo moved between two folders",
+        "a document locked because it is already open",
+        "a USB stick pulled out during a copy"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.012",
+      "key": "computer_science.orders_of_magnitude",
       "domain_id": "computer_science",
       "objective_ids": [
         "cs_systems",
@@ -439,929 +455,1672 @@
       ],
       "stage": 2,
       "order": 12,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.011"
+        "computer_science.files_and_filesystem"
       ],
-      "fallback_key": "computer_science.010",
-      "title_fr": "Informatique - étape 12",
-      "title_en": "Computer science - step 12",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 2.",
-      "summary_en": "Build one clear building block of the Computer science path at level 2.",
+      "fallback_key": "computer_science.client_server",
+      "title_fr": "Ordres de grandeur : octet, milliseconde, million d'opérations",
+      "title_en": "Orders of magnitude: byte, millisecond, million operations",
+      "summary_fr": "Acquérir les repères chiffrés qui permettent de juger si une performance est normale ou absurde.",
+      "summary_en": "Build the numeric landmarks that tell whether a measured performance is normal or absurd.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 12.",
-        "L'appliquer dans un exemple court."
+        "Citer l'ordre de grandeur d'un accès mémoire, d'un accès disque et d'un aller-retour réseau.",
+        "Estimer si une opération annoncée est plausible."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 12.",
-        "Apply it in a short example."
+        "State the order of magnitude of a memory access, a disk access and a network round trip.",
+        "Estimate whether an announced operation is plausible."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais classer un accès RAM, une lecture SSD et un appel réseau transatlantique par durée, puis demande combien d'appels réseau tiennent dans une seconde.",
+      "tutor_focus_en": "Have the student rank a RAM access, an SSD read and a transatlantic network call by duration, then ask how many network calls fit in one second.",
       "example_contexts_fr": [
-        "Exemple étudiant 12",
-        "Situation produit 12"
+        "une page web qui met trois secondes à s'afficher",
+        "un export de 50 000 lignes annoncé instantané",
+        "une sauvegarde de 2 Go sur une connexion domestique"
       ],
       "example_contexts_en": [
-        "Student example 12",
-        "Product situation 12"
+        "a web page taking three seconds to appear",
+        "a 50,000-row export announced as instant",
+        "a 2 GB backup over a home connection"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.013",
+      "key": "computer_science.ram_vs_storage",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
       "stage": 2,
       "order": 13,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.012"
+        "computer_science.orders_of_magnitude"
       ],
-      "fallback_key": "computer_science.011",
-      "title_fr": "Informatique - étape 13",
-      "title_en": "Computer science - step 13",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 2.",
-      "summary_en": "Build one clear building block of the Computer science path at level 2.",
+      "fallback_key": "computer_science.cpu_instruction_cycle",
+      "title_fr": "Différence entre RAM et stockage",
+      "title_en": "The difference between RAM and storage",
+      "summary_fr": "Opposer mémoire vive et stockage persistant sur la volatilité, la vitesse et le prix par gigaoctet.",
+      "summary_en": "Contrast volatile memory and persistent storage on volatility, speed and price per gigabyte.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 13.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi un travail non enregistré disparaît à l'extinction.",
+        "Comparer les temps d'accès RAM et SSD par ordre de grandeur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 13.",
-        "Apply it in a short example."
+        "Explain why unsaved work disappears when the machine powers off.",
+        "Compare RAM and SSD access times by order of magnitude."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qui est perdu lors d'une coupure de courant, puis demande pourquoi on n'installe pas 2 To de RAM à la place du disque.",
+      "tutor_focus_en": "Have the student explain what is lost in a power cut, then ask why we do not install 2 TB of RAM instead of a disk.",
       "example_contexts_fr": [
-        "Exemple étudiant 13",
-        "Situation produit 13"
+        "un document en cours d'écriture pendant une coupure de courant",
+        "un jeu qui affiche un écran de chargement",
+        "un téléphone qui ferme une application restée en arrière-plan"
       ],
       "example_contexts_en": [
-        "Student example 13",
-        "Product situation 13"
+        "a document being written during a power cut",
+        "a game showing a loading screen",
+        "a phone closing an app left in the background"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.014",
+      "key": "computer_science.os_processes",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
       "stage": 2,
       "order": 14,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.013"
+        "computer_science.ram_vs_storage"
       ],
-      "fallback_key": "computer_science.012",
-      "title_fr": "Informatique - étape 14",
-      "title_en": "Computer science - step 14",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 2.",
-      "summary_en": "Build one clear building block of the Computer science path at level 2.",
+      "fallback_key": "computer_science.cpu_instruction_cycle",
+      "title_fr": "Pourquoi les systèmes d'exploitation utilisent des processus",
+      "title_en": "Why operating systems use processes",
+      "summary_fr": "Comprendre le processus comme unité d'isolation : mémoire séparée, droits propres, arrêt indépendant.",
+      "summary_en": "See the process as the unit of isolation: separate memory, own permissions, independent shutdown.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 14.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'un processus isole d'un autre.",
+        "Dire ce qui survit et ce qui disparaît quand un processus est tué."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 14.",
-        "Apply it in a short example."
+        "Explain what one process isolates from another.",
+        "Say what survives and what disappears when a process is killed."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi un onglet de navigateur qui plante ne tue pas les autres, puis demande ce que le système récupère à la fin d'un processus.",
+      "tutor_focus_en": "Have the student explain why a crashing browser tab does not kill the others, then ask what the system reclaims when a process ends.",
       "example_contexts_fr": [
-        "Exemple étudiant 14",
-        "Situation produit 14"
+        "un onglet de navigateur qui plante seul",
+        "un antivirus qui tourne sans bloquer le traitement de texte",
+        "un serveur qui redémarre un service défaillant"
       ],
       "example_contexts_en": [
-        "Student example 14",
-        "Product situation 14"
+        "a browser tab crashing on its own",
+        "an antivirus running without freezing the word processor",
+        "a server restarting a failed service"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.015",
+      "key": "computer_science.conditions_and_loops",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_programming"
       ],
-      "stage": 3,
+      "stage": 2,
       "order": 15,
-      "required": false,
-      "prerequisite_keys": [
-        "computer_science.014"
-      ],
-      "fallback_key": "computer_science.013",
-      "title_fr": "Informatique - étape 15",
-      "title_en": "Computer science - step 15",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 3.",
-      "summary_en": "Build one clear building block of the Computer science path at level 3.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 15.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 15.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 15",
-        "Situation produit 15"
-      ],
-      "example_contexts_en": [
-        "Student example 15",
-        "Product situation 15"
-      ],
-      "safety_category": "standard"
-    },
-    {
-      "key": "computer_science.016",
-      "domain_id": "computer_science",
-      "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
-      ],
-      "stage": 3,
-      "order": 16,
       "required": true,
       "prerequisite_keys": [
-        "computer_science.015"
+        "computer_science.orders_of_magnitude"
       ],
-      "fallback_key": "computer_science.014",
-      "title_fr": "Informatique - étape 16",
-      "title_en": "Computer science - step 16",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 3.",
-      "summary_en": "Build one clear building block of the Computer science path at level 3.",
+      "fallback_key": "computer_science.variables_and_types",
+      "title_fr": "Conditions et boucles : contrôler le flux d'exécution",
+      "title_en": "Conditions and loops: controlling execution flow",
+      "summary_fr": "Écrire une condition sans cas oublié et une boucle dont on sait pourquoi elle s'arrête.",
+      "summary_en": "Write a condition with no forgotten case and a loop whose stopping reason is known.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 16.",
-        "L'appliquer dans un exemple court."
+        "Écrire une condition qui couvre tous les cas d'entrée.",
+        "Identifier la variable qui garantit l'arrêt d'une boucle."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 16.",
-        "Apply it in a short example."
+        "Write a condition that covers every input case.",
+        "Identify the variable that guarantees a loop terminates."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais écrire les conditions d'un tarif à trois tranches, puis demande quelle entrée n'est traitée par aucune branche.",
+      "tutor_focus_en": "Have the student write the conditions of a three-band fare, then ask which input no branch handles.",
       "example_contexts_fr": [
-        "Exemple étudiant 16",
-        "Situation produit 16"
+        "un tarif réduit selon l'âge du voyageur",
+        "une boucle qui parcourt les lignes d'un fichier",
+        "un mot de passe redemandé jusqu'à trois essais"
       ],
       "example_contexts_en": [
-        "Student example 16",
-        "Product situation 16"
+        "a reduced fare based on traveller age",
+        "a loop reading the lines of a file",
+        "a password prompt allowed up to three attempts"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.017",
+      "key": "computer_science.functions_and_scope",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_programming"
       ],
-      "stage": 3,
-      "order": 17,
+      "stage": 2,
+      "order": 16,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.016"
+        "computer_science.conditions_and_loops"
       ],
-      "fallback_key": "computer_science.015",
-      "title_fr": "Informatique - étape 17",
-      "title_en": "Computer science - step 17",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 3.",
-      "summary_en": "Build one clear building block of the Computer science path at level 3.",
+      "fallback_key": "computer_science.variables_and_types",
+      "title_fr": "Fonctions, paramètres et portée des variables",
+      "title_en": "Functions, parameters and variable scope",
+      "summary_fr": "Comprendre ce qu'une fonction reçoit, ce qu'elle renvoie et ce qu'elle ne devrait pas connaître.",
+      "summary_en": "Understand what a function receives, what it returns and what it should not know about.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 17.",
-        "L'appliquer dans un exemple court."
+        "Distinguer paramètre, argument et valeur de retour.",
+        "Expliquer pourquoi une variable locale n'existe plus après l'appel."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 17.",
-        "Apply it in a short example."
+        "Tell apart parameter, argument and return value.",
+        "Explain why a local variable no longer exists after the call."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais transformer un bloc de code répété en fonction avec deux paramètres, puis demande quelles variables globales elle ne doit plus lire.",
+      "tutor_focus_en": "Have the student turn a repeated block into a function with two parameters, then ask which global variables it must stop reading.",
       "example_contexts_fr": [
-        "Exemple étudiant 17",
-        "Situation produit 17"
+        "un calcul de TVA répété à trois endroits",
+        "une fonction de validation d'adresse e-mail",
+        "un utilitaire de formatage de date partagé par deux écrans"
       ],
       "example_contexts_en": [
-        "Student example 17",
-        "Product situation 17"
+        "a VAT computation repeated in three places",
+        "an email address validation function",
+        "a date formatting helper shared by two screens"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.018",
+      "key": "computer_science.tables_and_keys",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
         "cs_software_data"
       ],
-      "stage": 3,
+      "stage": 2,
+      "order": 17,
+      "required": true,
+      "prerequisite_keys": [
+        "computer_science.orders_of_magnitude"
+      ],
+      "fallback_key": "computer_science.what_is_database",
+      "title_fr": "Tables, clés primaires et clés étrangères",
+      "title_en": "Tables, primary keys and foreign keys",
+      "summary_fr": "Modéliser deux entités liées et comprendre ce qu'une clé étrangère interdit.",
+      "summary_en": "Model two related entities and understand what a foreign key forbids.",
+      "learning_goals_fr": [
+        "Choisir une clé primaire stable pour une entité.",
+        "Expliquer ce qu'une clé étrangère empêche d'insérer ou de supprimer."
+      ],
+      "learning_goals_en": [
+        "Choose a stable primary key for an entity.",
+        "Explain what a foreign key prevents on insert and on delete."
+      ],
+      "tutor_focus_fr": "Fais modéliser clients et commandes en deux tables, puis demande ce qui se passe à la suppression d'un client qui a des commandes.",
+      "tutor_focus_en": "Have the student model customers and orders as two tables, then ask what happens when deleting a customer who has orders.",
+      "example_contexts_fr": [
+        "un client et ses commandes dans une boutique en ligne",
+        "un auteur et ses articles dans un blog",
+        "un élève et ses inscriptions à des cours"
+      ],
+      "example_contexts_en": [
+        "a customer and their orders in an online shop",
+        "an author and their posts in a blog",
+        "a student and their course enrolments"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.git_commit_history",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 2,
       "order": 18,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.017"
+        "computer_science.tables_and_keys"
       ],
-      "fallback_key": "computer_science.016",
-      "title_fr": "Informatique - étape 18",
-      "title_en": "Computer science - step 18",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 3.",
-      "summary_en": "Build one clear building block of the Computer science path at level 3.",
+      "fallback_key": "computer_science.what_is_database",
+      "title_fr": "Ce qu'un commit Git enregistre vraiment",
+      "title_en": "What a Git commit actually records",
+      "summary_fr": "Voir un commit comme un instantané complet relié à son parent, et non comme une différence isolée.",
+      "summary_en": "See a commit as a full snapshot linked to its parent, not as an isolated diff.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 18.",
-        "L'appliquer dans un exemple court."
+        "Décrire ce que contient un commit et ce qui le relie au précédent.",
+        "Expliquer pourquoi l'historique permet de revenir en arrière."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 18.",
-        "Apply it in a short example."
+        "Describe what a commit contains and what links it to the previous one.",
+        "Explain why the history makes it possible to go back."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire le contenu d'un commit et son lien au parent, puis demande ce que retrouve exactement un retour à un commit ancien.",
+      "tutor_focus_en": "Have the student describe a commit's content and its parent link, then ask exactly what checking out an old commit restores.",
       "example_contexts_fr": [
-        "Exemple étudiant 18",
-        "Situation produit 18"
+        "une correction envoyée juste avant une démonstration",
+        "un fichier supprimé par erreur la semaine précédente",
+        "deux développeurs qui travaillent sur le même dossier"
       ],
       "example_contexts_en": [
-        "Student example 18",
-        "Product situation 18"
+        "a fix pushed right before a demo",
+        "a file deleted by mistake the week before",
+        "two developers working in the same folder"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.019",
+      "key": "computer_science.http_request_path",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
       "stage": 3,
       "order": 19,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.018"
+        "computer_science.os_processes"
       ],
-      "fallback_key": "computer_science.017",
-      "title_fr": "Informatique - étape 19",
-      "title_en": "Computer science - step 19",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 3.",
-      "summary_en": "Build one clear building block of the Computer science path at level 3.",
+      "fallback_key": "computer_science.os_processes",
+      "title_fr": "Comment une requête HTTP atteint un serveur",
+      "title_en": "How an HTTP request reaches a server",
+      "summary_fr": "Suivre une requête depuis la barre d'adresse jusqu'au processus serveur qui la traite.",
+      "summary_en": "Follow a request from the address bar to the server process that handles it.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 19.",
-        "L'appliquer dans un exemple court."
+        "Ordonner résolution de nom, connexion, requête, réponse.",
+        "Lire une ligne de requête et un code de statut."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 19.",
-        "Apply it in a short example."
+        "Order name resolution, connection, request and response.",
+        "Read a request line and a status code."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire chaque étape entre la touche Entrée et l'affichage, puis demande ce que signifient un 404 et un 502 pour le trajet décrit.",
+      "tutor_focus_en": "Have the student describe each step between pressing Enter and seeing the page, then ask what a 404 and a 502 mean along that path.",
       "example_contexts_fr": [
-        "Exemple étudiant 19",
-        "Situation produit 19"
+        "l'ouverture d'un article de presse en ligne",
+        "un formulaire de connexion envoyé en POST",
+        "une image qui reste en chargement sur une page"
       ],
       "example_contexts_en": [
-        "Student example 19",
-        "Product situation 19"
+        "opening an online news article",
+        "a login form submitted with POST",
+        "an image stuck loading on a page"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.020",
+      "key": "computer_science.dns_resolution",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
       "stage": 3,
       "order": 20,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.019"
+        "computer_science.http_request_path"
       ],
-      "fallback_key": "computer_science.018",
-      "title_fr": "Informatique - étape 20",
-      "title_en": "Computer science - step 20",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 3.",
-      "summary_en": "Build one clear building block of the Computer science path at level 3.",
+      "fallback_key": "computer_science.os_processes",
+      "title_fr": "Comment un nom de domaine devient une adresse IP",
+      "title_en": "How a domain name becomes an IP address",
+      "summary_fr": "Décrire la résolution DNS en cascade et le rôle du cache dans la vitesse et dans les pannes.",
+      "summary_en": "Describe cascading DNS resolution and the role of caching in both speed and outages.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 20.",
-        "L'appliquer dans un exemple court."
+        "Nommer les résolveurs successifs interrogés lors d'une résolution.",
+        "Expliquer l'effet d'un TTL sur un changement d'adresse."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 20.",
-        "Apply it in a short example."
+        "Name the successive resolvers queried during a lookup.",
+        "Explain the effect of a TTL when an address changes."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire la cascade de résolveurs pour un nom jamais visité, puis demande pourquoi un changement d'hébergeur met des heures à être visible partout.",
+      "tutor_focus_en": "Have the student describe the resolver cascade for a never-visited name, then ask why a hosting move takes hours to be visible everywhere.",
       "example_contexts_fr": [
-        "Exemple étudiant 20",
-        "Situation produit 20"
+        "un site déménagé chez un nouvel hébergeur",
+        "un réseau d'entreprise qui bloque un domaine",
+        "un nom de domaine qui vient d'être acheté"
       ],
       "example_contexts_en": [
-        "Student example 20",
-        "Product situation 20"
+        "a site moved to a new hosting provider",
+        "a corporate network blocking a domain",
+        "a domain name bought minutes ago"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.021",
+      "key": "computer_science.cpu_cache_locality",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
       "stage": 3,
       "order": 21,
-      "required": true,
+      "required": false,
       "prerequisite_keys": [
-        "computer_science.020"
+        "computer_science.dns_resolution"
       ],
-      "fallback_key": "computer_science.019",
-      "title_fr": "Informatique - étape 21",
-      "title_en": "Computer science - step 21",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 3.",
-      "summary_en": "Build one clear building block of the Computer science path at level 3.",
+      "fallback_key": "computer_science.os_processes",
+      "title_fr": "Pourquoi les caches du processeur rendent un code rapide ou lent",
+      "title_en": "Why CPU caches make code fast or slow",
+      "summary_fr": "Relier la hiérarchie mémoire à la localité des accès et au coût réel d'un défaut de cache.",
+      "summary_en": "Connect the memory hierarchy to access locality and to the real cost of a cache miss.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 21.",
-        "L'appliquer dans un exemple court."
+        "Expliquer localité temporelle et localité spatiale.",
+        "Prévoir quel parcours de tableau à deux dimensions sera le plus rapide."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 21.",
-        "Apply it in a short example."
+        "Explain temporal locality and spatial locality.",
+        "Predict which traversal of a two-dimensional array will be faster."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer le parcours d'une matrice ligne par ligne et colonne par colonne, puis demande d'estimer le rapport de durée entre les deux.",
+      "tutor_focus_en": "Have the student compare row-by-row and column-by-column traversal of a matrix, then ask for an estimate of the ratio between the two.",
       "example_contexts_fr": [
-        "Exemple étudiant 21",
-        "Situation produit 21"
+        "le parcours d'une image pixel par pixel",
+        "une somme sur un très grand tableau de mesures",
+        "une liste chaînée dispersée en mémoire"
       ],
       "example_contexts_en": [
-        "Student example 21",
-        "Product situation 21"
+        "walking an image pixel by pixel",
+        "summing a very large array of measurements",
+        "a linked list scattered across memory"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.022",
+      "key": "computer_science.threads_and_context_switch",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 22,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.021"
+        "computer_science.cpu_cache_locality"
       ],
-      "fallback_key": "computer_science.020",
-      "title_fr": "Informatique - étape 22",
-      "title_en": "Computer science - step 22",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 4.",
-      "summary_en": "Build one clear building block of the Computer science path at level 4.",
+      "fallback_key": "computer_science.os_processes",
+      "title_fr": "Threads et changement de contexte",
+      "title_en": "Threads and context switching",
+      "summary_fr": "Comprendre ce que le système sauvegarde pour donner l'illusion que tout tourne en même temps.",
+      "summary_en": "Understand what the system saves to keep the illusion that everything runs at once.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 22.",
-        "L'appliquer dans un exemple court."
+        "Distinguer parallélisme réel et concurrence par alternance.",
+        "Citer ce qui est sauvegardé lors d'un changement de contexte."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 22.",
-        "Apply it in a short example."
+        "Tell apart true parallelism and concurrency by interleaving.",
+        "List what is saved during a context switch."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer comment quatre cœurs font tourner cent tâches, puis demande pourquoi multiplier les threads finit par ralentir la machine.",
+      "tutor_focus_en": "Have the student explain how four cores run a hundred tasks, then ask why adding threads eventually slows the machine down.",
       "example_contexts_fr": [
-        "Exemple étudiant 22",
-        "Situation produit 22"
+        "un serveur web qui traite mille connexions simultanées",
+        "une interface qui reste réactive pendant un téléchargement",
+        "un traitement d'images réparti sur plusieurs cœurs"
       ],
       "example_contexts_en": [
-        "Student example 22",
-        "Product situation 22"
+        "a web server handling a thousand simultaneous connections",
+        "an interface staying responsive during a download",
+        "image processing spread across several cores"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.023",
+      "key": "computer_science.arrays_vs_linked_lists",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_programming"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 23,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.022"
+        "computer_science.functions_and_scope"
       ],
-      "fallback_key": "computer_science.021",
-      "title_fr": "Informatique - étape 23",
-      "title_en": "Computer science - step 23",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 4.",
-      "summary_en": "Build one clear building block of the Computer science path at level 4.",
+      "fallback_key": "computer_science.functions_and_scope",
+      "title_fr": "Tableau ou liste chaînée : quel coût pour quelle opération",
+      "title_en": "Array or linked list: which cost for which operation",
+      "summary_fr": "Comparer accès indexé et insertion au milieu pour choisir la structure adaptée à un usage.",
+      "summary_en": "Compare indexed access and middle insertion to pick the structure that fits a usage.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 23.",
-        "L'appliquer dans un exemple court."
+        "Comparer le coût de l'accès par indice et de l'insertion pour les deux structures.",
+        "Choisir la structure adaptée à une liste modifiée en permanence."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 23.",
-        "Apply it in a short example."
+        "Compare the cost of index access and insertion for both structures.",
+        "Choose the right structure for a constantly modified list."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer l'insertion de mille éléments au milieu d'un tableau et d'une liste chaînée, puis demande laquelle convient à une file d'attente.",
+      "tutor_focus_en": "Have the student compare inserting a thousand elements in the middle of an array and of a linked list, then ask which fits a waiting queue.",
       "example_contexts_fr": [
-        "Exemple étudiant 23",
-        "Situation produit 23"
+        "une file d'attente de tickets de support",
+        "un historique de navigation parcouru en arrière",
+        "un tableau de scores trié affiché à l'écran"
       ],
       "example_contexts_en": [
-        "Student example 23",
-        "Product situation 23"
+        "a support ticket waiting queue",
+        "a browsing history walked backwards",
+        "a sorted scoreboard displayed on screen"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.024",
+      "key": "computer_science.hash_maps",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_programming"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 24,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.023"
+        "computer_science.arrays_vs_linked_lists"
       ],
-      "fallback_key": "computer_science.022",
-      "title_fr": "Informatique - étape 24",
-      "title_en": "Computer science - step 24",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 4.",
-      "summary_en": "Build one clear building block of the Computer science path at level 4.",
+      "fallback_key": "computer_science.functions_and_scope",
+      "title_fr": "Comment une table de hachage retrouve une clé",
+      "title_en": "How a hash map finds a key",
+      "summary_fr": "Relier la fonction de hachage, le seau d'arrivée et la gestion des collisions au coût moyen constant.",
+      "summary_en": "Connect the hash function, the target bucket and collision handling to constant average cost.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 24.",
-        "L'appliquer dans un exemple court."
+        "Expliquer le chemin d'une clé jusqu'à sa valeur.",
+        "Dire ce qui dégrade une table de hachage en recherche linéaire."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 24.",
-        "Apply it in a short example."
+        "Explain the path from a key to its value.",
+        "Say what degrades a hash map into a linear search."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais suivre une clé jusqu'à son seau, puis demande ce qui se passe si toutes les clés tombent dans le même seau.",
+      "tutor_focus_en": "Have the student follow a key to its bucket, then ask what happens when every key lands in the same bucket.",
       "example_contexts_fr": [
-        "Exemple étudiant 24",
-        "Situation produit 24"
+        "un annuaire téléphonique interrogé par nom",
+        "un cache de sessions utilisateur",
+        "un comptage d'occurrences de mots dans un texte"
       ],
       "example_contexts_en": [
-        "Student example 24",
-        "Product situation 24"
+        "a phone directory queried by name",
+        "a cache of user sessions",
+        "counting word occurrences in a text"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.025",
+      "key": "computer_science.linear_vs_log_complexity",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_programming"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 25,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.024"
+        "computer_science.hash_maps"
       ],
-      "fallback_key": "computer_science.023",
-      "title_fr": "Informatique - étape 25",
-      "title_en": "Computer science - step 25",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 4.",
-      "summary_en": "Build one clear building block of the Computer science path at level 4.",
+      "fallback_key": "computer_science.functions_and_scope",
+      "title_fr": "Complexité linéaire et logarithmique",
+      "title_en": "Linear and logarithmic complexity",
+      "summary_fr": "Comparer le nombre d'opérations d'une recherche séquentielle et d'une recherche dichotomique.",
+      "summary_en": "Compare the operation count of a sequential search and a binary search.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 25.",
-        "L'appliquer dans un exemple court."
+        "Compter les comparaisons des deux recherches sur un million d'éléments.",
+        "Nommer la condition qui rend la dichotomie possible."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 25.",
-        "Apply it in a short example."
+        "Count the comparisons of both searches over a million elements.",
+        "Name the condition that makes binary search possible."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais compter les comparaisons pour un million d'éléments dans les deux cas, puis demande ce qu'exige la dichotomie sur les données.",
+      "tutor_focus_en": "Have the student count comparisons for a million elements in both cases, then ask what binary search requires from the data.",
       "example_contexts_fr": [
-        "Exemple étudiant 25",
-        "Situation produit 25"
+        "la recherche d'un mot dans un dictionnaire papier",
+        "un identifiant cherché dans un journal d'événements",
+        "un produit cherché dans un catalogue trié par référence"
       ],
       "example_contexts_en": [
-        "Student example 25",
-        "Product situation 25"
+        "looking up a word in a paper dictionary",
+        "an identifier searched in an event log",
+        "a product searched in a catalogue sorted by reference"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.026",
+      "key": "computer_science.recursion_base_case",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_programming"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 26,
-      "required": true,
-      "prerequisite_keys": [
-        "computer_science.025"
-      ],
-      "fallback_key": "computer_science.024",
-      "title_fr": "Informatique - étape 26",
-      "title_en": "Computer science - step 26",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 4.",
-      "summary_en": "Build one clear building block of the Computer science path at level 4.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 26.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 26.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 26",
-        "Situation produit 26"
-      ],
-      "example_contexts_en": [
-        "Student example 26",
-        "Product situation 26"
-      ],
-      "safety_category": "standard"
-    },
-    {
-      "key": "computer_science.027",
-      "domain_id": "computer_science",
-      "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
-      ],
-      "stage": 4,
-      "order": 27,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.026"
+        "computer_science.linear_vs_log_complexity"
       ],
-      "fallback_key": "computer_science.025",
-      "title_fr": "Informatique - étape 27",
-      "title_en": "Computer science - step 27",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 4.",
-      "summary_en": "Build one clear building block of the Computer science path at level 4.",
+      "fallback_key": "computer_science.functions_and_scope",
+      "title_fr": "Récursivité et cas de base",
+      "title_en": "Recursion and the base case",
+      "summary_fr": "Écrire une fonction récursive dont le cas de base est atteint et suivre l'empilement des appels.",
+      "summary_en": "Write a recursive function whose base case is reached and follow the stack of calls.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 27.",
-        "L'appliquer dans un exemple court."
+        "Identifier le cas de base et la réduction du problème.",
+        "Expliquer l'origine d'un débordement de pile."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 27.",
-        "Apply it in a short example."
+        "Identify the base case and how the problem shrinks.",
+        "Explain where a stack overflow comes from."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais dérouler la pile d'appels d'une factorielle de 4, puis demande ce qui manque dans une version qui ne s'arrête jamais.",
+      "tutor_focus_en": "Have the student unroll the call stack of factorial 4, then ask what is missing in a version that never stops.",
       "example_contexts_fr": [
-        "Exemple étudiant 27",
-        "Situation produit 27"
+        "le parcours des dossiers imbriqués d'un disque",
+        "le calcul d'une factorielle",
+        "l'affichage d'un fil de commentaires imbriqués"
       ],
       "example_contexts_en": [
-        "Student example 27",
-        "Product situation 27"
+        "walking the nested folders of a disk",
+        "computing a factorial",
+        "rendering a thread of nested comments"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.028",
+      "key": "computer_science.sql_select_join",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
         "cs_software_data"
       ],
-      "stage": 4,
+      "stage": 3,
+      "order": 27,
+      "required": true,
+      "prerequisite_keys": [
+        "computer_science.git_commit_history"
+      ],
+      "fallback_key": "computer_science.git_commit_history",
+      "title_fr": "Ce que fait vraiment une jointure SQL",
+      "title_en": "What a SQL join actually does",
+      "summary_fr": "Comprendre l'appariement ligne à ligne d'une jointure et l'effet d'une jointure externe.",
+      "summary_en": "Understand the row-by-row matching of a join and the effect of an outer join.",
+      "learning_goals_fr": [
+        "Prévoir le nombre de lignes produites par une jointure.",
+        "Distinguer jointure interne et jointure externe sur un exemple."
+      ],
+      "learning_goals_en": [
+        "Predict the number of rows a join produces.",
+        "Tell apart inner and outer join on a concrete example."
+      ],
+      "tutor_focus_fr": "Fais prévoir le nombre de lignes d'une jointure entre trois clients et cinq commandes, puis demande ce que change une jointure externe à gauche.",
+      "tutor_focus_en": "Have the student predict the row count of a join between three customers and five orders, then ask what a left outer join changes.",
+      "example_contexts_fr": [
+        "un rapport des commandes par client",
+        "une liste d'élèves sans note enregistrée",
+        "un export comptable qui duplique des lignes"
+      ],
+      "example_contexts_en": [
+        "a report of orders per customer",
+        "a list of students with no recorded grade",
+        "an accounting export that duplicates rows"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.rest_api_contract",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 3,
       "order": 28,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.027"
+        "computer_science.sql_select_join"
       ],
-      "fallback_key": "computer_science.026",
-      "title_fr": "Informatique - étape 28",
-      "title_en": "Computer science - step 28",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 4.",
-      "summary_en": "Build one clear building block of the Computer science path at level 4.",
+      "fallback_key": "computer_science.git_commit_history",
+      "title_fr": "Le contrat d'une API REST",
+      "title_en": "The contract of a REST API",
+      "summary_fr": "Lire une API comme un contrat : ressources, verbes, codes de statut et forme des erreurs.",
+      "summary_en": "Read an API as a contract: resources, verbs, status codes and error shape.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 28.",
-        "L'appliquer dans un exemple court."
+        "Associer chaque verbe HTTP à l'effet attendu sur une ressource.",
+        "Choisir le code de statut adapté à trois situations d'erreur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 28.",
-        "Apply it in a short example."
+        "Map each HTTP verb to its expected effect on a resource.",
+        "Pick the right status code for three error situations."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais choisir le verbe et le code de statut pour créer, modifier et supprimer une réservation, puis demande ce que doit contenir le corps d'une erreur.",
+      "tutor_focus_en": "Have the student pick verb and status code to create, update and delete a booking, then ask what an error body must contain.",
       "example_contexts_fr": [
-        "Exemple étudiant 28",
-        "Situation produit 28"
+        "une API de réservation de salles",
+        "une intégration de paiement appelée par une application mobile",
+        "un client qui envoie un champ obligatoire vide"
       ],
       "example_contexts_en": [
-        "Student example 28",
-        "Product situation 28"
+        "a room booking API",
+        "a payment integration called by a mobile app",
+        "a client sending a required field empty"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.029",
+      "key": "computer_science.database_indexes",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
         "cs_software_data"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 29,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.028"
+        "computer_science.rest_api_contract"
       ],
-      "fallback_key": "computer_science.027",
-      "title_fr": "Informatique - étape 29",
-      "title_en": "Computer science - step 29",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 5.",
-      "summary_en": "Build one clear building block of the Computer science path at level 5.",
+      "fallback_key": "computer_science.git_commit_history",
+      "title_fr": "Pourquoi une base de données utilise des index",
+      "title_en": "Why a database uses indexes",
+      "summary_fr": "Comprendre l'index comme structure triée qui accélère la lecture et ralentit l'écriture.",
+      "summary_en": "See an index as a sorted structure that speeds reads up and slows writes down.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 29.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'un index évite de parcourir.",
+        "Citer deux coûts d'un index inutile."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 29.",
-        "Apply it in a short example."
+        "Explain what an index avoids scanning.",
+        "State two costs of a useless index."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer une recherche par e-mail sur un million de lignes avec et sans index, puis demande ce que coûte cet index à chaque insertion.",
+      "tutor_focus_en": "Have the student compare an email lookup over a million rows with and without an index, then ask what that index costs on every insert.",
       "example_contexts_fr": [
-        "Exemple étudiant 29",
-        "Situation produit 29"
+        "une connexion utilisateur recherchée par adresse e-mail",
+        "un rapport mensuel filtré par date de commande",
+        "une table d'historique alimentée en continu"
       ],
       "example_contexts_en": [
-        "Student example 29",
-        "Product situation 29"
+        "a user login looked up by email address",
+        "a monthly report filtered by order date",
+        "a history table written to continuously"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.030",
+      "key": "computer_science.git_branch_merge",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
         "cs_software_data"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 30,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.029"
+        "computer_science.database_indexes"
       ],
-      "fallback_key": "computer_science.028",
-      "title_fr": "Informatique - étape 30",
-      "title_en": "Computer science - step 30",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 5.",
-      "summary_en": "Build one clear building block of the Computer science path at level 5.",
+      "fallback_key": "computer_science.git_commit_history",
+      "title_fr": "Branches et fusions",
+      "title_en": "Branches and merges",
+      "summary_fr": "Comprendre l'origine d'un conflit de fusion et ce que Git demande de trancher.",
+      "summary_en": "Understand where a merge conflict comes from and what Git asks you to decide.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 30.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'une branche isole du tronc commun.",
+        "Décrire la situation exacte qui produit un conflit."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 30.",
-        "Apply it in a short example."
+        "Explain what a branch isolates from the main line.",
+        "Describe the exact situation that produces a conflict."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire deux branches qui modifient la même ligne, puis demande ce que Git ne peut pas décider seul et pourquoi.",
+      "tutor_focus_en": "Have the student describe two branches editing the same line, then ask what Git cannot decide alone and why.",
       "example_contexts_fr": [
-        "Exemple étudiant 30",
-        "Situation produit 30"
+        "une correction urgente pendant qu'une refonte est en cours",
+        "deux équipes qui modifient le même fichier de configuration",
+        "une branche restée ouverte pendant trois semaines"
       ],
       "example_contexts_en": [
-        "Student example 30",
-        "Product situation 30"
+        "an urgent fix while a rewrite is in progress",
+        "two teams editing the same configuration file",
+        "a branch left open for three weeks"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.031",
+      "key": "computer_science.virtual_memory",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 31,
       "required": true,
       "prerequisite_keys": [
-        "computer_science.030"
+        "computer_science.threads_and_context_switch"
       ],
-      "fallback_key": "computer_science.029",
-      "title_fr": "Informatique - étape 31",
-      "title_en": "Computer science - step 31",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 5.",
-      "summary_en": "Build one clear building block of the Computer science path at level 5.",
+      "fallback_key": "computer_science.threads_and_context_switch",
+      "title_fr": "Mémoire virtuelle et pagination",
+      "title_en": "Virtual memory and paging",
+      "summary_fr": "Comprendre la traduction d'adresses virtuelles en adresses physiques et le coût du recours au disque.",
+      "summary_en": "Understand the translation from virtual to physical addresses and the cost of falling back to disk.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 31.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi chaque processus croit disposer de toute la mémoire.",
+        "Décrire ce qui se passe lors d'un défaut de page."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 31.",
-        "Apply it in a short example."
+        "Explain why every process believes it owns the whole memory.",
+        "Describe what happens on a page fault."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer la traduction d'une adresse par la table des pages, puis demande pourquoi une machine qui swappe devient brutalement inutilisable.",
+      "tutor_focus_en": "Have the student explain address translation through the page table, then ask why a swapping machine becomes suddenly unusable.",
       "example_contexts_fr": [
-        "Exemple étudiant 31",
-        "Situation produit 31"
+        "un ordinateur qui rame quand la mémoire est saturée",
+        "deux processus qui utilisent la même adresse virtuelle",
+        "un très gros fichier ouvert par projection en mémoire"
       ],
       "example_contexts_en": [
-        "Student example 31",
-        "Product situation 31"
+        "a computer crawling once memory is saturated",
+        "two processes using the same virtual address",
+        "a very large file opened through memory mapping"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.032",
+      "key": "computer_science.tcp_vs_udp",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 32,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.031"
+        "computer_science.virtual_memory"
       ],
-      "fallback_key": "computer_science.030",
-      "title_fr": "Informatique - étape 32",
-      "title_en": "Computer science - step 32",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 5.",
-      "summary_en": "Build one clear building block of the Computer science path at level 5.",
+      "fallback_key": "computer_science.threads_and_context_switch",
+      "title_fr": "TCP ou UDP : fiabilité contre latence",
+      "title_en": "TCP or UDP: reliability against latency",
+      "summary_fr": "Choisir entre livraison garantie et livraison rapide selon ce que coûte une donnée perdue.",
+      "summary_en": "Choose between guaranteed delivery and fast delivery based on what a lost packet costs.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 32.",
-        "L'appliquer dans un exemple court."
+        "Citer ce que TCP ajoute et ce qu'UDP refuse d'ajouter.",
+        "Justifier le choix du protocole pour un usage donné."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 32.",
-        "Apply it in a short example."
+        "State what TCP adds and what UDP refuses to add.",
+        "Justify the protocol choice for a given use."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais justifier le protocole retenu pour un transfert de fichier puis pour un appel vidéo, en demandant à chaque fois le coût d'un paquet perdu.",
+      "tutor_focus_en": "Have the student justify the protocol for a file transfer then for a video call, each time asking what a lost packet costs.",
       "example_contexts_fr": [
-        "Exemple étudiant 32",
-        "Situation produit 32"
+        "un appel vidéo qui pixellise une demi-seconde",
+        "le téléchargement d'une mise à jour système",
+        "un jeu en ligne où la position du joueur change dix fois par seconde"
       ],
       "example_contexts_en": [
-        "Student example 32",
-        "Product situation 32"
+        "a video call pixelating for half a second",
+        "downloading a system update",
+        "an online game where the player position changes ten times per second"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.033",
+      "key": "computer_science.tls_handshake",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 33,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.032"
+        "computer_science.tcp_vs_udp"
       ],
-      "fallback_key": "computer_science.031",
-      "title_fr": "Informatique - étape 33",
-      "title_en": "Computer science - step 33",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 5.",
-      "summary_en": "Build one clear building block of the Computer science path at level 5.",
+      "fallback_key": "computer_science.threads_and_context_switch",
+      "title_fr": "Ce que négocie une poignée de main TLS",
+      "title_en": "What a TLS handshake negotiates",
+      "summary_fr": "Comprendre l'enchaînement authentification du serveur, échange de clés, chiffrement symétrique.",
+      "summary_en": "Understand the chain of server authentication, key exchange and symmetric encryption.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 33.",
-        "L'appliquer dans un exemple court."
+        "Expliquer le rôle du certificat et de l'autorité qui le signe.",
+        "Dire pourquoi la suite de la session n'utilise plus l'asymétrique."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 33.",
-        "Apply it in a short example."
+        "Explain the role of the certificate and of the authority signing it.",
+        "Say why the rest of the session stops using asymmetric cryptography."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire les échanges jusqu'à la clé de session, puis demande ce qu'un avertissement de certificat expiré prouve et ne prouve pas.",
+      "tutor_focus_en": "Have the student describe the exchanges up to the session key, then ask what an expired-certificate warning proves and does not prove.",
       "example_contexts_fr": [
-        "Exemple étudiant 33",
-        "Situation produit 33"
+        "un cadenas affiché dans la barre d'adresse",
+        "un avertissement de certificat sur un réseau d'hôtel",
+        "une application mobile qui refuse un serveur de test"
       ],
       "example_contexts_en": [
-        "Student example 33",
-        "Product situation 33"
+        "a padlock shown in the address bar",
+        "a certificate warning on a hotel network",
+        "a mobile app refusing a test server"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.034",
+      "key": "computer_science.race_conditions_locks",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
-        "cs_software_data"
+        "cs_systems"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 34,
       "required": false,
       "prerequisite_keys": [
-        "computer_science.033"
+        "computer_science.tls_handshake"
       ],
-      "fallback_key": "computer_science.032",
-      "title_fr": "Informatique - étape 34",
-      "title_en": "Computer science - step 34",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 5.",
-      "summary_en": "Build one clear building block of the Computer science path at level 5.",
+      "fallback_key": "computer_science.threads_and_context_switch",
+      "title_fr": "Conditions de course et verrous",
+      "title_en": "Race conditions and locks",
+      "summary_fr": "Identifier l'entrelacement fautif de deux opérations concurrentes et le coût d'un verrou.",
+      "summary_en": "Spot the faulty interleaving of two concurrent operations and the cost of a lock.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 34.",
-        "L'appliquer dans un exemple court."
+        "Construire un entrelacement qui produit un solde faux.",
+        "Expliquer ce qu'un verrou garantit et ce qu'il coûte."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 34.",
-        "Apply it in a short example."
+        "Build an interleaving that produces a wrong balance.",
+        "Explain what a lock guarantees and what it costs."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais écrire l'entrelacement de deux retraits simultanés sur le même compte, puis demande où poser le verrou sans bloquer tout le service.",
+      "tutor_focus_en": "Have the student write the interleaving of two simultaneous withdrawals on one account, then ask where to place the lock without blocking the whole service.",
       "example_contexts_fr": [
-        "Exemple étudiant 34",
-        "Situation produit 34"
+        "deux retraits simultanés sur le même compte bancaire",
+        "deux acheteurs pour le dernier billet d'un concert",
+        "un compteur de vues incrémenté par plusieurs serveurs"
       ],
       "example_contexts_en": [
-        "Student example 34",
-        "Product situation 34"
+        "two simultaneous withdrawals from one bank account",
+        "two buyers for the last concert ticket",
+        "a view counter incremented by several servers"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "computer_science.035",
+      "key": "computer_science.sorting_algorithms",
       "domain_id": "computer_science",
       "objective_ids": [
-        "cs_systems",
-        "cs_programming",
+        "cs_programming"
+      ],
+      "stage": 4,
+      "order": 35,
+      "required": true,
+      "prerequisite_keys": [
+        "computer_science.recursion_base_case"
+      ],
+      "fallback_key": "computer_science.recursion_base_case",
+      "title_fr": "Pourquoi le tri fusion bat le tri par insertion",
+      "title_en": "Why merge sort beats insertion sort",
+      "summary_fr": "Comparer deux stratégies de tri sur le nombre de comparaisons et sur la mémoire consommée.",
+      "summary_en": "Compare two sorting strategies on comparison count and on memory used.",
+      "learning_goals_fr": [
+        "Expliquer le découpage récursif du tri fusion.",
+        "Dire dans quel cas un tri quadratique reste préférable."
+      ],
+      "learning_goals_en": [
+        "Explain the recursive splitting of merge sort.",
+        "Say when a quadratic sort is still preferable."
+      ],
+      "tutor_focus_fr": "Fais trier six nombres par insertion puis par fusion en comptant les comparaisons, et demande à partir de quelle taille l'écart devient décisif.",
+      "tutor_focus_en": "Have the student sort six numbers by insertion then by merging while counting comparisons, and ask at which size the gap becomes decisive.",
+      "example_contexts_fr": [
+        "le tri de dix mille commandes par date",
+        "le classement d'une main de cartes",
+        "un fichier de logs presque déjà trié"
+      ],
+      "example_contexts_en": [
+        "sorting ten thousand orders by date",
+        "arranging a hand of playing cards",
+        "a log file that is almost already sorted"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.trees_and_traversal",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_programming"
+      ],
+      "stage": 4,
+      "order": 36,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.sorting_algorithms"
+      ],
+      "fallback_key": "computer_science.recursion_base_case",
+      "title_fr": "Arbres et parcours",
+      "title_en": "Trees and traversals",
+      "summary_fr": "Choisir entre parcours en profondeur et en largeur selon la question posée à la structure.",
+      "summary_en": "Choose between depth-first and breadth-first traversal depending on the question asked.",
+      "learning_goals_fr": [
+        "Distinguer racine, nœud, feuille et hauteur.",
+        "Choisir le parcours qui répond à une question donnée."
+      ],
+      "learning_goals_en": [
+        "Tell apart root, node, leaf and height.",
+        "Choose the traversal that answers a given question."
+      ],
+      "tutor_focus_fr": "Fais parcourir un arbre de six nœuds en profondeur puis en largeur, et demande lequel trouve d'abord le nœud le plus proche de la racine.",
+      "tutor_focus_en": "Have the student traverse a six-node tree depth-first then breadth-first, and ask which one finds the node closest to the root first.",
+      "example_contexts_fr": [
+        "l'arborescence des dossiers d'un projet",
+        "un organigramme d'entreprise",
+        "le rendu d'une page HTML et de ses balises imbriquées"
+      ],
+      "example_contexts_en": [
+        "the folder tree of a project",
+        "a company org chart",
+        "rendering an HTML page and its nested tags"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.unit_tests",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_programming"
+      ],
+      "stage": 4,
+      "order": 37,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.trees_and_traversal"
+      ],
+      "fallback_key": "computer_science.recursion_base_case",
+      "title_fr": "Ce qu'un bon test unitaire vérifie",
+      "title_en": "What a good unit test checks",
+      "summary_fr": "Écrire un test qui échoue pour une seule raison et qui documente le comportement attendu.",
+      "summary_en": "Write a test that fails for exactly one reason and documents the expected behaviour.",
+      "learning_goals_fr": [
+        "Séparer préparation, action et vérification dans un test.",
+        "Choisir les cas limites à couvrir en priorité."
+      ],
+      "learning_goals_en": [
+        "Separate arrange, act and assert inside a test.",
+        "Choose which edge cases to cover first."
+      ],
+      "tutor_focus_fr": "Fais écrire trois cas de test pour une fonction de remise commerciale, dont un cas limite, puis demande lequel casserait si la règle changeait.",
+      "tutor_focus_en": "Have the student write three test cases for a discount function, one of them an edge case, then ask which would break if the rule changed.",
+      "example_contexts_fr": [
+        "une fonction de remise à partir de 100 euros d'achat",
+        "un validateur de numéro de téléphone",
+        "un calcul de dates de livraison en fin de mois"
+      ],
+      "example_contexts_en": [
+        "a discount function from 100 euros of purchase",
+        "a phone number validator",
+        "a delivery date computation at the end of a month"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.immutability_side_effects",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_programming"
+      ],
+      "stage": 4,
+      "order": 38,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.unit_tests"
+      ],
+      "fallback_key": "computer_science.recursion_base_case",
+      "title_fr": "Effets de bord et immutabilité",
+      "title_en": "Side effects and immutability",
+      "summary_fr": "Repérer une fonction qui modifie son entrée et mesurer ce que cela coûte au débogage.",
+      "summary_en": "Spot a function that mutates its input and measure what that costs during debugging.",
+      "learning_goals_fr": [
+        "Distinguer une fonction pure d'une fonction à effet de bord.",
+        "Expliquer pourquoi une entrée modifiée rend un bug difficile à reproduire."
+      ],
+      "learning_goals_en": [
+        "Tell apart a pure function and a function with side effects.",
+        "Explain why a mutated input makes a bug hard to reproduce."
+      ],
+      "tutor_focus_fr": "Fais repérer la mutation cachée dans une fonction qui trie la liste reçue, puis demande comment la réécrire sans changer l'appelant.",
+      "tutor_focus_en": "Have the student spot the hidden mutation in a function that sorts the list it receives, then ask how to rewrite it without changing callers.",
+      "example_contexts_fr": [
+        "une fonction de tri qui modifie la liste d'origine",
+        "un objet de configuration partagé par deux modules",
+        "un panier d'achat mis à jour depuis deux écrans"
+      ],
+      "example_contexts_en": [
+        "a sort function that modifies the original list",
+        "a configuration object shared by two modules",
+        "a shopping cart updated from two screens"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.transactions_acid",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 4,
+      "order": 39,
+      "required": true,
+      "prerequisite_keys": [
+        "computer_science.git_branch_merge"
+      ],
+      "fallback_key": "computer_science.git_branch_merge",
+      "title_fr": "Transactions et propriétés ACID",
+      "title_en": "Transactions and ACID properties",
+      "summary_fr": "Utiliser une transaction pour qu'une suite d'écritures réussisse entièrement ou pas du tout.",
+      "summary_en": "Use a transaction so that a sequence of writes fully succeeds or does not happen at all.",
+      "learning_goals_fr": [
+        "Expliquer atomicité et isolation sur un transfert entre deux comptes.",
+        "Dire ce que voit une autre session pendant la transaction."
+      ],
+      "learning_goals_en": [
+        "Explain atomicity and isolation on a transfer between two accounts.",
+        "Say what another session sees while the transaction runs."
+      ],
+      "tutor_focus_fr": "Fais dérouler un virement interrompu au milieu, puis demande ce qu'une autre session lit avant la validation.",
+      "tutor_focus_en": "Have the student walk through a transfer interrupted midway, then ask what another session reads before the commit.",
+      "example_contexts_fr": [
+        "un virement entre deux comptes",
+        "une commande qui décrémente un stock",
+        "une inscription qui crée un compte et un profil"
+      ],
+      "example_contexts_en": [
+        "a transfer between two accounts",
+        "an order decrementing stock",
+        "a signup creating an account and a profile"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.n_plus_one_queries",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 4,
+      "order": 40,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.transactions_acid"
+      ],
+      "fallback_key": "computer_science.git_branch_merge",
+      "title_fr": "Le problème des requêtes N+1",
+      "title_en": "The N+1 query problem",
+      "summary_fr": "Repérer une boucle qui interroge la base à chaque itération et la remplacer par une requête groupée.",
+      "summary_en": "Spot a loop that queries the database on each iteration and replace it with one batched query.",
+      "learning_goals_fr": [
+        "Compter les requêtes générées par une boucle d'affichage.",
+        "Proposer une requête unique qui remplace la boucle."
+      ],
+      "learning_goals_en": [
+        "Count the queries generated by a rendering loop.",
+        "Propose a single query that replaces the loop."
+      ],
+      "tutor_focus_fr": "Fais compter les requêtes d'une page qui affiche cent commandes avec leur client, puis demande la requête unique équivalente.",
+      "tutor_focus_en": "Have the student count the queries of a page showing a hundred orders with their customer, then ask for the equivalent single query.",
+      "example_contexts_fr": [
+        "une page listant cent commandes avec le nom du client",
+        "un export qui charge les auteurs article par article",
+        "une API mobile lente uniquement sur la liste principale"
+      ],
+      "example_contexts_en": [
+        "a page listing a hundred orders with the customer name",
+        "an export loading authors article by article",
+        "a mobile API slow only on the main list"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.cache_invalidation",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 4,
+      "order": 41,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.n_plus_one_queries"
+      ],
+      "fallback_key": "computer_science.git_branch_merge",
+      "title_fr": "Mettre en cache sans servir des données périmées",
+      "title_en": "Caching without serving stale data",
+      "summary_fr": "Choisir une stratégie d'invalidation adaptée à la tolérance métier à la donnée obsolète.",
+      "summary_en": "Pick an invalidation strategy matching how much staleness the business tolerates.",
+      "learning_goals_fr": [
+        "Comparer expiration par durée et invalidation à l'écriture.",
+        "Fixer une durée de cache justifiée pour une donnée donnée."
+      ],
+      "learning_goals_en": [
+        "Compare time-based expiry and write-through invalidation.",
+        "Set a justified cache duration for a given piece of data."
+      ],
+      "tutor_focus_fr": "Fais fixer une durée de cache pour un prix puis pour un article de blog, en demandant à chaque fois le coût d'une valeur périmée.",
+      "tutor_focus_en": "Have the student set a cache duration for a price then for a blog post, each time asking what a stale value costs.",
+      "example_contexts_fr": [
+        "un prix modifié pendant une promotion",
+        "une page d'accueil éditoriale mise à jour deux fois par jour",
+        "un solde de points de fidélité affiché après un achat"
+      ],
+      "example_contexts_en": [
+        "a price changed during a promotion",
+        "an editorial homepage refreshed twice a day",
+        "a loyalty point balance shown right after a purchase"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.api_versioning",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 4,
+      "order": 42,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.cache_invalidation"
+      ],
+      "fallback_key": "computer_science.git_branch_merge",
+      "title_fr": "Faire évoluer une API sans casser ses clients",
+      "title_en": "Evolving an API without breaking its clients",
+      "summary_fr": "Distinguer changement compatible et rupture, et organiser une migration de clients existants.",
+      "summary_en": "Tell apart compatible changes and breaking changes, and plan a migration for existing clients.",
+      "learning_goals_fr": [
+        "Classer trois modifications en compatibles ou en ruptures.",
+        "Décrire une transition qui laisse les anciens clients fonctionner."
+      ],
+      "learning_goals_en": [
+        "Classify three modifications as compatible or breaking.",
+        "Describe a transition that keeps old clients working."
+      ],
+      "tutor_focus_fr": "Fais classer l'ajout d'un champ, le renommage d'un champ et le durcissement d'une validation, puis demande le plan de migration correspondant.",
+      "tutor_focus_en": "Have the student classify adding a field, renaming a field and tightening a validation, then ask for the matching migration plan.",
+      "example_contexts_fr": [
+        "une application mobile installée que l'on ne peut pas forcer à se mettre à jour",
+        "un partenaire qui intègre l'API depuis deux ans",
+        "un champ obligatoire ajouté à un formulaire d'inscription"
+      ],
+      "example_contexts_en": [
+        "an installed mobile app that cannot be forced to update",
+        "a partner integrating the API for two years",
+        "a required field added to a signup form"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.distributed_replication",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_systems"
+      ],
+      "stage": 5,
+      "order": 43,
+      "required": true,
+      "prerequisite_keys": [
+        "computer_science.race_conditions_locks"
+      ],
+      "fallback_key": "computer_science.race_conditions_locks",
+      "title_fr": "Réplication et cohérence dans un système distribué",
+      "title_en": "Replication and consistency in a distributed system",
+      "summary_fr": "Comparer réplication synchrone et asynchrone sur la fraîcheur des lectures et le risque de perte.",
+      "summary_en": "Compare synchronous and asynchronous replication on read freshness and risk of data loss.",
+      "learning_goals_fr": [
+        "Expliquer ce qu'une réplique en retard fait lire à un utilisateur.",
+        "Dire ce qui est perdu lors d'une bascule en réplication asynchrone."
+      ],
+      "learning_goals_en": [
+        "Explain what a lagging replica shows to a user.",
+        "Say what is lost during a failover under asynchronous replication."
+      ],
+      "tutor_focus_fr": "Fais raconter ce que voit un utilisateur qui écrit puis relit sur une réplique en retard, et demande quel réglage supprime ce symptôme et à quel prix.",
+      "tutor_focus_en": "Have the student narrate what a user sees when writing then reading from a lagging replica, and ask which setting removes that symptom and at what price.",
+      "example_contexts_fr": [
+        "un commentaire publié qui n'apparaît pas au rafraîchissement",
+        "une base répliquée entre l'Europe et l'Amérique",
+        "une bascule d'urgence vers un centre de données de secours"
+      ],
+      "example_contexts_en": [
+        "a posted comment missing after a refresh",
+        "a database replicated between Europe and America",
+        "an emergency failover to a backup data centre"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.cap_tradeoffs",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_systems"
+      ],
+      "stage": 5,
+      "order": 44,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.distributed_replication"
+      ],
+      "fallback_key": "computer_science.race_conditions_locks",
+      "title_fr": "Le compromis CAP en pratique",
+      "title_en": "The CAP trade-off in practice",
+      "summary_fr": "Décider, pendant une partition réseau, entre refuser le service et accepter des données divergentes.",
+      "summary_en": "Decide, during a network partition, between refusing service and accepting divergent data.",
+      "learning_goals_fr": [
+        "Reformuler CAP comme un choix qui n'existe que pendant une partition.",
+        "Choisir cohérence ou disponibilité pour un service donné."
+      ],
+      "learning_goals_en": [
+        "Restate CAP as a choice that only exists during a partition.",
+        "Pick consistency or availability for a given service."
+      ],
+      "tutor_focus_fr": "Fais choisir entre refuser une écriture et accepter une divergence pour un panier d'achat puis pour un solde bancaire, en demandant de justifier chaque choix.",
+      "tutor_focus_en": "Have the student choose between refusing a write and accepting divergence for a shopping cart then for a bank balance, justifying each choice.",
+      "example_contexts_fr": [
+        "un panier d'achat modifié pendant une coupure réseau",
+        "un solde bancaire pendant une partition entre deux régions",
+        "un compteur de likes pendant un incident réseau"
+      ],
+      "example_contexts_en": [
+        "a shopping cart edited during a network outage",
+        "a bank balance during a partition between two regions",
+        "a like counter during a network incident"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.load_balancing",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_systems"
+      ],
+      "stage": 5,
+      "order": 45,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.cap_tradeoffs"
+      ],
+      "fallback_key": "computer_science.race_conditions_locks",
+      "title_fr": "Comment un répartiteur de charge choisit un serveur",
+      "title_en": "How a load balancer picks a server",
+      "summary_fr": "Comparer tourniquet, moindre charge et hachage de session, et gérer les serveurs en mauvaise santé.",
+      "summary_en": "Compare round robin, least connections and session hashing, and handle unhealthy servers.",
+      "learning_goals_fr": [
+        "Comparer trois stratégies de répartition sur un même trafic.",
+        "Expliquer le rôle du contrôle de santé dans le retrait d'un serveur."
+      ],
+      "learning_goals_en": [
+        "Compare three balancing strategies on the same traffic.",
+        "Explain the role of health checks in removing a server."
+      ],
+      "tutor_focus_fr": "Fais comparer tourniquet et moindre charge quand une requête sur dix dure dix fois plus longtemps, puis demande l'effet d'un contrôle de santé trop lent.",
+      "tutor_focus_en": "Have the student compare round robin and least connections when one request in ten takes ten times longer, then ask what a slow health check causes.",
+      "example_contexts_fr": [
+        "un pic de trafic après une campagne d'emailing",
+        "un serveur qui répond mais renvoie des erreurs",
+        "une session utilisateur qui doit rester sur la même machine"
+      ],
+      "example_contexts_en": [
+        "a traffic spike after an email campaign",
+        "a server that answers but returns errors",
+        "a user session that must stay on the same machine"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.observability_latency",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_systems"
+      ],
+      "stage": 5,
+      "order": 46,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.load_balancing"
+      ],
+      "fallback_key": "computer_science.race_conditions_locks",
+      "title_fr": "Lire une latence p99 pour diagnostiquer un système",
+      "title_en": "Reading p99 latency to diagnose a system",
+      "summary_fr": "Utiliser les percentiles plutôt que la moyenne pour retrouver l'expérience réelle des utilisateurs.",
+      "summary_en": "Use percentiles rather than the average to recover what users actually experience.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi la moyenne masque les incidents visibles par les clients.",
+        "Interpréter un écart important entre p50 et p99."
+      ],
+      "learning_goals_en": [
+        "Explain why the average hides incidents that customers see.",
+        "Interpret a wide gap between p50 and p99."
+      ],
+      "tutor_focus_fr": "Fais interpréter un p50 à 80 ms et un p99 à 4 s, puis demande quelles causes techniques produisent cet écart.",
+      "tutor_focus_en": "Have the student interpret an 80 ms p50 with a 4 s p99, then ask which technical causes produce that gap.",
+      "example_contexts_fr": [
+        "un tableau de bord de supervision après une mise en production",
+        "une plainte client sur un service annoncé rapide",
+        "un travail de fond qui sature la base une fois par heure"
+      ],
+      "example_contexts_en": [
+        "a monitoring dashboard after a release",
+        "a customer complaint about a service advertised as fast",
+        "a background job saturating the database once an hour"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.dynamic_programming",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_programming"
+      ],
+      "stage": 5,
+      "order": 47,
+      "required": true,
+      "prerequisite_keys": [
+        "computer_science.immutability_side_effects"
+      ],
+      "fallback_key": "computer_science.immutability_side_effects",
+      "title_fr": "Mémoïsation et programmation dynamique",
+      "title_en": "Memoisation and dynamic programming",
+      "summary_fr": "Transformer une récursion exponentielle en calcul linéaire en stockant les sous-résultats.",
+      "summary_en": "Turn an exponential recursion into a linear computation by storing sub-results.",
+      "learning_goals_fr": [
+        "Repérer les sous-problèmes recalculés dans une récursion.",
+        "Comparer le nombre d'appels avant et après mémoïsation."
+      ],
+      "learning_goals_en": [
+        "Spot the sub-problems recomputed inside a recursion.",
+        "Compare the call count before and after memoisation."
+      ],
+      "tutor_focus_fr": "Fais compter les appels de Fibonacci 10 sans mémoïsation puis avec, et demande quelle propriété du problème rend la technique applicable.",
+      "tutor_focus_en": "Have the student count the calls of Fibonacci 10 without memoisation then with it, and ask which property of the problem makes the technique valid.",
+      "example_contexts_fr": [
+        "le calcul du nombre de chemins dans une grille",
+        "le rendu de monnaie avec un nombre minimal de pièces",
+        "la distance d'édition entre deux mots"
+      ],
+      "example_contexts_en": [
+        "counting the paths across a grid",
+        "making change with the fewest coins",
+        "the edit distance between two words"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.graph_search",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_programming"
+      ],
+      "stage": 5,
+      "order": 48,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.dynamic_programming"
+      ],
+      "fallback_key": "computer_science.immutability_side_effects",
+      "title_fr": "Parcours de graphe : BFS et DFS",
+      "title_en": "Graph traversal: BFS and DFS",
+      "summary_fr": "Choisir le parcours qui garantit le chemin le plus court dans un graphe non pondéré.",
+      "summary_en": "Choose the traversal that guarantees the shortest path in an unweighted graph.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi BFS trouve le chemin minimal en nombre d'arêtes.",
+        "Gérer les nœuds déjà visités pour éviter une boucle infinie."
+      ],
+      "learning_goals_en": [
+        "Explain why BFS finds the minimal path in number of edges.",
+        "Handle already visited nodes to avoid an infinite loop."
+      ],
+      "tutor_focus_fr": "Fais dérouler BFS sur un petit réseau de stations, puis demande ce qui se passe sans marquage des nœuds visités.",
+      "tutor_focus_en": "Have the student run BFS over a small station network, then ask what happens without marking visited nodes.",
+      "example_contexts_fr": [
+        "un itinéraire en métro avec correspondances",
+        "des amis en commun dans un réseau social",
+        "les dépendances entre paquets logiciels"
+      ],
+      "example_contexts_en": [
+        "a metro route with interchanges",
+        "mutual friends in a social network",
+        "dependencies between software packages"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.big_o_amortized",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_programming"
+      ],
+      "stage": 5,
+      "order": 49,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.graph_search"
+      ],
+      "fallback_key": "computer_science.immutability_side_effects",
+      "title_fr": "Coût amorti : pourquoi un tableau dynamique reste rapide",
+      "title_en": "Amortised cost: why a dynamic array stays fast",
+      "summary_fr": "Expliquer qu'un doublement occasionnel du tableau garde un coût moyen constant par ajout.",
+      "summary_en": "Explain how occasional doubling keeps the average cost per append constant.",
+      "learning_goals_fr": [
+        "Compter les copies effectuées sur une suite d'ajouts.",
+        "Distinguer le pire cas ponctuel du coût amorti."
+      ],
+      "learning_goals_en": [
+        "Count the copies performed over a sequence of appends.",
+        "Tell apart a one-off worst case and the amortised cost."
+      ],
+      "tutor_focus_fr": "Fais compter les copies après seize ajouts dans un tableau qui double, puis demande pourquoi le pire cas ne décrit pas correctement ce coût.",
+      "tutor_focus_en": "Have the student count copies after sixteen appends into a doubling array, then ask why the worst case does not describe that cost properly.",
+      "example_contexts_fr": [
+        "un tableau qui grandit à chaque nouvel enregistrement",
+        "un tampon de journalisation qui se réalloue",
+        "une file de tâches qui absorbe un pic de messages"
+      ],
+      "example_contexts_en": [
+        "an array growing with each new record",
+        "a logging buffer that reallocates",
+        "a task queue absorbing a spike of messages"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.property_based_testing",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_programming"
+      ],
+      "stage": 5,
+      "order": 50,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.big_o_amortized"
+      ],
+      "fallback_key": "computer_science.immutability_side_effects",
+      "title_fr": "Tests par propriétés",
+      "title_en": "Property-based testing",
+      "summary_fr": "Remplacer une liste d'exemples par une invariante vérifiée sur des entrées générées.",
+      "summary_en": "Replace a list of examples with an invariant checked over generated inputs.",
+      "learning_goals_fr": [
+        "Formuler une propriété toujours vraie pour une fonction donnée.",
+        "Expliquer ce qu'un contre-exemple réduit apporte au débogage."
+      ],
+      "learning_goals_en": [
+        "State a property that always holds for a given function.",
+        "Explain what a shrunk counterexample brings to debugging."
+      ],
+      "tutor_focus_fr": "Fais formuler deux propriétés d'une fonction de tri, puis demande quel contre-exemple minimal révélerait un tri instable.",
+      "tutor_focus_en": "Have the student state two properties of a sort function, then ask which minimal counterexample would reveal an unstable sort.",
+      "example_contexts_fr": [
+        "une fonction de tri testée sur des listes aléatoires",
+        "un encodeur et son décodeur appliqués l'un après l'autre",
+        "un calcul de prix qui ne doit jamais devenir négatif"
+      ],
+      "example_contexts_en": [
+        "a sort function tested on random lists",
+        "an encoder and its decoder applied one after the other",
+        "a price computation that must never go negative"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.normalization_denormalization",
+      "domain_id": "computer_science",
+      "objective_ids": [
         "cs_software_data"
       ],
       "stage": 5,
-      "order": 35,
-      "required": false,
+      "order": 51,
+      "required": true,
       "prerequisite_keys": [
-        "computer_science.034"
+        "computer_science.api_versioning"
       ],
-      "fallback_key": "computer_science.033",
-      "title_fr": "Informatique - étape 35",
-      "title_en": "Computer science - step 35",
-      "summary_fr": "Construire une brique claire du parcours Informatique au niveau 5.",
-      "summary_en": "Build one clear building block of the Computer science path at level 5.",
+      "fallback_key": "computer_science.api_versioning",
+      "title_fr": "Normaliser ou dénormaliser un schéma",
+      "title_en": "Normalising or denormalising a schema",
+      "summary_fr": "Arbitrer entre absence de duplication et rapidité de lecture selon les requêtes réellement servies.",
+      "summary_en": "Arbitrate between no duplication and fast reads based on the queries actually served.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 35.",
-        "L'appliquer dans un exemple court."
+        "Citer le risque principal de la duplication de données.",
+        "Justifier une dénormalisation par une requête précise."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 35.",
-        "Apply it in a short example."
+        "State the main risk of duplicating data.",
+        "Justify a denormalisation with a precise query."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais justifier la duplication du nom du client dans la table des commandes, puis demande ce qui doit être mis à jour quand ce nom change.",
+      "tutor_focus_en": "Have the student justify duplicating the customer name into the orders table, then ask what must be updated when that name changes.",
       "example_contexts_fr": [
-        "Exemple étudiant 35",
-        "Situation produit 35"
+        "un tableau de bord de ventes recalculé à chaque ouverture",
+        "une adresse de livraison figée au moment de la commande",
+        "un catalogue lu mille fois plus souvent qu'il n'est modifié"
       ],
       "example_contexts_en": [
-        "Student example 35",
-        "Product situation 35"
+        "a sales dashboard recomputed on every open",
+        "a delivery address frozen at order time",
+        "a catalogue read a thousand times more often than written"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.idempotency_retries",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 5,
+      "order": 52,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.normalization_denormalization"
+      ],
+      "fallback_key": "computer_science.api_versioning",
+      "title_fr": "Idempotence et reprise sur erreur",
+      "title_en": "Idempotency and retries",
+      "summary_fr": "Concevoir une opération que l'on peut rejouer sans créer de doublon ni double paiement.",
+      "summary_en": "Design an operation that can be replayed without creating a duplicate or a double charge.",
+      "learning_goals_fr": [
+        "Expliquer ce qu'une clé d'idempotence garantit lors d'un réessai.",
+        "Repérer une opération dangereuse à rejouer."
+      ],
+      "learning_goals_en": [
+        "Explain what an idempotency key guarantees during a retry.",
+        "Spot an operation that is dangerous to replay."
+      ],
+      "tutor_focus_fr": "Fais analyser un paiement dont la réponse s'est perdue, puis demande quelle clé permet de rejouer l'appel sans débiter deux fois.",
+      "tutor_focus_en": "Have the student analyse a payment whose response was lost, then ask which key allows replaying the call without charging twice.",
+      "example_contexts_fr": [
+        "un paiement dont la réponse réseau s'est perdue",
+        "un webhook renvoyé trois fois par un partenaire",
+        "un travail de fond relancé après un redémarrage"
+      ],
+      "example_contexts_en": [
+        "a payment whose network response was lost",
+        "a webhook re-sent three times by a partner",
+        "a background job restarted after a reboot"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.cloud_scaling",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 5,
+      "order": 53,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.idempotency_retries"
+      ],
+      "fallback_key": "computer_science.api_versioning",
+      "title_fr": "Mise à l'échelle horizontale et état partagé",
+      "title_en": "Horizontal scaling and shared state",
+      "summary_fr": "Identifier l'état local qui empêche d'ajouter des serveurs et le déplacer vers un service partagé.",
+      "summary_en": "Identify the local state that blocks adding servers and move it to a shared service.",
+      "learning_goals_fr": [
+        "Repérer un état conservé en mémoire d'une seule instance.",
+        "Proposer où déplacer cet état pour permettre l'ajout de serveurs."
+      ],
+      "learning_goals_en": [
+        "Spot state kept in the memory of a single instance.",
+        "Propose where to move that state to allow adding servers."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi des sessions en mémoire déconnectent les utilisateurs après un ajout de serveur, puis demande où déplacer ces sessions.",
+      "tutor_focus_en": "Have the student explain why in-memory sessions log users out after a server is added, then ask where those sessions should move.",
+      "example_contexts_fr": [
+        "des utilisateurs déconnectés après l'ajout d'un serveur",
+        "des fichiers téléversés stockés sur le disque d'une machine",
+        "un travail planifié qui s'exécute en double sur deux instances"
+      ],
+      "example_contexts_en": [
+        "users logged out after a server was added",
+        "uploaded files stored on one machine's disk",
+        "a scheduled job running twice on two instances"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "computer_science.slo_error_budget",
+      "domain_id": "computer_science",
+      "objective_ids": [
+        "cs_software_data"
+      ],
+      "stage": 5,
+      "order": 54,
+      "required": false,
+      "prerequisite_keys": [
+        "computer_science.cloud_scaling"
+      ],
+      "fallback_key": "computer_science.api_versioning",
+      "title_fr": "SLO et budget d'erreur",
+      "title_en": "SLOs and error budgets",
+      "summary_fr": "Traduire un objectif de fiabilité en minutes d'indisponibilité tolérées et en décision de mise en production.",
+      "summary_en": "Translate a reliability target into tolerated downtime minutes and into a release decision.",
+      "learning_goals_fr": [
+        "Convertir un objectif de 99,9 % en durée d'indisponibilité mensuelle.",
+        "Décider d'une mise en production selon le budget consommé."
+      ],
+      "learning_goals_en": [
+        "Convert a 99.9% target into monthly downtime.",
+        "Decide on a release based on the consumed budget."
+      ],
+      "tutor_focus_fr": "Fais convertir 99,9 % en minutes par mois, puis demande quelle décision prendre si le budget est déjà consommé au dix du mois.",
+      "tutor_focus_en": "Have the student convert 99.9% into minutes per month, then ask which decision to take if the budget is already spent by the tenth.",
+      "example_contexts_fr": [
+        "un service dont le budget d'erreur est épuisé en début de mois",
+        "une mise en production prévue un vendredi soir",
+        "un incident de quarante minutes sur un service critique"
+      ],
+      "example_contexts_en": [
+        "a service whose error budget is exhausted early in the month",
+        "a release planned for a Friday evening",
+        "a forty-minute incident on a critical service"
       ],
       "safety_category": "standard"
     }

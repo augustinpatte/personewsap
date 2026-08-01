@@ -3,8 +3,43 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { LearningCatalogStep } from "./learningTypes.js";
+import type { LearningAdaptationMode } from "./sessionLifecycle.js";
 
 const CATALOG_ROOT = resolveCatalogRoot();
+
+// current_level (1-7, declared by the learner) decides where the path starts.
+export const LEARNING_START_STAGE_BY_CURRENT_LEVEL: Record<number, number> = {
+  1: 1,
+  2: 1,
+  3: 2,
+  4: 3,
+  5: 4,
+  6: 5,
+  7: 5
+};
+
+// target_level (1-5) is the highest stage the path is allowed to reach.
+export const LEARNING_MAX_STAGE_BY_TARGET_LEVEL: Record<number, number> = {
+  1: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5
+};
+
+export type LearningStepSelection =
+  | {
+      status: "completed";
+      step: null;
+      repetitionIndex: 0;
+      skippedStepKey: null;
+    }
+  | {
+      status: "selected";
+      step: LearningCatalogStep;
+      repetitionIndex: number;
+      skippedStepKey: string | null;
+    };
 
 export async function loadLearningCatalog(): Promise<LearningCatalogStep[]> {
   const index = JSON.parse(await readFile(path.join(CATALOG_ROOT, "catalog-index.json"), "utf8")) as {
@@ -22,34 +57,119 @@ export async function loadLearningCatalog(): Promise<LearningCatalogStep[]> {
   return catalogs.flat().sort((left, right) => left.domain_id.localeCompare(right.domain_id) || left.order - right.order);
 }
 
+export function resolveLearningStartStage(currentLevel: number): number {
+  return LEARNING_START_STAGE_BY_CURRENT_LEVEL[clampLevel(currentLevel, 1, 7)] ?? 1;
+}
+
+export function resolveLearningMaxStage(targetLevel: number): number {
+  return LEARNING_MAX_STAGE_BY_TARGET_LEVEL[clampLevel(targetLevel, 1, 5)] ?? 1;
+}
+
 export function pickNextLearningStep(input: {
   catalog: LearningCatalogStep[];
   domainId: string;
   objectiveId: string;
-  usedStepKeys: Set<string>;
-  adaptationMode: string;
-}): LearningCatalogStep {
-  const eligible = input.catalog
+  currentLevel: number;
+  targetLevel: number;
+  /** How many sessions already used each curriculum step key. */
+  usedStepKeys: ReadonlyMap<string, number>;
+  adaptationMode: LearningAdaptationMode;
+  /** Step of the session the adaptation decision was made on. */
+  lastStepKey: string | null;
+}): LearningStepSelection {
+  const startStage = resolveLearningStartStage(input.currentLevel);
+  const maxStage = Math.max(resolveLearningMaxStage(input.targetLevel), startStage);
+  const orientationSteps = input.catalog
     .filter((step) => step.domain_id === input.domainId)
     .filter((step) => step.objective_ids.includes(input.objectiveId))
-    .filter((step) => !input.usedStepKeys.has(step.key))
     .sort((left, right) => left.order - right.order);
+  const pathSteps = orientationSteps.filter((step) => step.stage >= startStage && step.stage <= maxStage);
+  const stepByKey = new Map(input.catalog.map((step) => [step.key, step]));
+  const lastStep = input.lastStepKey ? stepByKey.get(input.lastStepKey) ?? null : null;
 
-  if (eligible.length === 0) {
-    throw new Error(`No unused learning catalog step for ${input.domainId}/${input.objectiveId}.`);
+  // reinforce and context_shift stay on the concept that was just rated: the
+  // repetition index is what makes the new session distinguishable.
+  if ((input.adaptationMode === "reinforce" || input.adaptationMode === "context_shift") && lastStep) {
+    return selected(lastStep, input.usedStepKeys, null);
   }
 
-  if (input.adaptationMode === "prerequisite") {
-    const fallbackKey = [...input.usedStepKeys]
-      .map((key) => input.catalog.find((step) => step.key === key)?.fallback_key)
-      .find((key): key is string => Boolean(key));
-    const fallback = fallbackKey ? input.catalog.find((step) => step.key === fallbackKey) : null;
-    if (fallback) {
-      return fallback;
+  if (input.adaptationMode === "prerequisite" && lastStep) {
+    return selected(resolveSimplerStep(lastStep, orientationSteps, stepByKey) ?? lastStep, input.usedStepKeys, null);
+  }
+
+  const available = pathSteps.filter(
+    (step) =>
+      !input.usedStepKeys.has(step.key) &&
+      hasSatisfiedRequiredPrerequisites(step, stepByKey, input.usedStepKeys, startStage)
+  );
+
+  if (available.length === 0) {
+    return { status: "completed", step: null, repetitionIndex: 0, skippedStepKey: null };
+  }
+
+  // accelerate skips at most one step, and never a required one.
+  if (input.adaptationMode === "accelerate" && available.length > 1 && !available[0].required) {
+    return selected(available[1], input.usedStepKeys, available[0].key);
+  }
+
+  return selected(available[0], input.usedStepKeys, null);
+}
+
+function selected(
+  step: LearningCatalogStep,
+  usedStepKeys: ReadonlyMap<string, number>,
+  skippedStepKey: string | null
+): LearningStepSelection {
+  return {
+    status: "selected",
+    step,
+    repetitionIndex: usedStepKeys.get(step.key) ?? 0,
+    skippedStepKey
+  };
+}
+
+// Optional steps may be skipped, so only a required prerequisite blocks a step.
+// Anything below the learner's starting stage is assumed already known.
+function hasSatisfiedRequiredPrerequisites(
+  step: LearningCatalogStep,
+  stepByKey: Map<string, LearningCatalogStep>,
+  usedStepKeys: ReadonlyMap<string, number>,
+  startStage: number
+): boolean {
+  return step.prerequisite_keys.every((key) => {
+    const prerequisite = stepByKey.get(key);
+    if (!prerequisite || !prerequisite.required || prerequisite.stage < startStage) {
+      return true;
     }
+    return usedStepKeys.has(key);
+  });
+}
+
+function resolveSimplerStep(
+  step: LearningCatalogStep,
+  orientationSteps: LearningCatalogStep[],
+  stepByKey: Map<string, LearningCatalogStep>
+): LearningCatalogStep | null {
+  const fallback = step.fallback_key ? stepByKey.get(step.fallback_key) ?? null : null;
+  if (fallback) {
+    return fallback;
   }
 
-  return eligible[0];
+  const prerequisite = step.prerequisite_keys
+    .map((key) => stepByKey.get(key))
+    .find((candidate): candidate is LearningCatalogStep => Boolean(candidate));
+  if (prerequisite) {
+    return prerequisite;
+  }
+
+  return orientationSteps.filter((candidate) => candidate.order < step.order).at(-1) ?? null;
+}
+
+function clampLevel(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.min(Math.max(Math.round(value), min), max);
 }
 
 function resolveCatalogRoot(): string {

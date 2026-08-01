@@ -53,7 +53,8 @@
     "smoke:content:build": "npm run content:build",
     "smoke:content:dry-run": "npm run content:dry-run",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "learning:catalog:build": "node scripts/learning-paths-build.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

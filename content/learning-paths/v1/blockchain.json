@@ -3,7 +3,7 @@
   "version": "v1",
   "steps": [
     {
-      "key": "blockchain.001",
+      "key": "blockchain.double_spend_problem",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -15,32 +15,34 @@
       "required": true,
       "prerequisite_keys": [],
       "fallback_key": null,
-      "title_fr": "Blockchain - étape 1",
-      "title_en": "Blockchain - step 1",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 1.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 1.",
+      "title_fr": "Le problème de la double dépense",
+      "title_en": "The double-spending problem",
+      "summary_fr": "Comprendre pourquoi un fichier monétaire copiable exige un ordre commun accepté par tous.",
+      "summary_en": "Understand why copyable digital money requires one shared order everyone accepts.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 1.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi une monnaie numérique se copie trivialement.",
+        "Dire ce qu'un registre partagé résout que la copie ne résout pas."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 1.",
-        "Apply it in a short example."
+        "Explain why digital money is trivially copied.",
+        "Say what a shared ledger solves that copying does not."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais raconter ce qui se passe si le même euro numérique est envoyé à deux marchands en même temps, puis demande ce qui doit être partagé pour l'empêcher.",
+      "tutor_focus_en": "Have the student narrate the same digital euro sent to two merchants at once, then ask what must be shared to prevent it.",
       "example_contexts_fr": [
-        "Exemple étudiant 1",
-        "Situation produit 1"
+        "le même paiement envoyé à deux marchands",
+        "un fichier de monnaie dupliqué par copier-coller",
+        "un chèque encaissé deux fois dans deux agences"
       ],
       "example_contexts_en": [
-        "Student example 1",
-        "Product situation 1"
+        "the same payment sent to two merchants",
+        "a money file duplicated by copy and paste",
+        "a cheque cashed twice in two branches"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.002",
+      "key": "blockchain.hash_function_basics",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -49,37 +51,39 @@
       ],
       "stage": 1,
       "order": 2,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.001"
+        "blockchain.double_spend_problem"
       ],
       "fallback_key": null,
-      "title_fr": "Blockchain - étape 2",
-      "title_en": "Blockchain - step 2",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 1.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 1.",
+      "title_fr": "Ce que fait une fonction de hachage",
+      "title_en": "What a hash function does",
+      "summary_fr": "Comprendre l'empreinte de taille fixe, sa sensibilité au moindre changement et son irréversibilité.",
+      "summary_en": "Understand the fixed-size fingerprint, its sensitivity to any change and its irreversibility.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 2.",
-        "L'appliquer dans un exemple court."
+        "Citer trois propriétés attendues d'une fonction de hachage.",
+        "Expliquer pourquoi on ne retrouve pas le document à partir de son empreinte."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 2.",
-        "Apply it in a short example."
+        "State three expected properties of a hash function.",
+        "Explain why the document cannot be recovered from its fingerprint."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais prédire l'effet d'une virgule ajoutée dans un contrat sur son empreinte, puis demande pourquoi l'inverse est impossible.",
+      "tutor_focus_en": "Have the student predict the effect of one added comma in a contract on its fingerprint, then ask why the inverse is impossible.",
       "example_contexts_fr": [
-        "Exemple étudiant 2",
-        "Situation produit 2"
+        "un contrat dont on veut prouver qu'il n'a pas bougé",
+        "un mot de passe stocké sous forme d'empreinte",
+        "une somme de contrôle affichée à côté d'un téléchargement"
       ],
       "example_contexts_en": [
-        "Student example 2",
-        "Product situation 2"
+        "a contract you want to prove unchanged",
+        "a password stored as a fingerprint",
+        "a checksum shown next to a download"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.003",
+      "key": "blockchain.blocks_and_chain",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -88,37 +92,39 @@
       ],
       "stage": 1,
       "order": 3,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.002"
+        "blockchain.hash_function_basics"
       ],
-      "fallback_key": "blockchain.001",
-      "title_fr": "Blockchain - étape 3",
-      "title_en": "Blockchain - step 3",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 1.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Comment des blocs forment une chaîne",
+      "title_en": "How blocks form a chain",
+      "summary_fr": "Voir que chaque bloc contient l'empreinte du précédent et que modifier le passé casse toute la suite.",
+      "summary_en": "See that each block carries the previous block's hash, so changing the past breaks everything after.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 3.",
-        "L'appliquer dans un exemple court."
+        "Décrire ce qu'un bloc contient en plus des transactions.",
+        "Expliquer pourquoi modifier un bloc ancien invalide les suivants."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 3.",
-        "Apply it in a short example."
+        "Describe what a block holds besides transactions.",
+        "Explain why editing an old block invalidates the later ones."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais modifier une transaction dans un bloc ancien de la chaîne dessinée, puis demande quels blocs deviennent invalides et pourquoi.",
+      "tutor_focus_en": "Have the student edit a transaction ten blocks back in the drawn chain, then ask which blocks become invalid and why.",
       "example_contexts_fr": [
-        "Exemple étudiant 3",
-        "Situation produit 3"
+        "une transaction modifiée dix blocs en arrière",
+        "un registre comptable dont chaque page référence la précédente",
+        "un historique consulté par un nouvel arrivant sur le réseau"
       ],
       "example_contexts_en": [
-        "Student example 3",
-        "Product situation 3"
+        "a transaction edited ten blocks back",
+        "an accounting ledger where each page references the previous one",
+        "a history checked by a newcomer joining the network"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.004",
+      "key": "blockchain.keys_and_signatures",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -127,37 +133,39 @@
       ],
       "stage": 1,
       "order": 4,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.003"
+        "blockchain.blocks_and_chain"
       ],
-      "fallback_key": "blockchain.002",
-      "title_fr": "Blockchain - étape 4",
-      "title_en": "Blockchain - step 4",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 1.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Clé publique, clé privée et signature",
+      "title_en": "Public key, private key and signature",
+      "summary_fr": "Comprendre qu'une signature prouve la possession d'une clé sans jamais la révéler.",
+      "summary_en": "Understand that a signature proves possession of a key without ever revealing it.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 4.",
-        "L'appliquer dans un exemple court."
+        "Dire ce qui se partage et ce qui ne se partage jamais.",
+        "Expliquer ce qu'une signature valide prouve exactement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 4.",
-        "Apply it in a short example."
+        "Say what is shared and what is never shared.",
+        "Explain exactly what a valid signature proves."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qu'une signature prouve et ce qu'elle ne prouve pas, puis demande ce qui se passe si la clé privée est copiée.",
+      "tutor_focus_en": "Have the student explain what a signature proves and does not prove, then ask what happens if the private key is copied.",
       "example_contexts_fr": [
-        "Exemple étudiant 4",
-        "Situation produit 4"
+        "une transaction signée depuis un téléphone",
+        "une adresse publiée pour recevoir un paiement",
+        "une clé privée photographiée par erreur"
       ],
       "example_contexts_en": [
-        "Student example 4",
-        "Product situation 4"
+        "a transaction signed from a phone",
+        "an address published to receive a payment",
+        "a private key photographed by mistake"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.005",
+      "key": "blockchain.wallet_contents",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -166,154 +174,156 @@
       ],
       "stage": 1,
       "order": 5,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.004"
+        "blockchain.keys_and_signatures"
       ],
-      "fallback_key": "blockchain.003",
-      "title_fr": "Blockchain - étape 5",
-      "title_en": "Blockchain - step 5",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 1.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Ce qu'un portefeuille contient vraiment",
+      "title_en": "What a wallet actually holds",
+      "summary_fr": "Comprendre qu'un portefeuille stocke des clés et non des jetons, qui restent inscrits sur la chaîne.",
+      "summary_en": "Understand that a wallet stores keys, not coins, which stay recorded on the chain.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 5.",
-        "L'appliquer dans un exemple court."
+        "Dire où sont réellement les avoirs quand un portefeuille est réinstallé.",
+        "Expliquer le rôle d'une phrase de récupération."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 5.",
-        "Apply it in a short example."
+        "Say where the holdings really are when a wallet is reinstalled.",
+        "Explain the role of a recovery phrase."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qu'un utilisateur récupère en réinstallant son portefeuille avec sa phrase, puis demande ce qu'il perd définitivement sans elle.",
+      "tutor_focus_en": "Have the student explain what a user recovers by reinstalling a wallet with the phrase, then ask what is lost forever without it.",
       "example_contexts_fr": [
-        "Exemple étudiant 5",
-        "Situation produit 5"
+        "un téléphone perdu avec le portefeuille installé",
+        "une phrase de récupération notée sur papier",
+        "un portefeuille réinstallé sur un nouvel appareil"
       ],
       "example_contexts_en": [
-        "Student example 5",
-        "Product situation 5"
+        "a lost phone with the wallet installed",
+        "a recovery phrase written on paper",
+        "a wallet reinstalled on a new device"
       ],
       "safety_category": "financial_educational"
     },
     {
-      "key": "blockchain.006",
+      "key": "blockchain.peer_to_peer_propagation",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
       "stage": 1,
       "order": 6,
       "required": true,
       "prerequisite_keys": [
-        "blockchain.005"
+        "blockchain.wallet_contents"
       ],
-      "fallback_key": "blockchain.004",
-      "title_fr": "Blockchain - étape 6",
-      "title_en": "Blockchain - step 6",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 1.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Comment les nœuds propagent l'information",
+      "title_en": "How nodes propagate information",
+      "summary_fr": "Comprendre la diffusion de proche en proche et l'absence de serveur central de référence.",
+      "summary_en": "Understand neighbour-to-neighbour broadcast and the absence of a central reference server.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 6.",
-        "L'appliquer dans un exemple court."
+        "Décrire le trajet d'une transaction diffusée sur le réseau.",
+        "Expliquer comment un nouveau nœud rattrape l'historique."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 6.",
-        "Apply it in a short example."
+        "Describe the path of a transaction broadcast on the network.",
+        "Explain how a new node catches up with history."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire la diffusion d'une transaction depuis un seul nœud, puis demande comment un nœud éteint depuis un mois se remet à jour.",
+      "tutor_focus_en": "Have the student describe broadcast from a single node, then ask how a node offline for a month gets back up to date.",
       "example_contexts_fr": [
-        "Exemple étudiant 6",
-        "Situation produit 6"
+        "un nœud rallumé après un mois d'arrêt",
+        "une transaction émise depuis un pays isolé",
+        "deux régions du réseau temporairement coupées"
       ],
       "example_contexts_en": [
-        "Student example 6",
-        "Product situation 6"
+        "a node restarted after a month offline",
+        "a transaction sent from an isolated country",
+        "two network regions temporarily cut off"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.007",
+      "key": "blockchain.ethereum_vs_bitcoin",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_ecosystem"
       ],
       "stage": 1,
       "order": 7,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.006"
+        "blockchain.wallet_contents"
       ],
-      "fallback_key": "blockchain.005",
-      "title_fr": "Blockchain - étape 7",
-      "title_en": "Blockchain - step 7",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 1.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Ce qu'Ethereum ajoute à Bitcoin",
+      "title_en": "What Ethereum adds to Bitcoin",
+      "summary_fr": "Passer d'un registre de paiements à une machine qui exécute du code partagé par tous les nœuds.",
+      "summary_en": "Move from a payment ledger to a machine that executes code shared by every node.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 7.",
-        "L'appliquer dans un exemple court."
+        "Comparer les deux réseaux sur ce qu'un utilisateur peut y publier.",
+        "Citer une application impossible sur un registre de paiements seul."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 7.",
-        "Apply it in a short example."
+        "Compare the two networks on what a user can publish.",
+        "Name an application impossible on a payment-only ledger."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer ce que chaque réseau permet de publier, puis demande une application qui exige un programme sur la chaîne.",
+      "tutor_focus_en": "Have the student compare what each network lets you publish, then ask for an application requiring an on-chain program.",
       "example_contexts_fr": [
-        "Exemple étudiant 7",
-        "Situation produit 7"
+        "un paiement simple entre deux adresses",
+        "une vente aux enchères automatisée sans intermédiaire",
+        "un jeton créé par une équipe en quelques lignes de code"
       ],
       "example_contexts_en": [
-        "Student example 7",
-        "Product situation 7"
+        "a simple payment between two addresses",
+        "an automated auction with no intermediary",
+        "a token created by a team in a few lines of code"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.008",
+      "key": "blockchain.smart_contract_basics",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
         "blockchain_building"
       ],
-      "stage": 2,
+      "stage": 1,
       "order": 8,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.007"
+        "blockchain.wallet_contents"
       ],
-      "fallback_key": "blockchain.006",
-      "title_fr": "Blockchain - étape 8",
-      "title_en": "Blockchain - step 8",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 2.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 2.",
+      "fallback_key": null,
+      "title_fr": "Ce qu'un smart contract peut et ne peut pas faire",
+      "title_en": "What a smart contract can and cannot do",
+      "summary_fr": "Comprendre un programme déterministe déclenché par une transaction et incapable d'agir seul.",
+      "summary_en": "Understand a deterministic program triggered by a transaction and unable to act on its own.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 8.",
-        "L'appliquer dans un exemple court."
+        "Dire ce qui déclenche l'exécution d'un contrat.",
+        "Citer trois choses qu'un contrat ne peut pas faire seul."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 8.",
-        "Apply it in a short example."
+        "Say what triggers a contract's execution.",
+        "Name three things a contract cannot do by itself."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi un contrat ne peut pas s'exécuter tout seul chaque lundi, puis demande comment un projet contourne cette limite.",
+      "tutor_focus_en": "Have the student explain why a contract cannot run itself every Monday, then ask how a project works around that limit.",
       "example_contexts_fr": [
-        "Exemple étudiant 8",
-        "Situation produit 8"
+        "un versement mensuel que personne ne déclenche",
+        "un contrat qui doit connaître un cours de bourse",
+        "une vente déclenchée par un acheteur"
       ],
       "example_contexts_en": [
-        "Student example 8",
-        "Product situation 8"
+        "a monthly payout nobody triggers",
+        "a contract needing a stock price",
+        "a sale triggered by a buyer"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.009",
+      "key": "blockchain.transaction_lifecycle",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -322,37 +332,39 @@
       ],
       "stage": 2,
       "order": 9,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.008"
+        "blockchain.wallet_contents"
       ],
-      "fallback_key": "blockchain.007",
-      "title_fr": "Blockchain - étape 9",
-      "title_en": "Blockchain - step 9",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 2.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 2.",
+      "fallback_key": "blockchain.wallet_contents",
+      "title_fr": "Le cycle de vie d'une transaction",
+      "title_en": "The life cycle of a transaction",
+      "summary_fr": "Suivre une transaction de la signature à la confirmation en passant par la file d'attente du réseau.",
+      "summary_en": "Follow a transaction from signature to confirmation through the network's waiting pool.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 9.",
-        "L'appliquer dans un exemple court."
+        "Ordonner signature, diffusion, sélection, inclusion, confirmation.",
+        "Expliquer pourquoi une transaction peut rester en attente."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 9.",
-        "Apply it in a short example."
+        "Order signing, broadcast, selection, inclusion and confirmation.",
+        "Explain why a transaction can stay pending."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais suivre une transaction jusqu'à sa confirmation, puis demande pourquoi une transaction sous-payée peut rester bloquée des heures.",
+      "tutor_focus_en": "Have the student follow a transaction to confirmation, then ask why an underpriced transaction can stay stuck for hours.",
       "example_contexts_fr": [
-        "Exemple étudiant 9",
-        "Situation produit 9"
+        "un paiement en attente depuis vingt minutes",
+        "un pic d'activité qui allonge la file",
+        "un transfert confirmé après quelques blocs"
       ],
       "example_contexts_en": [
-        "Student example 9",
-        "Product situation 9"
+        "a payment pending for twenty minutes",
+        "an activity spike lengthening the queue",
+        "a transfer confirmed after a few blocks"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.010",
+      "key": "blockchain.decentralization_tradeoffs",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -361,37 +373,39 @@
       ],
       "stage": 2,
       "order": 10,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.009"
+        "blockchain.transaction_lifecycle"
       ],
-      "fallback_key": "blockchain.008",
-      "title_fr": "Blockchain - étape 10",
-      "title_en": "Blockchain - step 10",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 2.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 2.",
+      "fallback_key": "blockchain.wallet_contents",
+      "title_fr": "Ce que la décentralisation coûte",
+      "title_en": "What decentralisation costs",
+      "summary_fr": "Comparer une base de données classique et une chaîne publique sur le débit, le coût et la confiance requise.",
+      "summary_en": "Compare a classic database and a public chain on throughput, cost and required trust.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 10.",
-        "L'appliquer dans un exemple court."
+        "Comparer débit et coût entre les deux architectures.",
+        "Nommer le problème qui justifie de payer ce surcoût."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 10.",
-        "Apply it in a short example."
+        "Compare throughput and cost across the two architectures.",
+        "Name the problem that justifies paying that overhead."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer le nombre de transactions par seconde d'une carte bancaire et d'une chaîne publique, puis demande quel problème justifie l'écart.",
+      "tutor_focus_en": "Have the student compare transactions per second of a card network and of a public chain, then ask which problem justifies the gap.",
       "example_contexts_fr": [
-        "Exemple étudiant 10",
-        "Situation produit 10"
+        "un réseau de cartes bancaires à des milliers d'opérations par seconde",
+        "un registre foncier tenu par une administration",
+        "un transfert international entre deux inconnus"
       ],
       "example_contexts_en": [
-        "Student example 10",
-        "Product situation 10"
+        "a card network at thousands of operations per second",
+        "a land registry kept by a public administration",
+        "an international transfer between two strangers"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.011",
+      "key": "blockchain.immutability_finality",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -402,35 +416,37 @@
       "order": 11,
       "required": true,
       "prerequisite_keys": [
-        "blockchain.010"
+        "blockchain.decentralization_tradeoffs"
       ],
-      "fallback_key": "blockchain.009",
-      "title_fr": "Blockchain - étape 11",
-      "title_en": "Blockchain - step 11",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 2.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 2.",
+      "fallback_key": "blockchain.wallet_contents",
+      "title_fr": "Immutabilité et finalité : quand une transaction est-elle définitive",
+      "title_en": "Immutability and finality: when is a transaction definitive",
+      "summary_fr": "Distinguer une transaction incluse dans un bloc d'une transaction que le réseau ne peut plus annuler.",
+      "summary_en": "Tell apart a transaction included in a block and a transaction the network can no longer undo.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 11.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi on attend plusieurs confirmations.",
+        "Dire ce que change une finalité garantie par le protocole."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 11.",
-        "Apply it in a short example."
+        "Explain why several confirmations are awaited.",
+        "Say what protocol-guaranteed finality changes."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais choisir le nombre de confirmations à attendre pour livrer une marchandise, puis demande ce qui justifie ce choix.",
+      "tutor_focus_en": "Have the student choose how many confirmations to wait before shipping goods, then ask what justifies that choice.",
       "example_contexts_fr": [
-        "Exemple étudiant 11",
-        "Situation produit 11"
+        "un marchand qui livre après une seule confirmation",
+        "un échange qui exige trente confirmations pour un retrait",
+        "un bloc abandonné après une réorganisation"
       ],
       "example_contexts_en": [
-        "Student example 11",
-        "Product situation 11"
+        "a merchant shipping after a single confirmation",
+        "an exchange requiring thirty confirmations for a withdrawal",
+        "a block dropped after a reorganisation"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.012",
+      "key": "blockchain.public_private_chains",
       "domain_id": "blockchain",
       "objective_ids": [
         "blockchain_foundations",
@@ -439,931 +455,1674 @@
       ],
       "stage": 2,
       "order": 12,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.011"
+        "blockchain.immutability_finality"
       ],
-      "fallback_key": "blockchain.010",
-      "title_fr": "Blockchain - étape 12",
-      "title_en": "Blockchain - step 12",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 2.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 2.",
+      "fallback_key": "blockchain.wallet_contents",
+      "title_fr": "Chaîne publique, chaîne privée, chaîne de consortium",
+      "title_en": "Public, private and consortium chains",
+      "summary_fr": "Choisir le modèle d'accès selon qui doit pouvoir lire, écrire et valider.",
+      "summary_en": "Choose the access model based on who must be able to read, write and validate.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 12.",
-        "L'appliquer dans un exemple court."
+        "Comparer les trois modèles sur les droits de lecture et de validation.",
+        "Dire quand une base classique reste préférable."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 12.",
-        "Apply it in a short example."
+        "Compare the three models on read and validation rights.",
+        "Say when a classic database is still preferable."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais choisir le modèle adapté à une traçabilité alimentaire entre cinq entreprises, puis demande pourquoi une base partagée ne suffisait pas.",
+      "tutor_focus_en": "Have the student choose the model for food traceability across five companies, then ask why a shared database was not enough.",
       "example_contexts_fr": [
-        "Exemple étudiant 12",
-        "Situation produit 12"
+        "une traçabilité alimentaire entre cinq industriels",
+        "un registre interne à une seule banque",
+        "un réseau ouvert à n'importe quel participant"
       ],
       "example_contexts_en": [
-        "Student example 12",
-        "Product situation 12"
+        "food traceability across five manufacturers",
+        "a ledger internal to a single bank",
+        "a network open to any participant"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.013",
+      "key": "blockchain.proof_of_work",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
       "stage": 2,
       "order": 13,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.012"
+        "blockchain.public_private_chains"
       ],
-      "fallback_key": "blockchain.011",
-      "title_fr": "Blockchain - étape 13",
-      "title_en": "Blockchain - step 13",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 2.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 2.",
+      "fallback_key": "blockchain.peer_to_peer_propagation",
+      "title_fr": "La preuve de travail",
+      "title_en": "Proof of work",
+      "summary_fr": "Comprendre pourquoi un calcul coûteux et facilement vérifiable protège l'ordre des blocs.",
+      "summary_en": "Understand why an expensive but easily verified computation protects the order of blocks.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 13.",
-        "L'appliquer dans un exemple court."
+        "Expliquer l'asymétrie entre produire et vérifier une preuve.",
+        "Dire ce qu'un attaquant devrait dépenser pour réécrire l'histoire."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 13.",
-        "Apply it in a short example."
+        "Explain the asymmetry between producing and verifying a proof.",
+        "Say what an attacker would have to spend to rewrite history."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi trouver un nonce est long et le vérifier est immédiat, puis demande le coût d'une réécriture de dix blocs.",
+      "tutor_focus_en": "Have the student explain why finding a nonce is slow while checking it is instant, then ask the cost of rewriting ten blocks.",
       "example_contexts_fr": [
-        "Exemple étudiant 13",
-        "Situation produit 13"
+        "un mineur qui teste des milliards de nonces",
+        "un nœud qui vérifie un bloc reçu en une milliseconde",
+        "une tentative de réécrire les dix derniers blocs"
       ],
       "example_contexts_en": [
-        "Student example 13",
-        "Product situation 13"
+        "a miner testing billions of nonces",
+        "a node verifying a received block in a millisecond",
+        "an attempt to rewrite the last ten blocks"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.014",
+      "key": "blockchain.mining_difficulty",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
       "stage": 2,
       "order": 14,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.013"
+        "blockchain.proof_of_work"
       ],
-      "fallback_key": "blockchain.012",
-      "title_fr": "Blockchain - étape 14",
-      "title_en": "Blockchain - step 14",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 2.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 2.",
+      "fallback_key": "blockchain.peer_to_peer_propagation",
+      "title_fr": "L'ajustement de difficulté",
+      "title_en": "Difficulty adjustment",
+      "summary_fr": "Comprendre la boucle de rétroaction qui maintient un intervalle de blocs stable malgré la puissance ajoutée.",
+      "summary_en": "Understand the feedback loop keeping block intervals stable despite added computing power.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 14.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qui déclenche une hausse de difficulté.",
+        "Prévoir l'effet du départ soudain de la moitié des mineurs."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 14.",
-        "Apply it in a short example."
+        "Explain what triggers a difficulty increase.",
+        "Predict the effect of half the miners suddenly leaving."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais prévoir l'intervalle entre blocs si la puissance double sans ajustement, puis demande ce que corrige le prochain recalcul.",
+      "tutor_focus_en": "Have the student predict the block interval if power doubles with no adjustment, then ask what the next recalculation fixes.",
       "example_contexts_fr": [
-        "Exemple étudiant 14",
-        "Situation produit 14"
+        "une vague de nouvelles machines mises en service",
+        "la moitié des mineurs déconnectés en une semaine",
+        "un intervalle moyen visé de dix minutes"
       ],
       "example_contexts_en": [
-        "Student example 14",
-        "Product situation 14"
+        "a wave of new machines brought online",
+        "half the miners disconnected within a week",
+        "a target average interval of ten minutes"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.015",
+      "key": "blockchain.gas_and_fees",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_ecosystem"
       ],
-      "stage": 3,
+      "stage": 2,
       "order": 15,
-      "required": false,
-      "prerequisite_keys": [
-        "blockchain.014"
-      ],
-      "fallback_key": "blockchain.013",
-      "title_fr": "Blockchain - étape 15",
-      "title_en": "Blockchain - step 15",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 3.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 3.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 15.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 15.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 15",
-        "Situation produit 15"
-      ],
-      "example_contexts_en": [
-        "Student example 15",
-        "Product situation 15"
-      ],
-      "safety_category": "financial_educational"
-    },
-    {
-      "key": "blockchain.016",
-      "domain_id": "blockchain",
-      "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
-      ],
-      "stage": 3,
-      "order": 16,
       "required": true,
       "prerequisite_keys": [
-        "blockchain.015"
+        "blockchain.public_private_chains"
       ],
-      "fallback_key": "blockchain.014",
-      "title_fr": "Blockchain - étape 16",
-      "title_en": "Blockchain - step 16",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 3.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 3.",
+      "fallback_key": "blockchain.ethereum_vs_bitcoin",
+      "title_fr": "Le gas : payer le calcul",
+      "title_en": "Gas: paying for computation",
+      "summary_fr": "Comprendre qu'une exécution est facturée à l'opération et qu'une limite protège le réseau.",
+      "summary_en": "Understand that execution is billed per operation and that a limit protects the network.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 16.",
-        "L'appliquer dans un exemple court."
+        "Distinguer quantité de gas et prix du gas.",
+        "Expliquer ce qui se passe quand la limite est atteinte en cours d'exécution."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 16.",
-        "Apply it in a short example."
+        "Tell apart gas amount and gas price.",
+        "Explain what happens when the limit is hit mid-execution."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer le coût d'un transfert simple et d'une opération complexe, puis demande ce que paie l'utilisateur si l'exécution échoue.",
+      "tutor_focus_en": "Have the student compare the cost of a simple transfer and a complex operation, then ask what the user pays when execution fails.",
       "example_contexts_fr": [
-        "Exemple étudiant 16",
-        "Situation produit 16"
+        "un transfert simple comparé à un échange automatisé",
+        "une transaction qui échoue après avoir consommé du gas",
+        "une limite fixée trop basse par un portefeuille"
       ],
       "example_contexts_en": [
-        "Student example 16",
-        "Product situation 16"
+        "a simple transfer compared with an automated swap",
+        "a transaction failing after consuming gas",
+        "a limit set too low by a wallet"
       ],
       "safety_category": "financial_educational"
     },
     {
-      "key": "blockchain.017",
+      "key": "blockchain.token_standards",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_ecosystem"
       ],
-      "stage": 3,
-      "order": 17,
+      "stage": 2,
+      "order": 16,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.016"
+        "blockchain.gas_and_fees"
       ],
-      "fallback_key": "blockchain.015",
-      "title_fr": "Blockchain - étape 17",
-      "title_en": "Blockchain - step 17",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 3.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 3.",
+      "fallback_key": "blockchain.ethereum_vs_bitcoin",
+      "title_fr": "Ce qu'est un standard de jeton",
+      "title_en": "What a token standard is",
+      "summary_fr": "Comprendre qu'un standard est une interface commune qui rend un jeton compatible avec tout l'écosystème.",
+      "summary_en": "Understand that a standard is a shared interface making a token compatible with the ecosystem.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 17.",
-        "L'appliquer dans un exemple court."
+        "Citer les fonctions attendues d'un jeton fongible.",
+        "Distinguer un jeton fongible d'un jeton non fongible."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 17.",
-        "Apply it in a short example."
+        "List the functions expected from a fungible token.",
+        "Tell apart a fungible and a non-fungible token."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister les fonctions qu'un portefeuille attend d'un jeton, puis demande ce qui casse si l'une d'elles est renommée.",
+      "tutor_focus_en": "Have the student list the functions a wallet expects from a token, then ask what breaks if one of them is renamed.",
       "example_contexts_fr": [
-        "Exemple étudiant 17",
-        "Situation produit 17"
+        "un jeton affiché automatiquement par un portefeuille",
+        "un billet de concert unique et nominatif",
+        "un jeton dont une fonction ne respecte pas le standard"
       ],
       "example_contexts_en": [
-        "Student example 17",
-        "Product situation 17"
+        "a token displayed automatically by a wallet",
+        "a unique named concert ticket",
+        "a token whose function departs from the standard"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.018",
+      "key": "blockchain.evm_execution",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
         "blockchain_building"
       ],
-      "stage": 3,
+      "stage": 2,
+      "order": 17,
+      "required": true,
+      "prerequisite_keys": [
+        "blockchain.public_private_chains"
+      ],
+      "fallback_key": "blockchain.smart_contract_basics",
+      "title_fr": "Comment la machine virtuelle exécute un contrat",
+      "title_en": "How the virtual machine executes a contract",
+      "summary_fr": "Comprendre l'exécution identique sur tous les nœuds et l'obligation de déterminisme.",
+      "summary_en": "Understand identical execution on every node and the resulting determinism requirement.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi tous les nœuds doivent obtenir le même résultat.",
+        "Citer une source d'aléa interdite dans un contrat."
+      ],
+      "learning_goals_en": [
+        "Explain why every node must reach the same result.",
+        "Name a source of randomness forbidden inside a contract."
+      ],
+      "tutor_focus_fr": "Fais expliquer ce qui se passerait si un contrat utilisait un nombre aléatoire local, puis demande comment obtenir un aléa acceptable.",
+      "tutor_focus_en": "Have the student explain what would happen if a contract used a local random number, then ask how to obtain acceptable randomness.",
+      "example_contexts_fr": [
+        "un tirage au sort dans un contrat de loterie",
+        "un contrat qui voudrait lire l'heure locale d'un nœud",
+        "une exécution rejouée par mille nœuds"
+      ],
+      "example_contexts_en": [
+        "a draw inside a lottery contract",
+        "a contract wanting to read a node's local clock",
+        "an execution replayed by a thousand nodes"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.contract_storage_cost",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 2,
       "order": 18,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.017"
+        "blockchain.evm_execution"
       ],
-      "fallback_key": "blockchain.016",
-      "title_fr": "Blockchain - étape 18",
-      "title_en": "Blockchain - step 18",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 3.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 3.",
+      "fallback_key": "blockchain.smart_contract_basics",
+      "title_fr": "Le coût du stockage sur la chaîne",
+      "title_en": "The cost of on-chain storage",
+      "summary_fr": "Comparer le coût d'écrire une donnée sur la chaîne et celui de la garder hors chaîne.",
+      "summary_en": "Compare the cost of writing data on chain with keeping it off chain.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 18.",
-        "L'appliquer dans un exemple court."
+        "Comparer le coût d'un stockage sur chaîne et d'une empreinte seule.",
+        "Choisir ce qui doit vraiment être écrit sur la chaîne."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 18.",
-        "Apply it in a short example."
+        "Compare the cost of on-chain storage and of a hash alone.",
+        "Choose what genuinely needs to be written on chain."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais choisir ce qui va sur la chaîne pour un certificat de diplôme, puis demande ce que prouve encore une empreinte seule.",
+      "tutor_focus_en": "Have the student choose what goes on chain for a diploma certificate, then ask what a hash alone still proves.",
       "example_contexts_fr": [
-        "Exemple étudiant 18",
-        "Situation produit 18"
+        "un certificat de diplôme à rendre vérifiable",
+        "une image de plusieurs mégaoctets",
+        "un journal d'événements écrit à chaque appel"
       ],
       "example_contexts_en": [
-        "Student example 18",
-        "Product situation 18"
+        "a diploma certificate to be made verifiable",
+        "an image of several megabytes",
+        "an event log written on every call"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.019",
+      "key": "blockchain.merkle_tree",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
       "stage": 3,
       "order": 19,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.018"
+        "blockchain.mining_difficulty"
       ],
-      "fallback_key": "blockchain.017",
-      "title_fr": "Blockchain - étape 19",
-      "title_en": "Blockchain - step 19",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 3.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 3.",
+      "fallback_key": "blockchain.mining_difficulty",
+      "title_fr": "L'arbre de Merkle et la preuve d'inclusion",
+      "title_en": "The Merkle tree and inclusion proofs",
+      "summary_fr": "Prouver qu'une transaction est dans un bloc sans télécharger toutes les transactions du bloc.",
+      "summary_en": "Prove a transaction is in a block without downloading every transaction of that block.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 19.",
-        "L'appliquer dans un exemple court."
+        "Décrire la construction de la racine à partir des transactions.",
+        "Compter les empreintes nécessaires à une preuve d'inclusion."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 19.",
-        "Apply it in a short example."
+        "Describe how the root is built from the transactions.",
+        "Count the hashes needed for an inclusion proof."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais construire la racine d'un arbre à quatre transactions, puis demande combien d'empreintes suffisent pour prouver l'une d'elles.",
+      "tutor_focus_en": "Have the student build the root of a four-transaction tree, then ask how many hashes suffice to prove one of them.",
       "example_contexts_fr": [
-        "Exemple étudiant 19",
-        "Situation produit 19"
+        "un portefeuille mobile qui vérifie un paiement reçu",
+        "un bloc contenant trois mille transactions",
+        "une preuve envoyée à un client léger"
       ],
       "example_contexts_en": [
-        "Student example 19",
-        "Product situation 19"
+        "a mobile wallet verifying a received payment",
+        "a block containing three thousand transactions",
+        "a proof sent to a light client"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.020",
+      "key": "blockchain.utxo_model",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
       "stage": 3,
       "order": 20,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.019"
+        "blockchain.merkle_tree"
       ],
-      "fallback_key": "blockchain.018",
-      "title_fr": "Blockchain - étape 20",
-      "title_en": "Blockchain - step 20",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 3.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 3.",
+      "fallback_key": "blockchain.mining_difficulty",
+      "title_fr": "Le modèle UTXO de Bitcoin",
+      "title_en": "Bitcoin's UTXO model",
+      "summary_fr": "Comprendre qu'un paiement consomme des sorties entières et produit une sortie de monnaie rendue.",
+      "summary_en": "Understand that a payment consumes whole outputs and produces a change output.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 20.",
-        "L'appliquer dans un exemple court."
+        "Décomposer un paiement en entrées, sortie de paiement et sortie de rendu.",
+        "Expliquer pourquoi un solde est une somme de sorties disponibles."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 20.",
-        "Apply it in a short example."
+        "Break a payment into inputs, payment output and change output.",
+        "Explain why a balance is a sum of available outputs."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais construire un paiement de 0,3 à partir de deux sorties de 0,2, puis demande où va la différence.",
+      "tutor_focus_en": "Have the student build a 0.3 payment from two 0.2 outputs, then ask where the difference goes.",
       "example_contexts_fr": [
-        "Exemple étudiant 20",
-        "Situation produit 20"
+        "un paiement de 0,3 financé par deux sorties de 0,2",
+        "un solde composé de quarante petites sorties",
+        "des frais qui augmentent avec le nombre d'entrées"
       ],
       "example_contexts_en": [
-        "Student example 20",
-        "Product situation 20"
+        "a 0.3 payment funded by two 0.2 outputs",
+        "a balance made of forty small outputs",
+        "fees growing with the number of inputs"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.021",
+      "key": "blockchain.forks_and_reorgs",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
       "stage": 3,
       "order": 21,
-      "required": true,
+      "required": false,
       "prerequisite_keys": [
-        "blockchain.020"
+        "blockchain.utxo_model"
       ],
-      "fallback_key": "blockchain.019",
-      "title_fr": "Blockchain - étape 21",
-      "title_en": "Blockchain - step 21",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 3.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 3.",
+      "fallback_key": "blockchain.mining_difficulty",
+      "title_fr": "Fourches et réorganisations de chaîne",
+      "title_en": "Forks and chain reorganisations",
+      "summary_fr": "Distinguer une fourche temporaire due à la latence d'une fourche durable due à une règle changée.",
+      "summary_en": "Tell apart a temporary fork caused by latency and a lasting fork caused by a rule change.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 21.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qui arrive aux transactions d'un bloc abandonné.",
+        "Distinguer fourche logicielle et fourche matérielle."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 21.",
-        "Apply it in a short example."
+        "Explain what happens to the transactions of an abandoned block.",
+        "Tell apart a soft fork and a hard fork."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais raconter ce qui arrive à une transaction incluse dans un bloc finalement abandonné, puis demande quand la fourche devient permanente.",
+      "tutor_focus_en": "Have the student narrate what happens to a transaction in a block eventually abandoned, then ask when the fork becomes permanent.",
       "example_contexts_fr": [
-        "Exemple étudiant 21",
-        "Situation produit 21"
+        "deux blocs trouvés à quelques secondes d'écart",
+        "un changement de règles refusé par une partie des nœuds",
+        "un paiement accepté sur la branche perdante"
       ],
       "example_contexts_en": [
-        "Student example 21",
-        "Product situation 21"
+        "two blocks found seconds apart",
+        "a rule change rejected by part of the nodes",
+        "a payment accepted on the losing branch"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.022",
+      "key": "blockchain.chain_selection_rule",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 22,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.021"
+        "blockchain.forks_and_reorgs"
       ],
-      "fallback_key": "blockchain.020",
-      "title_fr": "Blockchain - étape 22",
-      "title_en": "Blockchain - step 22",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 4.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 4.",
+      "fallback_key": "blockchain.mining_difficulty",
+      "title_fr": "Pourquoi la chaîne la plus lourde l'emporte",
+      "title_en": "Why the heaviest chain wins",
+      "summary_fr": "Comprendre la règle de sélection qui permet à des nœuds sans coordination de converger.",
+      "summary_en": "Understand the selection rule that lets uncoordinated nodes converge.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 22.",
-        "L'appliquer dans un exemple court."
+        "Énoncer la règle appliquée par un nœud face à deux branches.",
+        "Expliquer pourquoi cette règle rend la triche coûteuse."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 22.",
-        "Apply it in a short example."
+        "State the rule a node applies when facing two branches.",
+        "Explain why that rule makes cheating expensive."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais appliquer la règle de sélection à deux branches de longueurs différentes, puis demande ce que devrait produire un attaquant pour l'emporter.",
+      "tutor_focus_en": "Have the student apply the selection rule to two branches of different length, then ask what an attacker would need to produce to win.",
       "example_contexts_fr": [
-        "Exemple étudiant 22",
-        "Situation produit 22"
+        "un nœud qui reçoit deux branches concurrentes",
+        "un attaquant qui mine une branche parallèle en secret",
+        "une convergence observée quelques minutes après une fourche"
       ],
       "example_contexts_en": [
-        "Student example 22",
-        "Product situation 22"
+        "a node receiving two competing branches",
+        "an attacker mining a parallel branch in secret",
+        "convergence observed minutes after a fork"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.023",
+      "key": "blockchain.stablecoins",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_ecosystem"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 23,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.022"
+        "blockchain.token_standards"
       ],
-      "fallback_key": "blockchain.021",
-      "title_fr": "Blockchain - étape 23",
-      "title_en": "Blockchain - step 23",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 4.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 4.",
+      "fallback_key": "blockchain.token_standards",
+      "title_fr": "Comment un stablecoin tient sa parité",
+      "title_en": "How a stablecoin holds its peg",
+      "summary_fr": "Comparer réserve centralisée, surcollatéralisation et mécanisme algorithmique sur la solidité de la parité.",
+      "summary_en": "Compare centralised reserves, over-collateralisation and algorithmic designs on peg robustness.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 23.",
-        "L'appliquer dans un exemple court."
+        "Comparer trois mécanismes de stabilisation sur leur point de rupture.",
+        "Dire ce qu'un utilisateur doit vérifier avant d'y placer de la valeur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 23.",
-        "Apply it in a short example."
+        "Compare three stabilisation mechanisms on their breaking point.",
+        "Say what a user should check before storing value there."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer trois mécanismes de parité, puis demande lequel casse en premier lors d'une chute brutale des marchés.",
+      "tutor_focus_en": "Have the student compare three peg mechanisms, then ask which breaks first during a sharp market drop.",
       "example_contexts_fr": [
-        "Exemple étudiant 23",
-        "Situation produit 23"
+        "une réserve bancaire auditée trimestriellement",
+        "une position surcollatéralisée liquidée pendant une chute",
+        "une parité perdue pendant plusieurs jours"
       ],
       "example_contexts_en": [
-        "Student example 23",
-        "Product situation 23"
+        "a bank reserve audited quarterly",
+        "an over-collateralised position liquidated during a crash",
+        "a peg lost for several days"
       ],
       "safety_category": "financial_educational"
     },
     {
-      "key": "blockchain.024",
+      "key": "blockchain.automated_market_makers",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_ecosystem"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 24,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.023"
+        "blockchain.stablecoins"
       ],
-      "fallback_key": "blockchain.022",
-      "title_fr": "Blockchain - étape 24",
-      "title_en": "Blockchain - step 24",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 4.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 4.",
+      "fallback_key": "blockchain.token_standards",
+      "title_fr": "Les teneurs de marché automatisés",
+      "title_en": "Automated market makers",
+      "summary_fr": "Comprendre comment une réserve de deux actifs fixe un prix sans carnet d'ordres.",
+      "summary_en": "Understand how a two-asset pool sets a price without an order book.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 24.",
-        "L'appliquer dans un exemple court."
+        "Expliquer comment le prix évolue quand un échange vide une réserve.",
+        "Dire pourquoi un gros ordre subit un prix dégradé."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 24.",
-        "Apply it in a short example."
+        "Explain how the price moves when a swap drains one side of the pool.",
+        "Say why a large order gets a degraded price."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer l'effet d'un échange important sur une réserve de deux actifs, puis demande pourquoi le prix obtenu s'écarte du prix affiché.",
+      "tutor_focus_en": "Have the student compute the effect of a large swap on a two-asset pool, then ask why the obtained price departs from the quoted one.",
       "example_contexts_fr": [
-        "Exemple étudiant 24",
-        "Situation produit 24"
+        "un échange de deux jetons dans une réserve commune",
+        "un ordre important passé sur une petite réserve",
+        "un prix affiché différent du prix finalement obtenu"
       ],
       "example_contexts_en": [
-        "Student example 24",
-        "Product situation 24"
+        "a swap of two tokens in a shared pool",
+        "a large order placed against a small pool",
+        "a quoted price differing from the executed price"
       ],
       "safety_category": "financial_educational"
     },
     {
-      "key": "blockchain.025",
+      "key": "blockchain.lending_and_liquidation",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_ecosystem"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 25,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.024"
+        "blockchain.automated_market_makers"
       ],
-      "fallback_key": "blockchain.023",
-      "title_fr": "Blockchain - étape 25",
-      "title_en": "Blockchain - step 25",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 4.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 4.",
+      "fallback_key": "blockchain.token_standards",
+      "title_fr": "Prêt collatéralisé et liquidation",
+      "title_en": "Collateralised lending and liquidation",
+      "summary_fr": "Comprendre le seuil de liquidation et pourquoi un emprunt automatisé se dénoue sans négociation.",
+      "summary_en": "Understand the liquidation threshold and why an automated loan unwinds without negotiation.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 25.",
-        "L'appliquer dans un exemple court."
+        "Calculer un ratio de collatéral et le comparer au seuil.",
+        "Expliquer ce que déclenche mécaniquement le franchissement du seuil."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 25.",
-        "Apply it in a short example."
+        "Compute a collateral ratio and compare it to the threshold.",
+        "Explain what crossing the threshold mechanically triggers."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer le ratio d'une position puis simuler une baisse de 30 % du collatéral, en demandant ce qui se déclenche.",
+      "tutor_focus_en": "Have the student compute a position's ratio then simulate a 30% collateral drop, asking what gets triggered.",
       "example_contexts_fr": [
-        "Exemple étudiant 25",
-        "Situation produit 25"
+        "un emprunt garanti par un actif volatil",
+        "une chute de 30 % du prix du collatéral",
+        "une position liquidée pendant la nuit"
       ],
       "example_contexts_en": [
-        "Student example 25",
-        "Product situation 25"
+        "a loan backed by a volatile asset",
+        "a 30% drop in collateral price",
+        "a position liquidated overnight"
       ],
       "safety_category": "financial_educational"
     },
     {
-      "key": "blockchain.026",
+      "key": "blockchain.oracles",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_ecosystem"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 26,
-      "required": true,
-      "prerequisite_keys": [
-        "blockchain.025"
-      ],
-      "fallback_key": "blockchain.024",
-      "title_fr": "Blockchain - étape 26",
-      "title_en": "Blockchain - step 26",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 4.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 4.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 26.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 26.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 26",
-        "Situation produit 26"
-      ],
-      "example_contexts_en": [
-        "Student example 26",
-        "Product situation 26"
-      ],
-      "safety_category": "financial_educational"
-    },
-    {
-      "key": "blockchain.027",
-      "domain_id": "blockchain",
-      "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
-      ],
-      "stage": 4,
-      "order": 27,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.026"
+        "blockchain.lending_and_liquidation"
       ],
-      "fallback_key": "blockchain.025",
-      "title_fr": "Blockchain - étape 27",
-      "title_en": "Blockchain - step 27",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 4.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 4.",
+      "fallback_key": "blockchain.token_standards",
+      "title_fr": "Les oracles : faire entrer une donnée externe",
+      "title_en": "Oracles: bringing external data in",
+      "summary_fr": "Comprendre que la chaîne ne voit pas le monde extérieur et que l'oracle devient un point de confiance.",
+      "summary_en": "Understand that the chain cannot see the outside world, making the oracle a trust point.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 27.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi un contrat ne peut pas lire une donnée externe seul.",
+        "Citer deux protections contre une donnée d'oracle manipulée."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 27.",
-        "Apply it in a short example."
+        "Explain why a contract cannot read external data on its own.",
+        "Name two protections against manipulated oracle data."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi un contrat ne peut pas connaître un prix seul, puis demande ce qui se passe si l'oracle publie une valeur fausse.",
+      "tutor_focus_en": "Have the student explain why a contract cannot know a price by itself, then ask what happens if the oracle publishes a wrong value.",
       "example_contexts_fr": [
-        "Exemple étudiant 27",
-        "Situation produit 27"
+        "un contrat d'assurance déclenché par une donnée météo",
+        "un prix de marché publié toutes les minutes",
+        "un oracle unique qui publie une valeur aberrante"
       ],
       "example_contexts_en": [
-        "Student example 27",
-        "Product situation 27"
+        "an insurance contract triggered by weather data",
+        "a market price published every minute",
+        "a single oracle publishing an aberrant value"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.028",
+      "key": "blockchain.contract_functions_visibility",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
         "blockchain_building"
       ],
-      "stage": 4,
+      "stage": 3,
+      "order": 27,
+      "required": true,
+      "prerequisite_keys": [
+        "blockchain.contract_storage_cost"
+      ],
+      "fallback_key": "blockchain.contract_storage_cost",
+      "title_fr": "Fonctions, visibilité et modificateurs",
+      "title_en": "Functions, visibility and modifiers",
+      "summary_fr": "Contrôler qui peut appeler quoi et factoriser les vérifications d'accès dans un contrat.",
+      "summary_en": "Control who can call what and factor access checks inside a contract.",
+      "learning_goals_fr": [
+        "Choisir la visibilité adaptée à trois fonctions d'un contrat.",
+        "Écrire une condition d'accès réutilisable."
+      ],
+      "learning_goals_en": [
+        "Choose the right visibility for three contract functions.",
+        "Write a reusable access condition."
+      ],
+      "tutor_focus_fr": "Fais choisir la visibilité de trois fonctions d'un contrat de vente, puis demande ce qui arrive si une fonction interne devient publique.",
+      "tutor_focus_en": "Have the student choose visibility for three functions of a sale contract, then ask what happens if an internal function becomes public.",
+      "example_contexts_fr": [
+        "une fonction de retrait réservée au propriétaire",
+        "une consultation de solde ouverte à tous",
+        "une fonction interne exposée par erreur"
+      ],
+      "example_contexts_en": [
+        "a withdrawal function reserved to the owner",
+        "a balance lookup open to everyone",
+        "an internal function exposed by mistake"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.events_and_logs",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 3,
       "order": 28,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.027"
+        "blockchain.contract_functions_visibility"
       ],
-      "fallback_key": "blockchain.026",
-      "title_fr": "Blockchain - étape 28",
-      "title_en": "Blockchain - step 28",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 4.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 4.",
+      "fallback_key": "blockchain.contract_storage_cost",
+      "title_fr": "Événements et journaux",
+      "title_en": "Events and logs",
+      "summary_fr": "Émettre des événements lisibles hors chaîne pour reconstituer l'état sans tout relire.",
+      "summary_en": "Emit events readable off chain to rebuild state without re-reading everything.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 28.",
-        "L'appliquer dans un exemple court."
+        "Dire pourquoi une interface écoute des événements plutôt que le stockage.",
+        "Choisir les champs à indexer dans un événement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 28.",
-        "Apply it in a short example."
+        "Say why an interface listens to events rather than storage.",
+        "Choose which fields to index in an event."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais concevoir l'événement émis à chaque vente, puis demande quels champs doivent être indexés pour filtrer par acheteur.",
+      "tutor_focus_en": "Have the student design the event emitted on each sale, then ask which fields must be indexed to filter by buyer.",
       "example_contexts_fr": [
-        "Exemple étudiant 28",
-        "Situation produit 28"
+        "une interface qui affiche l'historique des ventes",
+        "un tableau de bord alimenté par les journaux",
+        "une recherche filtrée par adresse d'acheteur"
       ],
       "example_contexts_en": [
-        "Student example 28",
-        "Product situation 28"
+        "an interface showing the sales history",
+        "a dashboard fed by the logs",
+        "a search filtered by buyer address"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.029",
+      "key": "blockchain.testing_contracts",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
         "blockchain_building"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 29,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.028"
+        "blockchain.events_and_logs"
       ],
-      "fallback_key": "blockchain.027",
-      "title_fr": "Blockchain - étape 29",
-      "title_en": "Blockchain - step 29",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 5.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 5.",
+      "fallback_key": "blockchain.contract_storage_cost",
+      "title_fr": "Tester un contrat avant déploiement",
+      "title_en": "Testing a contract before deployment",
+      "summary_fr": "Écrire des tests qui couvrent les chemins d'échec, sachant qu'un contrat déployé ne se corrige pas.",
+      "summary_en": "Write tests covering failure paths, knowing a deployed contract cannot simply be patched.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 29.",
-        "L'appliquer dans un exemple court."
+        "Lister les cas d'échec à tester avant tout déploiement.",
+        "Expliquer pourquoi la couverture compte plus qu'ailleurs."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 29.",
-        "Apply it in a short example."
+        "List the failure cases to test before any deployment.",
+        "Explain why coverage matters more here than elsewhere."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister les cas d'échec d'un contrat de vente aux enchères, puis demande lequel serait catastrophique en production.",
+      "tutor_focus_en": "Have the student list the failure cases of an auction contract, then ask which one would be catastrophic in production.",
       "example_contexts_fr": [
-        "Exemple étudiant 29",
-        "Situation produit 29"
+        "une enchère clôturée sans gagnant",
+        "un appel émis par une adresse non autorisée",
+        "un contrat déployé avec un paramètre erroné"
       ],
       "example_contexts_en": [
-        "Student example 29",
-        "Product situation 29"
+        "an auction closing with no winner",
+        "a call issued by an unauthorised address",
+        "a contract deployed with a wrong parameter"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.030",
+      "key": "blockchain.local_devnet",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
         "blockchain_building"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 30,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.029"
+        "blockchain.testing_contracts"
       ],
-      "fallback_key": "blockchain.028",
-      "title_fr": "Blockchain - étape 30",
-      "title_en": "Blockchain - step 30",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 5.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 5.",
+      "fallback_key": "blockchain.contract_storage_cost",
+      "title_fr": "Développer sur un réseau local",
+      "title_en": "Developing on a local network",
+      "summary_fr": "Utiliser un réseau local puis un réseau de test avant d'engager des frais réels.",
+      "summary_en": "Use a local network then a test network before spending real fees.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 30.",
-        "L'appliquer dans un exemple court."
+        "Comparer réseau local, réseau de test et réseau principal.",
+        "Citer un comportement qui diffère entre réseau local et réseau réel."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 30.",
-        "Apply it in a short example."
+        "Compare local network, test network and main network.",
+        "Name a behaviour that differs between a local and a real network."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer les trois environnements, puis demande quel problème n'apparaît jamais sur un réseau local instantané.",
+      "tutor_focus_en": "Have the student compare the three environments, then ask which problem never shows on an instant local chain.",
       "example_contexts_fr": [
-        "Exemple étudiant 30",
-        "Situation produit 30"
+        "un déploiement instantané sur une chaîne locale",
+        "un test avec des jetons sans valeur",
+        "un problème de congestion invisible en local"
       ],
       "example_contexts_en": [
-        "Student example 30",
-        "Product situation 30"
+        "an instant deployment on a local chain",
+        "a test using valueless tokens",
+        "a congestion problem invisible locally"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.031",
+      "key": "blockchain.proof_of_stake",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 31,
       "required": true,
       "prerequisite_keys": [
-        "blockchain.030"
+        "blockchain.chain_selection_rule"
       ],
-      "fallback_key": "blockchain.029",
-      "title_fr": "Blockchain - étape 31",
-      "title_en": "Blockchain - step 31",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 5.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 5.",
+      "fallback_key": "blockchain.chain_selection_rule",
+      "title_fr": "La preuve d'enjeu et la sanction des validateurs",
+      "title_en": "Proof of stake and validator penalties",
+      "summary_fr": "Remplacer le coût énergétique par un capital immobilisé qui peut être détruit en cas de faute.",
+      "summary_en": "Replace energy cost with locked capital that can be destroyed when a validator misbehaves.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 31.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'un validateur risque en signant deux blocs concurrents.",
+        "Comparer les coûts d'attaque des deux mécanismes."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 31.",
-        "Apply it in a short example."
+        "Explain what a validator risks by signing two competing blocks.",
+        "Compare the attack cost of the two mechanisms."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce que perd un validateur qui signe deux blocs contradictoires, puis demande comment le protocole le détecte.",
+      "tutor_focus_en": "Have the student explain what a validator loses by signing two contradictory blocks, then ask how the protocol detects it.",
       "example_contexts_fr": [
-        "Exemple étudiant 31",
-        "Situation produit 31"
+        "un validateur qui signe deux blocs contradictoires",
+        "un opérateur hors ligne pendant une journée",
+        "un capital immobilisé pendant plusieurs semaines"
       ],
       "example_contexts_en": [
-        "Student example 31",
-        "Product situation 31"
+        "a validator signing two contradictory blocks",
+        "an operator offline for a full day",
+        "capital locked for several weeks"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.032",
+      "key": "blockchain.byzantine_faults",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 32,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.031"
+        "blockchain.proof_of_stake"
       ],
-      "fallback_key": "blockchain.030",
-      "title_fr": "Blockchain - étape 32",
-      "title_en": "Blockchain - step 32",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 5.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 5.",
+      "fallback_key": "blockchain.chain_selection_rule",
+      "title_fr": "Le problème des généraux byzantins",
+      "title_en": "The Byzantine generals problem",
+      "summary_fr": "Formuler l'accord entre participants dont une partie peut mentir, et la limite du tiers de fautifs.",
+      "summary_en": "State agreement among participants where some may lie, and the one-third faulty bound.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 32.",
-        "L'appliquer dans un exemple court."
+        "Distinguer une panne franche d'un comportement malveillant.",
+        "Citer la proportion maximale de participants fautifs tolérée."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 32.",
-        "Apply it in a short example."
+        "Tell apart a crash failure and malicious behaviour.",
+        "State the maximum share of faulty participants tolerated."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais distinguer un nœud éteint d'un nœud qui envoie deux messages contradictoires, puis demande pourquoi le second est plus difficile à gérer.",
+      "tutor_focus_en": "Have the student distinguish a node that is off from a node sending two contradictory messages, then ask why the second is harder.",
       "example_contexts_fr": [
-        "Exemple étudiant 32",
-        "Situation produit 32"
+        "un nœud qui envoie deux messages contradictoires",
+        "un serveur simplement éteint",
+        "un consortium de dix participants dont trois trichent"
       ],
       "example_contexts_en": [
-        "Student example 32",
-        "Product situation 32"
+        "a node sending two contradictory messages",
+        "a server that is simply switched off",
+        "a ten-member consortium where three cheat"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.033",
+      "key": "blockchain.block_size_propagation",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 33,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.032"
+        "blockchain.byzantine_faults"
       ],
-      "fallback_key": "blockchain.031",
-      "title_fr": "Blockchain - étape 33",
-      "title_en": "Blockchain - step 33",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 5.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 5.",
+      "fallback_key": "blockchain.chain_selection_rule",
+      "title_fr": "Taille des blocs et propagation",
+      "title_en": "Block size and propagation",
+      "summary_fr": "Relier la taille d'un bloc au temps de diffusion et au risque de blocs orphelins.",
+      "summary_en": "Connect block size to broadcast time and to the risk of orphaned blocks.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 33.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi un bloc plus gros augmente le risque d'orphelin.",
+        "Dire ce que la taille de bloc impose aux nœuds domestiques."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 33.",
-        "Apply it in a short example."
+        "Explain why a larger block raises the orphan risk.",
+        "Say what block size imposes on home nodes."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi doubler la taille des blocs n'améliore pas proportionnellement le débit utile, puis demande qui ne peut plus suivre.",
+      "tutor_focus_en": "Have the student explain why doubling block size does not proportionally improve useful throughput, then ask who can no longer keep up.",
       "example_contexts_fr": [
-        "Exemple étudiant 33",
-        "Situation produit 33"
+        "un bloc trop gros diffusé lentement sur le réseau",
+        "un nœud domestique avec une connexion limitée",
+        "un débat communautaire sur l'augmentation de la limite"
       ],
       "example_contexts_en": [
-        "Student example 33",
-        "Product situation 33"
+        "an oversized block spreading slowly across the network",
+        "a home node on a limited connection",
+        "a community debate on raising the limit"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
     },
     {
-      "key": "blockchain.034",
+      "key": "blockchain.fee_market",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
-        "blockchain_building"
+        "blockchain_foundations"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 34,
       "required": false,
       "prerequisite_keys": [
-        "blockchain.033"
+        "blockchain.block_size_propagation"
       ],
-      "fallback_key": "blockchain.032",
-      "title_fr": "Blockchain - étape 34",
-      "title_en": "Blockchain - step 34",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 5.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 5.",
+      "fallback_key": "blockchain.chain_selection_rule",
+      "title_fr": "Le marché des frais de transaction",
+      "title_en": "The transaction fee market",
+      "summary_fr": "Comprendre l'enchère implicite pour un espace de bloc limité et l'effet d'un pic de demande.",
+      "summary_en": "Understand the implicit auction for limited block space and the effect of a demand spike.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 34.",
-        "L'appliquer dans un exemple court."
+        "Expliquer comment les frais sont fixés en période de congestion.",
+        "Dire ce qui remplacera la récompense de bloc à long terme."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 34.",
-        "Apply it in a short example."
+        "Explain how fees are set during congestion.",
+        "Say what will replace the block reward in the long run."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi les frais montent lors d'un pic d'activité, puis demande ce qui rémunérera les validateurs quand l'émission s'arrêtera.",
+      "tutor_focus_en": "Have the student explain why fees rise during an activity spike, then ask what will pay validators once issuance stops.",
       "example_contexts_fr": [
-        "Exemple étudiant 34",
-        "Situation produit 34"
+        "une journée de forte congestion du réseau",
+        "une transaction non urgente envoyée avec des frais bas",
+        "une émission de nouvelles unités qui diminue avec le temps"
       ],
       "example_contexts_en": [
-        "Student example 34",
-        "Product situation 34"
+        "a day of heavy network congestion",
+        "a non-urgent transaction sent with low fees",
+        "an issuance of new units decreasing over time"
       ],
       "safety_category": "financial_educational"
     },
     {
-      "key": "blockchain.035",
+      "key": "blockchain.cross_chain_bridges",
       "domain_id": "blockchain",
       "objective_ids": [
-        "blockchain_foundations",
-        "blockchain_ecosystem",
+        "blockchain_ecosystem"
+      ],
+      "stage": 4,
+      "order": 35,
+      "required": true,
+      "prerequisite_keys": [
+        "blockchain.oracles"
+      ],
+      "fallback_key": "blockchain.oracles",
+      "title_fr": "Les ponts entre chaînes et leur risque",
+      "title_en": "Cross-chain bridges and their risk",
+      "summary_fr": "Comprendre le mécanisme de blocage et d'émission d'un actif représenté sur une autre chaîne.",
+      "summary_en": "Understand the lock-and-mint mechanism of an asset represented on another chain.",
+      "learning_goals_fr": [
+        "Décrire ce que représente un jeton reçu à l'arrivée d'un pont.",
+        "Expliquer pourquoi les ponts concentrent le risque."
+      ],
+      "learning_goals_en": [
+        "Describe what a token received at a bridge's destination represents.",
+        "Explain why bridges concentrate risk."
+      ],
+      "tutor_focus_fr": "Fais décrire ce que devient l'actif d'origine pendant un transfert par pont, puis demande ce que vaut le jeton reçu si le pont est compromis.",
+      "tutor_focus_en": "Have the student describe what happens to the original asset during a bridge transfer, then ask what the received token is worth if the bridge is compromised.",
+      "example_contexts_fr": [
+        "un actif bloqué d'un côté et représenté de l'autre",
+        "un pont détenant les avoirs de milliers d'utilisateurs",
+        "un jeton représenté dont la garantie disparaît"
+      ],
+      "example_contexts_en": [
+        "an asset locked on one side and represented on the other",
+        "a bridge holding the funds of thousands of users",
+        "a wrapped token whose backing disappears"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.layer_two_rollups",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_ecosystem"
+      ],
+      "stage": 4,
+      "order": 36,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.cross_chain_bridges"
+      ],
+      "fallback_key": "blockchain.oracles",
+      "title_fr": "Les rollups de couche 2",
+      "title_en": "Layer 2 rollups",
+      "summary_fr": "Comprendre l'exécution hors chaîne dont le résultat est publié et vérifiable sur la chaîne principale.",
+      "summary_en": "Understand off-chain execution whose result is published and verifiable on the main chain.",
+      "learning_goals_fr": [
+        "Expliquer d'où vient la baisse de coût d'un rollup.",
+        "Comparer preuve de fraude et preuve de validité sur le délai de retrait."
+      ],
+      "learning_goals_en": [
+        "Explain where a rollup's cost reduction comes from.",
+        "Compare fraud proofs and validity proofs on withdrawal delay."
+      ],
+      "tutor_focus_fr": "Fais expliquer ce qui est réellement publié sur la chaîne principale par un rollup, puis demande pourquoi un retrait peut prendre une semaine.",
+      "tutor_focus_en": "Have the student explain what a rollup actually publishes on the main chain, then ask why a withdrawal can take a week.",
+      "example_contexts_fr": [
+        "un paiement à quelques centimes de frais",
+        "un retrait vers la chaîne principale différé d'une semaine",
+        "un opérateur de rollup temporairement indisponible"
+      ],
+      "example_contexts_en": [
+        "a payment costing a few cents in fees",
+        "a withdrawal to the main chain delayed by a week",
+        "a rollup operator temporarily unavailable"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.token_governance",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_ecosystem"
+      ],
+      "stage": 4,
+      "order": 37,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.layer_two_rollups"
+      ],
+      "fallback_key": "blockchain.oracles",
+      "title_fr": "La gouvernance par jeton",
+      "title_en": "Token-based governance",
+      "summary_fr": "Analyser un vote pondéré par les avoirs et les effets de concentration qu'il produit.",
+      "summary_en": "Analyse holdings-weighted voting and the concentration effects it produces.",
+      "learning_goals_fr": [
+        "Expliquer ce qu'un vote pondéré par les avoirs favorise.",
+        "Citer un mécanisme qui limite la capture d'une décision."
+      ],
+      "learning_goals_en": [
+        "Explain what holdings-weighted voting favours.",
+        "Name a mechanism limiting capture of a decision."
+      ],
+      "tutor_focus_fr": "Fais analyser un vote où trois détenteurs pèsent 60 %, puis demande quel mécanisme réduirait ce déséquilibre.",
+      "tutor_focus_en": "Have the student analyse a vote where three holders carry 60%, then ask which mechanism would reduce that imbalance.",
+      "example_contexts_fr": [
+        "une proposition adoptée par trois grands détenteurs",
+        "un quorum jamais atteint sur les petits votes",
+        "un délai obligatoire avant application d'une décision"
+      ],
+      "example_contexts_en": [
+        "a proposal passed by three large holders",
+        "a quorum never reached on small votes",
+        "a mandatory delay before a decision takes effect"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.custody_models",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_ecosystem"
+      ],
+      "stage": 4,
+      "order": 38,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.token_governance"
+      ],
+      "fallback_key": "blockchain.oracles",
+      "title_fr": "Garde des clés : autogarde ou dépositaire",
+      "title_en": "Key custody: self-custody or custodian",
+      "summary_fr": "Comparer les modèles de garde sur le risque de perte, le risque de faillite et le recours possible.",
+      "summary_en": "Compare custody models on loss risk, insolvency risk and available recourse.",
+      "learning_goals_fr": [
+        "Comparer les deux modèles sur ce qui se passe en cas d'erreur.",
+        "Dire ce qu'une signature multiple change au risque."
+      ],
+      "learning_goals_en": [
+        "Compare both models on what happens when something goes wrong.",
+        "Say what multi-signature changes about the risk."
+      ],
+      "tutor_focus_fr": "Fais comparer ce qui se passe en cas de perte de clé et en cas de faillite du dépositaire, puis demande ce qu'apporte une signature multiple.",
+      "tutor_focus_en": "Have the student compare a lost key and an insolvent custodian, then ask what multi-signature adds.",
+      "example_contexts_fr": [
+        "une clé perdue sans phrase de récupération",
+        "une plateforme dépositaire en défaut",
+        "un portefeuille exigeant deux signatures sur trois"
+      ],
+      "example_contexts_en": [
+        "a key lost with no recovery phrase",
+        "a custodial platform in default",
+        "a wallet requiring two signatures out of three"
+      ],
+      "safety_category": "financial_educational"
+    },
+    {
+      "key": "blockchain.reentrancy",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 4,
+      "order": 39,
+      "required": true,
+      "prerequisite_keys": [
+        "blockchain.local_devnet"
+      ],
+      "fallback_key": "blockchain.local_devnet",
+      "title_fr": "La faille de réentrance",
+      "title_en": "The reentrancy flaw",
+      "summary_fr": "Comprendre comment un appel externe rappelle le contrat avant la mise à jour de son état.",
+      "summary_en": "Understand how an external call re-enters the contract before its state is updated.",
+      "learning_goals_fr": [
+        "Décrire l'ordre fautif entre envoi de fonds et mise à jour du solde.",
+        "Appliquer le schéma vérifications, effets, interactions."
+      ],
+      "learning_goals_en": [
+        "Describe the faulty order between sending funds and updating the balance.",
+        "Apply the checks-effects-interactions pattern."
+      ],
+      "tutor_focus_fr": "Fais décrire l'ordre des opérations d'un retrait vulnérable, puis demande la réécriture qui supprime la faille.",
+      "tutor_focus_en": "Have the student describe the operation order of a vulnerable withdrawal, then ask for the rewrite that removes the flaw.",
+      "example_contexts_fr": [
+        "un retrait qui envoie les fonds avant de mettre à jour le solde",
+        "un contrat appelant un contrat inconnu",
+        "un solde décrémenté trop tard"
+      ],
+      "example_contexts_en": [
+        "a withdrawal sending funds before updating the balance",
+        "a contract calling an unknown contract",
+        "a balance decremented too late"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.contract_access_control",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 4,
+      "order": 40,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.reentrancy"
+      ],
+      "fallback_key": "blockchain.local_devnet",
+      "title_fr": "Contrôle d'accès et rôles",
+      "title_en": "Access control and roles",
+      "summary_fr": "Concevoir des rôles limités plutôt qu'un propriétaire unique tout-puissant.",
+      "summary_en": "Design limited roles rather than one all-powerful owner.",
+      "learning_goals_fr": [
+        "Découper des permissions en rôles distincts.",
+        "Expliquer le risque d'une clé unique de propriétaire."
+      ],
+      "learning_goals_en": [
+        "Split permissions into distinct roles.",
+        "Explain the risk of a single owner key."
+      ],
+      "tutor_focus_fr": "Fais découper les permissions d'un contrat en trois rôles, puis demande ce qui se passe si la clé du propriétaire est perdue.",
+      "tutor_focus_en": "Have the student split a contract's permissions into three roles, then ask what happens if the owner key is lost.",
+      "example_contexts_fr": [
+        "une clé de propriétaire compromise",
+        "une mise en pause d'urgence réservée à deux adresses",
+        "un rôle de trésorier distinct du rôle d'administrateur"
+      ],
+      "example_contexts_en": [
+        "a compromised owner key",
+        "an emergency pause reserved to two addresses",
+        "a treasurer role separate from the admin role"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.upgradeable_contracts",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 4,
+      "order": 41,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.contract_access_control"
+      ],
+      "fallback_key": "blockchain.local_devnet",
+      "title_fr": "Contrats évolutifs et proxy",
+      "title_en": "Upgradeable contracts and proxies",
+      "summary_fr": "Comprendre le motif proxy et le compromis entre correction possible et confiance demandée.",
+      "summary_en": "Understand the proxy pattern and the trade-off between fixability and required trust.",
+      "learning_goals_fr": [
+        "Expliquer la séparation entre stockage et logique dans un proxy.",
+        "Dire ce que l'évolutivité retire comme garantie aux utilisateurs."
+      ],
+      "learning_goals_en": [
+        "Explain the split between storage and logic in a proxy.",
+        "Say what upgradeability removes as a guarantee for users."
+      ],
+      "tutor_focus_fr": "Fais expliquer où vit l'état dans un montage proxy, puis demande ce qu'un utilisateur accepte en utilisant un contrat évolutif.",
+      "tutor_focus_en": "Have the student explain where state lives in a proxy setup, then ask what a user accepts by using an upgradeable contract.",
+      "example_contexts_fr": [
+        "une correction de bug après déploiement",
+        "un stockage conservé pendant un changement de logique",
+        "une mise à jour décidée par une seule équipe"
+      ],
+      "example_contexts_en": [
+        "a bug fixed after deployment",
+        "storage preserved through a logic change",
+        "an upgrade decided by a single team"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.gas_optimization",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 4,
+      "order": 42,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.upgradeable_contracts"
+      ],
+      "fallback_key": "blockchain.local_devnet",
+      "title_fr": "Optimiser le gas sans casser la lisibilité",
+      "title_en": "Optimising gas without destroying readability",
+      "summary_fr": "Identifier les opérations réellement coûteuses avant d'écrire du code difficile à relire.",
+      "summary_en": "Identify the genuinely expensive operations before writing hard-to-read code.",
+      "learning_goals_fr": [
+        "Classer trois opérations par coût réel.",
+        "Décider quand une optimisation ne vaut pas sa complexité."
+      ],
+      "learning_goals_en": [
+        "Rank three operations by real cost.",
+        "Decide when an optimisation is not worth its complexity."
+      ],
+      "tutor_focus_fr": "Fais classer une écriture en stockage, une lecture et un calcul par coût, puis demande quelle optimisation apporte le plus pour un contrat donné.",
+      "tutor_focus_en": "Have the student rank a storage write, a read and a computation by cost, then ask which optimisation pays most for a given contract.",
+      "example_contexts_fr": [
+        "une boucle qui écrit en stockage à chaque tour",
+        "un tableau parcouru pour trouver un élément",
+        "un contrat illisible après optimisation"
+      ],
+      "example_contexts_en": [
+        "a loop writing to storage on every turn",
+        "an array scanned to find one element",
+        "a contract made unreadable by optimisation"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.light_clients",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_foundations"
+      ],
+      "stage": 5,
+      "order": 43,
+      "required": true,
+      "prerequisite_keys": [
+        "blockchain.fee_market"
+      ],
+      "fallback_key": "blockchain.fee_market",
+      "title_fr": "Clients légers et preuves de vérification",
+      "title_en": "Light clients and verification proofs",
+      "summary_fr": "Comprendre ce qu'un client léger vérifie réellement et la confiance résiduelle qu'il accorde.",
+      "summary_en": "Understand what a light client really verifies and the residual trust it grants.",
+      "learning_goals_fr": [
+        "Comparer ce que vérifie un nœud complet et un client léger.",
+        "Citer une hypothèse de confiance propre au client léger."
+      ],
+      "learning_goals_en": [
+        "Compare what a full node and a light client verify.",
+        "Name a trust assumption specific to light clients."
+      ],
+      "tutor_focus_fr": "Fais comparer les vérifications d'un nœud complet et d'un portefeuille mobile, puis demande ce que le second croit sans le vérifier.",
+      "tutor_focus_en": "Have the student compare the checks of a full node and a mobile wallet, then ask what the latter believes without verifying.",
+      "example_contexts_fr": [
+        "un portefeuille mobile de 30 mégaoctets",
+        "un nœud complet stockant l'historique entier",
+        "une preuve d'inclusion reçue d'un serveur tiers"
+      ],
+      "example_contexts_en": [
+        "a 30-megabyte mobile wallet",
+        "a full node storing the entire history",
+        "an inclusion proof received from a third-party server"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.transaction_ordering_value",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_foundations"
+      ],
+      "stage": 5,
+      "order": 44,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.light_clients"
+      ],
+      "fallback_key": "blockchain.fee_market",
+      "title_fr": "L'ordonnancement des transactions et la valeur extractible",
+      "title_en": "Transaction ordering and extractable value",
+      "summary_fr": "Comprendre pourquoi le pouvoir d'ordonner les transactions d'un bloc a une valeur économique.",
+      "summary_en": "Understand why the power to order transactions inside a block carries economic value.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi l'ordre dans un bloc n'est pas neutre.",
+        "Citer une protection utilisateur contre un mauvais prix d'exécution."
+      ],
+      "learning_goals_en": [
+        "Explain why order inside a block is not neutral.",
+        "Name a user protection against a poor execution price."
+      ],
+      "tutor_focus_fr": "Fais expliquer ce que rapporte le choix de l'ordre des transactions dans un bloc, puis demande quel réglage protège un utilisateur ordinaire.",
+      "tutor_focus_en": "Have the student explain what choosing the order of transactions in a block earns, then ask which setting protects an ordinary user.",
+      "example_contexts_fr": [
+        "un ordre d'échange visible dans la file d'attente",
+        "un prix d'exécution moins bon que prévu",
+        "une tolérance de glissement réglée par l'utilisateur"
+      ],
+      "example_contexts_en": [
+        "a trade order visible in the waiting pool",
+        "an execution price worse than expected",
+        "a slippage tolerance set by the user"
+      ],
+      "safety_category": "financial_educational"
+    },
+    {
+      "key": "blockchain.post_quantum_signatures",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_foundations"
+      ],
+      "stage": 5,
+      "order": 45,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.transaction_ordering_value"
+      ],
+      "fallback_key": "blockchain.fee_market",
+      "title_fr": "Ce qu'un ordinateur quantique menacerait",
+      "title_en": "What a quantum computer would threaten",
+      "summary_fr": "Distinguer la menace sur les signatures de la menace bien plus faible sur les fonctions de hachage.",
+      "summary_en": "Separate the threat to signatures from the much weaker threat to hash functions.",
+      "learning_goals_fr": [
+        "Dire quelle brique cryptographique serait la plus exposée.",
+        "Expliquer pourquoi une adresse jamais dépensée est moins exposée."
+      ],
+      "learning_goals_en": [
+        "Say which cryptographic building block would be most exposed.",
+        "Explain why a never-spent address is less exposed."
+      ],
+      "tutor_focus_fr": "Fais comparer l'exposition des signatures et du hachage, puis demande pourquoi une adresse dont la clé publique n'a jamais été révélée est plus sûre.",
+      "tutor_focus_en": "Have the student compare the exposure of signatures and hashing, then ask why an address whose public key was never revealed is safer.",
+      "example_contexts_fr": [
+        "une adresse dont la clé publique est apparue lors d'une dépense",
+        "un projet qui prépare une migration cryptographique",
+        "un fonds inactif depuis dix ans"
+      ],
+      "example_contexts_en": [
+        "an address whose public key appeared when spending",
+        "a project preparing a cryptographic migration",
+        "a fund untouched for ten years"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.pseudonymity_analysis",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_foundations"
+      ],
+      "stage": 5,
+      "order": 46,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.post_quantum_signatures"
+      ],
+      "fallback_key": "blockchain.fee_market",
+      "title_fr": "Pseudonymat et analyse de chaîne",
+      "title_en": "Pseudonymity and chain analysis",
+      "summary_fr": "Comprendre pourquoi un registre public permet de relier des adresses à une même personne.",
+      "summary_en": "Understand why a public ledger allows linking addresses to the same person.",
+      "learning_goals_fr": [
+        "Expliquer la différence entre anonymat et pseudonymat.",
+        "Citer deux comportements qui relient des adresses entre elles."
+      ],
+      "learning_goals_en": [
+        "Explain the difference between anonymity and pseudonymity.",
+        "Name two behaviours that link addresses together."
+      ],
+      "tutor_focus_fr": "Fais expliquer comment deux adresses se retrouvent liées par une même transaction, puis demande ce qu'un point d'entrée réglementé ajoute à l'analyse.",
+      "tutor_focus_en": "Have the student explain how two addresses become linked by one transaction, then ask what a regulated entry point adds to the analysis.",
+      "example_contexts_fr": [
+        "deux adresses dépensées ensemble dans une transaction",
+        "un retrait vers une plateforme qui vérifie l'identité",
+        "une adresse publiée sur un profil public"
+      ],
+      "example_contexts_en": [
+        "two addresses spent together in one transaction",
+        "a withdrawal to a platform verifying identity",
+        "an address published on a public profile"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.impermanent_loss",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_ecosystem"
+      ],
+      "stage": 5,
+      "order": 47,
+      "required": true,
+      "prerequisite_keys": [
+        "blockchain.custody_models"
+      ],
+      "fallback_key": "blockchain.custody_models",
+      "title_fr": "La perte impermanente d'un fournisseur de liquidité",
+      "title_en": "Impermanent loss for a liquidity provider",
+      "summary_fr": "Comparer la valeur d'une position en réserve et celle des mêmes actifs simplement conservés.",
+      "summary_en": "Compare the value of a pooled position with the same assets simply held.",
+      "learning_goals_fr": [
+        "Expliquer d'où vient l'écart entre les deux stratégies.",
+        "Dire dans quel scénario de prix l'écart se réduit."
+      ],
+      "learning_goals_en": [
+        "Explain where the gap between the two strategies comes from.",
+        "Say in which price scenario the gap narrows."
+      ],
+      "tutor_focus_fr": "Fais comparer la valeur finale d'une position fournie en liquidité et des mêmes actifs conservés après un doublement de prix.",
+      "tutor_focus_en": "Have the student compare the final value of a pooled position and of the same assets held after a price doubling.",
+      "example_contexts_fr": [
+        "un actif dont le prix double pendant la période",
+        "une paire de deux actifs stables entre eux",
+        "des frais perçus qui compensent partiellement l'écart"
+      ],
+      "example_contexts_en": [
+        "an asset whose price doubles over the period",
+        "a pair of two assets stable against each other",
+        "collected fees partially offsetting the gap"
+      ],
+      "safety_category": "financial_educational"
+    },
+    {
+      "key": "blockchain.token_supply_schedule",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_ecosystem"
+      ],
+      "stage": 5,
+      "order": 48,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.impermanent_loss"
+      ],
+      "fallback_key": "blockchain.custody_models",
+      "title_fr": "Émission, dilution et calendrier de distribution",
+      "title_en": "Issuance, dilution and distribution schedule",
+      "summary_fr": "Lire un calendrier d'émission pour anticiper la dilution des détenteurs existants.",
+      "summary_en": "Read an issuance schedule to anticipate dilution for existing holders.",
+      "learning_goals_fr": [
+        "Lire un calendrier de déblocage et repérer les échéances sensibles.",
+        "Distinguer offre en circulation et offre totale."
+      ],
+      "learning_goals_en": [
+        "Read an unlock schedule and spot the sensitive dates.",
+        "Tell apart circulating supply and total supply."
+      ],
+      "tutor_focus_fr": "Fais lire un calendrier où 20 % de l'offre se débloque en un mois, puis demande ce que cela implique pour les détenteurs existants.",
+      "tutor_focus_en": "Have the student read a schedule unlocking 20% of supply in one month, then ask what it implies for existing holders.",
+      "example_contexts_fr": [
+        "un déblocage de 20 % de l'offre en un mois",
+        "une offre en circulation très inférieure à l'offre totale",
+        "une émission continue destinée à rémunérer des validateurs"
+      ],
+      "example_contexts_en": [
+        "an unlock of 20% of supply within a month",
+        "a circulating supply far below total supply",
+        "continuous issuance paying validators"
+      ],
+      "safety_category": "financial_educational"
+    },
+    {
+      "key": "blockchain.regulatory_frameworks",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_ecosystem"
+      ],
+      "stage": 5,
+      "order": 49,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.token_supply_schedule"
+      ],
+      "fallback_key": "blockchain.custody_models",
+      "title_fr": "Ce que la régulation encadre",
+      "title_en": "What regulation actually covers",
+      "summary_fr": "Repérer les points de contact entre un protocole ouvert et les obligations qui pèsent sur les intermédiaires.",
+      "summary_en": "Identify the contact points between an open protocol and the duties placed on intermediaries.",
+      "learning_goals_fr": [
+        "Distinguer ce qui vise le protocole et ce qui vise les intermédiaires.",
+        "Citer une obligation typique d'une plateforme d'échange."
+      ],
+      "learning_goals_en": [
+        "Tell apart what targets the protocol and what targets intermediaries.",
+        "Name a typical obligation of an exchange platform."
+      ],
+      "tutor_focus_fr": "Fais distinguer les obligations d'un protocole ouvert et celles d'une plateforme d'échange, puis demande où se situe le point de contrôle réel.",
+      "tutor_focus_en": "Have the student separate the duties of an open protocol from those of an exchange, then ask where the real control point sits.",
+      "example_contexts_fr": [
+        "une plateforme qui vérifie l'identité de ses clients",
+        "un protocole publié en logiciel libre",
+        "un émetteur de jeton adossé à une monnaie"
+      ],
+      "example_contexts_en": [
+        "a platform verifying its customers' identity",
+        "a protocol published as free software",
+        "an issuer of a currency-backed token"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.onchain_analytics",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_ecosystem"
+      ],
+      "stage": 5,
+      "order": 50,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.regulatory_frameworks"
+      ],
+      "fallback_key": "blockchain.custody_models",
+      "title_fr": "Lire l'activité d'un protocole dans les données de chaîne",
+      "title_en": "Reading a protocol's activity in chain data",
+      "summary_fr": "Distinguer des indicateurs d'usage réel des chiffres facilement gonflés par un même acteur.",
+      "summary_en": "Tell real usage indicators apart from figures one actor can easily inflate.",
+      "learning_goals_fr": [
+        "Choisir deux indicateurs difficiles à manipuler.",
+        "Expliquer pourquoi le nombre d'adresses actives trompe souvent."
+      ],
+      "learning_goals_en": [
+        "Choose two indicators that are hard to manipulate.",
+        "Explain why the count of active addresses often misleads."
+      ],
+      "tutor_focus_fr": "Fais critiquer une communication fondée sur le nombre d'adresses actives, puis demande quels indicateurs seraient plus solides.",
+      "tutor_focus_en": "Have the student critique a claim based on active address count, then ask which indicators would be sturdier.",
+      "example_contexts_fr": [
+        "un protocole affichant cent mille adresses actives",
+        "un volume gonflé par des échanges entre deux comptes",
+        "des frais payés par des utilisateurs réels"
+      ],
+      "example_contexts_en": [
+        "a protocol advertising a hundred thousand active addresses",
+        "volume inflated by trades between two accounts",
+        "fees paid by real users"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.contract_audit",
+      "domain_id": "blockchain",
+      "objective_ids": [
         "blockchain_building"
       ],
       "stage": 5,
-      "order": 35,
-      "required": false,
+      "order": 51,
+      "required": true,
       "prerequisite_keys": [
-        "blockchain.034"
+        "blockchain.gas_optimization"
       ],
-      "fallback_key": "blockchain.033",
-      "title_fr": "Blockchain - étape 35",
-      "title_en": "Blockchain - step 35",
-      "summary_fr": "Construire une brique claire du parcours Blockchain au niveau 5.",
-      "summary_en": "Build one clear building block of the Blockchain path at level 5.",
+      "fallback_key": "blockchain.gas_optimization",
+      "title_fr": "Ce qu'un audit de contrat cherche",
+      "title_en": "What a contract audit looks for",
+      "summary_fr": "Comprendre la démarche d'un audit et ce que son rapport ne garantit pas.",
+      "summary_en": "Understand the audit process and what its report does not guarantee.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 35.",
-        "L'appliquer dans un exemple court."
+        "Citer trois familles de vulnérabilités recherchées.",
+        "Dire ce qu'un rapport d'audit ne prouve pas."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 35.",
-        "Apply it in a short example."
+        "Name three families of vulnerabilities searched for.",
+        "Say what an audit report does not prove."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais lister ce qu'un auditeur examine en priorité, puis demande ce qu'un rapport favorable ne garantit toujours pas.",
+      "tutor_focus_en": "Have the student list what an auditor examines first, then ask what a favourable report still does not guarantee.",
       "example_contexts_fr": [
-        "Exemple étudiant 35",
-        "Situation produit 35"
+        "un contrat audité qui subit tout de même un incident",
+        "une hypothèse d'oracle non vérifiée par l'audit",
+        "un périmètre d'audit limité à deux fichiers"
       ],
       "example_contexts_en": [
-        "Student example 35",
-        "Product situation 35"
+        "an audited contract that still suffers an incident",
+        "an oracle assumption not covered by the audit",
+        "an audit scope limited to two files"
       ],
-      "safety_category": "financial_educational"
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.formal_verification",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 5,
+      "order": 52,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.contract_audit"
+      ],
+      "fallback_key": "blockchain.gas_optimization",
+      "title_fr": "Vérifier formellement une invariante",
+      "title_en": "Formally verifying an invariant",
+      "summary_fr": "Exprimer une propriété qui doit rester vraie et la prouver sur toutes les exécutions possibles.",
+      "summary_en": "State a property that must always hold and prove it over every possible execution.",
+      "learning_goals_fr": [
+        "Formuler une invariante vérifiable pour un contrat donné.",
+        "Comparer la portée d'une preuve et celle d'un test."
+      ],
+      "learning_goals_en": [
+        "State a verifiable invariant for a given contract.",
+        "Compare the reach of a proof and of a test."
+      ],
+      "tutor_focus_fr": "Fais formuler l'invariante d'un contrat de dépôt, puis demande ce qu'une preuve apporte de plus que mille tests.",
+      "tutor_focus_en": "Have the student state the invariant of a deposit contract, then ask what a proof adds over a thousand tests.",
+      "example_contexts_fr": [
+        "la somme des dépôts égale au solde du contrat",
+        "un contrat testé par mille cas aléatoires",
+        "une propriété fausse sur un cas jamais testé"
+      ],
+      "example_contexts_en": [
+        "the sum of deposits equal to the contract balance",
+        "a contract tested with a thousand random cases",
+        "a property false on a case never tested"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.frontend_integration",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 5,
+      "order": 53,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.formal_verification"
+      ],
+      "fallback_key": "blockchain.gas_optimization",
+      "title_fr": "Relier une interface web à un contrat",
+      "title_en": "Connecting a web interface to a contract",
+      "summary_fr": "Gérer côté interface la signature, l'attente de confirmation et l'échec d'une transaction.",
+      "summary_en": "Handle signing, confirmation waiting and transaction failure on the interface side.",
+      "learning_goals_fr": [
+        "Décrire les états à afficher entre l'envoi et la confirmation.",
+        "Choisir ce que voit l'utilisateur en cas d'échec."
+      ],
+      "learning_goals_en": [
+        "Describe the states to display between sending and confirmation.",
+        "Choose what the user sees on failure."
+      ],
+      "tutor_focus_fr": "Fais lister les états d'interface entre le clic et la confirmation, puis demande ce qu'il faut afficher si la transaction échoue.",
+      "tutor_focus_en": "Have the student list the interface states between the click and the confirmation, then ask what to show if the transaction fails.",
+      "example_contexts_fr": [
+        "un bouton d'achat cliqué deux fois par impatience",
+        "une transaction rejetée par l'utilisateur dans son portefeuille",
+        "une confirmation qui arrive après trente secondes"
+      ],
+      "example_contexts_en": [
+        "a buy button clicked twice out of impatience",
+        "a transaction rejected by the user in their wallet",
+        "a confirmation arriving after thirty seconds"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "blockchain.onchain_incident_response",
+      "domain_id": "blockchain",
+      "objective_ids": [
+        "blockchain_building"
+      ],
+      "stage": 5,
+      "order": 54,
+      "required": false,
+      "prerequisite_keys": [
+        "blockchain.frontend_integration"
+      ],
+      "fallback_key": "blockchain.gas_optimization",
+      "title_fr": "Réagir à un incident sur un contrat déployé",
+      "title_en": "Responding to an incident on a deployed contract",
+      "summary_fr": "Préparer à l'avance les leviers disponibles quand un contrat déployé se comporte mal.",
+      "summary_en": "Prepare in advance the levers available when a deployed contract misbehaves.",
+      "learning_goals_fr": [
+        "Lister les leviers d'urgence prévus à la conception.",
+        "Ordonner les actions des premières minutes d'un incident."
+      ],
+      "learning_goals_en": [
+        "List the emergency levers designed in from the start.",
+        "Order the actions of the first minutes of an incident."
+      ],
+      "tutor_focus_fr": "Fais ordonner les actions des dix premières minutes d'un incident, puis demande quel levier doit exister dès la conception.",
+      "tutor_focus_en": "Have the student order the actions of the first ten minutes of an incident, then ask which lever must exist from the design stage.",
+      "example_contexts_fr": [
+        "des fonds qui sortent anormalement d'un contrat",
+        "une fonction de pause prévue dès la conception",
+        "une communication publique pendant un incident"
+      ],
+      "example_contexts_en": [
+        "funds flowing abnormally out of a contract",
+        "a pause function designed in from the start",
+        "public communication during an incident"
+      ],
+      "safety_category": "standard"
     }
   ]
 }

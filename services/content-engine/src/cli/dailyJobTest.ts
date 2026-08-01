@@ -1063,7 +1063,14 @@ async function assignStoredDropToUsers(input: {
       userId: preference.user_id,
       dailyDropId: assignment.dailyDropId,
       dropDate: input.dropDate,
-      provider: input.useLlm ? new OpenAiJsonProvider({ model: process.env.OPENAI_LEARNING_MODEL ?? process.env.OPENAI_MODEL }) : "deterministic"
+      // Learning generation is capped at one HTTP request per attempt: no
+      // fallback model, a failure is retried by the next daily job instead.
+      provider: input.useLlm
+        ? new OpenAiJsonProvider({
+            model: process.env.OPENAI_LEARNING_MODEL ?? process.env.OPENAI_MODEL,
+            disableFallback: true
+          })
+        : "deterministic"
     }).catch((error) => {
       logProgress("learning session generation failed without blocking daily drop", {
         user_id: redactIdentifier(preference.user_id),

@@ -18,6 +18,8 @@ export type LearningSessionLifecycleRecord = {
   openedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
+  adaptationMode?: LearningAdaptationMode;
+  curriculumStepKey?: string;
 };
 
 export type LearningSessionFeedbackRatings = {
@@ -137,8 +139,9 @@ export function planNextLearningSession(input: LearningSchedulerInput): Learning
     action: "create",
     adaptationMode: resolveLearningAdaptationMode(
       input.feedbackBySessionId?.get(latestSession.id) ?? null,
-      latestSession.status === "completed" &&
-        orderedSessions.some((session) => session.id !== latestSession.id && session.status === "completed")
+      // A prerequisite step is only justified when the session that stayed weak
+      // was itself already a reinforcement of the same concept.
+      latestSession.adaptationMode === "reinforce"
     ),
     nextSequenceNumber: latestSession.sequenceNumber + 1,
     reason: latestSession.status === "completed" ? "last_session_completed" : "last_session_started"

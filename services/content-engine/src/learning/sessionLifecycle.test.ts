@@ -123,6 +123,74 @@ describe("learning session scheduler lifecycle", () => {
   });
 });
 
+describe("adaptation decision rules", () => {
+  const weakFeedback = {
+    comprehensionRating: 2,
+    difficultyRating: 5,
+    explainabilityRating: 2,
+    interestRating: 4
+  };
+
+  it("reinforces the concept the first time the feedback is weak", () => {
+    expect(decisionAfter("normal", weakFeedback)).toMatchObject({ adaptationMode: "reinforce" });
+  });
+
+  it("only moves to a prerequisite when a reinforced session stayed weak", () => {
+    expect(decisionAfter("reinforce", weakFeedback)).toMatchObject({ adaptationMode: "prerequisite" });
+  });
+
+  it("does not use a prerequisite just because older completed sessions exist", () => {
+    expect(
+      planNextLearningSession({
+        activePathId: "path-1",
+        sessions: [
+          session("completed", { id: "session-1", adaptationMode: "normal" }),
+          session("completed", { id: "session-2", sequenceNumber: 2, adaptationMode: "normal" })
+        ],
+        feedbackBySessionId: new Map([["session-2", weakFeedback]])
+      })
+    ).toMatchObject({ adaptationMode: "reinforce" });
+  });
+
+  it("accelerates on strong and easy feedback", () => {
+    expect(
+      decisionAfter("normal", {
+        comprehensionRating: 5,
+        difficultyRating: 2,
+        explainabilityRating: 4,
+        interestRating: 3
+      })
+    ).toMatchObject({ adaptationMode: "accelerate" });
+  });
+
+  it("shifts the context when only interest is low", () => {
+    expect(
+      decisionAfter("normal", {
+        comprehensionRating: 4,
+        difficultyRating: 3,
+        explainabilityRating: 3,
+        interestRating: 1
+      })
+    ).toMatchObject({ adaptationMode: "context_shift" });
+  });
+
+  function decisionAfter(
+    adaptationMode: "normal" | "reinforce",
+    ratings: {
+      comprehensionRating: number;
+      difficultyRating: number;
+      explainabilityRating: number;
+      interestRating: number;
+    }
+  ) {
+    return planNextLearningSession({
+      activePathId: "path-1",
+      sessions: [session("completed", { id: "session-1", adaptationMode })],
+      feedbackBySessionId: new Map([["session-1", ratings]])
+    });
+  }
+});
+
 function decisionWithLatestStatus(status: LearningSessionLifecycleRecord["status"]) {
   return planNextLearningSession({
     activePathId: "path-1",

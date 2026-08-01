@@ -3,7 +3,7 @@
   "version": "v1",
   "steps": [
     {
-      "key": "quantum_physics.001",
+      "key": "quantum_physics.quantum_scale",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -15,32 +15,34 @@
       "required": true,
       "prerequisite_keys": [],
       "fallback_key": null,
-      "title_fr": "Physique quantique - étape 1",
-      "title_en": "Quantum physics - step 1",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "title_fr": "À quelle échelle les effets quantiques apparaissent",
+      "title_en": "At which scale quantum effects appear",
+      "summary_fr": "Situer les tailles et les énergies où la description classique cesse de suffire.",
+      "summary_en": "Place the sizes and energies where the classical description stops being enough.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 1.",
-        "L'appliquer dans un exemple court."
+        "Comparer la taille d'un atome et celle d'un grain de poussière.",
+        "Dire pourquoi un ballon ne montre pas d'effets quantiques."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 1.",
-        "Apply it in a short example."
+        "Compare the size of an atom with that of a dust grain.",
+        "Say why a ball shows no quantum effects."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer trois échelles de taille, puis demande pourquoi une balle de tennis ne traverse jamais un mur alors qu'un électron peut le faire.",
+      "tutor_focus_en": "Have the student compare three size scales, then ask why a tennis ball never crosses a wall while an electron can.",
       "example_contexts_fr": [
-        "Exemple étudiant 1",
-        "Situation produit 1"
+        "un électron dans un atome de silicium",
+        "une balle de tennis lancée contre un mur",
+        "une molécule d'eau dans un verre"
       ],
       "example_contexts_en": [
-        "Student example 1",
-        "Product situation 1"
+        "an electron inside a silicon atom",
+        "a tennis ball thrown at a wall",
+        "a water molecule in a glass"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.002",
+      "key": "quantum_physics.wave_particle_duality",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -49,37 +51,39 @@
       ],
       "stage": 1,
       "order": 2,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.001"
+        "quantum_physics.quantum_scale"
       ],
       "fallback_key": null,
-      "title_fr": "Physique quantique - étape 2",
-      "title_en": "Quantum physics - step 2",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "title_fr": "La dualité onde-corpuscule dans l'expérience des fentes",
+      "title_en": "Wave-particle duality in the double-slit experiment",
+      "summary_fr": "Comprendre pourquoi des particules envoyées une par une dessinent quand même des franges.",
+      "summary_en": "Understand why particles sent one at a time still build an interference pattern.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 2.",
-        "L'appliquer dans un exemple court."
+        "Décrire la figure obtenue avec une fente puis avec deux fentes.",
+        "Dire ce que devient la figure quand on détecte le passage."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 2.",
-        "Apply it in a short example."
+        "Describe the pattern obtained with one slit then with two.",
+        "Say what the pattern becomes when the passage is detected."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire la figure obtenue en envoyant les électrons un par un, puis demande ce qui change dès qu'un détecteur observe les fentes.",
+      "tutor_focus_en": "Have the student describe the pattern built by electrons sent one by one, then ask what changes as soon as a detector watches the slits.",
       "example_contexts_fr": [
-        "Exemple étudiant 2",
-        "Situation produit 2"
+        "des électrons envoyés un par un vers deux fentes",
+        "un faisceau lumineux traversant une fine ouverture",
+        "un détecteur placé devant l'une des deux fentes"
       ],
       "example_contexts_en": [
-        "Student example 2",
-        "Product situation 2"
+        "electrons sent one at a time toward two slits",
+        "a light beam crossing a narrow opening",
+        "a detector placed in front of one of the two slits"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.003",
+      "key": "quantum_physics.energy_quantization",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -88,37 +92,39 @@
       ],
       "stage": 1,
       "order": 3,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.002"
+        "quantum_physics.wave_particle_duality"
       ],
-      "fallback_key": "quantum_physics.001",
-      "title_fr": "Physique quantique - étape 3",
-      "title_en": "Quantum physics - step 3",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Pourquoi l'énergie vient par paquets",
+      "title_en": "Why energy comes in packets",
+      "summary_fr": "Comprendre que certains systèmes n'acceptent que des valeurs d'énergie discrètes.",
+      "summary_en": "Understand that some systems only accept discrete energy values.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 3.",
-        "L'appliquer dans un exemple court."
+        "Citer un système dont les niveaux d'énergie sont discrets.",
+        "Expliquer pourquoi une lampe à sodium émet une couleur précise."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 3.",
-        "Apply it in a short example."
+        "Name a system whose energy levels are discrete.",
+        "Explain why a sodium lamp emits one precise colour."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi un atome n'absorbe que certaines couleurs, puis demande ce que cela implique pour la lumière transmise.",
+      "tutor_focus_en": "Have the student explain why an atom only absorbs certain colours, then ask what that implies for the transmitted light.",
       "example_contexts_fr": [
-        "Exemple étudiant 3",
-        "Situation produit 3"
+        "la lumière orange d'un lampadaire au sodium",
+        "un atome qui absorbe une couleur précise",
+        "une corde de guitare et ses harmoniques"
       ],
       "example_contexts_en": [
-        "Student example 3",
-        "Product situation 3"
+        "the orange light of a sodium street lamp",
+        "an atom absorbing one precise colour",
+        "a guitar string and its harmonics"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.004",
+      "key": "quantum_physics.measurement_disturbance",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -127,37 +133,39 @@
       ],
       "stage": 1,
       "order": 4,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.003"
+        "quantum_physics.energy_quantization"
       ],
-      "fallback_key": "quantum_physics.002",
-      "title_fr": "Physique quantique - étape 4",
-      "title_en": "Quantum physics - step 4",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Pourquoi mesurer change le système",
+      "title_en": "Why measuring changes the system",
+      "summary_fr": "Distinguer la perturbation ordinaire d'une mesure du rôle particulier de la mesure quantique.",
+      "summary_en": "Separate the ordinary disturbance of a measurement from the specific role of quantum measurement.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 4.",
-        "L'appliquer dans un exemple court."
+        "Distinguer une mesure classique perturbante d'une mesure quantique.",
+        "Dire ce qui reste vrai d'un système juste après sa mesure."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 4.",
-        "Apply it in a short example."
+        "Tell apart a disturbing classical measurement and a quantum one.",
+        "Say what remains true of a system right after measurement."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer la mesure d'une pression de pneu et la mesure d'une polarisation de photon, puis demande ce qui diffère fondamentalement.",
+      "tutor_focus_en": "Have the student compare measuring a tyre pressure and measuring a photon polarisation, then ask what differs fundamentally.",
       "example_contexts_fr": [
-        "Exemple étudiant 4",
-        "Situation produit 4"
+        "un manomètre qui laisse échapper un peu d'air",
+        "un photon dont on mesure la polarisation",
+        "deux mesures successives sur le même système"
       ],
       "example_contexts_en": [
-        "Student example 4",
-        "Product situation 4"
+        "a pressure gauge letting a little air escape",
+        "a photon whose polarisation is measured",
+        "two successive measurements on the same system"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.005",
+      "key": "quantum_physics.quantum_probability",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -166,154 +174,156 @@
       ],
       "stage": 1,
       "order": 5,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.004"
+        "quantum_physics.measurement_disturbance"
       ],
-      "fallback_key": "quantum_physics.003",
-      "title_fr": "Physique quantique - étape 5",
-      "title_en": "Quantum physics - step 5",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Une probabilité qui n'est pas de l'ignorance",
+      "title_en": "A probability that is not ignorance",
+      "summary_fr": "Comparer le hasard d'un dé caché et le hasard quantique qui ne cache aucune valeur préexistante.",
+      "summary_en": "Compare the randomness of a hidden die with quantum randomness, which hides no pre-existing value.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 5.",
-        "L'appliquer dans un exemple court."
+        "Distinguer une probabilité d'ignorance d'une probabilité fondamentale.",
+        "Expliquer ce qu'une variable cachée devrait garantir."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 5.",
-        "Apply it in a short example."
+        "Tell apart a probability of ignorance and a fundamental probability.",
+        "Explain what a hidden variable would have to guarantee."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer un dé sous un gobelet et un photon avant mesure, puis demande ce qu'il faudrait pour que les deux situations soient identiques.",
+      "tutor_focus_en": "Have the student compare a die under a cup and a photon before measurement, then ask what would make the two situations identical.",
       "example_contexts_fr": [
-        "Exemple étudiant 5",
-        "Situation produit 5"
+        "un dé lancé sous un gobelet",
+        "un photon avant la mesure de sa polarisation",
+        "une pièce en train de tourner sur une table"
       ],
       "example_contexts_en": [
-        "Student example 5",
-        "Product situation 5"
+        "a die rolled under a cup",
+        "a photon before its polarisation is measured",
+        "a coin still spinning on a table"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.006",
+      "key": "quantum_physics.photoelectric_effect",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
       "stage": 1,
       "order": 6,
       "required": true,
       "prerequisite_keys": [
-        "quantum_physics.005"
+        "quantum_physics.quantum_probability"
       ],
-      "fallback_key": "quantum_physics.004",
-      "title_fr": "Physique quantique - étape 6",
-      "title_en": "Quantum physics - step 6",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Le photon et l'effet photoélectrique",
+      "title_en": "The photon and the photoelectric effect",
+      "summary_fr": "Comprendre pourquoi l'énergie arrachée dépend de la couleur et non de l'intensité lumineuse.",
+      "summary_en": "Understand why the extracted energy depends on colour rather than on light intensity.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 6.",
-        "L'appliquer dans un exemple court."
+        "Expliquer le rôle du seuil de fréquence.",
+        "Dire ce que change une lumière plus intense au-dessus du seuil."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 6.",
-        "Apply it in a short example."
+        "Explain the role of the frequency threshold.",
+        "Say what stronger light changes above the threshold."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais prédire l'effet d'une lampe rouge très puissante puis d'une lampe bleue faible sur une plaque métallique, et demande d'expliquer l'écart.",
+      "tutor_focus_en": "Have the student predict the effect of a very strong red lamp then a weak blue lamp on a metal plate, and explain the gap.",
       "example_contexts_fr": [
-        "Exemple étudiant 6",
-        "Situation produit 6"
+        "une plaque métallique éclairée en rouge puis en bleu",
+        "une cellule photovoltaïque au soleil",
+        "un capteur d'appareil photo en faible lumière"
       ],
       "example_contexts_en": [
-        "Student example 6",
-        "Product situation 6"
+        "a metal plate lit in red then in blue",
+        "a photovoltaic cell in sunlight",
+        "a camera sensor in low light"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.007",
+      "key": "quantum_physics.state_as_vector",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_mathematics"
       ],
       "stage": 1,
       "order": 7,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.006"
+        "quantum_physics.quantum_probability"
       ],
-      "fallback_key": "quantum_physics.005",
-      "title_fr": "Physique quantique - étape 7",
-      "title_en": "Quantum physics - step 7",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 1.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 1.",
+      "fallback_key": null,
+      "title_fr": "Un état représenté par un vecteur",
+      "title_en": "A state represented by a vector",
+      "summary_fr": "Représenter un système à deux issues par un vecteur de norme un dans un plan.",
+      "summary_en": "Represent a two-outcome system by a unit-norm vector in a plane.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 7.",
-        "L'appliquer dans un exemple court."
+        "Écrire un état à deux composantes et vérifier sa normalisation.",
+        "Dire ce que représente chaque composante."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 7.",
-        "Apply it in a short example."
+        "Write a two-component state and check its normalisation.",
+        "Say what each component represents."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais écrire l'état d'un système à deux issues avec des composantes égales, puis demande pourquoi la somme des carrés doit valoir un.",
+      "tutor_focus_en": "Have the student write a two-outcome state with equal components, then ask why the squares must sum to one.",
       "example_contexts_fr": [
-        "Exemple étudiant 7",
-        "Situation produit 7"
+        "un système à deux issues équiprobables",
+        "un vecteur de norme un dessiné dans un plan",
+        "un état déséquilibré à 80 % et 20 %"
       ],
       "example_contexts_en": [
-        "Student example 7",
-        "Product situation 7"
+        "a two-outcome system with equal chances",
+        "a unit vector drawn in a plane",
+        "an unbalanced state at 80% and 20%"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.008",
+      "key": "quantum_physics.qubit_vs_bit",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
         "quantum_computing"
       ],
-      "stage": 2,
+      "stage": 1,
       "order": 8,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.007"
+        "quantum_physics.quantum_probability"
       ],
-      "fallback_key": "quantum_physics.006",
-      "title_fr": "Physique quantique - étape 8",
-      "title_en": "Quantum physics - step 8",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "fallback_key": null,
+      "title_fr": "Ce qu'un qubit ajoute à un bit",
+      "title_en": "What a qubit adds to a bit",
+      "summary_fr": "Comparer un bit classique et un qubit sur ce qu'on peut préparer et sur ce qu'on peut lire.",
+      "summary_en": "Compare a classical bit and a qubit on what can be prepared and on what can be read.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 8.",
-        "L'appliquer dans un exemple court."
+        "Dire combien d'information une mesure de qubit fournit.",
+        "Expliquer pourquoi « un qubit vaut deux valeurs » est trompeur."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 8.",
-        "Apply it in a short example."
+        "Say how much information a qubit measurement yields.",
+        "Explain why “a qubit holds two values” is misleading."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer ce qu'un bit et un qubit permettent de préparer puis de lire, et demande pourquoi la lecture ne donne qu'un seul résultat.",
+      "tutor_focus_en": "Have the student compare what a bit and a qubit allow preparing then reading, and ask why the readout gives a single result.",
       "example_contexts_fr": [
-        "Exemple étudiant 8",
-        "Situation produit 8"
+        "un bit classique valant zéro ou un",
+        "une mesure de qubit qui renvoie un seul bit",
+        "un registre de dix qubits préparé en superposition"
       ],
       "example_contexts_en": [
-        "Student example 8",
-        "Product situation 8"
+        "a classical bit holding zero or one",
+        "a qubit measurement returning a single bit",
+        "a ten-qubit register prepared in superposition"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.009",
+      "key": "quantum_physics.superposition_meaning",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -322,37 +332,39 @@
       ],
       "stage": 2,
       "order": 9,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.008"
+        "quantum_physics.quantum_probability"
       ],
-      "fallback_key": "quantum_physics.007",
-      "title_fr": "Physique quantique - étape 9",
-      "title_en": "Quantum physics - step 9",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "fallback_key": "quantum_physics.quantum_probability",
+      "title_fr": "Ce que signifie une superposition",
+      "title_en": "What a superposition means",
+      "summary_fr": "Comprendre qu'une superposition n'est pas une hésitation mais un état à part entière.",
+      "summary_en": "Understand that a superposition is not hesitation but a state in its own right.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 9.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi « à la fois ici et là » est une formulation trompeuse.",
+        "Dire ce qu'une superposition permet d'observer d'inaccessible autrement."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 9.",
-        "Apply it in a short example."
+        "Explain why “both here and there” is a misleading phrasing.",
+        "Say what a superposition lets you observe that is otherwise inaccessible."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais critiquer la formule « la particule est aux deux endroits », puis demande quelle observation distingue une superposition d'un mélange.",
+      "tutor_focus_en": "Have the student critique the phrase “the particle is in both places”, then ask which observation separates a superposition from a mixture.",
       "example_contexts_fr": [
-        "Exemple étudiant 9",
-        "Situation produit 9"
+        "un photon polarisé à 45 degrés",
+        "un atome soumis à une impulsion laser calibrée",
+        "un mélange statistique de deux états bien définis"
       ],
       "example_contexts_en": [
-        "Student example 9",
-        "Product situation 9"
+        "a photon polarised at 45 degrees",
+        "an atom driven by a calibrated laser pulse",
+        "a statistical mixture of two well-defined states"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.010",
+      "key": "quantum_physics.uncertainty_principle",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -361,37 +373,39 @@
       ],
       "stage": 2,
       "order": 10,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.009"
+        "quantum_physics.superposition_meaning"
       ],
-      "fallback_key": "quantum_physics.008",
-      "title_fr": "Physique quantique - étape 10",
-      "title_en": "Quantum physics - step 10",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "fallback_key": "quantum_physics.quantum_probability",
+      "title_fr": "Le principe d'indétermination",
+      "title_en": "The uncertainty principle",
+      "summary_fr": "Comprendre que certaines grandeurs ne peuvent pas être définies simultanément avec précision.",
+      "summary_en": "Understand that some quantities cannot be simultaneously defined with precision.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 10.",
-        "L'appliquer dans un exemple court."
+        "Citer une paire de grandeurs incompatibles.",
+        "Expliquer pourquoi ce n'est pas un défaut d'instrument."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 10.",
-        "Apply it in a short example."
+        "Name a pair of incompatible quantities.",
+        "Explain why this is not an instrument defect."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi resserrer la position élargit l'impulsion, puis demande pourquoi un meilleur appareil ne résoudrait pas le problème.",
+      "tutor_focus_en": "Have the student explain why narrowing position widens momentum, then ask why a better device would not solve it.",
       "example_contexts_fr": [
-        "Exemple étudiant 10",
-        "Situation produit 10"
+        "un électron confiné dans une région très étroite",
+        "une impulsion laser très brève et sa couleur",
+        "un microscope de résolution parfaite imaginé en pensée"
       ],
       "example_contexts_en": [
-        "Student example 10",
-        "Product situation 10"
+        "an electron confined in a very narrow region",
+        "a very short laser pulse and its colour",
+        "a perfectly resolving microscope imagined in thought"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.011",
+      "key": "quantum_physics.decoherence",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -402,35 +416,37 @@
       "order": 11,
       "required": true,
       "prerequisite_keys": [
-        "quantum_physics.010"
+        "quantum_physics.uncertainty_principle"
       ],
-      "fallback_key": "quantum_physics.009",
-      "title_fr": "Physique quantique - étape 11",
-      "title_en": "Quantum physics - step 11",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "fallback_key": "quantum_physics.quantum_probability",
+      "title_fr": "La décohérence : pourquoi le monde paraît classique",
+      "title_en": "Decoherence: why the world looks classical",
+      "summary_fr": "Relier l'interaction avec l'environnement à la disparition rapide des effets d'interférence.",
+      "summary_en": "Connect interaction with the environment to the fast disappearance of interference effects.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 11.",
-        "L'appliquer dans un exemple court."
+        "Expliquer le rôle de l'environnement dans la perte de cohérence.",
+        "Dire pourquoi les objets macroscopiques décohèrent quasi instantanément."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 11.",
-        "Apply it in a short example."
+        "Explain the role of the environment in the loss of coherence.",
+        "Say why macroscopic objects decohere almost instantly."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais estimer ce qui perturbe un état fragile dans une pièce ordinaire, puis demande pourquoi un objet visible ne montre jamais d'interférences.",
+      "tutor_focus_en": "Have the student estimate what disturbs a fragile state in an ordinary room, then ask why a visible object never shows interference.",
       "example_contexts_fr": [
-        "Exemple étudiant 11",
-        "Situation produit 11"
+        "un qubit perturbé par une vibration thermique",
+        "un objet visible bombardé de photons ambiants",
+        "une expérience refroidie près du zéro absolu"
       ],
       "example_contexts_en": [
-        "Student example 11",
-        "Product situation 11"
+        "a qubit disturbed by thermal vibration",
+        "a visible object bombarded by ambient photons",
+        "an experiment cooled near absolute zero"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.012",
+      "key": "quantum_physics.quantum_technology_today",
       "domain_id": "quantum_physics",
       "objective_ids": [
         "quantum_intuition",
@@ -439,929 +455,1672 @@
       ],
       "stage": 2,
       "order": 12,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.011"
+        "quantum_physics.decoherence"
       ],
-      "fallback_key": "quantum_physics.010",
-      "title_fr": "Physique quantique - étape 12",
-      "title_en": "Quantum physics - step 12",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "fallback_key": "quantum_physics.quantum_probability",
+      "title_fr": "Ce que la physique quantique fait déjà fonctionner",
+      "title_en": "What quantum physics already makes work",
+      "summary_fr": "Repérer les technologies courantes qui reposent déjà sur des effets quantiques établis.",
+      "summary_en": "Identify everyday technologies that already rely on established quantum effects.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 12.",
-        "L'appliquer dans un exemple court."
+        "Citer trois technologies existantes fondées sur la mécanique quantique.",
+        "Distinguer ces technologies d'un ordinateur quantique."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 12.",
-        "Apply it in a short example."
+        "Name three existing technologies grounded in quantum mechanics.",
+        "Tell these technologies apart from a quantum computer."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer quel effet quantique rend un transistor possible, puis demande en quoi cela diffère d'un ordinateur quantique.",
+      "tutor_focus_en": "Have the student explain which quantum effect makes a transistor possible, then ask how that differs from a quantum computer.",
       "example_contexts_fr": [
-        "Exemple étudiant 12",
-        "Situation produit 12"
+        "un transistor dans un processeur de téléphone",
+        "une imagerie par résonance magnétique à l'hôpital",
+        "un lecteur optique équipé d'une diode laser"
       ],
       "example_contexts_en": [
-        "Student example 12",
-        "Product situation 12"
+        "a transistor inside a phone processor",
+        "magnetic resonance imaging in a hospital",
+        "an optical reader fitted with a laser diode"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.013",
+      "key": "quantum_physics.atomic_orbitals",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
       "stage": 2,
       "order": 13,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.012"
+        "quantum_physics.quantum_technology_today"
       ],
-      "fallback_key": "quantum_physics.011",
-      "title_fr": "Physique quantique - étape 13",
-      "title_en": "Quantum physics - step 13",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "fallback_key": "quantum_physics.photoelectric_effect",
+      "title_fr": "Les orbitales : pourquoi l'électron n'est pas une bille en orbite",
+      "title_en": "Orbitals: why the electron is not a ball in orbit",
+      "summary_fr": "Remplacer l'image planétaire par une distribution de probabilité de présence.",
+      "summary_en": "Replace the planetary picture with a probability distribution of presence.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 13.",
-        "L'appliquer dans un exemple court."
+        "Décrire ce que représente le nuage d'une orbitale.",
+        "Expliquer pourquoi l'électron ne s'écrase pas sur le noyau."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 13.",
-        "Apply it in a short example."
+        "Describe what an orbital cloud represents.",
+        "Explain why the electron does not fall onto the nucleus."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais critiquer le schéma planétaire de l'atome, puis demande ce que représente exactement la zone dessinée autour du noyau.",
+      "tutor_focus_en": "Have the student critique the planetary picture of the atom, then ask what the drawn region around the nucleus actually represents.",
       "example_contexts_fr": [
-        "Exemple étudiant 13",
-        "Situation produit 13"
+        "le schéma planétaire d'un manuel scolaire",
+        "la forme allongée d'une orbitale p",
+        "une liaison chimique entre deux atomes"
       ],
       "example_contexts_en": [
-        "Student example 13",
-        "Product situation 13"
+        "the planetary diagram in a school textbook",
+        "the elongated shape of a p orbital",
+        "a chemical bond between two atoms"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.014",
+      "key": "quantum_physics.spectral_lines",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
       "stage": 2,
       "order": 14,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.013"
+        "quantum_physics.atomic_orbitals"
       ],
-      "fallback_key": "quantum_physics.012",
-      "title_fr": "Physique quantique - étape 14",
-      "title_en": "Quantum physics - step 14",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 2.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 2.",
+      "fallback_key": "quantum_physics.photoelectric_effect",
+      "title_fr": "Les raies spectrales",
+      "title_en": "Spectral lines",
+      "summary_fr": "Relier les couleurs émises par un gaz aux écarts entre ses niveaux d'énergie.",
+      "summary_en": "Connect the colours emitted by a gas to the gaps between its energy levels.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 14.",
-        "L'appliquer dans un exemple court."
+        "Expliquer l'origine d'une raie d'émission.",
+        "Dire ce qu'un spectre permet d'identifier à distance."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 14.",
-        "Apply it in a short example."
+        "Explain where an emission line comes from.",
+        "Say what a spectrum lets you identify from far away."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi chaque élément produit une signature de raies, puis demande comment on identifie un gaz dans une étoile.",
+      "tutor_focus_en": "Have the student explain why each element produces a line signature, then ask how a gas is identified inside a star.",
       "example_contexts_fr": [
-        "Exemple étudiant 14",
-        "Situation produit 14"
+        "la lumière d'une étoile analysée par un télescope",
+        "un tube à néon dans une enseigne",
+        "une flamme colorée par un sel métallique"
       ],
       "example_contexts_en": [
-        "Student example 14",
-        "Product situation 14"
+        "starlight analysed through a telescope",
+        "a neon tube in a shop sign",
+        "a flame coloured by a metallic salt"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.015",
+      "key": "quantum_physics.complex_amplitudes",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_mathematics"
       ],
-      "stage": 3,
+      "stage": 2,
       "order": 15,
-      "required": false,
-      "prerequisite_keys": [
-        "quantum_physics.014"
-      ],
-      "fallback_key": "quantum_physics.013",
-      "title_fr": "Physique quantique - étape 15",
-      "title_en": "Quantum physics - step 15",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 15.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 15.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 15",
-        "Situation produit 15"
-      ],
-      "example_contexts_en": [
-        "Student example 15",
-        "Product situation 15"
-      ],
-      "safety_category": "standard"
-    },
-    {
-      "key": "quantum_physics.016",
-      "domain_id": "quantum_physics",
-      "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
-      ],
-      "stage": 3,
-      "order": 16,
       "required": true,
       "prerequisite_keys": [
-        "quantum_physics.015"
+        "quantum_physics.quantum_technology_today"
       ],
-      "fallback_key": "quantum_physics.014",
-      "title_fr": "Physique quantique - étape 16",
-      "title_en": "Quantum physics - step 16",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "fallback_key": "quantum_physics.state_as_vector",
+      "title_fr": "Amplitudes complexes et probabilités",
+      "title_en": "Complex amplitudes and probabilities",
+      "summary_fr": "Comprendre pourquoi la phase d'une amplitude ne se voit pas sur une probabilité mais gouverne les interférences.",
+      "summary_en": "Understand why the phase of an amplitude is invisible in a probability yet governs interference.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 16.",
-        "L'appliquer dans un exemple court."
+        "Calculer une probabilité à partir d'une amplitude complexe.",
+        "Montrer que deux amplitudes peuvent s'annuler."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 16.",
-        "Apply it in a short example."
+        "Compute a probability from a complex amplitude.",
+        "Show that two amplitudes can cancel out."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais additionner deux amplitudes de phases opposées, puis demande pourquoi la probabilité obtenue n'est pas la somme des probabilités.",
+      "tutor_focus_en": "Have the student add two amplitudes with opposite phases, then ask why the resulting probability is not the sum of probabilities.",
       "example_contexts_fr": [
-        "Exemple étudiant 16",
-        "Situation produit 16"
+        "deux chemins possibles menant au même détecteur",
+        "deux amplitudes de signes opposés",
+        "une figure d'interférence avec des zones sombres"
       ],
       "example_contexts_en": [
-        "Student example 16",
-        "Product situation 16"
+        "two possible paths reaching the same detector",
+        "two amplitudes with opposite signs",
+        "an interference pattern with dark regions"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.017",
+      "key": "quantum_physics.dirac_notation",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_mathematics"
       ],
-      "stage": 3,
-      "order": 17,
+      "stage": 2,
+      "order": 16,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.016"
+        "quantum_physics.complex_amplitudes"
       ],
-      "fallback_key": "quantum_physics.015",
-      "title_fr": "Physique quantique - étape 17",
-      "title_en": "Quantum physics - step 17",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "fallback_key": "quantum_physics.state_as_vector",
+      "title_fr": "La notation de Dirac",
+      "title_en": "Dirac notation",
+      "summary_fr": "Lire les notations de vecteurs et de produits scalaires utilisées dans toute la littérature quantique.",
+      "summary_en": "Read the vector and inner-product notation used throughout the quantum literature.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 17.",
-        "L'appliquer dans un exemple court."
+        "Traduire une expression en notation de Dirac en langage vectoriel.",
+        "Interpréter un produit scalaire entre deux états."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 17.",
-        "Apply it in a short example."
+        "Translate a Dirac expression into vector language.",
+        "Interpret an inner product between two states."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais traduire deux expressions en notation de Dirac vers des vecteurs et un produit scalaire, puis demande ce que vaut ce produit pour deux états orthogonaux.",
+      "tutor_focus_en": "Have the student translate two Dirac expressions into vectors and an inner product, then ask its value for two orthogonal states.",
       "example_contexts_fr": [
-        "Exemple étudiant 17",
-        "Situation produit 17"
+        "une formule lue dans un article de recherche",
+        "un produit scalaire entre deux états orthogonaux",
+        "un état écrit comme somme de deux états de base"
       ],
       "example_contexts_en": [
-        "Student example 17",
-        "Product situation 17"
+        "a formula read in a research paper",
+        "an inner product between two orthogonal states",
+        "a state written as a sum of two basis states"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.018",
+      "key": "quantum_physics.bloch_sphere",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
         "quantum_computing"
       ],
-      "stage": 3,
+      "stage": 2,
+      "order": 17,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.quantum_technology_today"
+      ],
+      "fallback_key": "quantum_physics.qubit_vs_bit",
+      "title_fr": "La sphère de Bloch",
+      "title_en": "The Bloch sphere",
+      "summary_fr": "Représenter l'état d'un qubit comme un point sur une sphère et lire l'effet d'une opération.",
+      "summary_en": "Represent a qubit state as a point on a sphere and read the effect of an operation.",
+      "learning_goals_fr": [
+        "Placer trois états de base sur la sphère.",
+        "Décrire l'effet d'une porte comme une rotation."
+      ],
+      "learning_goals_en": [
+        "Place three basis states on the sphere.",
+        "Describe a gate's effect as a rotation."
+      ],
+      "tutor_focus_fr": "Fais placer trois états sur la sphère, puis demande quelle rotation transforme le premier en le deuxième.",
+      "tutor_focus_en": "Have the student place three states on the sphere, then ask which rotation turns the first into the second.",
+      "example_contexts_fr": [
+        "un état placé au pôle nord de la sphère",
+        "une rotation d'un quart de tour autour d'un axe",
+        "deux états diamétralement opposés"
+      ],
+      "example_contexts_en": [
+        "a state at the north pole of the sphere",
+        "a quarter-turn rotation about one axis",
+        "two diametrically opposite states"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.quantum_gates",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 2,
       "order": 18,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.017"
+        "quantum_physics.bloch_sphere"
       ],
-      "fallback_key": "quantum_physics.016",
-      "title_fr": "Physique quantique - étape 18",
-      "title_en": "Quantum physics - step 18",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "fallback_key": "quantum_physics.qubit_vs_bit",
+      "title_fr": "Les portes quantiques élémentaires",
+      "title_en": "Elementary quantum gates",
+      "summary_fr": "Appliquer les portes de base et vérifier qu'une opération quantique est réversible.",
+      "summary_en": "Apply the basic gates and check that a quantum operation is reversible.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 18.",
-        "L'appliquer dans un exemple court."
+        "Décrire l'effet des portes X et H sur un état de base.",
+        "Expliquer pourquoi une porte quantique est toujours réversible."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 18.",
-        "Apply it in a short example."
+        "Describe the effect of the X and H gates on a basis state.",
+        "Explain why a quantum gate is always reversible."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais appliquer deux portes successives à un état de base, puis demande quelle porte annule la transformation obtenue.",
+      "tutor_focus_en": "Have the student apply two gates in a row to a basis state, then ask which gate undoes the resulting transformation.",
       "example_contexts_fr": [
-        "Exemple étudiant 18",
-        "Situation produit 18"
+        "une porte qui échange zéro et un",
+        "une porte qui crée une superposition égale",
+        "deux portes identiques appliquées à la suite"
       ],
       "example_contexts_en": [
-        "Student example 18",
-        "Product situation 18"
+        "a gate swapping zero and one",
+        "a gate creating an equal superposition",
+        "two identical gates applied in a row"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.019",
+      "key": "quantum_physics.entanglement_intuition",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
       "stage": 3,
       "order": 19,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.018"
+        "quantum_physics.spectral_lines"
       ],
-      "fallback_key": "quantum_physics.017",
-      "title_fr": "Physique quantique - étape 19",
-      "title_en": "Quantum physics - step 19",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "fallback_key": "quantum_physics.spectral_lines",
+      "title_fr": "L'intrication expliquée sans formalisme",
+      "title_en": "Entanglement explained without formalism",
+      "summary_fr": "Comprendre une corrélation parfaite entre deux systèmes qui ne transmet pourtant aucun message.",
+      "summary_en": "Understand a perfect correlation between two systems that still carries no message.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 19.",
-        "L'appliquer dans un exemple court."
+        "Décrire la corrélation observée entre deux mesures distantes.",
+        "Expliquer pourquoi cela ne permet pas de communiquer plus vite que la lumière."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 19.",
-        "Apply it in a short example."
+        "Describe the correlation observed between two distant measurements.",
+        "Explain why it does not allow faster-than-light communication."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire les résultats de deux mesures distantes sur une paire intriquée, puis demande pourquoi aucun message n'est transmis.",
+      "tutor_focus_en": "Have the student describe the outcomes of two distant measurements on an entangled pair, then ask why no message is transmitted.",
       "example_contexts_fr": [
-        "Exemple étudiant 19",
-        "Situation produit 19"
+        "deux photons produits ensemble puis séparés",
+        "deux expérimentateurs séparés par un continent",
+        "une paire de gants séparés dans deux valises"
       ],
       "example_contexts_en": [
-        "Student example 19",
-        "Product situation 19"
+        "two photons produced together then separated",
+        "two experimenters a continent apart",
+        "a pair of gloves split into two suitcases"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.020",
+      "key": "quantum_physics.bell_experiment",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
       "stage": 3,
       "order": 20,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.019"
+        "quantum_physics.entanglement_intuition"
       ],
-      "fallback_key": "quantum_physics.018",
-      "title_fr": "Physique quantique - étape 20",
-      "title_en": "Quantum physics - step 20",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "fallback_key": "quantum_physics.spectral_lines",
+      "title_fr": "Ce que montre l'expérience de Bell",
+      "title_en": "What Bell's experiment shows",
+      "summary_fr": "Comprendre pourquoi les corrélations mesurées excluent une explication par variables cachées locales.",
+      "summary_en": "Understand why the measured correlations rule out a local hidden-variable explanation.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 20.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'une inégalité de Bell teste réellement.",
+        "Dire ce que la violation observée élimine comme explication."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 20.",
-        "Apply it in a short example."
+        "Explain what a Bell inequality actually tests.",
+        "Say which explanation the observed violation eliminates."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer ce qu'une explication classique prédit et ce que l'expérience mesure, puis demande quelle hypothèse doit être abandonnée.",
+      "tutor_focus_en": "Have the student state what a classical explanation predicts and what the experiment measures, then ask which assumption must be dropped.",
       "example_contexts_fr": [
-        "Exemple étudiant 20",
-        "Situation produit 20"
+        "deux détecteurs orientés indépendamment",
+        "une explication par instructions cachées à la création",
+        "des mesures répétées des milliers de fois"
       ],
       "example_contexts_en": [
-        "Student example 20",
-        "Product situation 20"
+        "two detectors oriented independently",
+        "an explanation by hidden instructions set at creation",
+        "measurements repeated thousands of times"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.021",
+      "key": "quantum_physics.quantum_tunneling",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
       "stage": 3,
       "order": 21,
-      "required": true,
+      "required": false,
       "prerequisite_keys": [
-        "quantum_physics.020"
+        "quantum_physics.bell_experiment"
       ],
-      "fallback_key": "quantum_physics.019",
-      "title_fr": "Physique quantique - étape 21",
-      "title_en": "Quantum physics - step 21",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 3.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 3.",
+      "fallback_key": "quantum_physics.spectral_lines",
+      "title_fr": "L'effet tunnel",
+      "title_en": "Quantum tunnelling",
+      "summary_fr": "Comprendre le franchissement d'une barrière d'énergie interdite à un objet classique.",
+      "summary_en": "Understand the crossing of an energy barrier forbidden to a classical object.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 21.",
-        "L'appliquer dans un exemple court."
+        "Expliquer comment la probabilité de passage dépend de l'épaisseur de la barrière.",
+        "Citer une technologie qui exploite directement cet effet."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 21.",
-        "Apply it in a short example."
+        "Explain how the crossing probability depends on barrier thickness.",
+        "Name a technology that directly exploits this effect."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais estimer l'effet d'une barrière deux fois plus épaisse sur la probabilité de passage, puis demande où cet effet est utilisé en pratique.",
+      "tutor_focus_en": "Have the student estimate the effect of doubling barrier thickness on the crossing probability, then ask where the effect is used in practice.",
       "example_contexts_fr": [
-        "Exemple étudiant 21",
-        "Situation produit 21"
+        "un microscope à effet tunnel qui image des atomes",
+        "la fusion nucléaire au cœur du Soleil",
+        "une mémoire flash dont la charge finit par fuir"
       ],
       "example_contexts_en": [
-        "Student example 21",
-        "Product situation 21"
+        "a scanning tunnelling microscope imaging atoms",
+        "nuclear fusion in the core of the Sun",
+        "a flash memory whose charge eventually leaks"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.022",
+      "key": "quantum_physics.quantum_spin",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 22,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.021"
+        "quantum_physics.quantum_tunneling"
       ],
-      "fallback_key": "quantum_physics.020",
-      "title_fr": "Physique quantique - étape 22",
-      "title_en": "Quantum physics - step 22",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "fallback_key": "quantum_physics.spectral_lines",
+      "title_fr": "Le spin, une grandeur sans équivalent classique",
+      "title_en": "Spin, a quantity with no classical counterpart",
+      "summary_fr": "Comprendre une grandeur sans équivalent classique qui ne prend que deux valeurs à la mesure.",
+      "summary_en": "Understand a quantity with no classical counterpart that only takes two values on measurement.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 22.",
-        "L'appliquer dans un exemple court."
+        "Dire pourquoi l'image d'une toupie est trompeuse.",
+        "Décrire le résultat d'une mesure de spin selon un axe."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 22.",
-        "Apply it in a short example."
+        "Say why the spinning-top picture misleads.",
+        "Describe the result of a spin measurement along one axis."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais décrire le résultat d'une mesure de spin selon un axe puis selon un axe perpendiculaire, et demande ce que la seconde mesure détruit.",
+      "tutor_focus_en": "Have the student describe a spin measurement along one axis then along a perpendicular one, and ask what the second destroys.",
       "example_contexts_fr": [
-        "Exemple étudiant 22",
-        "Situation produit 22"
+        "un faisceau d'atomes séparé en deux par un aimant",
+        "un électron dans un champ magnétique d'IRM",
+        "deux mesures successives selon des axes perpendiculaires"
       ],
       "example_contexts_en": [
-        "Student example 22",
-        "Product situation 22"
+        "a beam of atoms split in two by a magnet",
+        "an electron in an MRI magnetic field",
+        "two successive measurements along perpendicular axes"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.023",
+      "key": "quantum_physics.basis_change",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_mathematics"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 23,
-      "required": false,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.022"
+        "quantum_physics.dirac_notation"
       ],
-      "fallback_key": "quantum_physics.021",
-      "title_fr": "Physique quantique - étape 23",
-      "title_en": "Quantum physics - step 23",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "fallback_key": "quantum_physics.dirac_notation",
+      "title_fr": "Bases et changement de base",
+      "title_en": "Bases and change of basis",
+      "summary_fr": "Comprendre qu'un même état s'écrit différemment selon la base de mesure choisie.",
+      "summary_en": "Understand that one state is written differently depending on the chosen measurement basis.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 23.",
-        "L'appliquer dans un exemple court."
+        "Réécrire un état dans une seconde base orthonormée.",
+        "Expliquer pourquoi un état certain dans une base est incertain dans une autre."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 23.",
-        "Apply it in a short example."
+        "Rewrite a state in a second orthonormal basis.",
+        "Explain why a state certain in one basis is uncertain in another."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais réécrire un état bien défini dans une base tournée de 45 degrés, puis demande ce que donnerait la mesure dans cette nouvelle base.",
+      "tutor_focus_en": "Have the student rewrite a well-defined state in a basis rotated by 45 degrees, then ask what a measurement in that basis would give.",
       "example_contexts_fr": [
-        "Exemple étudiant 23",
-        "Situation produit 23"
+        "un photon polarisé mesuré selon deux orientations de filtre",
+        "un état certain dans une base et équiprobable dans l'autre",
+        "un même vecteur exprimé dans deux repères"
       ],
       "example_contexts_en": [
-        "Student example 23",
-        "Product situation 23"
+        "a polarised photon measured through two filter orientations",
+        "a state certain in one basis and even in the other",
+        "the same vector expressed in two frames"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.024",
+      "key": "quantum_physics.born_rule",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_mathematics"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 24,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.023"
+        "quantum_physics.basis_change"
       ],
-      "fallback_key": "quantum_physics.022",
-      "title_fr": "Physique quantique - étape 24",
-      "title_en": "Quantum physics - step 24",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "fallback_key": "quantum_physics.dirac_notation",
+      "title_fr": "La règle de Born",
+      "title_en": "The Born rule",
+      "summary_fr": "Calculer la probabilité d'un résultat comme le carré du module de l'amplitude correspondante.",
+      "summary_en": "Compute the probability of an outcome as the squared modulus of the matching amplitude.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 24.",
-        "L'appliquer dans un exemple court."
+        "Appliquer la règle sur un état à trois composantes.",
+        "Vérifier que les probabilités obtenues somment à un."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 24.",
-        "Apply it in a short example."
+        "Apply the rule to a three-component state.",
+        "Check that the resulting probabilities sum to one."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer les trois probabilités d'un état donné, puis demande de vérifier leur somme et d'expliquer ce que garantit la normalisation.",
+      "tutor_focus_en": "Have the student compute the three probabilities of a given state, then check their sum and explain what normalisation guarantees.",
       "example_contexts_fr": [
-        "Exemple étudiant 24",
-        "Situation produit 24"
+        "un état à trois issues possibles",
+        "un état mal normalisé qui donne des probabilités absurdes",
+        "un histogramme de résultats mesurés mille fois"
       ],
       "example_contexts_en": [
-        "Student example 24",
-        "Product situation 24"
+        "a state with three possible outcomes",
+        "a badly normalised state giving absurd probabilities",
+        "a histogram of a thousand measured results"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.025",
+      "key": "quantum_physics.operators_observables",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_mathematics"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 25,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.024"
+        "quantum_physics.born_rule"
       ],
-      "fallback_key": "quantum_physics.023",
-      "title_fr": "Physique quantique - étape 25",
-      "title_en": "Quantum physics - step 25",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "fallback_key": "quantum_physics.dirac_notation",
+      "title_fr": "Opérateurs et observables",
+      "title_en": "Operators and observables",
+      "summary_fr": "Associer une grandeur mesurable à un opérateur agissant sur les états.",
+      "summary_en": "Associate a measurable quantity with an operator acting on states.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 25.",
-        "L'appliquer dans un exemple court."
+        "Dire quelle propriété un opérateur doit avoir pour représenter une mesure.",
+        "Appliquer un opérateur simple à un état."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 25.",
-        "Apply it in a short example."
+        "Say which property an operator must have to represent a measurement.",
+        "Apply a simple operator to a state."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais appliquer un opérateur donné à deux états de base, puis demande pourquoi les résultats de mesure doivent être réels.",
+      "tutor_focus_en": "Have the student apply a given operator to two basis states, then ask why measurement results must be real.",
       "example_contexts_fr": [
-        "Exemple étudiant 25",
-        "Situation produit 25"
+        "une matrice deux par deux appliquée à un état",
+        "une énergie mesurée en laboratoire",
+        "un opérateur qui laisse un état inchangé"
       ],
       "example_contexts_en": [
-        "Student example 25",
-        "Product situation 25"
+        "a two-by-two matrix applied to a state",
+        "an energy measured in the laboratory",
+        "an operator leaving a state unchanged"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.026",
+      "key": "quantum_physics.eigenvalues_measurement",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_mathematics"
       ],
-      "stage": 4,
+      "stage": 3,
       "order": 26,
-      "required": true,
-      "prerequisite_keys": [
-        "quantum_physics.025"
-      ],
-      "fallback_key": "quantum_physics.024",
-      "title_fr": "Physique quantique - étape 26",
-      "title_en": "Quantum physics - step 26",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
-      "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 26.",
-        "L'appliquer dans un exemple court."
-      ],
-      "learning_goals_en": [
-        "Understand the main idea of step 26.",
-        "Apply it in a short example."
-      ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
-      "example_contexts_fr": [
-        "Exemple étudiant 26",
-        "Situation produit 26"
-      ],
-      "example_contexts_en": [
-        "Student example 26",
-        "Product situation 26"
-      ],
-      "safety_category": "standard"
-    },
-    {
-      "key": "quantum_physics.027",
-      "domain_id": "quantum_physics",
-      "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
-      ],
-      "stage": 4,
-      "order": 27,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.026"
+        "quantum_physics.operators_observables"
       ],
-      "fallback_key": "quantum_physics.025",
-      "title_fr": "Physique quantique - étape 27",
-      "title_en": "Quantum physics - step 27",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "fallback_key": "quantum_physics.dirac_notation",
+      "title_fr": "Valeurs propres et résultats de mesure",
+      "title_en": "Eigenvalues and measurement outcomes",
+      "summary_fr": "Identifier les résultats possibles d'une mesure aux valeurs propres de l'opérateur associé.",
+      "summary_en": "Identify the possible outcomes of a measurement with the eigenvalues of its operator.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 27.",
-        "L'appliquer dans un exemple court."
+        "Calculer les valeurs propres d'un opérateur deux par deux.",
+        "Dire dans quel état se trouve le système juste après la mesure."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 27.",
-        "Apply it in a short example."
+        "Compute the eigenvalues of a two-by-two operator.",
+        "Say which state the system is in right after measurement."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais calculer les valeurs propres d'un opérateur simple, puis demande dans quel état se trouve le système juste après le résultat obtenu.",
+      "tutor_focus_en": "Have the student compute the eigenvalues of a simple operator, then ask which state the system is in right after the obtained result.",
       "example_contexts_fr": [
-        "Exemple étudiant 27",
-        "Situation produit 27"
+        "une mesure qui ne peut donner que deux valeurs",
+        "un état propre qui reste inchangé après mesure",
+        "une seconde mesure identique à la première"
       ],
       "example_contexts_en": [
-        "Student example 27",
-        "Product situation 27"
+        "a measurement that can only yield two values",
+        "an eigenstate left unchanged by measurement",
+        "a second measurement identical to the first"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.028",
+      "key": "quantum_physics.quantum_circuit_reading",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
         "quantum_computing"
       ],
-      "stage": 4,
+      "stage": 3,
+      "order": 27,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.quantum_gates"
+      ],
+      "fallback_key": "quantum_physics.quantum_gates",
+      "title_fr": "Lire un circuit quantique",
+      "title_en": "Reading a quantum circuit",
+      "summary_fr": "Suivre un circuit de gauche à droite et prédire la distribution des résultats de mesure.",
+      "summary_en": "Follow a circuit left to right and predict the distribution of measurement results.",
+      "learning_goals_fr": [
+        "Suivre l'état à travers trois portes successives.",
+        "Prédire la distribution des résultats à la mesure finale."
+      ],
+      "learning_goals_en": [
+        "Follow the state through three successive gates.",
+        "Predict the outcome distribution at the final measurement."
+      ],
+      "tutor_focus_fr": "Fais suivre l'état à travers un circuit à trois portes, puis demande la distribution attendue sur mille exécutions.",
+      "tutor_focus_en": "Have the student follow the state through a three-gate circuit, then ask the expected distribution over a thousand runs.",
+      "example_contexts_fr": [
+        "un circuit à deux qubits et trois portes",
+        "une mesure répétée mille fois",
+        "un circuit dont la dernière porte est retirée"
+      ],
+      "example_contexts_en": [
+        "a two-qubit circuit with three gates",
+        "a measurement repeated a thousand times",
+        "a circuit with its last gate removed"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.entangling_gate",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 3,
       "order": 28,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.027"
+        "quantum_physics.quantum_circuit_reading"
       ],
-      "fallback_key": "quantum_physics.026",
-      "title_fr": "Physique quantique - étape 28",
-      "title_en": "Quantum physics - step 28",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 4.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 4.",
+      "fallback_key": "quantum_physics.quantum_gates",
+      "title_fr": "La porte contrôlée et la création d'intrication",
+      "title_en": "The controlled gate and creating entanglement",
+      "summary_fr": "Construire une paire intriquée avec deux portes et vérifier la corrélation obtenue.",
+      "summary_en": "Build an entangled pair with two gates and check the resulting correlation.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 28.",
-        "L'appliquer dans un exemple court."
+        "Décrire l'effet d'une porte contrôlée sur un état superposé.",
+        "Prédire les résultats corrélés des deux mesures."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 28.",
-        "Apply it in a short example."
+        "Describe the effect of a controlled gate on a superposed state.",
+        "Predict the correlated outcomes of both measurements."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais construire une paire intriquée avec deux portes, puis demande quels résultats de mesure sont possibles et lesquels ne le sont jamais.",
+      "tutor_focus_en": "Have the student build an entangled pair with two gates, then ask which measurement results are possible and which never occur.",
       "example_contexts_fr": [
-        "Exemple étudiant 28",
-        "Situation produit 28"
+        "deux qubits mesurés toujours identiques",
+        "un circuit à une porte H suivie d'une porte contrôlée",
+        "une combinaison de résultats jamais observée"
       ],
       "example_contexts_en": [
-        "Student example 28",
-        "Product situation 28"
+        "two qubits always measured identical",
+        "a circuit with an H gate followed by a controlled gate",
+        "a result combination never observed"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.029",
+      "key": "quantum_physics.interference_as_engine",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
         "quantum_computing"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 29,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.028"
+        "quantum_physics.entangling_gate"
       ],
-      "fallback_key": "quantum_physics.027",
-      "title_fr": "Physique quantique - étape 29",
-      "title_en": "Quantum physics - step 29",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "fallback_key": "quantum_physics.quantum_gates",
+      "title_fr": "L'interférence comme moteur des algorithmes",
+      "title_en": "Interference as the engine of algorithms",
+      "summary_fr": "Comprendre qu'un algorithme quantique organise l'annulation des mauvaises réponses.",
+      "summary_en": "Understand that a quantum algorithm organises the cancellation of wrong answers.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 29.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi tester toutes les possibilités ne suffit pas.",
+        "Dire ce qu'un algorithme doit organiser pour être utile."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 29.",
-        "Apply it in a short example."
+        "Explain why testing all possibilities is not enough.",
+        "Say what an algorithm must organise to be useful."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi une superposition de toutes les réponses ne donne rien à la mesure, puis demande ce que l'algorithme doit ajouter.",
+      "tutor_focus_en": "Have the student explain why a superposition of every answer yields nothing at measurement, then ask what the algorithm must add.",
       "example_contexts_fr": [
-        "Exemple étudiant 29",
-        "Situation produit 29"
+        "une superposition de toutes les réponses possibles",
+        "une mesure qui renvoie une réponse au hasard",
+        "des amplitudes concentrées sur la bonne réponse"
       ],
       "example_contexts_en": [
-        "Student example 29",
-        "Product situation 29"
+        "a superposition of every possible answer",
+        "a measurement returning a random answer",
+        "amplitudes concentrated on the right answer"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.030",
+      "key": "quantum_physics.measurement_readout",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
         "quantum_computing"
       ],
-      "stage": 5,
+      "stage": 3,
       "order": 30,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.029"
+        "quantum_physics.interference_as_engine"
       ],
-      "fallback_key": "quantum_physics.028",
-      "title_fr": "Physique quantique - étape 30",
-      "title_en": "Quantum physics - step 30",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "fallback_key": "quantum_physics.quantum_gates",
+      "title_fr": "Lire le résultat d'un calcul quantique",
+      "title_en": "Reading the result of a quantum computation",
+      "summary_fr": "Comprendre qu'un résultat s'obtient par répétitions et statistiques plutôt qu'en une lecture.",
+      "summary_en": "Understand that a result comes from repetitions and statistics rather than a single readout.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 30.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi une exécution unique ne suffit pas.",
+        "Estimer le nombre de répétitions nécessaires à une précision donnée."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 30.",
-        "Apply it in a short example."
+        "Explain why one run is not enough.",
+        "Estimate how many repetitions a given precision needs."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais estimer combien d'exécutions sont nécessaires pour distinguer deux distributions proches, puis demande ce que coûte cette répétition.",
+      "tutor_focus_en": "Have the student estimate how many runs separate two close distributions, then ask what that repetition costs.",
       "example_contexts_fr": [
-        "Exemple étudiant 30",
-        "Situation produit 30"
+        "un algorithme exécuté dix mille fois",
+        "deux distributions de résultats très proches",
+        "un résultat vérifiable classiquement en une seconde"
       ],
       "example_contexts_en": [
-        "Student example 30",
-        "Product situation 30"
+        "an algorithm executed ten thousand times",
+        "two very close result distributions",
+        "a result verifiable classically in one second"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.031",
+      "key": "quantum_physics.pauli_exclusion",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 31,
       "required": true,
       "prerequisite_keys": [
-        "quantum_physics.030"
+        "quantum_physics.quantum_spin"
       ],
-      "fallback_key": "quantum_physics.029",
-      "title_fr": "Physique quantique - étape 31",
-      "title_en": "Quantum physics - step 31",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "fallback_key": "quantum_physics.quantum_spin",
+      "title_fr": "Le principe d'exclusion et la structure de la matière",
+      "title_en": "The exclusion principle and the structure of matter",
+      "summary_fr": "Relier l'interdiction pour deux électrons d'occuper le même état à la stabilité de la matière.",
+      "summary_en": "Connect the ban on two electrons sharing a state to the stability of matter.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 31.",
-        "L'appliquer dans un exemple court."
+        "Expliquer comment le remplissage des couches construit le tableau périodique.",
+        "Dire pourquoi la matière ordinaire ne s'effondre pas."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 31.",
-        "Apply it in a short example."
+        "Explain how shell filling builds the periodic table.",
+        "Say why ordinary matter does not collapse."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais remplir les couches d'un atome léger électron par électron, puis demande ce qui se passerait sans cette interdiction.",
+      "tutor_focus_en": "Have the student fill the shells of a light atom electron by electron, then ask what would happen without that ban.",
       "example_contexts_fr": [
-        "Exemple étudiant 31",
-        "Situation produit 31"
+        "le remplissage des couches d'un atome de carbone",
+        "la rigidité d'un morceau de métal",
+        "une étoile qui résiste à sa propre gravité"
       ],
       "example_contexts_en": [
-        "Student example 31",
-        "Product situation 31"
+        "filling the shells of a carbon atom",
+        "the stiffness of a piece of metal",
+        "a star resisting its own gravity"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.032",
+      "key": "quantum_physics.quantum_interpretations",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 32,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.031"
+        "quantum_physics.pauli_exclusion"
       ],
-      "fallback_key": "quantum_physics.030",
-      "title_fr": "Physique quantique - étape 32",
-      "title_en": "Quantum physics - step 32",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "fallback_key": "quantum_physics.quantum_spin",
+      "title_fr": "Ce que les interprétations changent et ne changent pas",
+      "title_en": "What interpretations change and do not change",
+      "summary_fr": "Distinguer le formalisme prédictif, identique pour tous, des récits qui l'accompagnent.",
+      "summary_en": "Separate the predictive formalism, shared by all, from the stories told around it.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 32.",
-        "L'appliquer dans un exemple court."
+        "Dire ce que toutes les interprétations partagent obligatoirement.",
+        "Expliquer pourquoi le choix d'interprétation ne change aucune prédiction."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 32.",
-        "Apply it in a short example."
+        "Say what every interpretation necessarily shares.",
+        "Explain why the choice of interpretation changes no prediction."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer deux interprétations sur une même expérience, puis demande quelle prédiction chiffrée diffère entre elles.",
+      "tutor_focus_en": "Have the student compare two interpretations on the same experiment, then ask which numeric prediction differs between them.",
       "example_contexts_fr": [
-        "Exemple étudiant 32",
-        "Situation produit 32"
+        "une même expérience racontée de deux façons",
+        "un débat entre deux physiciens sur le rôle de la mesure",
+        "un calcul de probabilité identique dans les deux récits"
       ],
       "example_contexts_en": [
-        "Student example 32",
-        "Product situation 32"
+        "the same experiment told in two ways",
+        "a debate between two physicists on the role of measurement",
+        "a probability computation identical in both accounts"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.033",
+      "key": "quantum_physics.vacuum_energy",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 33,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.032"
+        "quantum_physics.quantum_interpretations"
       ],
-      "fallback_key": "quantum_physics.031",
-      "title_fr": "Physique quantique - étape 33",
-      "title_en": "Quantum physics - step 33",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "fallback_key": "quantum_physics.quantum_spin",
+      "title_fr": "L'énergie du vide",
+      "title_en": "Vacuum energy",
+      "summary_fr": "Comprendre que le vide quantique n'est pas rien et produit des effets mesurables.",
+      "summary_en": "Understand that the quantum vacuum is not nothing and produces measurable effects.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 33.",
-        "L'appliquer dans un exemple court."
+        "Expliquer pourquoi un champ ne peut pas être exactement nul partout.",
+        "Citer un effet mesuré attribué aux fluctuations du vide."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 33.",
-        "Apply it in a short example."
+        "Explain why a field cannot be exactly zero everywhere.",
+        "Name a measured effect attributed to vacuum fluctuations."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi le vide garde une énergie minimale, puis demande quelle mesure de laboratoire le met en évidence.",
+      "tutor_focus_en": "Have the student explain why the vacuum keeps a minimum energy, then ask which laboratory measurement reveals it.",
       "example_contexts_fr": [
-        "Exemple étudiant 33",
-        "Situation produit 33"
+        "deux plaques très proches qui s'attirent dans le vide",
+        "une chambre pompée jusqu'à la pression la plus basse possible",
+        "un atome excité qui finit par retomber tout seul"
       ],
       "example_contexts_en": [
-        "Student example 33",
-        "Product situation 33"
+        "two very close plates attracting each other in vacuum",
+        "a chamber pumped to the lowest achievable pressure",
+        "an excited atom that eventually decays on its own"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.034",
+      "key": "quantum_physics.laser_stimulated_emission",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
-        "quantum_computing"
+        "quantum_intuition"
       ],
-      "stage": 5,
+      "stage": 4,
       "order": 34,
       "required": false,
       "prerequisite_keys": [
-        "quantum_physics.033"
+        "quantum_physics.vacuum_energy"
       ],
-      "fallback_key": "quantum_physics.032",
-      "title_fr": "Physique quantique - étape 34",
-      "title_en": "Quantum physics - step 34",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "fallback_key": "quantum_physics.quantum_spin",
+      "title_fr": "Comment un laser amplifie la lumière",
+      "title_en": "How a laser amplifies light",
+      "summary_fr": "Relier émission stimulée, inversion de population et cavité optique à un faisceau cohérent.",
+      "summary_en": "Connect stimulated emission, population inversion and an optical cavity to a coherent beam.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 34.",
-        "L'appliquer dans un exemple court."
+        "Expliquer ce qu'apporte l'émission stimulée par rapport à l'émission spontanée.",
+        "Dire pourquoi une inversion de population est nécessaire."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 34.",
-        "Apply it in a short example."
+        "Explain what stimulated emission adds over spontaneous emission.",
+        "Say why a population inversion is required."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais expliquer pourquoi un photon en produit un identique, puis demande pourquoi une lampe ordinaire ne produit jamais un faisceau laser.",
+      "tutor_focus_en": "Have the student explain why one photon produces an identical one, then ask why an ordinary lamp never yields a laser beam.",
       "example_contexts_fr": [
-        "Exemple étudiant 34",
-        "Situation produit 34"
+        "un pointeur laser de conférence",
+        "une lampe à incandescence qui éclaire dans toutes les directions",
+        "un laser de découpe industrielle"
       ],
       "example_contexts_en": [
-        "Student example 34",
-        "Product situation 34"
+        "a conference laser pointer",
+        "an incandescent lamp shining in all directions",
+        "an industrial cutting laser"
       ],
       "safety_category": "standard"
     },
     {
-      "key": "quantum_physics.035",
+      "key": "quantum_physics.commutators",
       "domain_id": "quantum_physics",
       "objective_ids": [
-        "quantum_intuition",
-        "quantum_mathematics",
+        "quantum_mathematics"
+      ],
+      "stage": 4,
+      "order": 35,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.eigenvalues_measurement"
+      ],
+      "fallback_key": "quantum_physics.eigenvalues_measurement",
+      "title_fr": "Commutateurs et grandeurs incompatibles",
+      "title_en": "Commutators and incompatible quantities",
+      "summary_fr": "Utiliser le commutateur pour savoir si deux mesures peuvent être précises en même temps.",
+      "summary_en": "Use the commutator to know whether two measurements can both be precise.",
+      "learning_goals_fr": [
+        "Calculer un commutateur de deux opérateurs simples.",
+        "Relier un commutateur non nul à une relation d'indétermination."
+      ],
+      "learning_goals_en": [
+        "Compute the commutator of two simple operators.",
+        "Link a non-zero commutator to an uncertainty relation."
+      ],
+      "tutor_focus_fr": "Fais calculer le commutateur de deux opérateurs donnés, puis demande ce que le résultat implique sur l'ordre des mesures.",
+      "tutor_focus_en": "Have the student compute the commutator of two given operators, then ask what the result implies about measurement order.",
+      "example_contexts_fr": [
+        "deux mesures effectuées dans un ordre puis dans l'autre",
+        "deux opérateurs qui commutent",
+        "position et impulsion d'une particule"
+      ],
+      "example_contexts_en": [
+        "two measurements performed in one order then the other",
+        "two operators that commute",
+        "position and momentum of a particle"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.schrodinger_equation",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_mathematics"
+      ],
+      "stage": 4,
+      "order": 36,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.commutators"
+      ],
+      "fallback_key": "quantum_physics.eigenvalues_measurement",
+      "title_fr": "L'équation d'évolution des états",
+      "title_en": "The state evolution equation",
+      "summary_fr": "Comprendre l'évolution déterministe d'un état entre deux mesures et le rôle de l'énergie.",
+      "summary_en": "Understand the deterministic evolution of a state between measurements and the role of energy.",
+      "learning_goals_fr": [
+        "Dire ce que l'équation prédit exactement.",
+        "Opposer l'évolution continue au saut produit par la mesure."
+      ],
+      "learning_goals_en": [
+        "Say exactly what the equation predicts.",
+        "Contrast continuous evolution with the jump caused by measurement."
+      ],
+      "tutor_focus_fr": "Fais opposer l'évolution entre deux mesures et le changement au moment de la mesure, puis demande laquelle est déterministe.",
+      "tutor_focus_en": "Have the student contrast evolution between measurements and the change at measurement, then ask which one is deterministic.",
+      "example_contexts_fr": [
+        "un état qui oscille entre deux niveaux",
+        "un système isolé laissé à lui-même une seconde",
+        "une mesure qui interrompt l'évolution"
+      ],
+      "example_contexts_en": [
+        "a state oscillating between two levels",
+        "an isolated system left alone for a second",
+        "a measurement interrupting the evolution"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.hilbert_space",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_mathematics"
+      ],
+      "stage": 4,
+      "order": 37,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.schrodinger_equation"
+      ],
+      "fallback_key": "quantum_physics.eigenvalues_measurement",
+      "title_fr": "L'espace des états",
+      "title_en": "The space of states",
+      "summary_fr": "Situer les états dans un espace vectoriel muni d'un produit scalaire et d'une dimension propre au système.",
+      "summary_en": "Place states inside a vector space with an inner product and a dimension set by the system.",
+      "learning_goals_fr": [
+        "Donner la dimension de l'espace pour un système à deux niveaux.",
+        "Expliquer ce que la structure d'espace vectoriel autorise."
+      ],
+      "learning_goals_en": [
+        "Give the space dimension for a two-level system.",
+        "Explain what the vector space structure allows."
+      ],
+      "tutor_focus_fr": "Fais donner la dimension de l'espace pour un puis pour trois systèmes à deux niveaux, et demande d'où vient la croissance.",
+      "tutor_focus_en": "Have the student give the dimension for one then three two-level systems, and ask where the growth comes from.",
+      "example_contexts_fr": [
+        "un système à deux niveaux isolé",
+        "trois systèmes à deux niveaux considérés ensemble",
+        "un espace de dimension infinie pour une position continue"
+      ],
+      "example_contexts_en": [
+        "an isolated two-level system",
+        "three two-level systems considered together",
+        "an infinite-dimensional space for a continuous position"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.tensor_product",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_mathematics"
+      ],
+      "stage": 4,
+      "order": 38,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.hilbert_space"
+      ],
+      "fallback_key": "quantum_physics.eigenvalues_measurement",
+      "title_fr": "Le produit tensoriel et les systèmes composés",
+      "title_en": "The tensor product and composite systems",
+      "summary_fr": "Construire l'état de deux systèmes réunis et reconnaître un état qui ne se factorise pas.",
+      "summary_en": "Build the state of two joined systems and recognise a state that does not factorise.",
+      "learning_goals_fr": [
+        "Écrire l'état de deux systèmes indépendants.",
+        "Montrer qu'un état intriqué ne se factorise pas."
+      ],
+      "learning_goals_en": [
+        "Write the state of two independent systems.",
+        "Show that an entangled state does not factorise."
+      ],
+      "tutor_focus_fr": "Fais écrire l'état de deux systèmes indépendants, puis demande de prouver qu'un état donné ne peut pas s'écrire ainsi.",
+      "tutor_focus_en": "Have the student write the state of two independent systems, then prove a given state cannot be written that way.",
+      "example_contexts_fr": [
+        "deux particules préparées séparément",
+        "un état qui ne s'écrit pas comme un produit",
+        "un espace dont la dimension double à chaque ajout"
+      ],
+      "example_contexts_en": [
+        "two particles prepared separately",
+        "a state that cannot be written as a product",
+        "a space whose dimension doubles with each addition"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.grover_search",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 39,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.measurement_readout"
+      ],
+      "fallback_key": "quantum_physics.measurement_readout",
+      "title_fr": "L'algorithme de recherche de Grover",
+      "title_en": "Grover's search algorithm",
+      "summary_fr": "Comprendre le gain quadratique d'une recherche non structurée et ses conditions d'application.",
+      "summary_en": "Understand the quadratic gain of unstructured search and its conditions of use.",
+      "learning_goals_fr": [
+        "Comparer le nombre d'essais classique et quantique.",
+        "Dire ce que l'algorithme exige pour être applicable."
+      ],
+      "learning_goals_en": [
+        "Compare the classical and quantum number of trials.",
+        "Say what the algorithm requires to be applicable."
+      ],
+      "tutor_focus_fr": "Fais comparer le nombre d'essais pour un million d'éléments, puis demande ce qu'il faut pouvoir écrire pour appliquer l'algorithme.",
+      "tutor_focus_en": "Have the student compare the number of trials for a million items, then ask what must be writable to apply the algorithm.",
+      "example_contexts_fr": [
+        "une recherche parmi un million d'éléments non triés",
+        "une fonction qui reconnaît la bonne réponse",
+        "une base de données classique déjà indexée"
+      ],
+      "example_contexts_en": [
+        "a search among a million unsorted items",
+        "a function recognising the right answer",
+        "a classical database that is already indexed"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.shor_factoring",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 40,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.grover_search"
+      ],
+      "fallback_key": "quantum_physics.measurement_readout",
+      "title_fr": "L'algorithme de factorisation de Shor",
+      "title_en": "Shor's factoring algorithm",
+      "summary_fr": "Comprendre pourquoi la factorisation devient traitable et ce que cela menace en cryptographie.",
+      "summary_en": "Understand why factoring becomes tractable and what that threatens in cryptography.",
+      "learning_goals_fr": [
+        "Dire quelle structure mathématique l'algorithme exploite.",
+        "Expliquer quelles cryptographies sont concernées."
+      ],
+      "learning_goals_en": [
+        "Say which mathematical structure the algorithm exploits.",
+        "Explain which cryptographic systems are affected."
+      ],
+      "tutor_focus_fr": "Fais expliquer quelle propriété périodique l'algorithme exploite, puis demande quels systèmes cryptographiques sont réellement menacés.",
+      "tutor_focus_en": "Have the student explain which periodic property the algorithm exploits, then ask which cryptographic systems are really threatened.",
+      "example_contexts_fr": [
+        "une clé publique fondée sur un produit de deux grands nombres",
+        "un message chiffré aujourd'hui et stocké pour plus tard",
+        "un algorithme de signature fondé sur les courbes elliptiques"
+      ],
+      "example_contexts_en": [
+        "a public key based on a product of two large numbers",
+        "a message encrypted today and stored for later",
+        "a signature algorithm based on elliptic curves"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.quantum_noise",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 41,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.shor_factoring"
+      ],
+      "fallback_key": "quantum_physics.measurement_readout",
+      "title_fr": "Le bruit et la fidélité des portes",
+      "title_en": "Noise and gate fidelity",
+      "summary_fr": "Comprendre l'accumulation des erreurs le long d'un circuit et la profondeur utile qui en résulte.",
+      "summary_en": "Understand how errors accumulate along a circuit and the usable depth that results.",
+      "learning_goals_fr": [
+        "Estimer la fidélité d'un circuit à partir de celle de ses portes.",
+        "Dire ce qui limite la profondeur d'un circuit exécutable."
+      ],
+      "learning_goals_en": [
+        "Estimate a circuit's fidelity from its gate fidelity.",
+        "Say what limits the depth of an executable circuit."
+      ],
+      "tutor_focus_fr": "Fais estimer la fidélité d'un circuit de cent portes à 99,9 % chacune, puis demande ce que cela impose sur la taille des algorithmes.",
+      "tutor_focus_en": "Have the student estimate the fidelity of a hundred-gate circuit at 99.9% each, then ask what that imposes on algorithm size.",
+      "example_contexts_fr": [
+        "un circuit de cent portes successives",
+        "une porte fidèle à 99,9 %",
+        "un temps de cohérence de cent microsecondes"
+      ],
+      "example_contexts_en": [
+        "a circuit of a hundred successive gates",
+        "a gate with 99.9% fidelity",
+        "a coherence time of a hundred microseconds"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.quantum_error_correction",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 4,
+      "order": 42,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.quantum_noise"
+      ],
+      "fallback_key": "quantum_physics.measurement_readout",
+      "title_fr": "La correction d'erreur quantique",
+      "title_en": "Quantum error correction",
+      "summary_fr": "Comprendre l'encodage d'un qubit logique sur de nombreux qubits physiques et son coût.",
+      "summary_en": "Understand encoding a logical qubit across many physical qubits and its cost.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi on ne peut pas simplement copier un qubit.",
+        "Estimer le coût en qubits physiques d'un qubit logique."
+      ],
+      "learning_goals_en": [
+        "Explain why a qubit cannot simply be copied.",
+        "Estimate the physical qubit cost of one logical qubit."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi la copie d'un qubit est impossible, puis demande comment on détecte une erreur sans lire l'information.",
+      "tutor_focus_en": "Have the student explain why copying a qubit is impossible, then ask how an error is detected without reading the information.",
+      "example_contexts_fr": [
+        "un qubit logique porté par mille qubits physiques",
+        "une erreur détectée sans lire la valeur encodée",
+        "une machine annoncée avec un million de qubits physiques"
+      ],
+      "example_contexts_en": [
+        "a logical qubit carried by a thousand physical qubits",
+        "an error detected without reading the encoded value",
+        "a machine announced with a million physical qubits"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.superconductivity",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition"
+      ],
+      "stage": 5,
+      "order": 43,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.laser_stimulated_emission"
+      ],
+      "fallback_key": "quantum_physics.laser_stimulated_emission",
+      "title_fr": "La supraconductivité",
+      "title_en": "Superconductivity",
+      "summary_fr": "Comprendre la disparition de la résistance électrique par appariement des électrons sous une température critique.",
+      "summary_en": "Understand the vanishing of electrical resistance through electron pairing below a critical temperature.",
+      "learning_goals_fr": [
+        "Expliquer ce que devient la résistance sous la température critique.",
+        "Citer un usage industriel qui justifie le refroidissement."
+      ],
+      "learning_goals_en": [
+        "Explain what resistance becomes below the critical temperature.",
+        "Name an industrial use that justifies the cooling."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi un courant peut circuler sans perte, puis demande ce qui justifie le coût du refroidissement en pratique.",
+      "tutor_focus_en": "Have the student explain why a current can flow without loss, then ask what justifies the cooling cost in practice.",
+      "example_contexts_fr": [
+        "un aimant d'IRM refroidi à l'hélium liquide",
+        "un anneau de courant qui circule sans s'atténuer",
+        "une ligne électrique expérimentale sans pertes"
+      ],
+      "example_contexts_en": [
+        "an MRI magnet cooled with liquid helium",
+        "a current loop circulating without decaying",
+        "an experimental lossless power line"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.bose_einstein_condensate",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition"
+      ],
+      "stage": 5,
+      "order": 44,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.superconductivity"
+      ],
+      "fallback_key": "quantum_physics.laser_stimulated_emission",
+      "title_fr": "Le condensat de Bose-Einstein",
+      "title_en": "The Bose-Einstein condensate",
+      "summary_fr": "Comprendre l'état où des milliers d'atomes occupent le même état quantique et se comportent comme un seul.",
+      "summary_en": "Understand the state where thousands of atoms share one quantum state and act as one.",
+      "learning_goals_fr": [
+        "Expliquer ce que le refroidissement extrême rend possible.",
+        "Dire ce qu'on observe qui serait impossible à température ambiante."
+      ],
+      "learning_goals_en": [
+        "Explain what extreme cooling makes possible.",
+        "Say what is observed that would be impossible at room temperature."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi il faut descendre près du zéro absolu, puis demande ce que l'on observe alors et qui serait impossible autrement.",
+      "tutor_focus_en": "Have the student explain why one must go near absolute zero, then ask what is observed there that is otherwise impossible.",
+      "example_contexts_fr": [
+        "un nuage d'atomes refroidi au nanokelvin",
+        "des atomes qui interfèrent comme une onde unique",
+        "une expérience de laboratoire filmée image par image"
+      ],
+      "example_contexts_en": [
+        "an atom cloud cooled to the nanokelvin range",
+        "atoms interfering as a single wave",
+        "a laboratory experiment filmed frame by frame"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.single_photon_experiments",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition"
+      ],
+      "stage": 5,
+      "order": 45,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.bose_einstein_condensate"
+      ],
+      "fallback_key": "quantum_physics.laser_stimulated_emission",
+      "title_fr": "Les expériences à photon unique",
+      "title_en": "Single-photon experiments",
+      "summary_fr": "Comprendre ce que garantit une source de photons uniques et pourquoi elle change l'interprétation d'un résultat.",
+      "summary_en": "Understand what a single-photon source guarantees and why it changes how a result is read.",
+      "learning_goals_fr": [
+        "Expliquer ce qu'une source atténuée ne garantit pas.",
+        "Dire ce que prouve une expérience réalisée photon par photon."
+      ],
+      "learning_goals_en": [
+        "Explain what an attenuated source does not guarantee.",
+        "Say what an experiment run photon by photon proves."
+      ],
+      "tutor_focus_fr": "Fais comparer une source atténuée et une vraie source de photons uniques, puis demande ce que la seconde permet de conclure.",
+      "tutor_focus_en": "Have the student compare an attenuated source with a true single-photon source, then ask what the second allows concluding.",
+      "example_contexts_fr": [
+        "un laser fortement atténué",
+        "un détecteur qui compte les clics un par un",
+        "une distribution de clé quantique en laboratoire"
+      ],
+      "example_contexts_en": [
+        "a heavily attenuated laser",
+        "a detector counting clicks one by one",
+        "a laboratory quantum key distribution setup"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.quantum_thermodynamics",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_intuition"
+      ],
+      "stage": 5,
+      "order": 46,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.single_photon_experiments"
+      ],
+      "fallback_key": "quantum_physics.laser_stimulated_emission",
+      "title_fr": "Chaleur et information à l'échelle quantique",
+      "title_en": "Heat and information at the quantum scale",
+      "summary_fr": "Relier l'effacement d'une information à une dissipation minimale de chaleur.",
+      "summary_en": "Connect erasing information to a minimal dissipation of heat.",
+      "learning_goals_fr": [
+        "Expliquer pourquoi effacer un bit coûte de l'énergie.",
+        "Dire ce qu'un calcul réversible change à cette dépense."
+      ],
+      "learning_goals_en": [
+        "Explain why erasing a bit costs energy.",
+        "Say what reversible computation changes about that cost."
+      ],
+      "tutor_focus_fr": "Fais expliquer pourquoi l'effacement d'un bit dissipe de la chaleur, puis demande ce que change un calcul réversible.",
+      "tutor_focus_en": "Have the student explain why erasing a bit dissipates heat, then ask what a reversible computation changes.",
+      "example_contexts_fr": [
+        "un processeur qui chauffe en effaçant des données",
+        "une mémoire réinitialisée avant chaque calcul",
+        "une porte logique réversible imaginée en pensée"
+      ],
+      "example_contexts_en": [
+        "a processor heating as it erases data",
+        "a memory reset before each computation",
+        "a reversible logic gate imagined in thought"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.density_matrix",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_mathematics"
+      ],
+      "stage": 5,
+      "order": 47,
+      "required": true,
+      "prerequisite_keys": [
+        "quantum_physics.tensor_product"
+      ],
+      "fallback_key": "quantum_physics.tensor_product",
+      "title_fr": "La matrice densité",
+      "title_en": "The density matrix",
+      "summary_fr": "Décrire un système partiellement connu et distinguer une superposition d'un mélange statistique.",
+      "summary_en": "Describe a partially known system and tell a superposition apart from a statistical mixture.",
+      "learning_goals_fr": [
+        "Écrire la matrice d'un état pur et celle d'un mélange.",
+        "Repérer sur la matrice ce qui distingue les deux cas."
+      ],
+      "learning_goals_en": [
+        "Write the matrix of a pure state and of a mixture.",
+        "Spot in the matrix what separates the two cases."
+      ],
+      "tutor_focus_fr": "Fais écrire les deux matrices pour une superposition et pour un mélange équiprobable, puis demande quel terme les distingue.",
+      "tutor_focus_en": "Have the student write both matrices for a superposition and for an even mixture, then ask which term distinguishes them.",
+      "example_contexts_fr": [
+        "un mélange équiprobable de deux états",
+        "une superposition à composantes égales",
+        "un système couplé à un environnement bruyant"
+      ],
+      "example_contexts_en": [
+        "an even mixture of two states",
+        "a superposition with equal components",
+        "a system coupled to a noisy environment"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.entanglement_entropy",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_mathematics"
+      ],
+      "stage": 5,
+      "order": 48,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.density_matrix"
+      ],
+      "fallback_key": "quantum_physics.tensor_product",
+      "title_fr": "L'entropie d'intrication",
+      "title_en": "Entanglement entropy",
+      "summary_fr": "Quantifier l'intrication par l'incertitude qui subsiste sur une partie du système.",
+      "summary_en": "Quantify entanglement by the uncertainty remaining about one part of the system.",
+      "learning_goals_fr": [
+        "Calculer l'entropie d'une partie d'un état maximalement intriqué.",
+        "Expliquer pourquoi le tout peut être mieux connu que ses parties."
+      ],
+      "learning_goals_en": [
+        "Compute the entropy of one half of a maximally entangled state.",
+        "Explain why the whole can be better known than its parts."
+      ],
+      "tutor_focus_fr": "Fais calculer l'entropie d'une moitié d'une paire maximalement intriquée, puis demande pourquoi elle dépasse celle du système entier.",
+      "tutor_focus_en": "Have the student compute the entropy of one half of a maximally entangled pair, then ask why it exceeds that of the whole system.",
+      "example_contexts_fr": [
+        "une paire maximalement intriquée séparée en deux",
+        "un état produit dont chaque partie est bien définie",
+        "une mesure limitée à une seule des deux particules"
+      ],
+      "example_contexts_en": [
+        "a maximally entangled pair split in two",
+        "a product state whose parts are well defined",
+        "a measurement limited to one of the two particles"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.perturbation_theory",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_mathematics"
+      ],
+      "stage": 5,
+      "order": 49,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.entanglement_entropy"
+      ],
+      "fallback_key": "quantum_physics.tensor_product",
+      "title_fr": "La théorie des perturbations",
+      "title_en": "Perturbation theory",
+      "summary_fr": "Approcher un système compliqué comme un système simple légèrement modifié.",
+      "summary_en": "Approach a complicated system as a simple one that has been slightly modified.",
+      "learning_goals_fr": [
+        "Expliquer la démarche d'un développement au premier ordre.",
+        "Dire quand l'approximation cesse d'être valable."
+      ],
+      "learning_goals_en": [
+        "Explain the approach of a first-order expansion.",
+        "Say when the approximation stops being valid."
+      ],
+      "tutor_focus_fr": "Fais estimer le décalage d'un niveau d'énergie sous une petite perturbation, puis demande à partir de quand l'approche échoue.",
+      "tutor_focus_en": "Have the student estimate the shift of an energy level under a small perturbation, then ask when the approach fails.",
+      "example_contexts_fr": [
+        "un atome placé dans un champ électrique faible",
+        "un niveau d'énergie légèrement décalé",
+        "une perturbation devenue comparable au terme principal"
+      ],
+      "example_contexts_en": [
+        "an atom placed in a weak electric field",
+        "an energy level slightly shifted",
+        "a perturbation grown comparable to the main term"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.path_integral",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_mathematics"
+      ],
+      "stage": 5,
+      "order": 50,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.perturbation_theory"
+      ],
+      "fallback_key": "quantum_physics.tensor_product",
+      "title_fr": "La somme sur les chemins",
+      "title_en": "The sum over paths",
+      "summary_fr": "Comprendre une amplitude comme la somme des contributions de tous les trajets possibles.",
+      "summary_en": "Understand an amplitude as the sum of contributions from every possible trajectory.",
+      "learning_goals_fr": [
+        "Expliquer comment les chemins éloignés du trajet classique s'annulent.",
+        "Relier cette vision au trajet unique de la mécanique classique."
+      ],
+      "learning_goals_en": [
+        "Explain how paths far from the classical one cancel out.",
+        "Relate this picture to the single path of classical mechanics."
+      ],
+      "tutor_focus_fr": "Fais expliquer comment la somme sur tous les trajets redonne la trajectoire classique, puis demande ce que deviennent les autres contributions.",
+      "tutor_focus_en": "Have the student explain how the sum over all paths recovers the classical trajectory, then ask what happens to the other contributions.",
+      "example_contexts_fr": [
+        "tous les trajets possibles entre deux points",
+        "une trajectoire classique retrouvée à grande échelle",
+        "deux chemins dont les contributions s'annulent"
+      ],
+      "example_contexts_en": [
+        "every possible path between two points",
+        "a classical trajectory recovered at large scale",
+        "two paths whose contributions cancel"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.hardware_platforms",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
         "quantum_computing"
       ],
       "stage": 5,
-      "order": 35,
-      "required": false,
+      "order": 51,
+      "required": true,
       "prerequisite_keys": [
-        "quantum_physics.034"
+        "quantum_physics.quantum_error_correction"
       ],
-      "fallback_key": "quantum_physics.033",
-      "title_fr": "Physique quantique - étape 35",
-      "title_en": "Quantum physics - step 35",
-      "summary_fr": "Construire une brique claire du parcours Physique quantique au niveau 5.",
-      "summary_en": "Build one clear building block of the Quantum physics path at level 5.",
+      "fallback_key": "quantum_physics.quantum_error_correction",
+      "title_fr": "Les plateformes matérielles comparées",
+      "title_en": "Hardware platforms compared",
+      "summary_fr": "Comparer supraconducteurs, ions piégés et photons sur la vitesse, la fidélité et la connectivité.",
+      "summary_en": "Compare superconductors, trapped ions and photons on speed, fidelity and connectivity.",
       "learning_goals_fr": [
-        "Comprendre l'idée principale de l'étape 35.",
-        "L'appliquer dans un exemple court."
+        "Comparer deux plateformes sur trois critères techniques.",
+        "Dire pourquoi aucune ne domine sur tous les critères."
       ],
       "learning_goals_en": [
-        "Understand the main idea of step 35.",
-        "Apply it in a short example."
+        "Compare two platforms on three technical criteria.",
+        "Say why none dominates on every criterion."
       ],
-      "tutor_focus_fr": "Faire progresser l'étudiant sans dépasser cinq minutes ni demander de réponse libre dans PersoNewsAP.",
-      "tutor_focus_en": "Move the student forward without exceeding five minutes or asking for free-form input in PersoNewsAP.",
+      "tutor_focus_fr": "Fais comparer deux plateformes sur vitesse, fidélité et connectivité, puis demande laquelle conviendrait à un algorithme profond.",
+      "tutor_focus_en": "Have the student compare two platforms on speed, fidelity and connectivity, then ask which suits a deep algorithm.",
       "example_contexts_fr": [
-        "Exemple étudiant 35",
-        "Situation produit 35"
+        "des qubits supraconducteurs refroidis au millikelvin",
+        "des ions piégés manipulés par laser",
+        "un processeur photonique fonctionnant à température ambiante"
       ],
       "example_contexts_en": [
-        "Student example 35",
-        "Product situation 35"
+        "superconducting qubits cooled to millikelvin",
+        "trapped ions manipulated by laser",
+        "a photonic processor working at room temperature"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.quantum_advantage",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 52,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.hardware_platforms"
+      ],
+      "fallback_key": "quantum_physics.quantum_error_correction",
+      "title_fr": "Ce que signifie un avantage quantique",
+      "title_en": "What quantum advantage means",
+      "summary_fr": "Distinguer une démonstration sur une tâche artificielle d'un gain sur un problème utile.",
+      "summary_en": "Tell apart a demonstration on an artificial task and a gain on a useful problem.",
+      "learning_goals_fr": [
+        "Dire ce qu'une démonstration d'avantage établit exactement.",
+        "Citer ce qu'il faudrait pour parler d'utilité industrielle."
+      ],
+      "learning_goals_en": [
+        "Say what an advantage demonstration actually establishes.",
+        "Name what would be needed to claim industrial usefulness."
+      ],
+      "tutor_focus_fr": "Fais critiquer une annonce d'avantage quantique, puis demande quelles conditions manquent pour parler d'utilité réelle.",
+      "tutor_focus_en": "Have the student critique a quantum advantage announcement, then ask which conditions are missing to claim real usefulness.",
+      "example_contexts_fr": [
+        "un échantillonnage sans application connue",
+        "un algorithme classique amélioré après l'annonce",
+        "un problème industriel de planification"
+      ],
+      "example_contexts_en": [
+        "a sampling task with no known application",
+        "a classical algorithm improved after the announcement",
+        "an industrial scheduling problem"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.variational_algorithms",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 53,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.quantum_advantage"
+      ],
+      "fallback_key": "quantum_physics.quantum_error_correction",
+      "title_fr": "Les algorithmes hybrides variationnels",
+      "title_en": "Hybrid variational algorithms",
+      "summary_fr": "Comprendre la boucle entre un circuit court paramétré et un optimiseur classique.",
+      "summary_en": "Understand the loop between a short parameterised circuit and a classical optimiser.",
+      "learning_goals_fr": [
+        "Décrire un tour complet de la boucle hybride.",
+        "Dire pourquoi cette approche convient aux machines bruitées."
+      ],
+      "learning_goals_en": [
+        "Describe one full turn of the hybrid loop.",
+        "Say why this approach suits noisy machines."
+      ],
+      "tutor_focus_fr": "Fais décrire un tour complet de la boucle hybride, puis demande pourquoi des circuits courts sont préférés sur les machines actuelles.",
+      "tutor_focus_en": "Have the student describe one full turn of the hybrid loop, then ask why short circuits are preferred on today's machines.",
+      "example_contexts_fr": [
+        "un calcul d'énergie d'une petite molécule",
+        "un optimiseur classique qui ajuste des paramètres",
+        "un circuit volontairement court pour limiter le bruit"
+      ],
+      "example_contexts_en": [
+        "an energy computation for a small molecule",
+        "a classical optimiser adjusting parameters",
+        "a deliberately short circuit to limit noise"
+      ],
+      "safety_category": "standard"
+    },
+    {
+      "key": "quantum_physics.post_quantum_migration",
+      "domain_id": "quantum_physics",
+      "objective_ids": [
+        "quantum_computing"
+      ],
+      "stage": 5,
+      "order": 54,
+      "required": false,
+      "prerequisite_keys": [
+        "quantum_physics.variational_algorithms"
+      ],
+      "fallback_key": "quantum_physics.quantum_error_correction",
+      "title_fr": "Ce que la cryptographie doit changer",
+      "title_en": "What cryptography must change",
+      "summary_fr": "Planifier une migration cryptographique en tenant compte des données déjà interceptées.",
+      "summary_en": "Plan a cryptographic migration accounting for data already intercepted.",
+      "learning_goals_fr": [
+        "Expliquer la menace « récolter maintenant, déchiffrer plus tard ».",
+        "Ordonner les systèmes à migrer par urgence."
+      ],
+      "learning_goals_en": [
+        "Explain the “harvest now, decrypt later” threat.",
+        "Rank systems to migrate by urgency."
+      ],
+      "tutor_focus_fr": "Fais classer trois systèmes par urgence de migration, puis demande pourquoi la durée de confidentialité des données est le critère décisif.",
+      "tutor_focus_en": "Have the student rank three systems by migration urgency, then ask why the data's confidentiality lifetime is the decisive criterion.",
+      "example_contexts_fr": [
+        "un dossier médical à protéger trente ans",
+        "un jeton de session valable dix minutes",
+        "un trafic chiffré enregistré aujourd'hui pour plus tard"
+      ],
+      "example_contexts_en": [
+        "a medical record to protect for thirty years",
+        "a session token valid for ten minutes",
+        "encrypted traffic recorded today for later"
       ],
       "safety_category": "standard"
     }

@@ -38,6 +38,7 @@ export type LearningSessionRecord = {
   path_id: string;
   curriculum_step_key: string;
   session_number: number;
+  repetition_index?: number;
   adaptation_mode: LearningAdaptationMode;
   generation_status: "queued" | "generating" | "ready" | "failed";
   status: LearningSessionStatus;
@@ -81,7 +82,7 @@ export type LearningGenerationMetrics = {
 };
 
 export type LearningGenerationResult = LearningGenerationMetrics & {
-  status: "disabled" | "blocked" | "generated" | "reused" | "failed" | "no_path";
+  status: "disabled" | "blocked" | "generated" | "reused" | "failed" | "completed" | "no_path";
   reason: string;
   sessionId: string | null;
 };

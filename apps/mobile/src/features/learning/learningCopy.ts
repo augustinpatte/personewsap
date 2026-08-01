@@ -78,6 +78,11 @@ export function getLearningCopy(language: Language | null | undefined) {
           missingSelection: "Complete this step to continue.",
           error:
             "The learning path could not be created right now. Your choices are still here.",
+          loadErrorTitle: "Learning paths are unavailable",
+          loadErrorBody:
+            "The list of domains could not be loaded. Your choices are saved and will come back.",
+          retry: "Try again",
+          retrying: "Loading",
           replaceNotice:
             "Creating this path will archive the current one. Its history will stay available."
         },
@@ -226,6 +231,11 @@ export function getLearningCopy(language: Language | null | undefined) {
           missingSelection: "Complétez cette étape pour continuer.",
           error:
             "Le parcours n'a pas pu être créé pour le moment. Vos choix sont conservés.",
+          loadErrorTitle: "Les parcours sont indisponibles",
+          loadErrorBody:
+            "La liste des domaines n'a pas pu être chargée. Vos choix sont enregistrés et seront restaurés.",
+          retry: "Réessayer",
+          retrying: "Chargement",
           replaceNotice:
             "Créer ce parcours archivera le parcours actuel. Son historique restera disponible."
         },

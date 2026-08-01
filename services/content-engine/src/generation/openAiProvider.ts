@@ -6,12 +6,25 @@ export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 export const DEFAULT_OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
 export const DEFAULT_OPENAI_REQUEST_TIMEOUT_MS = 120_000;
 
+export type OpenAiRequestAttempt = {
+  model: string;
+  /** 1-based index of the HTTP attempt inside a single generateJson call. */
+  attempt: number;
+  schemaName: string;
+};
+
+export type OpenAiRequestObserver = (attempt: OpenAiRequestAttempt) => void;
+
 type OpenAiProviderOptions = {
   apiKey?: string;
   model?: string;
   fallbackModel?: string;
   endpoint?: string;
   requestTimeoutMs?: number;
+  /** When true the provider never tries a second model after a failure. */
+  disableFallback?: boolean;
+  /** Called once per real HTTP request, before it is sent. */
+  onRequestAttempt?: OpenAiRequestObserver;
 };
 
 type OpenAiResponseContent = {
@@ -37,6 +50,7 @@ export class OpenAiJsonProvider implements LlmProvider {
   private readonly models: string[];
   private readonly endpoint: string;
   private readonly requestTimeoutMs: number;
+  private readonly observers = new Set<OpenAiRequestObserver>();
 
   constructor(options: OpenAiProviderOptions = {}) {
     const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
@@ -47,16 +61,32 @@ export class OpenAiJsonProvider implements LlmProvider {
     this.apiKey = apiKey;
     this.models = uniqueModels([
       options.model ?? process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL,
-      options.fallbackModel ?? process.env.OPENAI_FALLBACK_MODEL
+      options.disableFallback ? undefined : options.fallbackModel ?? process.env.OPENAI_FALLBACK_MODEL
     ]);
     this.endpoint = options.endpoint ?? process.env.OPENAI_RESPONSES_ENDPOINT ?? DEFAULT_OPENAI_ENDPOINT;
     this.requestTimeoutMs = options.requestTimeoutMs ?? readRequestTimeoutMs();
+    if (options.onRequestAttempt) {
+      this.observers.add(options.onRequestAttempt);
+    }
+  }
+
+  /** Registers an observer for the real HTTP attempts. Returns an unsubscribe. */
+  observeRequestAttempts(observer: OpenAiRequestObserver): () => void {
+    this.observers.add(observer);
+    return () => {
+      this.observers.delete(observer);
+    };
   }
 
   async generateJson(request: LlmJsonRequest): Promise<unknown> {
     let lastError: LlmGenerationError | undefined;
+    let attempt = 0;
 
     for (const model of this.models) {
+      attempt += 1;
+      for (const observer of this.observers) {
+        observer({ model, attempt, schemaName: request.schemaName ?? "personewsap_daily_drop" });
+      }
       try {
         return await this.generateJsonWithModel(request, model);
       } catch (error) {

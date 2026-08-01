@@ -14,6 +14,7 @@ import {
   getTopicLabel
 } from "./contentCopy";
 import { useDailyDrop } from "./DailyDropContext";
+import { summarizeEditionModules } from "./editionModules";
 import { isEditionDay, nextEditionDate } from "./editionCadence";
 import type {
   BusinessStory,
@@ -63,15 +64,19 @@ export function TodayDailyDropScreen() {
   const newsletterComplete = newsletter.length > 0 && newsletter.every((item) => isItemComplete(item.id));
   const storyComplete = Boolean(story && isModuleComplete([story]));
   const miniCaseComplete = Boolean(miniCase && isModuleComplete([miniCase]));
-  const learningCountsForEdition = Boolean(learningPath.activePath && learningSession);
-  const moduleTotal = 3 + (learningCountsForEdition ? 1 : 0);
-  const moduleCompletedCount =
-    (newsletterComplete ? 1 : 0) +
-    (storyComplete ? 1 : 0) +
-    (miniCaseComplete ? 1 : 0) +
-    (learningCountsForEdition && learningCompleted ? 1 : 0);
-  const moduleProgress = moduleTotal > 0 ? moduleCompletedCount / moduleTotal : progress;
-  const editionComplete = moduleTotal > 0 && moduleCompletedCount === moduleTotal;
+  const editionModules = summarizeEditionModules({
+    newsletterArticleCount: newsletter.length,
+    newsletterCompleted: newsletterComplete,
+    hasBusinessStory: Boolean(story),
+    businessStoryCompleted: storyComplete,
+    hasMiniCase: Boolean(miniCase),
+    miniCaseCompleted: miniCaseComplete,
+    learningPathEnabled: learningPath.learningPathEnabled || Boolean(learningPath.activePath),
+    hasReadyLearningSession: Boolean(learningSession),
+    learningSessionCompleted: learningCompleted
+  });
+  const moduleProgress = editionModules.total > 0 ? editionModules.progress : progress;
+  const editionComplete = editionModules.isComplete;
   const learningCard = (
     <LearningPathCard
       completed={learningCompleted}
