@@ -24,10 +24,10 @@ export function LearningPathOverviewScreen({
   const styles = useThemedStyles(createStyles);
   const copy = getLearningCopy(language).overview;
   const {
-    activeDomain,
-    activeObjective,
-    activePath,
     completedSessions,
+    displayDomain,
+    displayObjective,
+    displayPath,
     nextAvailableAt,
     sessions,
     status
@@ -43,7 +43,7 @@ export function LearningPathOverviewScreen({
     );
   }
 
-  if (!activePath || !activeDomain || !activeObjective) {
+  if (!displayPath || !displayDomain || !displayObjective) {
     return (
       <AppScreen centered>
         <Card elevated padding="lg">
@@ -69,14 +69,17 @@ export function LearningPathOverviewScreen({
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
         <AppText variant="title">{copy.title}</AppText>
         <AppText color="muted" variant="body">
-          {localizeLearningDescription(activeObjective, language)}
+          {localizeLearningDescription(displayObjective, language)}
         </AppText>
       </View>
 
       <Card padding="lg">
-        <InfoRow label={copy.domain} value={localizeLearningField(activeDomain, language)} />
-        <InfoRow label={copy.orientation} value={localizeLearningField(activeObjective, language)} />
-        <InfoRow label={copy.status} value={copy.pathInProgress} />
+        <InfoRow label={copy.domain} value={localizeLearningField(displayDomain, language)} />
+        <InfoRow label={copy.orientation} value={localizeLearningField(displayObjective, language)} />
+        <InfoRow
+          label={copy.status}
+          value={displayPath.status === "completed" ? copy.pathCompleted : copy.pathInProgress}
+        />
         <InfoRow
           label={copy.sessionsCompleted}
           value={String(completedSessions.length)}
@@ -88,11 +91,11 @@ export function LearningPathOverviewScreen({
         />
         <InfoRow
           label={copy.currentLevel}
-          value={getCurrentLevelLabel(activePath.current_level, language)}
+          value={getCurrentLevelLabel(displayPath.current_level, language)}
         />
         <InfoRow
           label={copy.targetLevel}
-          value={getTargetLevelLabel(activePath.target_level, language)}
+          value={getTargetLevelLabel(displayPath.target_level, language)}
         />
       </Card>
 

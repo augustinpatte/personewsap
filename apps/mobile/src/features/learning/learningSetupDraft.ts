@@ -4,8 +4,10 @@ import type {
   LearningObjective,
   LearningTargetLevel
 } from "./learningTypes";
+import { minimumTargetLevelForCurrentLevel } from "./learningLevels";
 
-export const LEARNING_SETUP_DRAFT_KEY = "personewsap:learning-setup-draft:v1";
+export const LEARNING_SETUP_DRAFT_KEY_V1 = "personewsap:learning-setup-draft:v1";
+export const LEARNING_SETUP_DRAFT_KEY_PREFIX = "personewsap:learning-setup-draft:v2";
 
 export type LearningSetupStep = 0 | 1 | 2 | 3 | 4;
 
@@ -16,6 +18,10 @@ export type LearningSetupDraft = {
   targetLevel: LearningTargetLevel | null;
   currentStep: LearningSetupStep;
 };
+
+export function getLearningSetupDraftKey(userId: string | null | undefined): string {
+  return `${LEARNING_SETUP_DRAFT_KEY_PREFIX}:${userId ?? "anonymous"}`;
+}
 
 export function parseLearningSetupDraft(value: string | null): Partial<LearningSetupDraft> | null {
   if (!value) {
@@ -51,7 +57,11 @@ export function reconcileLearningSetupDraft(
       ? draft.objectiveId
       : null;
   const currentLevel = isLearningCurrentLevel(draft?.currentLevel) ? draft.currentLevel : null;
-  const targetLevel = isLearningTargetLevel(draft?.targetLevel) ? draft.targetLevel : null;
+  const targetLevel =
+    isLearningTargetLevel(draft?.targetLevel) &&
+    (!currentLevel || draft.targetLevel >= minimumTargetLevelForCurrentLevel(currentLevel))
+      ? draft.targetLevel
+      : null;
 
   return {
     domainId,

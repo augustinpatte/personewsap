@@ -55,10 +55,16 @@ export function TodayDailyDropScreen() {
   const newsletter = drop.items.newsletter;
   const story = drop.items.business_story;
   const miniCase = drop.items.mini_case;
-  const learningSession =
-    learningPath.availableSession ?? null;
+  const linkedLearningSession = learningPath.getSessionForDrop(drop.id);
+  const carryoverLearningSession =
+    learningPath.availableSession &&
+    ["available", "opened"].includes(learningPath.availableSession.status)
+      ? learningPath.availableSession
+      : null;
+  const learningSession = linkedLearningSession ?? carryoverLearningSession;
   const learningCompleted =
     Boolean(learningSession?.started_at) ||
+    Boolean(learningSession?.completed_at) ||
     learningSession?.status === "started" ||
     learningSession?.status === "completed";
   const newsletterComplete = newsletter.length > 0 && newsletter.every((item) => isItemComplete(item.id));
@@ -71,7 +77,8 @@ export function TodayDailyDropScreen() {
     businessStoryCompleted: storyComplete,
     hasMiniCase: Boolean(miniCase),
     miniCaseCompleted: miniCaseComplete,
-    learningPathEnabled: learningPath.learningPathEnabled || Boolean(learningPath.activePath),
+    learningPathEnabled:
+      learningPath.learningPathEnabled || Boolean(learningPath.activePath) || Boolean(learningPath.latestCompletedPath),
     hasReadyLearningSession: Boolean(learningSession),
     learningSessionCompleted: learningCompleted
   });
@@ -80,10 +87,10 @@ export function TodayDailyDropScreen() {
   const learningCard = (
     <LearningPathCard
       completed={learningCompleted}
-      domain={learningPath.activeDomain}
-      hasPath={Boolean(learningPath.activePath)}
+      domain={learningPath.displayDomain}
+      hasPath={Boolean(learningPath.displayPath)}
       language={language}
-      objective={learningPath.activeObjective}
+      objective={learningPath.displayObjective}
       onCreate={() => router.push("/(learning)/setup" as Href)}
       onOpenOverview={() => router.push("/(learning)/overview" as Href)}
       onOpenSession={() => {

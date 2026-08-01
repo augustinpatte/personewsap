@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getLearningSetupDraftKey,
   parseLearningSetupDraft,
   reconcileLearningSetupDraft,
   resolveLearningSetupStep
@@ -82,6 +83,22 @@ describe("learning setup draft", () => {
     expect(restored.currentLevel).toBeNull();
     expect(restored.targetLevel).toBeNull();
     expect(restored.currentStep).toBe(1);
+  });
+
+  it("drops a target level below the selected current level floor", () => {
+    const restored = reconcileLearningSetupDraft(
+      { domainId: "computer_science", currentLevel: 6, targetLevel: 4, currentStep: 4 },
+      { domains: DOMAINS, objectives: OBJECTIVES }
+    );
+
+    expect(restored.currentLevel).toBe(6);
+    expect(restored.targetLevel).toBeNull();
+    expect(restored.currentStep).toBe(2);
+  });
+
+  it("scopes setup drafts by user id", () => {
+    expect(getLearningSetupDraftKey("user-1")).toBe("personewsap:learning-setup-draft:v2:user-1");
+    expect(getLearningSetupDraftKey(null)).toBe("personewsap:learning-setup-draft:v2:anonymous");
   });
 
   it("returns an empty draft rather than throwing on corrupted storage", () => {

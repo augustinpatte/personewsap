@@ -1597,7 +1597,7 @@ export class ContentRepository {
   async listLearningSessions(pathId: string): Promise<LearningSessionRecord[]> {
     const { data, error } = await this.supabase
       .from("learning_sessions")
-      .select("id,path_id,curriculum_step_key,session_number,repetition_index,adaptation_mode,generation_status,status,opened_at,started_at,completed_at")
+      .select("id,path_id,daily_drop_id,curriculum_step_key,skipped_step_key,session_number,repetition_index,adaptation_mode,generation_status,status,available_on,opened_at,started_at,completed_at")
       .eq("path_id", pathId)
       .order("session_number", { ascending: true })
       .returns<LearningSessionRecord[]>();
@@ -1639,7 +1639,9 @@ export class ContentRepository {
   async insertLearningSessionClaim(input: {
     pathId: string;
     dailyDropId: string;
+    dropDate: string;
     curriculumStepKey: string;
+    skippedStepKey: string | null;
     sessionNumber: number;
     repetitionIndex: number;
     adaptationMode: LearningAdaptationMode;
@@ -1653,6 +1655,7 @@ export class ContentRepository {
         path_id: input.pathId,
         daily_drop_id: input.dailyDropId,
         curriculum_step_key: input.curriculumStepKey,
+        skipped_step_key: input.skippedStepKey,
         session_number: input.sessionNumber,
         repetition_index: input.repetitionIndex,
         adaptation_mode: input.adaptationMode,
@@ -1662,7 +1665,7 @@ export class ContentRepository {
         generation_attempts: 1,
         generation_locked_at: new Date().toISOString(),
         status: "available",
-        available_on: new Date().toISOString().slice(0, 10)
+        available_on: input.dropDate
       })
       .select("id")
       .single<{ id: string }>();
@@ -1674,7 +1677,7 @@ export class ContentRepository {
     if (error && isUniqueConflict(error)) {
       const { data: existing, error: selectError } = await this.supabase
         .from("learning_sessions")
-        .select("id,generation_status,generation_attempts,generation_locked_at")
+        .select("id,generation_status,generation_attempts,generation_locked_at,input_hash")
         .eq("path_id", input.pathId)
         .eq("session_number", input.sessionNumber)
         .single<ExistingLearningSessionClaimRow>();
@@ -1691,6 +1694,10 @@ export class ContentRepository {
         return { claimed: false, sessionId: existing.id };
       }
 
+      if (existing.input_hash && existing.input_hash !== input.inputHash) {
+        return { claimed: false, sessionId: existing.id };
+      }
+
       const nextAttempt = (existing.generation_attempts ?? 0) + 1;
       if (nextAttempt > maxAttempts) {
         return { claimed: false, sessionId: existing.id, exhausted: true };
@@ -1703,6 +1710,7 @@ export class ContentRepository {
         .update({
           daily_drop_id: input.dailyDropId,
           curriculum_step_key: input.curriculumStepKey,
+          skipped_step_key: input.skippedStepKey,
           repetition_index: input.repetitionIndex,
           adaptation_mode: input.adaptationMode,
           language: input.language,
@@ -1740,6 +1748,24 @@ export class ContentRepository {
       action: "insert learning session claim",
       error
     });
+  }
+
+  async attachLearningSessionToDailyDrop(input: { sessionId: string; dailyDropId: string }): Promise<void> {
+    const { error } = await this.supabase
+      .from("learning_sessions")
+      .update({
+        daily_drop_id: input.dailyDropId,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", input.sessionId);
+
+    if (error) {
+      throwPersistenceError({
+        table: "learning_sessions",
+        action: "attach learning session to daily drop",
+        error
+      });
+    }
   }
 
   async markLearningPathCompleted(input: { pathId: string }): Promise<void> {
@@ -2194,7 +2220,10 @@ function normalizeArticlesCount(value: number | null): number {
   return Number.isFinite(value) && value && value > 0 ? Math.floor(value) : 1;
 }
 
-type ExistingLearningSessionClaimRow = LearningGenerationLockState & { id: string };
+type ExistingLearningSessionClaimRow = LearningGenerationLockState & {
+  id: string;
+  input_hash: string | null;
+};
 
 function readLearningGenerationMaxAttempts(): number {
   const raw = Number.parseInt(

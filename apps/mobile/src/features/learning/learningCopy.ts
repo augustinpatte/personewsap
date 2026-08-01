@@ -8,12 +8,14 @@ export function getLearningCopy(language: Language | null | undefined) {
         account: {
           title: "Learning path",
           description: "Your active five-minute learning path.",
+          completedDescription: "Your last path is complete. Its history stays available.",
           disabledTitle: "Personal learning path off",
           disabledBody: "Activate a progressive five-minute path, four times per week.",
           enable: "Activate path",
           emptyTitle: "Create your learning path",
           emptyBody: "Choose one bilingual path. It will become the fourth module in Today.",
           change: "Change path",
+          newPath: "Start a new path",
           overview: "View path",
           disable: "Disable path",
           disableTitle: "Disable learning path?",
@@ -145,6 +147,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           sessionsCompleted: "Sessions completed",
           conceptsStudied: "Concepts studied",
           pathInProgress: "Path in progress",
+          pathCompleted: "Path completed",
           history: "Session history",
           noHistory: "No completed session yet.",
           nextEdition: "Next edition",
@@ -159,6 +162,7 @@ export function getLearningCopy(language: Language | null | undefined) {
         account: {
           title: "Parcours",
           description: "Votre parcours d'apprentissage actif en cinq minutes.",
+          completedDescription: "Votre dernier parcours est terminé. Son historique reste disponible.",
           disabledTitle: "Parcours personnalisé désactivé",
           disabledBody:
             "Activez un parcours progressif de cinq minutes, quatre fois par semaine.",
@@ -167,6 +171,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           emptyBody:
             "Choisissez un seul parcours bilingue. Il deviendra le quatrième module dans Aujourd'hui.",
           change: "Changer de parcours",
+          newPath: "Commencer un nouveau parcours",
           overview: "Voir le parcours",
           disable: "Désactiver le parcours",
           disableTitle: "Désactiver le parcours ?",
@@ -300,6 +305,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           sessionsCompleted: "Sessions terminées",
           conceptsStudied: "Concepts étudiés",
           pathInProgress: "Parcours en cours",
+          pathCompleted: "Parcours terminé",
           history: "Historique des sessions",
           noHistory: "Aucune session terminée pour le moment.",
           nextEdition: "Prochaine édition",

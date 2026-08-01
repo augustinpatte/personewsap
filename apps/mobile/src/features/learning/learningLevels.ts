@@ -101,6 +101,24 @@ export function getTargetLevelOptions(language: Language | null | undefined) {
   );
 }
 
+export function minimumTargetLevelForCurrentLevel(
+  currentLevel: LearningCurrentLevel | null | undefined
+): LearningTargetLevel {
+  if (currentLevel === 3) return 2;
+  if (currentLevel === 4) return 3;
+  if (currentLevel === 5) return 4;
+  if (currentLevel === 6 || currentLevel === 7) return 5;
+  return 1;
+}
+
+export function getAllowedTargetLevelOptions(
+  currentLevel: LearningCurrentLevel | null | undefined,
+  language: Language | null | undefined
+) {
+  const minimum = minimumTargetLevelForCurrentLevel(currentLevel);
+  return getTargetLevelOptions(language).filter((option) => option.value >= minimum);
+}
+
 export function getCurrentLevelLabel(
   level: LearningCurrentLevel,
   language: Language | null | undefined

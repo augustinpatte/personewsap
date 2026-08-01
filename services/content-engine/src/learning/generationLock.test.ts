@@ -116,12 +116,14 @@ describe("concurrent recovery of a stale generating session", () => {
 function claim(dailyDropId: string) {
   return {
     pathId: PATH.id,
-    dailyDropId,
-    curriculumStepKey: "computer_science.machine_layers",
-    sessionNumber: 1,
-    repetitionIndex: 0,
-    adaptationMode: "normal" as const,
-    language: "en",
-    inputHash: `hash-${dailyDropId}`
+      dailyDropId,
+      dropDate: "2026-08-01",
+      curriculumStepKey: "computer_science.machine_layers",
+      skippedStepKey: null,
+      sessionNumber: 1,
+      repetitionIndex: 0,
+      adaptationMode: "normal" as const,
+      language: "en",
+      inputHash: "hash-computer-science-machine-layers-session-1"
   };
 }

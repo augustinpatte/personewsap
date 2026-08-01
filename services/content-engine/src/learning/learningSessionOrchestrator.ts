@@ -1,11 +1,12 @@
 import { sha256 } from "../utils/hash.js";
 import { loadLearningCatalog, pickNextLearningStep } from "./catalogLoader.js";
 import { createLearningRequestMeter, generateLearningPrompt } from "./learningPromptGenerator.js";
-import type { LearningPromptProvider } from "./learningPromptGenerator.js";
+import type { LearningProviderResolution } from "./learningProviderResolver.js";
 import type {
   LearningFeedbackRecord,
   LearningGenerationResult,
   LearningPathRecord,
+  LearningPromptFeedback,
   LearningSessionRecord
 } from "./learningTypes.js";
 import { emptyLearningGenerationMetrics } from "./learningTypes.js";
@@ -22,7 +23,9 @@ export type LearningSessionRepository = {
   insertLearningSessionClaim(input: {
     pathId: string;
     dailyDropId: string;
+    dropDate: string;
     curriculumStepKey: string;
+    skippedStepKey: string | null;
     sessionNumber: number;
     repetitionIndex: number;
     adaptationMode: LearningAdaptationMode;
@@ -38,6 +41,7 @@ export type LearningSessionRepository = {
   }): Promise<void>;
   markLearningSessionFailed(input: { sessionId: string; error: string }): Promise<void>;
   markLearningPathCompleted(input: { pathId: string }): Promise<void>;
+  attachLearningSessionToDailyDrop(input: { sessionId: string; dailyDropId: string }): Promise<void>;
 };
 
 export async function generateLearningSessionForUser(input: {
@@ -45,7 +49,7 @@ export async function generateLearningSessionForUser(input: {
   userId: string;
   dailyDropId: string;
   dropDate: string;
-  provider: LearningPromptProvider | "deterministic";
+  providerResolution: LearningProviderResolution;
 }): Promise<LearningGenerationResult> {
   const result: LearningGenerationResult = {
     ...emptyLearningGenerationMetrics(),
@@ -65,7 +69,10 @@ export async function generateLearningSessionForUser(input: {
     input.repository.listLearningSessions(path.id),
     input.repository.listLearningFeedback(path.id)
   ]);
-  const readySessions = sessions.filter((session) => session.generation_status === "ready");
+  const orderedReadySessions = sessions
+    .filter((session) => session.generation_status === "ready")
+    .sort((left, right) => left.session_number - right.session_number);
+  const latestReadySession = orderedReadySessions.at(-1) ?? null;
   const feedbackBySessionId = new Map(
     feedbackRows.map((feedback) => [
       feedback.session_id,
@@ -79,7 +86,7 @@ export async function generateLearningSessionForUser(input: {
   );
   const decision = planNextLearningSession({
     activePathId: path.id,
-    sessions: readySessions.map((session) => ({
+    sessions: orderedReadySessions.map((session) => ({
       id: session.id,
       sequenceNumber: session.session_number,
       status: session.status,
@@ -95,10 +102,22 @@ export async function generateLearningSessionForUser(input: {
   if (decision.action === "skip") {
     if (decision.reason === "blocked_by_available_session") result.learning_sessions_blocked_available = 1;
     if (decision.reason === "blocked_by_opened_session") result.learning_sessions_blocked_opened = 1;
-    return { ...result, status: "blocked", reason: decision.reason };
+    if (
+      latestReadySession &&
+      (decision.reason === "blocked_by_available_session" || decision.reason === "blocked_by_opened_session")
+    ) {
+      await input.repository.attachLearningSessionToDailyDrop({
+        sessionId: latestReadySession.id,
+        dailyDropId: input.dailyDropId
+      });
+      result.learning_sessions_carried_forward = 1;
+    }
+    return { ...result, status: "blocked", reason: decision.reason, sessionId: latestReadySession?.id ?? null };
   }
 
-  return createNextSession({ ...input, path, sessions: readySessions, feedbackRows, decision });
+  const latestFeedback = latestReadySession ? feedbackBySessionId.get(latestReadySession.id) ?? null : null;
+
+  return createNextSession({ ...input, path, sessions: orderedReadySessions, latestFeedback, decision });
 }
 
 async function createNextSession(input: {
@@ -106,10 +125,10 @@ async function createNextSession(input: {
   userId: string;
   dailyDropId: string;
   dropDate: string;
-  provider: LearningPromptProvider | "deterministic";
+  providerResolution: LearningProviderResolution;
   path: LearningPathRecord;
   sessions: LearningSessionRecord[];
-  feedbackRows: LearningFeedbackRecord[];
+  latestFeedback: LearningPromptFeedback | null;
   decision: Extract<LearningSchedulerDecision, { action: "create" }>;
 }): Promise<LearningGenerationResult> {
   const result: LearningGenerationResult = {
@@ -124,6 +143,9 @@ async function createNextSession(input: {
   const usedStepKeys = new Map<string, number>();
   for (const session of orderedSessions) {
     usedStepKeys.set(session.curriculum_step_key, (usedStepKeys.get(session.curriculum_step_key) ?? 0) + 1);
+    if (session.skipped_step_key) {
+      usedStepKeys.set(session.skipped_step_key, (usedStepKeys.get(session.skipped_step_key) ?? 0) + 1);
+    }
   }
 
   const selection = pickNextLearningStep({
@@ -145,6 +167,16 @@ async function createNextSession(input: {
     return { ...result, status: "completed", reason: "target_level_reached" };
   }
 
+  if (input.providerResolution.status === "unavailable") {
+    result.learning_sessions_failed = 1;
+    return {
+      ...result,
+      status: "failed",
+      reason: "learning_provider_unavailable",
+      sessionId: null
+    };
+  }
+
   const step = selection.step;
   const inputHash = sha256(JSON.stringify({
     path: {
@@ -155,6 +187,7 @@ async function createNextSession(input: {
       language: input.path.language
     },
     step: step.key,
+    skipped_step_key: selection.skippedStepKey,
     session_number: input.decision.nextSequenceNumber,
     repetition_index: selection.repetitionIndex,
     adaptation_mode: input.decision.adaptationMode
@@ -162,7 +195,9 @@ async function createNextSession(input: {
   const claim = await input.repository.insertLearningSessionClaim({
     pathId: input.path.id,
     dailyDropId: input.dailyDropId,
+    dropDate: input.dropDate,
     curriculumStepKey: step.key,
+    skippedStepKey: selection.skippedStepKey,
     sessionNumber: input.decision.nextSequenceNumber,
     repetitionIndex: selection.repetitionIndex,
     adaptationMode: input.decision.adaptationMode,
@@ -187,13 +222,13 @@ async function createNextSession(input: {
 
   try {
     const generated = await generateLearningPrompt({
-      provider: input.provider,
+      provider: input.providerResolution.provider,
       path: input.path,
       step,
       adaptationMode: input.decision.adaptationMode,
       repetitionIndex: selection.repetitionIndex,
       previousStepKeys: orderedSessions.map((session) => session.curriculum_step_key),
-      feedback: input.feedbackRows.at(-1) ?? null,
+      feedback: input.latestFeedback,
       meter
     });
     result.learning_api_calls = meter.httpRequests;

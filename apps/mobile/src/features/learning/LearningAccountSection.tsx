@@ -28,9 +28,10 @@ export function LearningAccountSection({
   const styles = useThemedStyles(createStyles);
   const copy = getLearningCopy(language).account;
   const {
-    activeDomain,
-    activeObjective,
     activePath,
+    displayDomain,
+    displayObjective,
+    displayPath,
     completedSessions,
     disableLearningPath,
     sessions,
@@ -46,18 +47,18 @@ export function LearningAccountSection({
       <Card tone="muted">
         <View style={styles.cardBody}>
           <AppText variant="subtitle">{copy.title}</AppText>
-          {activePath && activeDomain && activeObjective ? (
+          {displayPath && displayDomain && displayObjective ? (
             <>
               <AppText color="muted" variant="body">
-                {copy.description}
+                {activePath ? copy.description : copy.completedDescription}
               </AppText>
               <View style={styles.summary}>
-                <AppText variant="bodyStrong">{localizeLearningField(activeDomain, language)}</AppText>
+                <AppText variant="bodyStrong">{localizeLearningField(displayDomain, language)}</AppText>
                 <AppText color="muted" variant="body">
-                  {localizeLearningField(activeObjective, language)}
+                  {localizeLearningField(displayObjective, language)}
                 </AppText>
                 <AppText color="muted" variant="caption">
-                  {localizeLearningDescription(activeObjective, language)}
+                  {localizeLearningDescription(displayObjective, language)}
                 </AppText>
                 <AppText color="accentInk" variant="label">
                   {copy.sessionsStarted(startedCount)}
@@ -68,8 +69,10 @@ export function LearningAccountSection({
               </View>
               <View style={styles.actions}>
                 <SecondaryButton label={copy.overview} onPress={onOverview} />
-                <SecondaryButton label={copy.change} onPress={() => setReplaceVisible(true)} />
-                <SecondaryButton label={copy.disable} onPress={() => setDisableVisible(true)} />
+                <SecondaryButton label={activePath ? copy.change : copy.newPath} onPress={() => setReplaceVisible(true)} />
+                {activePath ? (
+                  <SecondaryButton label={copy.disable} onPress={() => setDisableVisible(true)} />
+                ) : null}
               </View>
             </>
           ) : (

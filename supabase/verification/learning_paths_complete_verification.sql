@@ -1,5 +1,6 @@
 -- Learning Paths complete verification.
--- Run after applying 20260731190000_learning_paths_complete_repair.sql.
+-- Run after applying all Learning migrations through
+-- 20260801090000_learning_paths_final_fixes.sql.
 
 DO $$
 DECLARE
@@ -101,6 +102,24 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'learning_sessions'
+      AND column_name = 'skipped_step_key'
+  ) THEN
+    RAISE EXCEPTION 'Missing learning_sessions.skipped_step_key';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'learning_sessions_skipped_step_key_check'
+  ) THEN
+    RAISE EXCEPTION 'Missing skipped_step_key constraint';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
     FROM pg_policies
     WHERE schemaname = 'public'
       AND tablename = 'learning_sessions'
@@ -110,9 +129,10 @@ BEGIN
   END IF;
 
   SELECT public.learning_paths_healthcheck() INTO v_health;
-  IF v_health->>'schema_version' <> '1.0'
+  IF v_health->>'schema_version' <> '1.1'
     OR (v_health->>'domain_count')::INTEGER <> 7
     OR (v_health->>'objective_count')::INTEGER <> 21
+    OR (v_health->>'ready')::BOOLEAN IS NOT TRUE
   THEN
     RAISE EXCEPTION 'Unexpected healthcheck payload: %', v_health;
   END IF;

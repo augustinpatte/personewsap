@@ -41,6 +41,13 @@ export type LearningStepSelection =
       skippedStepKey: string | null;
     };
 
+export class InvalidLearningLevelRangeError extends Error {
+  constructor(currentLevel: number, targetLevel: number) {
+    super(`Invalid learning level range: current_level=${currentLevel} target_level=${targetLevel}.`);
+    this.name = "InvalidLearningLevelRangeError";
+  }
+}
+
 export async function loadLearningCatalog(): Promise<LearningCatalogStep[]> {
   const index = JSON.parse(await readFile(path.join(CATALOG_ROOT, "catalog-index.json"), "utf8")) as {
     domains: Array<{ file: string }>;
@@ -78,7 +85,10 @@ export function pickNextLearningStep(input: {
   lastStepKey: string | null;
 }): LearningStepSelection {
   const startStage = resolveLearningStartStage(input.currentLevel);
-  const maxStage = Math.max(resolveLearningMaxStage(input.targetLevel), startStage);
+  const maxStage = resolveLearningMaxStage(input.targetLevel);
+  if (maxStage < startStage) {
+    throw new InvalidLearningLevelRangeError(input.currentLevel, input.targetLevel);
+  }
   const orientationSteps = input.catalog
     .filter((step) => step.domain_id === input.domainId)
     .filter((step) => step.objective_ids.includes(input.objectiveId))
@@ -109,10 +119,36 @@ export function pickNextLearningStep(input: {
 
   // accelerate skips at most one step, and never a required one.
   if (input.adaptationMode === "accelerate" && available.length > 1 && !available[0].required) {
-    return selected(available[1], input.usedStepKeys, available[0].key);
+    const skipped = validateSkippedStep({
+      selectedStep: available[1],
+      skippedStep: available[0],
+      domainId: input.domainId,
+      objectiveId: input.objectiveId
+    });
+    return selected(available[1], input.usedStepKeys, skipped.key);
   }
 
   return selected(available[0], input.usedStepKeys, null);
+}
+
+function validateSkippedStep(input: {
+  selectedStep: LearningCatalogStep;
+  skippedStep: LearningCatalogStep;
+  domainId: string;
+  objectiveId: string;
+}): LearningCatalogStep {
+  const { selectedStep, skippedStep } = input;
+  if (
+    skippedStep.key === selectedStep.key ||
+    skippedStep.domain_id !== input.domainId ||
+    skippedStep.domain_id !== selectedStep.domain_id ||
+    !skippedStep.objective_ids.includes(input.objectiveId) ||
+    skippedStep.required
+  ) {
+    throw new Error(`Invalid accelerated skip from ${skippedStep.key} to ${selectedStep.key}.`);
+  }
+
+  return skippedStep;
 }
 
 function selected(

@@ -599,6 +599,7 @@ export type Database = {
           created_at: string;
           updated_at: string;
           archived_at: string | null;
+          completed_at: string | null;
         },
         {
           id?: string;
@@ -612,6 +613,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           archived_at?: string | null;
+          completed_at?: string | null;
         },
         {
           id?: string;
@@ -625,6 +627,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           archived_at?: string | null;
+          completed_at?: string | null;
         }
       >;
       learning_sessions: TableDefinition<
@@ -633,6 +636,7 @@ export type Database = {
           path_id: string;
           daily_drop_id: string | null;
           curriculum_step_key: string;
+          skipped_step_key: string | null;
           session_number: number;
           adaptation_mode: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
           title_fr: string;
@@ -656,6 +660,7 @@ export type Database = {
           path_id: string;
           daily_drop_id?: string | null;
           curriculum_step_key: string;
+          skipped_step_key?: string | null;
           session_number: number;
           adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
           title_fr: string;
@@ -679,6 +684,7 @@ export type Database = {
           path_id?: string;
           daily_drop_id?: string | null;
           curriculum_step_key?: string;
+          skipped_step_key?: string | null;
           session_number?: number;
           adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
           title_fr?: string;

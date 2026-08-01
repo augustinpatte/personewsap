@@ -144,11 +144,14 @@ describe("learning adaptation behaviours", () => {
     });
   });
 
-  it("keeps a required step reachable after an accelerated skip", () => {
-    const used = new Map([["base_1", 1], ["track_s1", 1], ["track_s2_a", 1], ["track_s3_a", 1]]);
+  it("persists an accelerated optional skip and never returns that optional step", () => {
+    const used = new Map([["base_1", 1], ["track_s1", 1], ["track_s2_a", 1], ["track_s2_b", 1], ["track_s3_a", 1]]);
 
-    // track_s2_b was skipped: the next required step must still be offered.
-    expect(pick({ currentLevel: 1, targetLevel: 5, used, lastStepKey: "track_s3_a" }).step?.key).toBe("track_s2_b");
+    expect(pick({ currentLevel: 1, targetLevel: 5, used, lastStepKey: "track_s3_a" }).step?.key).toBe("track_s3_b");
+  });
+
+  it("rejects target ranges below the current level instead of silently widening them", () => {
+    expect(() => pick({ currentLevel: 5, targetLevel: 3 })).toThrow("Invalid learning level range");
   });
 });
 

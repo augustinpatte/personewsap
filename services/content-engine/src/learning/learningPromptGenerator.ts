@@ -2,7 +2,12 @@ import type { LlmProvider } from "../generation/llmProvider.js";
 import type { OpenAiRequestAttempt } from "../generation/openAiProvider.js";
 import type { LearningAdaptationMode } from "./sessionLifecycle.js";
 import { LEARNING_PROMPT_SCHEMA } from "./learningPromptSchema.js";
-import type { GeneratedLearningPrompt, LearningCatalogStep, LearningPathRecord } from "./learningTypes.js";
+import type {
+  GeneratedLearningPrompt,
+  LearningCatalogStep,
+  LearningPathRecord,
+  LearningPromptFeedback
+} from "./learningTypes.js";
 
 export const DETERMINISTIC_LEARNING_MODEL = "deterministic-learning-v1";
 
@@ -31,7 +36,7 @@ export async function generateLearningPrompt(input: {
   adaptationMode: LearningAdaptationMode;
   repetitionIndex: number;
   previousStepKeys: string[];
-  feedback: Record<string, unknown> | null;
+  feedback: LearningPromptFeedback | null;
   meter?: LearningRequestMeter;
 }): Promise<{ prompt: GeneratedLearningPrompt; apiCalls: number; modelName: string }> {
   const meter = input.meter ?? createLearningRequestMeter();
@@ -69,7 +74,7 @@ export async function generateLearningPrompt(input: {
         target_level: input.path.target_level,
         curriculum_step: input.step,
         previous_step_keys: input.previousStepKeys.slice(-5),
-        last_feedback: input.feedback,
+        last_feedback: serializePromptFeedback(input.feedback),
         adaptation_mode: input.adaptationMode,
         repetition_index: input.repetitionIndex,
         repetition_instruction: repetitionInstruction(input.adaptationMode, input.repetitionIndex),
@@ -87,6 +92,17 @@ export async function generateLearningPrompt(input: {
     apiCalls: meter.httpRequests,
     modelName: meter.modelName ?? provider.name
   };
+}
+
+function serializePromptFeedback(feedback: LearningPromptFeedback | null): Record<string, number> | null {
+  return feedback
+    ? {
+        comprehension_rating: feedback.comprehensionRating,
+        explainability_rating: feedback.explainabilityRating,
+        interest_rating: feedback.interestRating,
+        difficulty_rating: feedback.difficultyRating
+      }
+    : null;
 }
 
 export function validateGeneratedLearningPrompt(

@@ -15,6 +15,7 @@ import {
 import { LlmContentGenerator } from "../generation/llmGenerator.js";
 import { classifyLlmFailure, serializeLlmFailure, type LlmFailureReason } from "../generation/llmErrors.js";
 import { OpenAiJsonProvider } from "../generation/openAiProvider.js";
+import { resolveLearningProvider } from "../learning/learningProviderResolver.js";
 import { StructuredContentGenerator } from "../generation/structuredGenerator.js";
 import type { ContentGenerator } from "../generation/types.js";
 import { assertValidDailyDropPayload } from "../generation/validation.js";
@@ -970,6 +971,18 @@ async function assignStoredDropToUsers(input: {
   const miniCaseFallbackReasons: Record<string, number> = {};
   const miniCaseSelectedTopicCounts: Record<string, number> = {};
   const learning = emptyLearningGenerationMetrics();
+  const learningProviderResolution = resolveLearningProvider({
+    useLlm: input.useLlm
+  });
+
+  if (learningProviderResolution.status === "unavailable") {
+    logProgress("learning provider unavailable", {
+      drop_date: input.dropDate,
+      language: input.language,
+      use_llm: input.useLlm,
+      error: serializePersistenceError(learningProviderResolution.error)
+    }, input.logPrefix);
+  }
 
   for (const preference of candidates) {
     const existingDrop = existingDrops.get(preference.user_id);
@@ -1063,14 +1076,7 @@ async function assignStoredDropToUsers(input: {
       userId: preference.user_id,
       dailyDropId: assignment.dailyDropId,
       dropDate: input.dropDate,
-      // Learning generation is capped at one HTTP request per attempt: no
-      // fallback model, a failure is retried by the next daily job instead.
-      provider: input.useLlm
-        ? new OpenAiJsonProvider({
-            model: process.env.OPENAI_LEARNING_MODEL ?? process.env.OPENAI_MODEL,
-            disableFallback: true
-          })
-        : "deterministic"
+      providerResolution: learningProviderResolution
     }).catch((error) => {
       logProgress("learning session generation failed without blocking daily drop", {
         user_id: redactIdentifier(preference.user_id),
@@ -1285,6 +1291,7 @@ function mergeLearningMetrics(target: LearningGenerationMetrics, source: Learnin
   target.learning_sessions_generated += source.learning_sessions_generated;
   target.learning_sessions_reused += source.learning_sessions_reused;
   target.learning_sessions_failed += source.learning_sessions_failed;
+  target.learning_sessions_carried_forward += source.learning_sessions_carried_forward;
   target.learning_paths_completed += source.learning_paths_completed;
   target.learning_api_calls += source.learning_api_calls;
 }

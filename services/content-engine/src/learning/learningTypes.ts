@@ -36,12 +36,15 @@ export type LearningPathRecord = {
 export type LearningSessionRecord = {
   id: string;
   path_id: string;
+  daily_drop_id?: string | null;
   curriculum_step_key: string;
+  skipped_step_key: string | null;
   session_number: number;
   repetition_index?: number;
   adaptation_mode: LearningAdaptationMode;
   generation_status: "queued" | "generating" | "ready" | "failed";
   status: LearningSessionStatus;
+  available_on?: string | null;
   opened_at: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -53,6 +56,13 @@ export type LearningFeedbackRecord = {
   explainability_rating: number;
   interest_rating: number;
   difficulty_rating: number;
+};
+
+export type LearningPromptFeedback = {
+  comprehensionRating: number;
+  explainabilityRating: number;
+  interestRating: number;
+  difficultyRating: number;
 };
 
 export type GeneratedLearningPrompt = {
@@ -77,6 +87,7 @@ export type LearningGenerationMetrics = {
   learning_sessions_generated: number;
   learning_sessions_reused: number;
   learning_sessions_failed: number;
+  learning_sessions_carried_forward: number;
   learning_paths_completed: number;
   learning_api_calls: number;
 };
@@ -97,6 +108,7 @@ export function emptyLearningGenerationMetrics(): LearningGenerationMetrics {
     learning_sessions_generated: 0,
     learning_sessions_reused: 0,
     learning_sessions_failed: 0,
+    learning_sessions_carried_forward: 0,
     learning_paths_completed: 0,
     learning_api_calls: 0
   };

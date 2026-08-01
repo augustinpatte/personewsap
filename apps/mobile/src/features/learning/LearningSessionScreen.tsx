@@ -35,7 +35,9 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   const copy = getLearningCopy(language).session;
   const session = sessionId ? getSessionById(sessionId) : undefined;
   const [promptVisible, setPromptVisible] = useState(false);
-  const [promptUsed, setPromptUsed] = useState(false);
+  const [promptUsed, setPromptUsed] = useState(
+    Boolean(session?.started_at) || session?.status === "started" || session?.status === "completed"
+  );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const openedSessionIdRef = useRef<string | null>(null);
 
@@ -52,9 +54,13 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     void markSessionOpened(session.id);
   }, [language, markSessionOpened, session]);
 
+  useEffect(() => {
+    setPromptUsed(Boolean(session?.started_at) || session?.status === "started" || session?.status === "completed");
+  }, [session?.started_at, session?.status]);
+
   const copyPrompt = async () => {
     if (!session?.prompt_text) {
-      return false;
+      return { copied: false, syncPending: false };
     }
 
     await Clipboard.setStringAsync(session.prompt_text);
@@ -65,14 +71,14 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     trackAnalyticsEvent("learning_prompt_copied", {
       language: language ?? undefined
     });
-    return true;
+    return { copied: true, syncPending: result.syncPending };
   };
 
   const openProvider = async (providerId: LearningProviderId) => {
     const copied = await copyPrompt();
     const provider = LEARNING_PROVIDER_LINKS[providerId];
 
-    if (!copied) {
+    if (!copied.copied) {
       return;
     }
 
@@ -87,7 +93,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
       trackAnalyticsEvent("learning_provider_opened", {
         language: language ?? undefined
       });
-      setStatusMessage(copy.promptCopied);
+      setStatusMessage(copied.syncPending ? copy.syncPending : copy.promptCopied);
     } catch {
       setStatusMessage(copy.openFailed);
     }

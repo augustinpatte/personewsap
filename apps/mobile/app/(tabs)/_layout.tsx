@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../src/design";
 import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
 import { useLearningPath } from "../../src/features/learning";
+import { shouldRedirectToLearningSetup } from "../../src/features/learning/learningPathRouting";
 import { localized } from "../../src/lib/i18n";
 
 export default function TabsLayout() {
@@ -41,12 +42,15 @@ export default function TabsLayout() {
   }
 
   if (
-    status === "ready" &&
-    learningPath.status === "ready" &&
-    learningPath.source === "supabase" &&
-    learningPath.learningPathChoiceCompleted &&
-    learningPath.learningPathEnabled &&
-    !learningPath.activePath
+    shouldRedirectToLearningSetup({
+      authStatus: status,
+      learningStatus: learningPath.status,
+      source: learningPath.source,
+      learningPathChoiceCompleted: learningPath.learningPathChoiceCompleted,
+      learningPathEnabled: learningPath.learningPathEnabled,
+      activePath: learningPath.activePath,
+      latestCompletedPath: learningPath.latestCompletedPath
+    })
   ) {
     return <Redirect href={"/(learning)/setup" as unknown as Href} />;
   }

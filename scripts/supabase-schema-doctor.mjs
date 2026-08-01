@@ -245,6 +245,30 @@ async function runStaticMigrationAudit() {
 
   assertRegex(
     sql,
+    /add\s+column\s+if\s+not\s+exists\s+skipped_step_key\s+text/i,
+    "migration stores accelerated skipped curriculum steps"
+  );
+
+  assertRegex(
+    sql,
+    /learning_sessions_skipped_step_key_check[\s\S]+adaptation_mode\s*=\s*'accelerate'[\s\S]+skipped_step_key\s*<>\s*curriculum_step_key/i,
+    "migration constrains skipped_step_key to accelerated sessions"
+  );
+
+  assertRegex(
+    sql,
+    /Target learning level is lower than the selected current level/i,
+    "start_learning_path rejects target levels below the selected current level"
+  );
+
+  assertRegex(
+    sql,
+    /'schema_version',\s*'1\.1'/i,
+    "learning healthcheck reports schema_version 1.1"
+  );
+
+  assertRegex(
+    sql,
     /'start_rpc_ready',\s*v_start_rpc_ready/i,
     "healthcheck computes start_rpc_ready instead of hard-coding it"
   );
@@ -253,6 +277,12 @@ async function runStaticMigrationAudit() {
     sql,
     /'session_lifecycle_ready',\s*v_session_lifecycle_ready/i,
     "healthcheck computes session_lifecycle_ready instead of hard-coding it"
+  );
+
+  assertRegex(
+    sql,
+    /'indexes_ready',\s*v_indexes_ready/i,
+    "healthcheck reports index readiness"
   );
 
   assertRegex(

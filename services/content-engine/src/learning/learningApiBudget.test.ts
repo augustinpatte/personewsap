@@ -101,7 +101,7 @@ describe("learning generation API budget", () => {
       userId: "user-1",
       dailyDropId: "drop-1",
       dropDate: "2026-08-01",
-      provider: "deterministic"
+      providerResolution: { status: "ready", provider: "deterministic" }
     });
 
     expect(result.status).toBe("generated");
@@ -202,7 +202,7 @@ async function generate(repository: InMemoryLearningRepository, provider: Counti
     userId: "user-1",
     dailyDropId: `drop-${repository.sessions.length + 1}`,
     dropDate: "2026-08-01",
-    provider
+    providerResolution: { status: "ready", provider }
   });
 }
 

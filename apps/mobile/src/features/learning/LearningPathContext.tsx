@@ -20,7 +20,18 @@ import {
   type NormalizedSupabaseError
 } from "../../lib/supabase";
 import { useAuth } from "../auth";
-import { LEARNING_SETUP_DRAFT_KEY } from "./learningSetupDraft";
+import {
+  getLearningSetupDraftKey,
+  LEARNING_SETUP_DRAFT_KEY_V1
+} from "./learningSetupDraft";
+import {
+  readLearningOutbox,
+  removeLearningOutboxEvent,
+  retryLearningOutboxEvent,
+  upsertLearningOutboxEvent,
+  writeLearningOutbox,
+  type LearningOutboxEvent
+} from "./learningOutbox";
 import {
   learningDomainOrder,
   mockLearningDomains,
@@ -83,20 +94,11 @@ type LearningPathState = LearningPathBundle & {
   learningPathChoiceCompleted: boolean;
 };
 
-type LearningOutboxEvent = {
-  sessionId: string;
-  eventType: "started";
-  createdAt: string;
-  attemptCount: number;
-  lastAttemptAt: string | null;
-};
-
-const LEARNING_SESSION_OUTBOX_KEY = "personewsap:learning-session-outbox:v1";
-
 const initialBundle = createBundle({
   domains: mockLearningDomains,
   objectives: mockLearningObjectives,
-  path: null,
+  activePath: null,
+  latestCompletedPath: null,
   sessions: []
 });
 
@@ -122,7 +124,8 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         ...createBundle({
           domains: current.domains,
           objectives: current.objectives,
-          path: current.activePath,
+          activePath: current.activePath,
+          latestCompletedPath: current.latestCompletedPath,
           sessions
         })
       };
@@ -137,7 +140,8 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         const mockBundle = createBundle({
           domains: mockLearningDomains,
           objectives: mockLearningObjectives,
-          path: hasSupabaseConfig ? null : mockLearningPath,
+          activePath: hasSupabaseConfig ? null : mockLearningPath,
+          latestCompletedPath: null,
           sessions: hasSupabaseConfig ? [] : mockLearningSessions
         });
 
@@ -189,13 +193,12 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           supabase
             .from("user_learning_paths")
             .select(
-              "id, user_id, domain_id, objective_id, current_level, target_level, language, status, created_at, updated_at, archived_at"
+              "id, user_id, domain_id, objective_id, current_level, target_level, language, status, created_at, updated_at, archived_at, completed_at"
             )
             .eq("user_id", user.id)
-            .eq("status", "active")
+            .in("status", ["active", "completed"])
             .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle()
+            .limit(5)
         ]);
 
         if (domainResult.error) {
@@ -211,16 +214,19 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           throw pathResult.error;
         }
 
-        const path = coercePath(pathResult.data);
+        const paths = (pathResult.data ?? []).map(coercePath).filter((path): path is LearningPath => Boolean(path));
+        const activePath = paths.find((candidate) => candidate.status === "active") ?? null;
+        const latestCompletedPath = paths.find((candidate) => candidate.status === "completed") ?? null;
+        const displayPath = activePath ?? latestCompletedPath;
         let sessions: LearningSession[] = [];
 
-        if (path) {
+        if (displayPath) {
           const sessionResult = await supabase
             .from("learning_sessions")
             .select(
-              "id, path_id, daily_drop_id, curriculum_step_key, session_number, adaptation_mode, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, generation_status, status, available_on, opened_at, started_at, completed_at, created_at"
+              "id, path_id, daily_drop_id, curriculum_step_key, skipped_step_key, session_number, adaptation_mode, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, generation_status, status, available_on, opened_at, started_at, completed_at, created_at"
             )
-            .eq("path_id", path.id)
+            .eq("path_id", displayPath.id)
             .eq("generation_status", "ready")
             .order("session_number", { ascending: true });
 
@@ -234,7 +240,8 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         const bundle = createBundle({
           domains: orderDomains((domainResult.data ?? []).map(coerceDomain)),
           objectives: (objectiveResult.data ?? []).map(coerceObjective),
-          path,
+          activePath,
+          latestCompletedPath,
           sessions
         });
 
@@ -254,7 +261,13 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
 
         if (isActive()) {
           setState({
-            ...createBundle({ domains: [], objectives: [], path: null, sessions: [] }),
+            ...createBundle({
+              domains: [],
+              objectives: [],
+              activePath: null,
+              latestCompletedPath: null,
+              sessions: []
+            }),
             status: "error",
             source: "supabase",
             error: normalized,
@@ -354,7 +367,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         if (error) {
           throw error;
         }
-        await clearLearningSetupDraft();
+        await clearLearningSetupDraftForUser(user.id);
         await load();
         return { ok: true, error: null };
       } catch (error) {
@@ -380,6 +393,21 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
       }
 
       try {
+        const now = new Date().toISOString();
+        await enqueueLearningOutboxEvent(user.id, {
+          sessionId,
+          eventType: "feedback",
+          ratings,
+          createdAt: now,
+          attemptCount: 0,
+          lastAttemptAt: null
+        });
+        updateSessionLocally(sessionId, {
+          completed_at: now,
+          started_at: state.sessions.find((session) => session.id === sessionId)?.started_at ?? now,
+          status: "completed"
+        });
+
         const { error } = await supabase.rpc("submit_learning_session_feedback", {
           p_session_id: sessionId,
           p_comprehension_rating: ratings.comprehension,
@@ -391,6 +419,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         if (error) {
           throw error;
         }
+        await removeLearningOutboxEventForUser(user.id, sessionId, "feedback");
 
         trackAnalyticsEvent("learning_feedback_submitted", {
           language: profileLanguage ?? undefined
@@ -399,13 +428,20 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         await load();
         return { ok: true, error: null };
       } catch (error) {
+        await flushLearningOutbox({
+          userId: user.id,
+          onSynced: (session) => updateSessionLocally(session.id, session)
+        });
+        if (__DEV__) {
+          console.warn("[LearningPath] feedback queued locally", error);
+        }
         return {
-          ok: false,
-          error: normalizeSupabaseError(error, "Could not save your learning feedback.")
+          ok: true,
+          error: null
         };
       }
     },
-    [load, profileLanguage, user?.id]
+    [load, profileLanguage, state.sessions, updateSessionLocally, user?.id]
   );
 
   const markSessionOpened = useCallback<LearningPathContextValue["markSessionOpened"]>(
@@ -467,7 +503,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           started_at: currentSession.started_at ?? now,
           status: "started"
         });
-        await removeLearningOutboxEvent(sessionId);
+        await removeLearningOutboxEventForUser(user?.id ?? null, sessionId, "started");
         trackAnalyticsEvent("learning_session_started", {
           language: profileLanguage ?? undefined
         });
@@ -486,7 +522,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         if (data) {
           updateSessionLocally(sessionId, coerceSession(data as LearningSession));
         }
-        await removeLearningOutboxEvent(sessionId);
+        await removeLearningOutboxEventForUser(user.id, sessionId, "started");
         trackAnalyticsEvent("learning_session_started", {
           language: profileLanguage ?? undefined
         });
@@ -505,14 +541,20 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
     LearningPathContextValue["recordSessionStartedAfterPromptCopy"]
   >(
     async (sessionId) => {
-      await enqueueLearningOutboxEvent(sessionId);
+      await enqueueLearningOutboxEvent(user?.id ?? null, {
+        sessionId,
+        eventType: "started",
+        createdAt: new Date().toISOString(),
+        attemptCount: 0,
+        lastAttemptAt: null
+      });
       const result = await markSessionStarted(sessionId);
       return {
         ...result,
         syncPending: !result.ok
       };
     },
-    [markSessionStarted]
+    [markSessionStarted, user?.id]
   );
 
   useEffect(() => {
@@ -570,19 +612,28 @@ export function useLearningPath() {
 function createBundle({
   domains,
   objectives,
-  path,
+  activePath,
+  latestCompletedPath,
   sessions
 }: {
   domains: LearningDomain[];
   objectives: LearningObjective[];
-  path: LearningPath | null;
+  activePath: LearningPath | null;
+  latestCompletedPath: LearningPath | null;
   sessions: LearningSession[];
 }): LearningPathBundle {
-  const activeDomain = path
-    ? domains.find((domain) => domain.id === path.domain_id) ?? null
+  const displayPath = activePath ?? latestCompletedPath;
+  const activeDomain = activePath
+    ? domains.find((domain) => domain.id === activePath.domain_id) ?? null
     : null;
-  const activeObjective = path
-    ? objectives.find((objective) => objective.id === path.objective_id) ?? null
+  const activeObjective = activePath
+    ? objectives.find((objective) => objective.id === activePath.objective_id) ?? null
+    : null;
+  const displayDomain = displayPath
+    ? domains.find((domain) => domain.id === displayPath.domain_id) ?? null
+    : null;
+  const displayObjective = displayPath
+    ? objectives.find((objective) => objective.id === displayPath.objective_id) ?? null
     : null;
   const completedSessions = sessions.filter(isSessionComplete);
   const availableSession =
@@ -598,13 +649,23 @@ function createBundle({
   return {
     domains,
     objectives,
-    activePath: path,
+    activePath,
+    latestCompletedPath,
+    displayPath,
     activeDomain,
     activeObjective,
+    displayDomain,
+    displayObjective,
     availableSession,
     completedSessions,
     sessions,
-    nextAvailableAt
+    nextAvailableAt,
+    getSessionForDrop: (dropId) => {
+      if (!dropId) {
+        return null;
+      }
+      return sessions.find((session) => session.daily_drop_id === dropId) ?? null;
+    }
   };
 }
 
@@ -659,7 +720,7 @@ function isLearningHealthcheckReady(value: unknown): boolean {
 
   const payload = value as Record<string, unknown>;
   return (
-    payload.schema_version === "1.0" &&
+    payload.schema_version === "1.1" &&
     payload.domain_count === 7 &&
     payload.objective_count === 21 &&
     payload.start_rpc_ready === true &&
@@ -667,37 +728,23 @@ function isLearningHealthcheckReady(value: unknown): boolean {
     payload.columns_ready === true &&
     payload.functions_ready === true &&
     payload.constraints_ready === true &&
+    payload.indexes_ready === true &&
     payload.rls_ready === true
   );
 }
 
-async function enqueueLearningOutboxEvent(sessionId: string) {
-  const events = await readLearningOutbox();
-  const existing = events.find((event) => event.sessionId === sessionId);
-
-  if (existing) {
-    return;
-  }
-
-  events.push({
-    sessionId,
-    eventType: "started",
-    createdAt: new Date().toISOString(),
-    attemptCount: 0,
-    lastAttemptAt: null
-  });
-  await AsyncStorage.setItem(LEARNING_SESSION_OUTBOX_KEY, JSON.stringify(events));
+async function enqueueLearningOutboxEvent(userId: string | null, event: LearningOutboxEvent) {
+  const events = await readLearningOutbox(AsyncStorage, userId);
+  await writeLearningOutbox(AsyncStorage, userId, upsertLearningOutboxEvent(events, event));
 }
 
-async function removeLearningOutboxEvent(sessionId: string) {
-  const events = await readLearningOutbox();
-  const remaining = events.filter((event) => event.sessionId !== sessionId);
-
-  if (remaining.length === events.length) {
-    return;
-  }
-
-  await AsyncStorage.setItem(LEARNING_SESSION_OUTBOX_KEY, JSON.stringify(remaining));
+async function removeLearningOutboxEventForUser(
+  userId: string | null,
+  sessionId: string,
+  eventType?: LearningOutboxEvent["eventType"]
+) {
+  const events = await readLearningOutbox(AsyncStorage, userId);
+  await writeLearningOutbox(AsyncStorage, userId, removeLearningOutboxEvent(events, sessionId, eventType));
 }
 
 async function flushLearningOutbox(input: {
@@ -708,74 +755,51 @@ async function flushLearningOutbox(input: {
     return;
   }
 
-  const events = await readLearningOutbox();
+  const events = await readLearningOutbox(AsyncStorage, input.userId);
   if (events.length === 0) {
     return;
   }
 
-  const remaining: LearningOutboxEvent[] = [];
+  let remaining: LearningOutboxEvent[] = [];
 
   for (const event of events) {
     try {
-      const { data, error } = await supabase.rpc("start_learning_session", {
-        p_session_id: event.sessionId
-      });
+      const { data, error } =
+        event.eventType === "started"
+          ? await supabase.rpc("start_learning_session", {
+              p_session_id: event.sessionId
+            })
+          : await supabase.rpc("submit_learning_session_feedback", {
+              p_session_id: event.sessionId,
+              p_comprehension_rating: event.ratings.comprehension,
+              p_explainability_rating: event.ratings.explainability,
+              p_interest_rating: event.ratings.interest,
+              p_difficulty_rating: event.ratings.difficulty
+            });
 
       if (error) {
         throw error;
       }
 
-      if (data) {
+      if (data && typeof data === "object") {
         input.onSynced(coerceSession(data as LearningSession));
       }
     } catch (error) {
       if (__DEV__) {
         console.warn("[LearningPath] outbox sync failed", error);
       }
-      remaining.push({
-        ...event,
-        attemptCount: event.attemptCount + 1,
-        lastAttemptAt: new Date().toISOString()
-      });
+      remaining = upsertLearningOutboxEvent(remaining, retryLearningOutboxEvent(event, new Date().toISOString()));
     }
   }
 
-  await AsyncStorage.setItem(LEARNING_SESSION_OUTBOX_KEY, JSON.stringify(remaining));
-}
-
-async function readLearningOutbox(): Promise<LearningOutboxEvent[]> {
-  try {
-    const value = await AsyncStorage.getItem(LEARNING_SESSION_OUTBOX_KEY);
-    if (!value) {
-      return [];
-    }
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed
-      .map((event): LearningOutboxEvent | null => {
-        if (!event || typeof event !== "object") {
-          return null;
-        }
-        const record = event as Partial<LearningOutboxEvent>;
-        return typeof record.sessionId === "string" && record.eventType === "started"
-          ? {
-              sessionId: record.sessionId,
-              eventType: "started",
-              createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
-              attemptCount: Number.isFinite(record.attemptCount) ? Number(record.attemptCount) : 0,
-              lastAttemptAt: typeof record.lastAttemptAt === "string" ? record.lastAttemptAt : null
-            }
-          : null;
-      })
-      .filter((event): event is LearningOutboxEvent => Boolean(event));
-  } catch {
-    return [];
-  }
+  await writeLearningOutbox(AsyncStorage, input.userId, remaining);
 }
 
 export async function clearLearningSetupDraft() {
-  await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY);
+  await clearLearningSetupDraftForUser(null);
+}
+
+async function clearLearningSetupDraftForUser(userId: string | null) {
+  await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY_V1);
+  await AsyncStorage.removeItem(getLearningSetupDraftKey(userId));
 }

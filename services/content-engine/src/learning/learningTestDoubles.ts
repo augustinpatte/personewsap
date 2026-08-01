@@ -98,6 +98,7 @@ type StoredLearningSession = LearningSessionRecord & {
   generation_attempts: number;
   generation_locked_at: string | null;
   model_name: string | null;
+  input_hash: string | null;
 };
 
 /**
@@ -138,7 +139,9 @@ export class InMemoryLearningRepository implements LearningSessionRepository {
       const session: StoredLearningSession = {
         id: `session-${input.sessionNumber}`,
         path_id: input.pathId,
+        daily_drop_id: input.dailyDropId,
         curriculum_step_key: input.curriculumStepKey,
+        skipped_step_key: input.skippedStepKey,
         session_number: input.sessionNumber,
         repetition_index: input.repetitionIndex,
         adaptation_mode: input.adaptationMode,
@@ -146,7 +149,9 @@ export class InMemoryLearningRepository implements LearningSessionRepository {
         generation_attempts: 1,
         generation_locked_at: new Date(this.now()).toISOString(),
         model_name: null,
+        input_hash: input.inputHash,
         status: "available",
+        available_on: input.dropDate,
         opened_at: null,
         started_at: null,
         completed_at: null
@@ -176,6 +181,10 @@ export class InMemoryLearningRepository implements LearningSessionRepository {
       return { claimed: false, sessionId: existing.id, exhausted: true };
     }
 
+    if (existing.input_hash && existing.input_hash !== input.inputHash) {
+      return { claimed: false, sessionId: existing.id };
+    }
+
     // Conditional update: another worker that already moved the row wins.
     if (
       existing.generation_status !== snapshot.generation_status ||
@@ -186,11 +195,14 @@ export class InMemoryLearningRepository implements LearningSessionRepository {
     }
 
     existing.curriculum_step_key = input.curriculumStepKey;
+    existing.skipped_step_key = input.skippedStepKey;
+    existing.daily_drop_id = input.dailyDropId;
     existing.repetition_index = input.repetitionIndex;
     existing.adaptation_mode = input.adaptationMode;
     existing.generation_status = "generating";
     existing.generation_attempts = nextAttempt;
     existing.generation_locked_at = new Date(this.now()).toISOString();
+    existing.input_hash = input.inputHash;
     return { claimed: true, sessionId: existing.id };
   }
 
@@ -204,6 +216,7 @@ export class InMemoryLearningRepository implements LearningSessionRepository {
       session.generation_locked_at = null;
       session.curriculum_step_key = input.prompt.curriculum_step_key;
       session.adaptation_mode = input.prompt.adaptation_mode;
+      session.daily_drop_id = input.dailyDropId;
     }
   }
 
@@ -219,5 +232,14 @@ export class InMemoryLearningRepository implements LearningSessionRepository {
 
   async markLearningPathCompleted(): Promise<void> {
     this.pathStatus = "completed";
+  }
+
+  async attachLearningSessionToDailyDrop(
+    input: Parameters<LearningSessionRepository["attachLearningSessionToDailyDrop"]>[0]
+  ): Promise<void> {
+    const session = this.sessions.find((candidate) => candidate.id === input.sessionId);
+    if (session) {
+      session.daily_drop_id = input.dailyDropId;
+    }
   }
 }

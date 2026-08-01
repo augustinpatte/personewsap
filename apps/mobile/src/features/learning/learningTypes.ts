@@ -38,6 +38,7 @@ export type LearningPath = {
   created_at: string | null;
   updated_at: string | null;
   archived_at: string | null;
+  completed_at?: string | null;
 };
 
 export type LearningSessionStatus =
@@ -52,6 +53,7 @@ export type LearningSession = {
   path_id: string;
   daily_drop_id?: string | null;
   curriculum_step_key?: string | null;
+  skipped_step_key?: string | null;
   session_number: number;
   adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
   title_fr: string;
@@ -74,12 +76,17 @@ export type LearningPathBundle = {
   domains: LearningDomain[];
   objectives: LearningObjective[];
   activePath: LearningPath | null;
+  latestCompletedPath: LearningPath | null;
+  displayPath: LearningPath | null;
   activeDomain: LearningDomain | null;
   activeObjective: LearningObjective | null;
+  displayDomain: LearningDomain | null;
+  displayObjective: LearningObjective | null;
   availableSession: LearningSession | null;
   completedSessions: LearningSession[];
   sessions: LearningSession[];
   nextAvailableAt: string | null;
+  getSessionForDrop: (dropId: string | null | undefined) => LearningSession | null;
 };
 
 export type LearningProviderId = "chatgpt" | "claude" | "gemini";

@@ -9,11 +9,18 @@ import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { localized } from "../../lib/i18n";
 import type { Language } from "../../types/domain";
+import { useAuth } from "../auth";
 import { SelectableCard } from "../onboarding";
-import { getCurrentLevelLabel, getCurrentLevelOptions, getTargetLevelLabel, getTargetLevelOptions } from "./learningLevels";
+import {
+  getAllowedTargetLevelOptions,
+  getCurrentLevelLabel,
+  getCurrentLevelOptions,
+  getTargetLevelLabel
+} from "./learningLevels";
 import { getLearningCopy } from "./learningCopy";
 import {
-  LEARNING_SETUP_DRAFT_KEY,
+  getLearningSetupDraftKey,
+  LEARNING_SETUP_DRAFT_KEY_V1,
   parseLearningSetupDraft,
   reconcileLearningSetupDraft,
   type LearningSetupStep
@@ -40,6 +47,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
   const copy = getLearningCopy(language).setup;
+  const { user } = useAuth();
   const {
     domains,
     disableLearningPath,
@@ -72,7 +80,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     [domainId, objectives]
   );
   const currentOptions = getCurrentLevelOptions(language);
-  const targetOptions = getTargetLevelOptions(language);
+  const targetOptions = getAllowedTargetLevelOptions(currentLevel, language);
   const canContinue =
     !loadFailed &&
     ((step === 0 && Boolean(domainId)) ||
@@ -98,7 +106,9 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
 
     async function restoreDraft() {
       try {
-        const value = await AsyncStorage.getItem(LEARNING_SETUP_DRAFT_KEY);
+        const draftKey = getLearningSetupDraftKey(user?.id);
+        const value =
+          (await AsyncStorage.getItem(draftKey)) ?? (await AsyncStorage.getItem(LEARNING_SETUP_DRAFT_KEY_V1));
         if (cancelled) {
           return;
         }
@@ -129,7 +139,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     return () => {
       cancelled = true;
     };
-  }, [domains, draftHydrated, objectives, status]);
+  }, [domains, draftHydrated, objectives, status, user?.id]);
 
   useEffect(() => {
     if (!draftHydrated) {
@@ -137,7 +147,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     }
 
     void AsyncStorage.setItem(
-      LEARNING_SETUP_DRAFT_KEY,
+      getLearningSetupDraftKey(user?.id),
       JSON.stringify({
         domainId,
         currentLevel,
@@ -147,7 +157,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
         updatedAt: new Date().toISOString()
       })
     );
-  }, [currentLevel, domainId, draftHydrated, objectiveId, step, targetLevel]);
+  }, [currentLevel, domainId, draftHydrated, objectiveId, step, targetLevel, user?.id]);
 
   useEffect(() => {
     if (!loadFailed || !error) {
@@ -206,7 +216,8 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
       });
     }
 
-    await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY);
+    await AsyncStorage.removeItem(getLearningSetupDraftKey(user?.id));
+    await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY_V1);
     router.replace("/(tabs)/today");
   };
 
@@ -227,7 +238,8 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
       return;
     }
 
-    await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY);
+    await AsyncStorage.removeItem(getLearningSetupDraftKey(user?.id));
+    await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY_V1);
     router.replace("/(tabs)/today");
   };
 
@@ -313,6 +325,12 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
               label={option.label}
               onPress={() => {
                 setCurrentLevel(option.value);
+                setTargetLevel((current) =>
+                  current &&
+                  getAllowedTargetLevelOptions(option.value, language).some((target) => target.value === current)
+                    ? current
+                    : null
+                );
                 setErrorMessage(null);
               }}
               selected={option.value === currentLevel}
