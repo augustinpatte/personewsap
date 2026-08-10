@@ -145,12 +145,21 @@ async function proveFeedbackPrivacy(): Promise<ProofSection> {
     generated_with_fake_provider: result.status === "generated",
     last_feedback_has_only_latest_ratings:
       isObject(capturedPrompt) &&
-      JSON.stringify(capturedPrompt.last_feedback) ===
+      JSON.stringify(capturedPrompt.context?.feedback_profile?.latest) ===
         JSON.stringify({
-          comprehension_rating: 4,
-          explainability_rating: 5,
-          interest_rating: 3,
-          difficulty_rating: 2
+          comprehension: 4,
+          explainability: 5,
+          interest: 3,
+          difficulty: 2
+        }),
+    recent_average_uses_pedagogical_feedback_order:
+      isObject(capturedPrompt) &&
+      JSON.stringify(capturedPrompt.context?.feedback_profile?.recent_average) ===
+        JSON.stringify({
+          comprehension: 2.5,
+          explainability: 3,
+          interest: 2,
+          difficulty: 3.5
         }),
     no_supabase_identifiers_sent:
       !serialized.includes("session_id") &&
@@ -556,7 +565,14 @@ function catalogStep(input: {
   };
 }
 
-function isObject(value: unknown): value is { last_feedback?: unknown } {
+function isObject(value: unknown): value is {
+  context?: {
+    feedback_profile?: {
+      latest?: unknown;
+      recent_average?: unknown;
+    };
+  };
+} {
   return typeof value === "object" && value !== null;
 }
 

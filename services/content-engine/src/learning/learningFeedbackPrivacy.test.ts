@@ -62,22 +62,39 @@ describe("learning prompt feedback privacy", () => {
     const payload = JSON.parse(capturedPrompt) as Record<string, unknown>;
     const serialized = JSON.stringify(payload);
 
-    expect(payload.last_feedback).toEqual({
-      comprehension_rating: 4,
-      explainability_rating: 3,
-      interest_rating: 5,
-      difficulty_rating: 2
+    expect(payload.task).toBe(
+      "Create the teaching plan for the selected curriculum step. The backend has already chosen what must be taught. Do not change the curriculum decision."
+    );
+    const context = payload.context as {
+      feedback_profile: {
+        latest: Record<string, number> | null;
+        recent_average: Record<string, number> | null;
+        feedback_count: number;
+      };
+    };
+    expect(context.feedback_profile.latest).toEqual({
+      comprehension: 4,
+      explainability: 3,
+      interest: 5,
+      difficulty: 2
+    });
+    expect(context.feedback_profile.recent_average).toEqual({
+      comprehension: 2.5,
+      explainability: 2,
+      interest: 3,
+      difficulty: 3.5
     });
     expect(serialized).not.toContain("session_id");
     expect(serialized).not.toContain("user_id");
     expect(serialized).not.toContain("path_id");
     expect(serialized).not.toContain("daily_drop_id");
+    expect(serialized).not.toContain("email");
     expect(serialized).not.toContain(USER_UUID);
     expect(serialized).not.toContain(PATH_UUID);
     expect(serialized).not.toContain(DROP_UUID);
     expect(serialized).not.toContain(SESSION_1_UUID);
     expect(serialized).not.toContain(SESSION_2_UUID);
-    expect(serialized).not.toContain('"comprehension_rating":1');
+    expect(serialized).not.toContain('"comprehension":1');
   });
 });
 

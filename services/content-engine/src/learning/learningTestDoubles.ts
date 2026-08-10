@@ -4,12 +4,12 @@ import { isReclaimableLearningSession } from "./generationLock.js";
 import type { LearningPromptProvider } from "./learningPromptGenerator.js";
 import type { LearningSessionRepository } from "./learningSessionOrchestrator.js";
 import type {
-  GeneratedLearningPrompt,
   LearningFeedbackRecord,
   LearningPathRecord,
   LearningSessionRecord
 } from "./learningTypes.js";
 import type { LearningAdaptationMode } from "./sessionLifecycle.js";
+import type { TeachingPlanV2 } from "./learningTeachingPlanSchemaV2.js";
 
 /**
  * A provider that counts the HTTP requests it would really send. It mimics the
@@ -71,26 +71,45 @@ export class CountingLearningPromptProvider implements LearningPromptProvider {
   }
 }
 
-/** Builds a valid learning prompt payload for the fake provider. */
-export function fakeLearningPromptResponse(request: LlmJsonRequest): GeneratedLearningPrompt {
+/** Builds a valid V2 teaching-plan payload for the fake provider. */
+export function fakeLearningPromptResponse(request: LlmJsonRequest): TeachingPlanV2 {
   const payload = JSON.parse(request.userPrompt) as {
-    language: "fr" | "en";
-    adaptation_mode: LearningAdaptationMode;
-    curriculum_step: { key: string; title_fr: string; title_en: string; summary_fr: string; summary_en: string };
-    example_context: string;
+    context: {
+      language: "fr" | "en";
+      session: {
+        curriculum_step: { key: string; title_fr: string; title_en: string };
+        adaptation_mode: LearningAdaptationMode;
+        selected_example_context: string;
+      };
+    };
   };
+  const language = payload.context.language;
+  const step = payload.context.session.curriculum_step;
+  const context = payload.context.session.selected_example_context;
 
   return {
-    curriculum_step_key: payload.curriculum_step.key,
-    title_fr: payload.curriculum_step.title_fr,
-    title_en: payload.curriculum_step.title_en,
-    summary_fr: payload.curriculum_step.summary_fr,
-    summary_en: payload.curriculum_step.summary_en,
-    objectives_fr: ["Comprendre le mécanisme décrit.", "L'appliquer au contexte proposé."],
-    objectives_en: ["Understand the described mechanism.", "Apply it to the proposed context."],
-    prompt_text: `Act as my tutor and explain ${payload.curriculum_step.title_en} using ${payload.example_context}.`,
-    prompt_language: payload.language,
-    adaptation_mode: payload.adaptation_mode
+    curriculum_step_key: step.key,
+    adaptation_mode: payload.context.session.adaptation_mode,
+    teaching_angle:
+      language === "fr"
+        ? `Expliquer ${step.title_fr} par un mécanisme concret.`
+        : `Explain ${step.title_en} through a concrete mechanism.`,
+    hook: language === "fr" ? `Commence avec ${context}.` : `Start with ${context}.`,
+    core_points:
+      language === "fr"
+        ? ["Isoler le mécanisme.", "Relier l'exemple au concept."]
+        : ["Isolate the mechanism.", "Connect the example to the concept."],
+    example: context,
+    first_check_goal:
+      language === "fr" ? "Faire reformuler le mécanisme." : "Have the learner restate the mechanism.",
+    application_goal:
+      language === "fr" ? "Appliquer le concept à une situation proche." : "Apply the concept to a nearby situation.",
+    transfer_goal:
+      language === "fr" ? "Prédire ce qui change dans un autre contexte." : "Predict what changes in another context.",
+    common_misconception:
+      language === "fr" ? "Confondre vocabulaire et mécanisme." : "Confusing vocabulary with mechanism.",
+    recap_target:
+      language === "fr" ? "le mécanisme à retenir" : "the mechanism to remember"
   };
 }
 

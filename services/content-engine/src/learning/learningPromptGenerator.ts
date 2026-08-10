@@ -1,12 +1,20 @@
 import type { LlmProvider } from "../generation/llmProvider.js";
 import type { OpenAiRequestAttempt } from "../generation/openAiProvider.js";
 import type { LearningAdaptationMode } from "./sessionLifecycle.js";
-import { LEARNING_PROMPT_SCHEMA } from "./learningPromptSchema.js";
+import { buildLearningPromptContextV2 } from "./learningPromptContextV2.js";
+import { LEARNING_META_SYSTEM_PROMPT_V2 } from "./learningPromptPolicyV2.js";
+import {
+  LEARNING_TEACHING_PLAN_SCHEMA_V2,
+  validateTeachingPlanV2,
+  type TeachingPlanV2
+} from "./learningTeachingPlanSchemaV2.js";
+import { renderLearningTutorPromptV2 } from "./learningTutorRendererV2.js";
 import type {
   GeneratedLearningPrompt,
   LearningCatalogStep,
+  LearningFeedbackRecord,
   LearningPathRecord,
-  LearningPromptFeedback
+  LearningSessionRecord
 } from "./learningTypes.js";
 
 export const DETERMINISTIC_LEARNING_MODEL = "deterministic-learning-v1";
@@ -35,8 +43,9 @@ export async function generateLearningPrompt(input: {
   step: LearningCatalogStep;
   adaptationMode: LearningAdaptationMode;
   repetitionIndex: number;
-  previousStepKeys: string[];
-  feedback: LearningPromptFeedback | null;
+  sessions: LearningSessionRecord[];
+  feedbackRows: LearningFeedbackRecord[];
+  sessionNumber: number;
   meter?: LearningRequestMeter;
 }): Promise<{ prompt: GeneratedLearningPrompt; apiCalls: number; modelName: string }> {
   const meter = input.meter ?? createLearningRequestMeter();
@@ -47,7 +56,13 @@ export async function generateLearningPrompt(input: {
     return {
       apiCalls: 0,
       modelName: DETERMINISTIC_LEARNING_MODEL,
-      prompt: deterministicPrompt(input)
+      prompt: promptFromTeachingPlan({
+        path: input.path,
+        step: input.step,
+        adaptationMode: input.adaptationMode,
+        plan: deterministicTeachingPlan(input),
+        safetyRules: safetyRules(input.step.safety_category)
+      })
     };
   }
 
@@ -61,48 +76,49 @@ export async function generateLearningPrompt(input: {
   let result: unknown;
   try {
     result = await provider.generateJson({
-      schemaName: "personewsap_learning_prompt",
-      jsonSchema: LEARNING_PROMPT_SCHEMA,
-      maxOutputTokens: 1800,
-      systemPrompt:
-        "You generate safe five-minute PersoNewsAP learning prompts. Return only JSON matching the schema.",
+      schemaName: "personewsap_learning_teaching_plan_v2",
+      jsonSchema: LEARNING_TEACHING_PLAN_SCHEMA_V2,
+      maxOutputTokens: 1000,
+      systemPrompt: LEARNING_META_SYSTEM_PROMPT_V2,
       userPrompt: JSON.stringify({
-        language: input.path.language,
-        domain_id: input.path.domain_id,
-        objective_id: input.path.objective_id,
-        current_level: input.path.current_level,
-        target_level: input.path.target_level,
-        curriculum_step: input.step,
-        previous_step_keys: input.previousStepKeys.slice(-5),
-        last_feedback: serializePromptFeedback(input.feedback),
-        adaptation_mode: input.adaptationMode,
-        repetition_index: input.repetitionIndex,
-        repetition_instruction: repetitionInstruction(input.adaptationMode, input.repetitionIndex),
-        example_context: pickExampleContext(input.step, input.path.language, input.repetitionIndex),
-        safety_rules: safetyRules(input.step.safety_category)
+        task:
+          "Create the teaching plan for the selected curriculum step. The backend has already chosen what must be taught. Do not change the curriculum decision.",
+        context: buildLearningPromptContextV2({
+          path: input.path,
+          step: input.step,
+          sessions: input.sessions,
+          feedbackRows: input.feedbackRows,
+          sessionNumber: input.sessionNumber,
+          adaptationMode: input.adaptationMode,
+          repetitionIndex: input.repetitionIndex,
+          selectedExampleContext: pickExampleContext(input.step, input.path.language, input.repetitionIndex),
+          safetyRules: safetyRules(input.step.safety_category)
+        })
       })
     });
   } finally {
     unobserve?.();
   }
 
-  const prompt = validateGeneratedLearningPrompt(result, input);
+  const plan = validateTeachingPlanV2(result, {
+    curriculumStepKey: input.step.key,
+    adaptationMode: input.adaptationMode
+  });
+  const prompt = validateGeneratedLearningPrompt(
+    promptFromTeachingPlan({
+      path: input.path,
+      step: input.step,
+      adaptationMode: input.adaptationMode,
+      plan,
+      safetyRules: safetyRules(input.step.safety_category)
+    }),
+    input
+  );
   return {
     prompt,
     apiCalls: meter.httpRequests,
     modelName: meter.modelName ?? provider.name
   };
-}
-
-function serializePromptFeedback(feedback: LearningPromptFeedback | null): Record<string, number> | null {
-  return feedback
-    ? {
-        comprehension_rating: feedback.comprehensionRating,
-        explainability_rating: feedback.explainabilityRating,
-        interest_rating: feedback.interestRating,
-        difficulty_rating: feedback.difficultyRating
-      }
-    : null;
 }
 
 export function validateGeneratedLearningPrompt(
@@ -129,29 +145,69 @@ export function validateGeneratedLearningPrompt(
   if (!/tutor|tuteur|teach|apprendre|explain|explique/i.test(prompt.prompt_text)) {
     issues.push("prompt_text must instruct an external tutor");
   }
-  if (/copy.*PersoNewsAP|copie.*PersoNewsAP|final report|rapport final/i.test(prompt.prompt_text)) {
+  if (/copy.*PersoNewsAP|copie.*PersoNewsAP/i.test(prompt.prompt_text)) {
     issues.push("prompt_text must not ask for a final report back to PersoNewsAP");
   }
-  if (prompt.prompt_text.length > 2400) issues.push("prompt_text too long");
+  if (prompt.prompt_text.length > 6000) issues.push("prompt_text too long");
   if (issues.length > 0) {
     throw new Error(`Invalid learning prompt output: ${issues.join("; ")}.`);
   }
   return prompt;
 }
 
-function deterministicPrompt(input: {
+function deterministicTeachingPlan(input: {
   path: LearningPathRecord;
   step: LearningCatalogStep;
   adaptationMode: LearningAdaptationMode;
   repetitionIndex: number;
-}): GeneratedLearningPrompt {
+}): TeachingPlanV2 {
   const context = pickExampleContext(input.step, input.path.language, input.repetitionIndex);
-  const repetition = repetitionInstruction(input.adaptationMode, input.repetitionIndex);
-  const languageLine =
-    input.path.language === "fr"
-      ? `Agis comme mon tuteur PersoNewsAP. Reste en français. Termine toute la session en cinq minutes maximum. Commence par une explication de 120 mots maximum, limite l'explication principale à 220 mots, pose au maximum trois questions une par une, attends ma réponse avant de continuer, corrige brièvement les erreurs, termine par un rappel de moins de 60 mots, ne propose pas de deuxième leçon et ne demande aucun rapport final. Sujet: ${input.step.title_fr}. Objectif du tuteur: ${input.step.tutor_focus_fr} Exemple à utiliser: ${context}. ${repetition} ${safetyRules(input.step.safety_category).join(" ")}`
-      : `Act as my PersoNewsAP tutor. Stay in English. Complete the whole session in five minutes maximum. Start with an explanation of 120 words maximum, keep the main explanation under 220 words, ask at most three questions one at a time, wait for my answer before continuing, correct mistakes briefly, end with a recap under 60 words, do not offer a second lesson and do not ask for any final report. Topic: ${input.step.title_en}. Tutor focus: ${input.step.tutor_focus_en} Example to use: ${context}. ${repetition} ${safetyRules(input.step.safety_category).join(" ")}`;
+  const title = input.path.language === "fr" ? input.step.title_fr : input.step.title_en;
+  const focus = input.path.language === "fr" ? input.step.tutor_focus_fr : input.step.tutor_focus_en;
+  return {
+    curriculum_step_key: input.step.key,
+    adaptation_mode: input.adaptationMode,
+    teaching_angle:
+      input.path.language === "fr"
+        ? `Faire comprendre ${title} par le mécanisme central.`
+        : `Teach ${title} through the core mechanism.`,
+    hook:
+      input.path.language === "fr"
+        ? `Imagine ${context}; nous allons l'utiliser pour comprendre le sujet.`
+        : `Imagine ${context}; we will use it to understand the topic.`,
+    core_points:
+      input.path.language === "fr"
+        ? [focus, "Relier l'exemple au mécanisme.", "Vérifier la compréhension par une application courte."]
+        : [focus, "Connect the example to the mechanism.", "Check understanding with a short application."],
+    example: context,
+    first_check_goal:
+      input.path.language === "fr"
+        ? "Vérifier que l'apprenant peut expliquer le mécanisme avec ses mots."
+        : "Check that the learner can explain the mechanism in their own words.",
+    application_goal:
+      input.path.language === "fr"
+        ? "Faire appliquer le concept à une situation proche de l'exemple."
+        : "Have the learner apply the concept to a situation close to the example.",
+    transfer_goal:
+      input.path.language === "fr"
+        ? "Demander une prédiction courte dans un nouveau contexte."
+        : "Ask for one short prediction in a new context.",
+    common_misconception:
+      input.path.language === "fr"
+        ? "Confondre la définition du concept avec son mécanisme."
+        : "Confusing the definition of the concept with its mechanism.",
+    recap_target:
+      input.path.language === "fr" ? "le modèle mental le plus réutilisable" : "the most reusable mental model"
+  };
+}
 
+function promptFromTeachingPlan(input: {
+  path: LearningPathRecord;
+  step: LearningCatalogStep;
+  adaptationMode: LearningAdaptationMode;
+  plan: TeachingPlanV2;
+  safetyRules: string[];
+}): GeneratedLearningPrompt {
   return {
     curriculum_step_key: input.step.key,
     title_fr: input.step.title_fr,
@@ -160,7 +216,12 @@ function deterministicPrompt(input: {
     summary_en: input.step.summary_en,
     objectives_fr: input.step.learning_goals_fr.slice(0, 3),
     objectives_en: input.step.learning_goals_en.slice(0, 3),
-    prompt_text: languageLine,
+    prompt_text: renderLearningTutorPromptV2({
+      plan: input.plan,
+      step: input.step,
+      language: input.path.language,
+      safetyRules: input.safetyRules
+    }),
     prompt_language: input.path.language,
     adaptation_mode: input.adaptationMode
   };
@@ -179,23 +240,7 @@ export function pickExampleContext(
   return contexts[Math.abs(repetitionIndex) % contexts.length];
 }
 
-function repetitionInstruction(adaptationMode: LearningAdaptationMode, repetitionIndex: number): string {
-  if (repetitionIndex <= 0) {
-    return "";
-  }
-  if (adaptationMode === "context_shift") {
-    return "This concept was already covered: keep the same concept and change the type of example entirely.";
-  }
-  if (adaptationMode === "reinforce") {
-    return "This concept was already covered and stayed unclear: use another analogy, another example and a simpler explanation than last time.";
-  }
-  if (adaptationMode === "prerequisite") {
-    return "Go back to this simpler prerequisite concept before returning to the harder one.";
-  }
-  return "This concept was already covered: do not repeat the previous explanation word for word.";
-}
-
-function safetyRules(category: LearningCatalogStep["safety_category"]): string[] {
+export function safetyRules(category: LearningCatalogStep["safety_category"]): string[] {
   if (category === "medical_educational") {
     return [
       "Content remains educational and general.",

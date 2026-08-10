@@ -6,7 +6,6 @@ import type {
   LearningFeedbackRecord,
   LearningGenerationResult,
   LearningPathRecord,
-  LearningPromptFeedback,
   LearningSessionRecord
 } from "./learningTypes.js";
 import { emptyLearningGenerationMetrics } from "./learningTypes.js";
@@ -115,9 +114,7 @@ export async function generateLearningSessionForUser(input: {
     return { ...result, status: "blocked", reason: decision.reason, sessionId: latestReadySession?.id ?? null };
   }
 
-  const latestFeedback = latestReadySession ? feedbackBySessionId.get(latestReadySession.id) ?? null : null;
-
-  return createNextSession({ ...input, path, sessions: orderedReadySessions, latestFeedback, decision });
+  return createNextSession({ ...input, path, sessions: orderedReadySessions, feedbackRows, decision });
 }
 
 async function createNextSession(input: {
@@ -128,7 +125,7 @@ async function createNextSession(input: {
   providerResolution: LearningProviderResolution;
   path: LearningPathRecord;
   sessions: LearningSessionRecord[];
-  latestFeedback: LearningPromptFeedback | null;
+  feedbackRows: LearningFeedbackRecord[];
   decision: Extract<LearningSchedulerDecision, { action: "create" }>;
 }): Promise<LearningGenerationResult> {
   const result: LearningGenerationResult = {
@@ -227,8 +224,9 @@ async function createNextSession(input: {
       step,
       adaptationMode: input.decision.adaptationMode,
       repetitionIndex: selection.repetitionIndex,
-      previousStepKeys: orderedSessions.map((session) => session.curriculum_step_key),
-      feedback: input.latestFeedback,
+      sessions: orderedSessions,
+      feedbackRows: input.feedbackRows,
+      sessionNumber: input.decision.nextSequenceNumber,
       meter
     });
     result.learning_api_calls = meter.httpRequests;
@@ -236,7 +234,7 @@ async function createNextSession(input: {
       sessionId: claim.sessionId,
       dailyDropId: input.dailyDropId,
       modelName: generated.modelName,
-      promptVersion: "learning_v1",
+      promptVersion: "learning_v2",
       prompt: generated.prompt
     });
     result.learning_sessions_generated = 1;
