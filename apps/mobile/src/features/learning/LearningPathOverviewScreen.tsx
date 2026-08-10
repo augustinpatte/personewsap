@@ -30,7 +30,6 @@ export function LearningPathOverviewScreen({
   const params = useLocalSearchParams<{ pathId?: string }>();
   const pathId = Array.isArray(params.pathId) ? params.pathId[0] : params.pathId;
   const styles = useThemedStyles(createStyles);
-  const copy = getLearningCopy(language).overview;
   const {
     displayPath,
     domains,
@@ -42,6 +41,8 @@ export function LearningPathOverviewScreen({
     status
   } = useLearningPath();
   const selectedPath = pathId ? learningPaths.find((path) => path.id === pathId) ?? null : displayPath;
+  const pathLanguage = selectedPath?.language ?? language ?? "en";
+  const copy = getLearningCopy(pathLanguage).overview;
   const selectedDomain = selectedPath
     ? domains.find((domain) => domain.id === selectedPath.domain_id) ?? null
     : null;
@@ -124,13 +125,13 @@ export function LearningPathOverviewScreen({
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
         <AppText variant="title">{copy.title}</AppText>
         <AppText color="muted" variant="body">
-          {localizeLearningDescription(selectedObjective, language)}
+          {localizeLearningDescription(selectedObjective, pathLanguage)}
         </AppText>
       </View>
 
       <Card padding="lg">
-        <InfoRow label={copy.domain} value={localizeLearningField(selectedDomain, language)} />
-        <InfoRow label={copy.orientation} value={localizeLearningField(selectedObjective, language)} />
+        <InfoRow label={copy.domain} value={localizeLearningField(selectedDomain, pathLanguage)} />
+        <InfoRow label={copy.orientation} value={localizeLearningField(selectedObjective, pathLanguage)} />
         <InfoRow
           label={copy.status}
           value={copy[getLearningPathStatusCopyKey(selectedPath)]}
@@ -143,21 +144,21 @@ export function LearningPathOverviewScreen({
         {isDefaultPath && selectedPath.status === "active" ? (
           <InfoRow
             label={copy.nextEdition}
-            value={nextDate ? formatDate(nextDate, language) : copy.nextUnknown}
+            value={nextDate ? formatDate(nextDate, pathLanguage) : copy.nextUnknown}
           />
         ) : (
           <InfoRow
             label={copy[pathDateInfo.labelKey]}
-            value={pathDateInfo.value ? formatDateTime(pathDateInfo.value, language) : copy.nextUnknown}
+            value={pathDateInfo.value ? formatDateTime(pathDateInfo.value, pathLanguage) : copy.nextUnknown}
           />
         )}
         <InfoRow
           label={copy.currentLevel}
-          value={getCurrentLevelLabel(selectedPath.current_level, language)}
+          value={getCurrentLevelLabel(selectedPath.current_level, pathLanguage)}
         />
         <InfoRow
           label={copy.targetLevel}
-          value={getTargetLevelLabel(selectedPath.target_level, language)}
+          value={getTargetLevelLabel(selectedPath.target_level, pathLanguage)}
         />
       </Card>
 
@@ -193,7 +194,9 @@ export function LearningPathOverviewScreen({
               <AppText color="muted" variant="caption">
                 {copy.sessionLabel(session.session_number)}
               </AppText>
-              <AppText variant="bodyStrong">{localizeSessionTitle(session, language)}</AppText>
+              <AppText variant="bodyStrong">
+                {localizeSessionTitle(session, session.language ?? pathLanguage)}
+              </AppText>
             </Pressable>
           ))
         )}

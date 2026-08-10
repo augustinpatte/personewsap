@@ -207,6 +207,11 @@ function NoEditionScreen({
         <AppText color="muted" variant="read">
           {editionDay ? copy.comingSoonBody : copy.noEdition.body}
         </AppText>
+        {editionDay ? (
+          <AppText color="accentInk" variant="label">
+            {copy.languageChangeAppliesNext}
+          </AppText>
+        ) : null}
         {nextLabel ? (
           <AppText color="muted" variant="caption">
             {nextLabel}
@@ -532,6 +537,7 @@ function getTodayCopy(language: ContentLanguage) {
         completionBody: "You finished today's edition. See you tomorrow.",
         comingSoonTitle: "Today's edition is on its way",
         comingSoonBody: "This edition is not available in English yet. Nothing to do — check back in a moment.",
+        languageChangeAppliesNext: "Your language change will apply to your next edition.",
         noEdition: {
           accessibilityLabel: "No new edition today",
           title: "No new edition today",
@@ -564,6 +570,7 @@ function getTodayCopy(language: ContentLanguage) {
         completionBody: "Vous avez terminé l'édition du jour. À demain.",
         comingSoonTitle: "L'édition du jour arrive",
         comingSoonBody: "Cette édition n'est pas encore disponible en français. Rien à faire — revenez dans un instant.",
+        languageChangeAppliesNext: "Votre changement de langue s'appliquera à votre prochaine édition.",
         noEdition: {
           accessibilityLabel: "Aucune nouvelle édition aujourd'hui",
           title: "Aucune nouvelle édition aujourd'hui",

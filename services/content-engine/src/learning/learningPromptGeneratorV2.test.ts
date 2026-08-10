@@ -41,11 +41,45 @@ describe("learning prompt generator v2", () => {
       expect(captured.payload.context.language).toBe(scenario.language);
       expect(captured.payload.context.learner.current_level).toBe(scenario.currentLevel);
       expect(captured.payload.context.session.curriculum_step.key).toBe(step.key);
+      expect(captured.payload.context.session.curriculum_step).not.toHaveProperty("title_fr");
+      expect(captured.payload.context.session.curriculum_step).not.toHaveProperty("title_en");
+      expect(captured.payload.context.session.curriculum_step).not.toHaveProperty("summary_fr");
+      expect(captured.payload.context.session.curriculum_step).not.toHaveProperty("summary_en");
       expect(captured.payload.context.session.adaptation_mode).toBe("normal");
       expect(captured.result.prompt.title_en).toBe(step.title_en);
       expect(captured.result.prompt.summary_en).toBe(step.summary_en);
       expect(captured.result.prompt.objectives_en).toEqual(step.learning_goals_en.slice(0, 3));
     }
+  });
+
+  it("sends only the requested language content to the provider", async () => {
+    const step = await catalogStep();
+    const fr = await captureProviderRequest({
+      path: path({ language: "fr" }),
+      step,
+      adaptationMode: "normal",
+      sessions: [],
+      feedbackRows: []
+    });
+    const en = await captureProviderRequest({
+      path: path({ language: "en" }),
+      step,
+      adaptationMode: "normal",
+      sessions: [],
+      feedbackRows: []
+    });
+
+    expect(fr.payload.context.session.curriculum_step.title).toBe(step.title_fr);
+    expect(fr.payload.context.session.curriculum_step.summary).toBe(step.summary_fr);
+    expect(fr.payload.context.session.curriculum_step.learning_goals).toEqual(step.learning_goals_fr);
+    expect(fr.payload.context.session.curriculum_step.tutor_focus).toBe(step.tutor_focus_fr);
+    expect(JSON.stringify(fr.payload.context.session.curriculum_step)).not.toContain(step.title_en);
+
+    expect(en.payload.context.session.curriculum_step.title).toBe(step.title_en);
+    expect(en.payload.context.session.curriculum_step.summary).toBe(step.summary_en);
+    expect(en.payload.context.session.curriculum_step.learning_goals).toEqual(step.learning_goals_en);
+    expect(en.payload.context.session.curriculum_step.tutor_focus).toBe(step.tutor_focus_en);
+    expect(JSON.stringify(en.payload.context.session.curriculum_step)).not.toContain(step.title_fr);
   });
 
   it.each<LearningAdaptationMode>(["normal", "reinforce", "prerequisite", "accelerate", "context_shift"])(
@@ -169,6 +203,73 @@ describe("learning prompt generator v2", () => {
     ).rejects.toThrow(/adaptation_mode mismatch/);
   });
 
+  it("rejects teaching plans written in the wrong language with one HTTP request", async () => {
+    const step = await catalogStep();
+    const frenchProvider = new CountingLearningPromptProvider({
+      disableFallback: true,
+      buildPrompt: () => validPlan(step, "normal", "en")
+    });
+    await expect(
+      generateLearningPrompt({
+        provider: frenchProvider,
+        path: path({ language: "fr" }),
+        step,
+        adaptationMode: "normal",
+        repetitionIndex: 0,
+        sessions: [],
+        feedbackRows: [],
+        sessionNumber: 1
+      })
+    ).rejects.toThrow(/language mismatch/);
+    expect(frenchProvider.httpRequests).toBe(1);
+
+    const englishProvider = new CountingLearningPromptProvider({
+      disableFallback: true,
+      buildPrompt: () => validPlan(step, "normal", "fr")
+    });
+    await expect(
+      generateLearningPrompt({
+        provider: englishProvider,
+        path: path({ language: "en" }),
+        step,
+        adaptationMode: "normal",
+        repetitionIndex: 0,
+        sessions: [],
+        feedbackRows: [],
+        sessionNumber: 1
+      })
+    ).rejects.toThrow(/language mismatch/);
+    expect(englishProvider.httpRequests).toBe(1);
+  });
+
+  it("localizes safety rules in the rendered tutor prompt", async () => {
+    const catalog = await loadLearningCatalog();
+    const medicalStep = catalog.find((candidate) => candidate.safety_category === "medical_educational");
+    if (!medicalStep) {
+      throw new Error("No medical learning step found.");
+    }
+
+    const fr = await captureProviderRequest({
+      path: path({ language: "fr", domain_id: medicalStep.domain_id }),
+      step: medicalStep,
+      adaptationMode: "normal",
+      sessions: [],
+      feedbackRows: []
+    });
+    const en = await captureProviderRequest({
+      path: path({ language: "en", domain_id: medicalStep.domain_id }),
+      step: medicalStep,
+      adaptationMode: "normal",
+      sessions: [],
+      feedbackRows: []
+    });
+
+    expect(fr.result.prompt.prompt_text).toContain("Le contenu reste éducatif et général.");
+    expect(fr.result.prompt.prompt_text).not.toContain("Content remains educational and general.");
+    expect(en.result.prompt.prompt_text).toContain("Content remains educational and general.");
+    expect(en.result.prompt.prompt_text).not.toContain("Le contenu reste éducatif et général.");
+  });
+
   it("makes no network request in deterministic mode and renders the final prompt locally", async () => {
     const step = await catalogStep();
     const result = await generateLearningPrompt({
@@ -228,7 +329,13 @@ async function captureProviderRequest(input: {
         language: "fr" | "en";
         learner: { current_level: number };
         session: {
-          curriculum_step: { key: string };
+          curriculum_step: {
+            key: string;
+            title: string;
+            summary: string;
+            learning_goals: string[];
+            tutor_focus: string;
+          };
           adaptation_mode: LearningAdaptationMode;
         };
         feedback_profile: {
@@ -258,8 +365,20 @@ async function generateWithPlan(step: LearningCatalogStep, plan: unknown) {
   });
 }
 
-function validPlan(step: LearningCatalogStep, adaptationMode: LearningAdaptationMode) {
-  return {
+function validPlan(step: LearningCatalogStep, adaptationMode: LearningAdaptationMode, language: "en" | "fr" = "en") {
+  return language === "fr" ? {
+    curriculum_step_key: step.key,
+    adaptation_mode: adaptationMode,
+    teaching_angle: "Expliquer le mécanisme avec un exemple concret.",
+    hook: "Commencer par une situation simple et proche.",
+    core_points: ["Un mécanisme central compte.", "L'apprenant doit l'appliquer."],
+    example: "Un exemple concret.",
+    first_check_goal: "Vérifier la compréhension du mécanisme.",
+    application_goal: "Appliquer le mécanisme.",
+    transfer_goal: "Transférer le mécanisme.",
+    common_misconception: "Confondre vocabulaire et mécanisme.",
+    recap_target: "le modèle mental réutilisable"
+  } : {
     curriculum_step_key: step.key,
     adaptation_mode: adaptationMode,
     teaching_angle: "Teach the mechanism directly.",
@@ -312,6 +431,7 @@ function session(input: {
     session_number: input.sessionNumber,
     repetition_index: 0,
     adaptation_mode: "normal",
+    language: "en",
     generation_status: "ready",
     status: input.status,
     available_on: "2026-08-01",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Share, StyleSheet, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
@@ -17,6 +17,7 @@ import { useAuth } from "../../src/features/auth";
 import { NotificationPreferencesCard } from "../../src/features/notifications";
 import { LearningAccountSection } from "../../src/features/learning";
 import { PreferencesEditor, updateProfileLanguage } from "../../src/features/preferences";
+import { shouldApplyLanguageSaveResult } from "../../src/features/preferences/languagePersistence";
 import { trackAnalyticsEvent } from "../../src/lib/analytics";
 import { formatLanguageName, localized } from "../../src/lib/i18n";
 import { type NormalizedSupabaseError } from "../../src/lib/supabase";
@@ -44,6 +45,8 @@ export default function AccountScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteRequestMessage, setDeleteRequestMessage] = useState<string | null>(null);
   const [signOutError, setSignOutError] = useState<NormalizedSupabaseError | null>(null);
+  const [languageSaveError, setLanguageSaveError] = useState<string | null>(null);
+  const languageSaveRequestRef = useRef(0);
   const styles = useThemedStyles(createStyles);
   const copy = getAccountCopy(profileLanguage);
   const visibleAccountError = signOutError ?? error;
@@ -60,18 +63,46 @@ export default function AccountScreen() {
   }, [profileLanguage, visibleAccountError]);
 
   const handleLanguageChange = useCallback(
-    async (language: Language) => {
-      // Update the single source of truth first so every screen switches now,
-      // then persist so the choice survives a restart. No reset required.
+    async (language: Language): Promise<boolean> => {
+      const previousLanguage = profileLanguage ?? "en";
+      const requestId = languageSaveRequestRef.current + 1;
+      languageSaveRequestRef.current = requestId;
+      setLanguageSaveError(null);
       applyProfileLanguage(language);
 
       if (!user?.id) {
-        return;
+        return true;
       }
 
-      await updateProfileLanguage(user.id, language);
+      const result = await updateProfileLanguage(user.id, language);
+
+      if (
+        !shouldApplyLanguageSaveResult({
+          requestId,
+          latestRequestId: languageSaveRequestRef.current
+        })
+      ) {
+        return true;
+      }
+
+      if (!result.ok) {
+        applyProfileLanguage(previousLanguage);
+        setLanguageSaveError(
+          localized(
+            {
+              en: "Could not save your language. Your previous language was restored.",
+              fr: "Impossible d'enregistrer votre langue. La langue précédente a été restaurée."
+            },
+            previousLanguage
+          )
+        );
+        return false;
+      }
+
+      await refreshAuthState();
+      return true;
     },
-    [applyProfileLanguage, user?.id]
+    [applyProfileLanguage, profileLanguage, refreshAuthState, user?.id]
   );
 
   const handleRefresh = useCallback(async () => {
@@ -250,6 +281,12 @@ export default function AccountScreen() {
         {userFacingAccountError ? (
           <AppText color="danger" variant="body">
             {userFacingAccountError.message}
+          </AppText>
+        ) : null}
+
+        {languageSaveError ? (
+          <AppText color="danger" variant="body">
+            {languageSaveError}
           </AppText>
         ) : null}
 

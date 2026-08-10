@@ -36,7 +36,8 @@ export function LearningPathCard({
   session
 }: LearningPathCardProps) {
   const styles = useThemedStyles(createStyles);
-  const copy = getLearningCopy(language).card;
+  const cardLanguage = session?.language ?? language ?? "en";
+  const copy = getLearningCopy(cardLanguage).card;
   const openLabel =
     session?.status === "opened" || session?.status === "started"
       ? copy.continue
@@ -104,16 +105,16 @@ export function LearningPathCard({
         </View>
         {domain ? (
           <AppText color="muted" variant="caption">
-            {localizeLearningField(domain, language)}
-            {objective ? ` · ${localizeLearningField(objective, language)}` : ""}
+              {localizeLearningField(domain, cardLanguage)}
+              {objective ? ` · ${localizeLearningField(objective, cardLanguage)}` : ""}
           </AppText>
         ) : null}
         <AppText color="muted" variant="eyebrow">
           {copy.sessionLabel(session.session_number)}
         </AppText>
-        <AppText variant="title">{localizeSessionTitle(session, language)}</AppText>
+        <AppText variant="title">{localizeSessionTitle(session, cardLanguage)}</AppText>
         <AppText color="inkSoft" variant="read">
-          {localizeSessionSummary(session, language)}
+          {localizeSessionSummary(session, cardLanguage)}
         </AppText>
         <View style={styles.footer}>
           <View style={styles.statusRow}>

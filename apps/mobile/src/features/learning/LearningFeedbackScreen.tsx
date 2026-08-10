@@ -17,9 +17,11 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { submitFeedback } = useLearningPath();
+  const { getSessionById, submitFeedback } = useLearningPath();
   const styles = useThemedStyles(createStyles);
-  const copy = getLearningCopy(language).feedback;
+  const session = sessionId ? getSessionById(sessionId) : undefined;
+  const sessionLanguage = session?.language ?? language ?? "en";
+  const copy = getLearningCopy(sessionLanguage).feedback;
   const [ratings, setRatings] = useState<LearningFeedbackRatings>({
     comprehension: null,
     explainability: null,

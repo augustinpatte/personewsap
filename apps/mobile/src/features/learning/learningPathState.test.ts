@@ -111,6 +111,7 @@ function sessionForPath(id: string, pathId: string): LearningSession {
     curriculum_step_key: null,
     session_number: 1,
     adaptation_mode: "normal",
+    language: "en",
     title_fr: "Titre",
     title_en: "Title",
     summary_fr: "Résumé",

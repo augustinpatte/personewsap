@@ -118,6 +118,9 @@ Return only valid JSON matching the supplied schema.
 
 Generate a teaching plan, not the final conversation and not a report.
 
-All learner-facing teaching-plan text must be written in the requested session language.
+Every learner-facing string in the TeachingPlan MUST be written entirely in context.language.
+If context.language is "fr", use natural French.
+If context.language is "en", use natural English.
+Do not mix languages except for proper nouns, standard technical terms, product names and acronyms.
 
 Be concise. Every field must have a pedagogical purpose.`;

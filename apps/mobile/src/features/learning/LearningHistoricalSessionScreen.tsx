@@ -33,17 +33,19 @@ export function LearningHistoricalSessionScreen({
   const pathId = Array.isArray(params.pathId) ? params.pathId[0] : params.pathId;
   const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
   const styles = useThemedStyles(createStyles);
-  const copy = getLearningCopy(language).overview;
   const { domains, learningPaths, loadSessionsForPath, objectives } = useLearningPath();
   const path = pathId ? learningPaths.find((candidate) => candidate.id === pathId) ?? null : null;
-  const domain = path ? domains.find((candidate) => candidate.id === path.domain_id) ?? null : null;
-  const objective = path
-    ? objectives.find((candidate) => candidate.id === path.objective_id) ?? null
-    : null;
+  const pathLanguage = path?.language ?? language ?? "en";
   const [state, setState] = useState<HistoricalSessionState>({
     status: "loading",
     session: null
   });
+  const sessionLanguage = state.session?.language ?? pathLanguage;
+  const copy = getLearningCopy(sessionLanguage).overview;
+  const domain = path ? domains.find((candidate) => candidate.id === path.domain_id) ?? null : null;
+  const objective = path
+    ? objectives.find((candidate) => candidate.id === path.objective_id) ?? null
+    : null;
 
   useEffect(() => {
     if (!pathId || !sessionId) {
@@ -126,25 +128,28 @@ export function LearningHistoricalSessionScreen({
       <View style={styles.header}>
         <AppText variant="eyebrow">{copy.readOnly}</AppText>
         <AppText color="muted" variant="caption">
-          {`${localizeLearningField(domain, language)} · ${localizeLearningField(objective, language)}`}
+          {`${localizeLearningField(domain, sessionLanguage)} · ${localizeLearningField(
+            objective,
+            sessionLanguage
+          )}`}
         </AppText>
         <AppText color="muted" variant="eyebrow">
           {copy.sessionLabel(session.session_number)}
         </AppText>
-        <AppText variant="title">{localizeSessionTitle(session, language)}</AppText>
+        <AppText variant="title">{localizeSessionTitle(session, sessionLanguage)}</AppText>
         <AppText color="muted" variant="read">
-          {localizeSessionSummary(session, language)}
+          {localizeSessionSummary(session, sessionLanguage)}
         </AppText>
         {date ? (
           <AppText color="accentInk" variant="label">
-            {formatDate(date, language)}
+            {formatDate(date, sessionLanguage)}
           </AppText>
         ) : null}
       </View>
 
       <Card padding="lg">
         <AppText variant="subtitle">{copy.history}</AppText>
-        {localizeSessionObjectives(session, language).map((objectiveText) => (
+        {localizeSessionObjectives(session, sessionLanguage).map((objectiveText) => (
           <View key={objectiveText} style={styles.objectiveRow}>
             <View style={styles.dot} />
             <AppText color="inkSoft" style={styles.objectiveCopy} variant="body">

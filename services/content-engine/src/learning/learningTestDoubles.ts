@@ -77,7 +77,7 @@ export function fakeLearningPromptResponse(request: LlmJsonRequest): TeachingPla
     context: {
       language: "fr" | "en";
       session: {
-        curriculum_step: { key: string; title_fr: string; title_en: string };
+        curriculum_step: { key: string; title: string };
         adaptation_mode: LearningAdaptationMode;
         selected_example_context: string;
       };
@@ -92,8 +92,8 @@ export function fakeLearningPromptResponse(request: LlmJsonRequest): TeachingPla
     adaptation_mode: payload.context.session.adaptation_mode,
     teaching_angle:
       language === "fr"
-        ? `Expliquer ${step.title_fr} par un mécanisme concret.`
-        : `Explain ${step.title_en} through a concrete mechanism.`,
+        ? `Expliquer ${step.title} par un mécanisme concret.`
+        : `Explain ${step.title} through a concrete mechanism.`,
     hook: language === "fr" ? `Commence avec ${context}.` : `Start with ${context}.`,
     core_points:
       language === "fr"
@@ -164,6 +164,7 @@ export class InMemoryLearningRepository implements LearningSessionRepository {
         session_number: input.sessionNumber,
         repetition_index: input.repetitionIndex,
         adaptation_mode: input.adaptationMode,
+        language: input.language === "fr" ? "fr" : "en",
         generation_status: "generating",
         generation_attempts: 1,
         generation_locked_at: new Date(this.now()).toISOString(),

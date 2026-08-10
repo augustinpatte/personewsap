@@ -1597,7 +1597,7 @@ export class ContentRepository {
   async listLearningSessions(pathId: string): Promise<LearningSessionRecord[]> {
     const { data, error } = await this.supabase
       .from("learning_sessions")
-      .select("id,path_id,daily_drop_id,curriculum_step_key,skipped_step_key,session_number,repetition_index,adaptation_mode,generation_status,status,available_on,opened_at,started_at,completed_at")
+      .select("id,path_id,daily_drop_id,curriculum_step_key,skipped_step_key,session_number,repetition_index,adaptation_mode,language,generation_status,status,available_on,opened_at,started_at,completed_at")
       .eq("path_id", pathId)
       .order("session_number", { ascending: true })
       .returns<LearningSessionRecord[]>();

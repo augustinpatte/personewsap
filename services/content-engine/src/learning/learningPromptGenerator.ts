@@ -52,7 +52,7 @@ export async function generateLearningPrompt(input: {
 
   if (input.provider === "deterministic") {
     // Deterministic mode never touches the network, so it must never be billed.
-    meter.modelName = DETERMINISTIC_LEARNING_MODEL;
+        meter.modelName = DETERMINISTIC_LEARNING_MODEL;
     return {
       apiCalls: 0,
       modelName: DETERMINISTIC_LEARNING_MODEL,
@@ -61,7 +61,7 @@ export async function generateLearningPrompt(input: {
         step: input.step,
         adaptationMode: input.adaptationMode,
         plan: deterministicTeachingPlan(input),
-        safetyRules: safetyRules(input.step.safety_category)
+        safetyRules: safetyRules(input.step.safety_category, input.path.language)
       })
     };
   }
@@ -92,7 +92,7 @@ export async function generateLearningPrompt(input: {
           adaptationMode: input.adaptationMode,
           repetitionIndex: input.repetitionIndex,
           selectedExampleContext: pickExampleContext(input.step, input.path.language, input.repetitionIndex),
-          safetyRules: safetyRules(input.step.safety_category)
+          safetyRules: safetyRules(input.step.safety_category, input.path.language)
         })
       })
     });
@@ -102,7 +102,8 @@ export async function generateLearningPrompt(input: {
 
   const plan = validateTeachingPlanV2(result, {
     curriculumStepKey: input.step.key,
-    adaptationMode: input.adaptationMode
+    adaptationMode: input.adaptationMode,
+    language: input.path.language
   });
   const prompt = validateGeneratedLearningPrompt(
     promptFromTeachingPlan({
@@ -110,7 +111,7 @@ export async function generateLearningPrompt(input: {
       step: input.step,
       adaptationMode: input.adaptationMode,
       plan,
-      safetyRules: safetyRules(input.step.safety_category)
+      safetyRules: safetyRules(input.step.safety_category, input.path.language)
     }),
     input
   );
@@ -240,25 +241,46 @@ export function pickExampleContext(
   return contexts[Math.abs(repetitionIndex) % contexts.length];
 }
 
-export function safetyRules(category: LearningCatalogStep["safety_category"]): string[] {
+export function safetyRules(
+  category: LearningCatalogStep["safety_category"],
+  language: LearningPathRecord["language"]
+): string[] {
   if (category === "medical_educational") {
-    return [
-      "Content remains educational and general.",
-      "Do not diagnose the user.",
-      "Do not propose personal treatment."
-    ];
+    return language === "fr"
+      ? [
+          "Le contenu reste éducatif et général.",
+          "Ne diagnostique pas l'apprenant.",
+          "Ne recommande aucun traitement personnel."
+        ]
+      : [
+          "Content remains educational and general.",
+          "Do not diagnose the learner.",
+          "Do not recommend personal treatment."
+        ];
   }
   if (category === "cyber_defensive") {
-    return [
-      "Stay strictly defensive and authorized.",
-      "Do not provide real intrusion, malicious persistence, or credential theft procedures."
-    ];
+    return language === "fr"
+      ? [
+          "Reste strictement défensif et autorisé.",
+          "Ne fournis pas de procédure réelle d'intrusion, de persistance malveillante ou de vol d'identifiants."
+        ]
+      : [
+          "Stay strictly defensive and authorized.",
+          "Do not provide real intrusion, malicious persistence, or credential theft procedures."
+        ];
   }
   if (category === "financial_educational") {
-    return [
-      "Stay educational and general.",
-      "Do not give personal investment advice or price predictions."
-    ];
+    return language === "fr"
+      ? [
+          "Reste éducatif et général.",
+          "Ne donne pas de conseil d'investissement personnel ni de prédiction de prix."
+        ]
+      : [
+          "Stay educational and general.",
+          "Do not give personal investment advice or price predictions."
+        ];
   }
-  return ["Stay educational, concise, and bounded to the requested step."];
+  return language === "fr"
+    ? ["Reste éducatif, concis et limité à l'étape demandée."]
+    : ["Stay educational, concise, and bounded to the requested step."];
 }

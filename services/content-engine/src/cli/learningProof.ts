@@ -483,6 +483,7 @@ function readySession(input: {
     session_number: input.sessionNumber,
     repetition_index: 0,
     adaptation_mode: "normal" as const,
+    language: BASE_PATH.language,
     generation_status: "ready" as const,
     generation_attempts: 1,
     generation_locked_at: null,

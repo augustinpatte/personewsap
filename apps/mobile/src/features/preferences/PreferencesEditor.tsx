@@ -29,13 +29,14 @@ import {
   saveEditablePreferences,
   type EditablePreferences
 } from "./preferencesPersistence";
+import { shouldApplyLanguageSaveResult, shouldRollbackLanguageSelection } from "./languagePersistence";
 
 type PreferencesEditorProps = {
   userId: string | null;
   refreshKey: number;
   uiLanguage?: Language | null;
   onSaved?: () => Promise<void> | void;
-  onLanguageChange?: (language: Language) => void | Promise<void>;
+  onLanguageChange?: (language: Language) => boolean | void | Promise<boolean | void>;
 };
 
 type PreferencesTab = "newsletter" | "mini_case";
@@ -58,6 +59,7 @@ export function PreferencesEditor({
   // if the counter has advanced during the save's async work, a fresher load
   // already committed state and the save result should not overwrite it.
   const loadGenerationRef = useRef(0);
+  const languageSaveGenerationRef = useRef(0);
   // Held in a ref so the immediate language switch (which changes
   // preferredUiLanguage) does not re-create loadPreferences and reload the form,
   // which would discard unsaved topic edits. Only used to localize load errors.
@@ -161,15 +163,47 @@ export function PreferencesEditor({
   // so the change is not flagged as a pending edit, while topic edits stay pending.
   const selectLanguage = useCallback(
     (language: Language) => {
+      const previousLanguage = draft?.language ?? saved?.language ?? preferredUiLanguage ?? "en";
+      const generation = languageSaveGenerationRef.current + 1;
+      languageSaveGenerationRef.current = generation;
       setDraft((current) =>
         current ? normalizeEditablePreferences({ ...current, language }) : current
       );
       setSaved((current) => (current ? { ...current, language } : current));
       setStatusMessage(null);
       setErrorMessage(null);
-      void onLanguageChange?.(language);
+      void Promise.resolve(onLanguageChange?.(language))
+        .then((persisted) => {
+          if (
+            !shouldRollbackLanguageSelection({
+              persisted,
+              requestId: generation,
+              latestRequestId: languageSaveGenerationRef.current
+            })
+          ) {
+            return;
+          }
+          setDraft((current) =>
+            current ? normalizeEditablePreferences({ ...current, language: previousLanguage }) : current
+          );
+          setSaved((current) => (current ? { ...current, language: previousLanguage } : current));
+        })
+        .catch(() => {
+          if (
+            !shouldApplyLanguageSaveResult({
+              requestId: generation,
+              latestRequestId: languageSaveGenerationRef.current
+            })
+          ) {
+            return;
+          }
+          setDraft((current) =>
+            current ? normalizeEditablePreferences({ ...current, language: previousLanguage }) : current
+          );
+          setSaved((current) => (current ? { ...current, language: previousLanguage } : current));
+        });
     },
-    [onLanguageChange]
+    [draft?.language, onLanguageChange, preferredUiLanguage, saved?.language]
   );
 
   const toggleNewsletterTopic = useCallback((topicId: NewsletterTopicId) => {

@@ -42,6 +42,7 @@ export type LearningSessionRecord = {
   session_number: number;
   repetition_index?: number;
   adaptation_mode: LearningAdaptationMode;
+  language: Language;
   generation_status: "queued" | "generating" | "ready" | "failed";
   status: LearningSessionStatus;
   available_on?: string | null;

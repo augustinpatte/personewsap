@@ -19,14 +19,10 @@ export type LearningPromptContextV2 = {
       key: string;
       stage: number;
       required: boolean;
-      title_fr: string;
-      title_en: string;
-      summary_fr: string;
-      summary_en: string;
-      learning_goals_fr: string[];
-      learning_goals_en: string[];
-      tutor_focus_fr: string;
-      tutor_focus_en: string;
+      title: string;
+      summary: string;
+      learning_goals: string[];
+      tutor_focus: string;
       prerequisite_keys: string[];
       safety_category: LearningCatalogStep["safety_category"];
     };
@@ -87,14 +83,11 @@ export function buildLearningPromptContextV2(input: {
         key: input.step.key,
         stage: input.step.stage,
         required: input.step.required,
-        title_fr: input.step.title_fr,
-        title_en: input.step.title_en,
-        summary_fr: input.step.summary_fr,
-        summary_en: input.step.summary_en,
-        learning_goals_fr: input.step.learning_goals_fr,
-        learning_goals_en: input.step.learning_goals_en,
-        tutor_focus_fr: input.step.tutor_focus_fr,
-        tutor_focus_en: input.step.tutor_focus_en,
+        title: input.path.language === "fr" ? input.step.title_fr : input.step.title_en,
+        summary: input.path.language === "fr" ? input.step.summary_fr : input.step.summary_en,
+        learning_goals:
+          input.path.language === "fr" ? input.step.learning_goals_fr : input.step.learning_goals_en,
+        tutor_focus: input.path.language === "fr" ? input.step.tutor_focus_fr : input.step.tutor_focus_en,
         prerequisite_keys: input.step.prerequisite_keys,
         safety_category: input.step.safety_category
       },

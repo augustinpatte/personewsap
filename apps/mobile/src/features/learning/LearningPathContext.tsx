@@ -241,7 +241,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           const sessionResult = await supabase
             .from("learning_sessions")
             .select(
-              "id, path_id, daily_drop_id, curriculum_step_key, skipped_step_key, session_number, adaptation_mode, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, generation_status, status, available_on, opened_at, started_at, completed_at, created_at"
+              "id, path_id, daily_drop_id, curriculum_step_key, skipped_step_key, session_number, adaptation_mode, language, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, generation_status, status, available_on, opened_at, started_at, completed_at, created_at"
             )
             .eq("path_id", displayPath.id)
             .eq("generation_status", "ready")
@@ -642,7 +642,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
       const { data, error } = await supabase
         .from("learning_sessions")
         .select(
-          "id, path_id, daily_drop_id, curriculum_step_key, skipped_step_key, session_number, adaptation_mode, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, generation_status, status, available_on, opened_at, started_at, completed_at, created_at"
+          "id, path_id, daily_drop_id, curriculum_step_key, skipped_step_key, session_number, adaptation_mode, language, title_fr, title_en, summary_fr, summary_en, objectives_fr, objectives_en, prompt_text, generation_status, status, available_on, opened_at, started_at, completed_at, created_at"
         )
         .eq("path_id", pathId)
         .eq("generation_status", "ready")
@@ -795,6 +795,7 @@ function coercePath(row: LearningPath | null): LearningPath | null {
 function coerceSession(row: LearningSession): LearningSession {
   return {
     ...row,
+    language: row.language === "fr" ? "fr" : "en",
     objectives_fr: Array.isArray(row.objectives_fr) ? row.objectives_fr : [],
     objectives_en: Array.isArray(row.objectives_en) ? row.objectives_en : []
   };

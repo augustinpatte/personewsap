@@ -56,6 +56,7 @@ export type LearningSession = {
   skipped_step_key?: string | null;
   session_number: number;
   adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
+  language: Language;
   title_fr: string;
   title_en: string;
   summary_fr: string;

@@ -395,7 +395,7 @@ export async function saveEditablePreferences(
  * restart without depending on a full preferences save (topics/modules untouched).
  */
 export async function updateProfileLanguage(
-  userId: string,
+  _userId: string,
   language: Language
 ): Promise<SavePreferencesResult> {
   if (!supabase) {
@@ -414,7 +414,7 @@ export async function updateProfileLanguage(
     };
   }
 
-  const result = await supabase.from("profiles").update({ language }).eq("id", userId);
+  const result = await supabase.rpc("update_profile_language", { p_language: language });
 
   if (result.error) {
     return {

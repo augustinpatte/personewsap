@@ -639,6 +639,7 @@ export type Database = {
           skipped_step_key: string | null;
           session_number: number;
           adaptation_mode: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
+          language: Language;
           title_fr: string;
           title_en: string;
           summary_fr: string;
@@ -663,6 +664,7 @@ export type Database = {
           skipped_step_key?: string | null;
           session_number: number;
           adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
+          language?: Language;
           title_fr: string;
           title_en: string;
           summary_fr: string;
@@ -687,6 +689,7 @@ export type Database = {
           skipped_step_key?: string | null;
           session_number?: number;
           adaptation_mode?: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
+          language?: Language;
           title_fr?: string;
           title_en?: string;
           summary_fr?: string;
@@ -756,6 +759,16 @@ export type Database = {
         Args: Record<string, never>;
         Returns: Json;
       };
+      update_profile_language: {
+        Args: {
+          p_language: Language;
+        };
+        Returns: {
+          id: string;
+          language: Language;
+          updated_at: string;
+        } | null;
+      };
       open_learning_session: {
         Args: {
           p_session_id: string;
@@ -764,6 +777,7 @@ export type Database = {
           id: string;
           path_id: string;
           session_number: number;
+          language: Language;
           title_fr: string;
           title_en: string;
           summary_fr: string;
@@ -788,6 +802,7 @@ export type Database = {
           id: string;
           path_id: string;
           session_number: number;
+          language: Language;
           title_fr: string;
           title_en: string;
           summary_fr: string;

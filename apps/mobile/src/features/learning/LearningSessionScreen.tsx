@@ -33,8 +33,9 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     status
   } = useLearningPath();
   const styles = useThemedStyles(createStyles);
-  const copy = getLearningCopy(language).session;
   const session = sessionId ? getSessionById(sessionId) : undefined;
+  const sessionLanguage = session?.language ?? language ?? "en";
+  const copy = getLearningCopy(sessionLanguage).session;
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptUsed, setPromptUsed] = useState(
     Boolean(session?.started_at) || session?.status === "started" || session?.status === "completed"
@@ -50,11 +51,11 @@ export function LearningSessionScreen({ language }: { language: Language | null 
 
     openedSessionIdRef.current = session.id;
     trackAnalyticsEvent("learning_session_opened", {
-      language: language ?? undefined
+      language: sessionLanguage
     });
 
     void markSessionOpened(session.id);
-  }, [language, markSessionOpened, session]);
+  }, [markSessionOpened, session, sessionLanguage]);
 
   useEffect(() => {
     setPromptUsed(Boolean(session?.started_at) || session?.status === "started" || session?.status === "completed");
@@ -88,7 +89,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
         : copy.progressFailed
     );
     trackAnalyticsEvent("learning_prompt_copied", {
-      language: language ?? undefined
+      language: sessionLanguage
     });
     return result;
   };
@@ -131,7 +132,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
             : copy.progressFailed
         );
         trackAnalyticsEvent("learning_provider_opened", {
-          language: language ?? undefined
+          language: sessionLanguage
         });
       }
     });
@@ -168,18 +169,18 @@ export function LearningSessionScreen({ language }: { language: Language | null 
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
         {displayDomain && displayObjective ? (
           <AppText color="muted" variant="caption">
-            {`${localizeLearningField(displayDomain, language)} · ${localizeLearningField(
+            {`${localizeLearningField(displayDomain, sessionLanguage)} · ${localizeLearningField(
               displayObjective,
-              language
+              sessionLanguage
             )}`}
           </AppText>
         ) : null}
         <AppText color="muted" variant="eyebrow">
           {copy.sessionLabel(session.session_number)}
         </AppText>
-        <AppText variant="title">{localizeSessionTitle(session, language)}</AppText>
+        <AppText variant="title">{localizeSessionTitle(session, sessionLanguage)}</AppText>
         <AppText color="muted" variant="read">
-          {localizeSessionSummary(session, language)}
+          {localizeSessionSummary(session, sessionLanguage)}
         </AppText>
         <AppText color="accentInk" variant="label">
           {copy.duration}
@@ -188,7 +189,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
 
       <Card padding="lg">
         <AppText variant="subtitle">{copy.objectives}</AppText>
-        {localizeSessionObjectives(session, language)
+        {localizeSessionObjectives(session, sessionLanguage)
           .slice(0, 3)
           .map((objective) => (
             <View key={objective} style={styles.objectiveRow}>

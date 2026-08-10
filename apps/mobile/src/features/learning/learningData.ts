@@ -71,6 +71,7 @@ export const mockLearningSessions: LearningSession[] = [
     curriculum_step_key: "computer_science.cs_systems.001",
     session_number: 1,
     adaptation_mode: "normal",
+    language: "en",
     title_fr: "Ce que fait vraiment un système d'exploitation",
     title_en: "What an operating system really does",
     summary_fr:
