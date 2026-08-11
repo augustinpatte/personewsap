@@ -1,4 +1,5 @@
 import { TOPIC_IDS, type DailyDropPayload, type Language, type RankedArticle, type TopicId } from "../domain.js";
+import type { LlmCallMetric } from "../generation/modelRouting.js";
 
 export type RssMetricDiagnostics = {
   attempted: number;
@@ -25,6 +26,11 @@ export type LanguageJobMetrics = {
   estimated_input_tokens: number | null;
   estimated_output_tokens: number | null;
   estimated_cost_usd: number | null;
+  llm_call_metrics: LlmCallMetric[];
+  llm_actual_input_tokens: number | null;
+  llm_actual_output_tokens: number | null;
+  llm_actual_cost_usd: number | null;
+  llm_cost_by_content_type: Record<string, number>;
 };
 
 export type JobRunMetrics = {
@@ -50,6 +56,11 @@ export type JobRunMetrics = {
   estimated_cost_usd: number | null;
   estimated_cost_available: boolean;
   estimated_cost_reason: string;
+  llm_call_metrics: LlmCallMetric[];
+  llm_actual_input_tokens: number | null;
+  llm_actual_output_tokens: number | null;
+  llm_actual_cost_usd: number | null;
+  llm_cost_by_content_type: Record<string, number>;
 };
 
 export type PricingConfig = {
@@ -83,7 +94,9 @@ export function buildLanguageJobMetrics(input: {
   deduplicatedContentItems: number;
   assignedUsers: number;
   pricing: PricingConfig;
+  llmCallMetrics?: LlmCallMetric[];
 }): LanguageJobMetrics {
+  const actual = aggregateLlmCallMetrics(input.llmCallMetrics ?? []);
   const tokenEstimate = input.useLlm
     ? estimateTokens({
         articles: input.rankedArticles,
@@ -114,7 +127,12 @@ export function buildLanguageJobMetrics(input: {
     assigned_users: input.assignedUsers,
     estimated_input_tokens: tokenEstimate.input,
     estimated_output_tokens: tokenEstimate.output,
-    estimated_cost_usd: estimatedCostUsd
+    estimated_cost_usd: estimatedCostUsd,
+    llm_call_metrics: input.llmCallMetrics ?? [],
+    llm_actual_input_tokens: actual.inputTokens,
+    llm_actual_output_tokens: actual.outputTokens,
+    llm_actual_cost_usd: actual.costUsd,
+    llm_cost_by_content_type: actual.costByContentType
   };
 }
 
@@ -139,7 +157,12 @@ export function buildFailedLanguageJobMetrics(input: {
     assigned_users: 0,
     estimated_input_tokens: input.useLlm ? null : null,
     estimated_output_tokens: input.useLlm ? null : null,
-    estimated_cost_usd: null
+    estimated_cost_usd: null,
+    llm_call_metrics: [],
+    llm_actual_input_tokens: null,
+    llm_actual_output_tokens: null,
+    llm_actual_cost_usd: null,
+    llm_cost_by_content_type: {}
   };
 }
 
@@ -156,6 +179,8 @@ export function aggregateJobRunMetrics(
   let inputTokens = 0;
   let outputTokens = 0;
   let hasTokenEstimate = false;
+  const llmCallMetrics = languageMetrics.flatMap((result) => result.metrics.llm_call_metrics);
+  const actual = aggregateLlmCallMetrics(llmCallMetrics);
 
   for (const result of languageMetrics) {
     if (result.metrics.llm_latency_ms !== null) {
@@ -208,7 +233,12 @@ export function aggregateJobRunMetrics(
     estimated_cost_available: hasTokenEstimate && pricing.available,
     estimated_cost_reason: pricing.available
       ? "Estimated from character-count token approximation and configured per-1M token prices."
-      : pricing.reason
+      : pricing.reason,
+    llm_call_metrics: llmCallMetrics,
+    llm_actual_input_tokens: actual.inputTokens,
+    llm_actual_output_tokens: actual.outputTokens,
+    llm_actual_cost_usd: actual.costUsd,
+    llm_cost_by_content_type: actual.costByContentType
   };
 }
 
@@ -284,6 +314,46 @@ function estimateCostUsd(input: {
   const inputCost = (input.inputTokens / 1_000_000) * (input.pricing.inputCostPerMillion ?? 0);
   const outputCost = (input.outputTokens / 1_000_000) * (input.pricing.outputCostPerMillion ?? 0);
   return Number((inputCost + outputCost).toFixed(6));
+}
+
+function aggregateLlmCallMetrics(metrics: LlmCallMetric[]): {
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costUsd: number | null;
+  costByContentType: Record<string, number>;
+} {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let costUsd = 0;
+  let hasInputTokens = false;
+  let hasOutputTokens = false;
+  let hasCost = false;
+  const costByContentType: Record<string, number> = {};
+
+  for (const metric of metrics) {
+    if (metric.input_tokens !== null) {
+      inputTokens += metric.input_tokens;
+      hasInputTokens = true;
+    }
+    if (metric.output_tokens !== null) {
+      outputTokens += metric.output_tokens;
+      hasOutputTokens = true;
+    }
+    if (metric.estimated_cost_usd !== null) {
+      costUsd += metric.estimated_cost_usd;
+      hasCost = true;
+      costByContentType[metric.content_type] = Number(
+        ((costByContentType[metric.content_type] ?? 0) + metric.estimated_cost_usd).toFixed(6)
+      );
+    }
+  }
+
+  return {
+    inputTokens: hasInputTokens ? inputTokens : null,
+    outputTokens: hasOutputTokens ? outputTokens : null,
+    costUsd: hasCost ? Number(costUsd.toFixed(6)) : null,
+    costByContentType
+  };
 }
 
 function sumRss(diagnostics: RssMetricDiagnostics[], key: "attempted" | "succeeded" | "failed"): number {

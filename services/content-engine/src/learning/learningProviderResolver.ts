@@ -15,14 +15,15 @@ export function resolveLearningProvider(input: {
   useLlm: boolean;
   env?: NodeJS.ProcessEnv;
 }): LearningProviderResolution {
-  if (!input.useLlm) {
+  const env = input.env ?? process.env;
+  const mode = env.LEARNING_GENERATION_MODE?.trim().toLowerCase() || "deterministic";
+
+  if (!input.useLlm || mode !== "llm") {
     return {
       status: "ready",
       provider: "deterministic"
     };
   }
-
-  const env = input.env ?? process.env;
 
   try {
     return {

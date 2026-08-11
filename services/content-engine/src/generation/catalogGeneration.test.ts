@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MINI_CASE_TOPIC_IDS, TOPIC_IDS, type RankedArticle, type TopicId } from "../domain.js";
+import { MINI_CASE_TOPIC_IDS, NEWSLETTER_ITEMS_PER_TOPIC, TOPIC_IDS, type RankedArticle, type TopicId } from "../domain.js";
 import { StructuredContentGenerator } from "./structuredGenerator.js";
 import { parseDailyJobOptions } from "../cli/dailyJobTest.js";
 
@@ -39,7 +39,7 @@ function catalogRequest(overrides: Partial<Parameters<StructuredContentGenerator
     language: "en" as const,
     articles: ALL_NEWSLETTER_TOPICS.map(rankedArticle),
     newsletterTopics: ALL_NEWSLETTER_TOPICS,
-    newsletterArticleCount: ALL_NEWSLETTER_TOPICS.length,
+    newsletterArticleCount: ALL_NEWSLETTER_TOPICS.length * NEWSLETTER_ITEMS_PER_TOPIC,
     miniCaseProductTopics: [...MINI_CASE_TOPIC_IDS],
     ...overrides
   };
@@ -78,21 +78,24 @@ describe("master catalog generation (generation is edition-driven, not user-driv
     expect((miniCases[0] as Extract<(typeof miniCases)[number], { content_type: "mini_case" }>).product_topic).toBe("engineering_operations");
   });
 
-  it("generates one newsletter article per editorial topic (complete catalog)", async () => {
+  it("generates two newsletter articles per editorial topic (complete catalog)", async () => {
     const payload = await new StructuredContentGenerator().generateDailyDrop(catalogRequest());
     const newsletterTopics = payload.items
       .filter((item) => item.content_type === "newsletter_article")
       .map((item) => item.topic);
 
-    expect(newsletterTopics).toHaveLength(ALL_NEWSLETTER_TOPICS.length);
+    expect(newsletterTopics).toHaveLength(ALL_NEWSLETTER_TOPICS.length * NEWSLETTER_ITEMS_PER_TOPIC);
     expect(new Set(newsletterTopics)).toEqual(new Set(ALL_NEWSLETTER_TOPICS));
+    for (const topic of ALL_NEWSLETTER_TOPICS) {
+      expect(newsletterTopics.filter((candidate) => candidate === topic)).toHaveLength(NEWSLETTER_ITEMS_PER_TOPIC);
+    }
   });
 
   it("produces the full catalog regardless of how many users will be assigned (0 users is valid)", async () => {
     // The generator never receives users or a USER_LIMIT; assignment happens later.
     const payload = await new StructuredContentGenerator().generateDailyDrop(catalogRequest());
 
-    expect(payload.items.filter((item) => item.content_type === "newsletter_article")).toHaveLength(8);
+    expect(payload.items.filter((item) => item.content_type === "newsletter_article")).toHaveLength(16);
     expect(payload.items.filter((item) => item.content_type === "mini_case")).toHaveLength(6);
     expect(payload.items.filter((item) => item.content_type === "business_story")).toHaveLength(1);
     expect(payload.items.filter((item) => item.content_type === "concept")).toHaveLength(0);
@@ -100,9 +103,9 @@ describe("master catalog generation (generation is edition-driven, not user-driv
 });
 
 describe("daily-job catalog sizing is user-independent (USER_LIMIT only limits assignment)", () => {
-  it("newsletterArticleCount defaults to one per editorial topic", () => {
+  it("newsletterArticleCount defaults to two per editorial topic", () => {
     const options = parseDailyJobOptions([]);
-    expect(options.newsletterArticleCount).toBe(options.topics.length);
+    expect(options.newsletterArticleCount).toBe(options.topics.length * NEWSLETTER_ITEMS_PER_TOPIC);
     expect(options.topics.length).toBe(TOPIC_IDS.length);
   });
 
@@ -113,7 +116,7 @@ describe("daily-job catalog sizing is user-independent (USER_LIMIT only limits a
       const limited = parseDailyJobOptions([]);
       process.env.USER_LIMIT = "25";
       const wide = parseDailyJobOptions([]);
-      expect(limited.newsletterArticleCount).toBe(limited.topics.length);
+      expect(limited.newsletterArticleCount).toBe(limited.topics.length * NEWSLETTER_ITEMS_PER_TOPIC);
       expect(wide.newsletterArticleCount).toBe(limited.newsletterArticleCount);
     } finally {
       if (previous === undefined) {

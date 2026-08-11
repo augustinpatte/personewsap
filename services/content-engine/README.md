@@ -24,8 +24,17 @@ Optional:
 - `NEWS_API_KEY`
 - `NEWS_API_ENDPOINT`
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL` defaults to `gpt-4.1-mini`
-- `OPENAI_FALLBACK_MODEL` optional fallback model tried after primary model request failures
+- `ANTHROPIC_API_KEY`
+- `NEWSLETTER_MODEL` defaults to `gpt-5-mini-2025-08-07`
+- `NEWSLETTER_FALLBACK_MODEL` defaults to `gpt-5.4-mini-2026-03-17`
+- `MINI_CASE_MODEL` defaults to `gpt-5.4-mini-2026-03-17`
+- `MINI_CASE_FALLBACK_MODEL` defaults to `gpt-5.4-2026-03-05`
+- `BUSINESS_STORY_PROVIDER` defaults to `anthropic`
+- `BUSINESS_STORY_MODEL` defaults to `claude-sonnet-4-6`
+- `BUSINESS_STORY_FALLBACK_PROVIDER=openai`
+- `BUSINESS_STORY_FALLBACK_MODEL` defaults to `gpt-5.4-2026-03-05`
+- `LEARNING_GENERATION_MODE=deterministic` keeps Learning Path generation free/API-less in normal production.
+- `OPENAI_MODEL` remains a legacy fallback for local tests/tools when section-specific model vars are absent.
 - `OPENAI_REQUEST_TIMEOUT_MS` defaults to `120000`
 
 ## Local Env Bootstrap
@@ -79,8 +88,8 @@ npm run check
 npm run build
 npm run dry-run
 npm run quality-proof
-LIVE_RSS=true OPENAI_API_KEY=... npm run llm-run
-ALLOW_SAMPLE_CONTENT=true OPENAI_API_KEY=... npm run llm-run
+LIVE_RSS=true OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run llm-run
+ALLOW_SAMPLE_CONTENT=true OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run llm-run
 ```
 
 Read-only diagnostic:
@@ -121,9 +130,9 @@ npm run business-story-memory
 
 `business-story-memory` is a read-only operator report for the Business Story editorial memory. It requires server-side Supabase service-role credentials and prints the last 10 stories, recent mechanisms and industries, blocked entities/companies, blocked strategic angles, and recommended underused mechanisms/industries.
 
-`prod-dry-run` sets the production RSS/LLM source controls with `DRY_RUN=true`. It still requires `OPENAI_API_KEY`, but it never writes to Supabase.
+`prod-dry-run` sets the production RSS/LLM source controls with `DRY_RUN=true`. It requires the provider keys used by the configured model routes, but it never writes to Supabase. Use it for manual release checks, not as a mandatory step before every scheduled production run.
 
-`prod-run` sets the required production write controls (`PRODUCTION_DAILY_JOB=true`, `DRY_RUN=false`, `LIVE_RSS=true`, `LIVE_RSS_ONLY=true`, `USE_LLM=true`, `CONTENT_STATUS=published`). It still refuses to run unless server-side Supabase service-role credentials and `OPENAI_API_KEY` are present.
+`prod-run` sets the required production write controls (`PRODUCTION_DAILY_JOB=true`, `DRY_RUN=false`, `LIVE_RSS=true`, `LIVE_RSS_ONLY=true`, `USE_LLM=true`, `CONTENT_STATUS=published`). It refuses to run unless server-side Supabase service-role credentials and the configured provider keys are present.
 
 The default dry run uses bundled sample articles, including a duplicate URL variant, then runs the normal pipeline:
 
@@ -198,33 +207,33 @@ See the repo-level `BACKEND_OPERATIONS.md` for the daily operator checklist and 
 
 ## LLM Generation
 
-`llm-run` uses the same source collection and processing pipeline, then asks OpenAI for the final structured daily drop. It still does not write to Supabase. It does not enable sample articles by default; choose live RSS or explicitly allow samples for a local rehearsal.
+`llm-run` uses the same source collection and processing pipeline, then asks the configured routed providers for the final structured daily drop. It still does not write to Supabase. It does not enable sample articles by default; choose live RSS or explicitly allow samples for a local rehearsal.
 
 ```sh
-OPENAI_API_KEY=... LIVE_RSS=true npm run llm-run
-OPENAI_API_KEY=... ALLOW_SAMPLE_CONTENT=true npm run llm-run
+OPENAI_API_KEY=... ANTHROPIC_API_KEY=... LIVE_RSS=true npm run llm-run
+OPENAI_API_KEY=... ANTHROPIC_API_KEY=... ALLOW_SAMPLE_CONTENT=true npm run llm-run
 ```
 
 For safe local testing, `llm-run` always limits the generated drop to:
 
-1. one newsletter article
+1. one newsletter article per selected editorial topic
 2. one business story
 3. one mini-case
-4. one concept
+4. zero concepts
 
-This keeps local OpenAI requests smaller and easier to inspect. `dry-run` is unchanged and still honors `--newsletter-count`.
+This keeps local provider requests smaller and easier to inspect. `dry-run` is unchanged and still honors `--newsletter-count`.
 
 Useful options mostly match `dry-run`:
 
 ```sh
-OPENAI_API_KEY=... LIVE_RSS=true npm run llm-run -- --date 2026-04-26
-OPENAI_API_KEY=... LIVE_RSS=true npm run llm-run -- --languages en,fr
-OPENAI_API_KEY=... LIVE_RSS=true npm run llm-run -- --topics business,finance,tech_ai
+OPENAI_API_KEY=... ANTHROPIC_API_KEY=... LIVE_RSS=true npm run llm-run -- --date 2026-04-26
+OPENAI_API_KEY=... ANTHROPIC_API_KEY=... LIVE_RSS=true npm run llm-run -- --languages en,fr
+OPENAI_API_KEY=... ANTHROPIC_API_KEY=... LIVE_RSS=true npm run llm-run -- --topics business,finance,tech_ai
 ```
 
-`--newsletter-count` is intentionally ignored by `llm-run` local test mode and capped at one newsletter article.
+`--newsletter-count` is intentionally ignored by `llm-run` local test mode and capped at one newsletter article per selected topic.
 
-The LLM path uses structured JSON output, validates the generated daily drop, and retries with exponential backoff plus jitter when OpenAI times out, returns invalid output, or fails validation. If `OPENAI_API_KEY` is missing, the command exits with a clear error before any generation request is attempted. Set `OPENAI_FALLBACK_MODEL` to try a second model after primary model request failures.
+The LLM path uses structured JSON output, validates the generated daily drop, and retries with exponential backoff plus jitter at section/topic level when a provider times out, returns invalid output, or fails validation. If a configured provider key is missing, the command exits with a clear error before any generation request is attempted. Section-specific fallback models are used only on the final logical attempt.
 
 Progress logs are printed to stderr so stdout can remain valid JSON for scripts. A normal run shows:
 
@@ -236,7 +245,7 @@ Progress logs are printed to stderr so stdout can remain valid JSON for scripts.
 Use a shorter timeout when testing failure handling:
 
 ```sh
-OPENAI_API_KEY=... OPENAI_REQUEST_TIMEOUT_MS=10000 npm run llm-run
+OPENAI_API_KEY=... ANTHROPIC_API_KEY=... OPENAI_REQUEST_TIMEOUT_MS=10000 npm run llm-run
 ```
 
 If OpenAI fails, the command reports a structured reason: `timeout`, `validation_error`, `api_error`, `empty_output`, or `malformed_json`.
@@ -252,7 +261,7 @@ Use `llm-proof` for the first real-source LLM proof. It is intentionally narrow:
 - always `rssOnly: true`
 - never uses sample articles
 - never writes to Supabase
-- defaults to one newsletter article, one business story, one mini-case, and one concept
+- defaults to one newsletter article per selected topic, one business story, one mini-case, and zero concepts
 - defaults to one LLM attempt, one RSS item per feed, and six ranked source articles sent to the model
 
 First safe command:
@@ -343,7 +352,7 @@ Safe defaults:
 
 - uses bundled sample articles only
 - generates one language only
-- generates one newsletter article, one business story, one mini-case, and one concept
+- generates one newsletter article, one business story, one mini-case, and zero concepts
 - stores content with `draft` status when `TEST_USER_ID` is not set
 - does not create user daily drops when `TEST_USER_ID` is not set, and prints a clear stderr message explaining that no user drop was created
 - adds test metadata to each persisted `content_items.metadata` object:
@@ -475,7 +484,8 @@ Supported env:
 
 - `LANGUAGES=fr,en` controls generated languages. Defaults to `fr,en`.
 - `CONTENT_STATUS=published` stores generated content as `draft`, `review`, or `published`. Assignment only runs for `published`.
-- `USE_LLM=true` uses OpenAI generation. Requires `OPENAI_API_KEY`, including in dry runs.
+- `USE_LLM=true` uses routed editorial generation. Newsletter and Mini Case use OpenAI routes; Business Story uses Anthropic first by default with OpenAI fallback. Requires the configured provider keys, including in dry runs.
+- `LEARNING_GENERATION_MODE=deterministic` keeps Learning Path deterministic even when `USE_LLM=true` for editorial content.
 - `LIVE_RSS=true` enables curated RSS fetching.
 - `LIVE_RSS_ONLY=true` enables curated RSS and disables `sample_articles`, including in `DRY_RUN=true` rehearsals.
 - `USER_LIMIT=5` optionally limits assignments per language. Omit it to consider all eligible users.
@@ -514,6 +524,7 @@ Production-shaped no-write proof:
 
 ```sh
 OPENAI_API_KEY=... \
+ANTHROPIC_API_KEY=... \
 LANGUAGES=fr,en \
 npm run prod-dry-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
 ```
@@ -529,6 +540,8 @@ LANGUAGES=fr,en \
 CONTENT_STATUS=published \
 USE_LLM=true \
 OPENAI_API_KEY=... \
+ANTHROPIC_API_KEY=... \
+LEARNING_GENERATION_MODE=deterministic \
 LIVE_RSS=true \
 LIVE_RSS_ONLY=true \
 npm run daily-job
@@ -540,11 +553,12 @@ Equivalent guarded wrapper:
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
 OPENAI_API_KEY=... \
+ANTHROPIC_API_KEY=... \
 LANGUAGES=fr,en \
 npm run prod-run
 ```
 
-Non-dry `daily-job` refuses to run unless all production gates are present: `PRODUCTION_DAILY_JOB=true`, `DRY_RUN=false`, `LIVE_RSS=true`, `LIVE_RSS_ONLY=true`, `USE_LLM=true`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY`. It also refuses sample content and strict validation failures before persistence.
+Non-dry `daily-job` refuses to run unless all production gates are present: `PRODUCTION_DAILY_JOB=true`, `DRY_RUN=false`, `LIVE_RSS=true`, `LIVE_RSS_ONLY=true`, `USE_LLM=true`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY` when the default Business Story route is active. It also refuses sample content and strict validation failures before persistence.
 
 For limited staging writes, use `daily-job-test` or `persist-test`; they mark content as test data and require their own explicit confirmation flags.
 
@@ -552,10 +566,10 @@ Cron or GitHub Actions should call the same script from `services/content-engine
 
 ```sh
 cd services/content-engine
-PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LANGUAGES=fr,en CONTENT_STATUS=published npm run daily-job
+PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic LANGUAGES=fr,en CONTENT_STATUS=published npm run daily-job
 ```
 
-For GitHub Actions, store `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY` as repository or environment secrets. Start with `DRY_RUN=true` in the workflow until the JSON summary shows healthy fetched, processed, generated, and failure counts.
+For GitHub Actions, store `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY` as repository or environment secrets. The scheduled workflow runs one production generation/persistence path; use `prod-dry-run` manually for release checks, not as a required step before every edition.
 
 Safety behavior:
 
@@ -564,14 +578,18 @@ Safety behavior:
 - non-dry `daily-job` refuses to run unless `PRODUCTION_DAILY_JOB=true` and `DRY_RUN=false` are explicit.
 - non-dry `daily-job` refuses to run unless `LIVE_RSS=true`, `LIVE_RSS_ONLY=true`, and `USE_LLM=true`.
 - non-dry `daily-job` refuses sample content and any `example.com` sample source URL in generated output.
-- `USE_LLM=true` refuses to run without `OPENAI_API_KEY`.
-- source fetch and generation stages retry before failing a language.
+- `USE_LLM=true` refuses to run without the API keys required by the configured routes.
+- source fetch stages retry before failing a language.
+- LLM generation retries at the section/topic level: `newsletter/fr/business` retries only that topic, `mini_case/en/health_pharma` retries only that topic, and `business_story/fr` retries only that story. Successful items are not regenerated.
+- Fallback models are used only on the final logical attempt for that item/topic.
 - one language failure is reported as `partial_failed` when at least one other requested language succeeds; set `STRICT_ALL_LANGUAGES=true` to fail the run instead.
 - assignment uses only app `profiles`, `user_preferences`, and enabled `user_topic_preferences`; newsletter-only users are not selected.
 - assignment uses the generated drop matching the user's profile language.
 - Business Stories read `public.business_story_history` before generation. The prompt receives banned entities, companies, mechanisms, industries, and angles plus underused areas. Validation blocks same entity within 180 days, same company within 90 days unless the angle differs, same mechanism within 14 days, more than two uses of the same industry in 14 days, same strategic angle within 30 days, and duplicate title/slug forever. Persistence upserts history by slug/content item so reruns do not duplicate memory rows.
 
-The JSON summary reports `runId`, `operatorSummary`, `metrics`, fetched, processed, generated, stored, users considered, users assigned, failures, skipped users before assignment, incomplete selections, stale item links removed, duplicate input links skipped, validation failures by rule, and cost-estimate availability. Daily-drop assignment is idempotent by user/date: reruns update existing `daily_drops` and replace `daily_drop_items` by slot/position. Content item rows are currently inserted per generation run, so operators should use `runId` metadata to inspect reruns.
+The JSON summary reports `runId`, `operatorSummary`, `metrics`, fetched, processed, generated, stored, users considered, users assigned, failures, skipped users before assignment, incomplete selections, stale item links removed, duplicate input links skipped, validation failures by rule, per-call LLM metrics, actual provider token usage when returned, and cost estimates by module. Daily-drop assignment is idempotent by user/date: reruns update existing `daily_drops` and replace `daily_drop_items` by slot/position. Content item rows are currently inserted per generation run, so operators should use `runId` metadata to inspect reruns.
+
+Normal full editorial generation before retries is 30 logical calls for `LANGUAGES=fr,en`: 16 Newsletter calls (8 topics × 2 languages, each call returns 2 articles), 12 Mini Case calls (6 product topics × 2 languages), and 2 Business Story calls (1 per language). Learning Path remains deterministic by default and reports zero API calls/cost. Verify provider prices before changing model IDs; built-in pricing is an operator estimate, not a billing contract.
 
 Inspect Business Story memory before a production run:
 
@@ -595,7 +613,7 @@ Required:
 
 Optional:
 
-- `USE_LLM=true` uses OpenAI generation instead of the deterministic dry-run generator. Also set `OPENAI_API_KEY`.
+- `USE_LLM=true` uses routed provider generation instead of the deterministic dry-run generator. Also set `OPENAI_API_KEY` and, with the default Business Story route, `ANTHROPIC_API_KEY`.
 - `LIVE_RSS=true` adds live RSS feeds to the bundled sample articles.
 - `USER_LIMIT=5` controls the maximum number of app users assigned per language. Defaults to 5 and is capped at 25.
 - `LANGUAGES=fr,en` sets the languages when `--language` or `--languages` is not provided. Defaults to `fr,en` so French and English app profiles are covered by default.
@@ -637,6 +655,7 @@ SUPABASE_SERVICE_ROLE_KEY=... \
 CONFIRM_DAILY_JOB_TEST=true \
 USE_LLM=true \
 OPENAI_API_KEY=... \
+ANTHROPIC_API_KEY=... \
 USER_LIMIT=5 \
 npm run daily-job-test
 ```
@@ -708,6 +727,7 @@ CONFIRM_APP_PREVIEW_TEST=true \
 USE_LLM=true \
 LIVE_RSS_ONLY=true \
 OPENAI_API_KEY=... \
+ANTHROPIC_API_KEY=... \
 npm run app-preview-test -- --language en
 ```
 

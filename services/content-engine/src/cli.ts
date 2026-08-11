@@ -175,7 +175,16 @@ Daily job env:
   STRICT_ALL_LANGUAGES=true Fail the full job if any requested language fails.
   USE_LLM=true            Use OpenAI generation for daily-job and daily-job-test.
   OPENAI_REQUEST_TIMEOUT_MS=120000 Override OpenAI request timeout.
-  OPENAI_FALLBACK_MODEL=... Try fallback model after primary request failures.
+  ANTHROPIC_REQUEST_TIMEOUT_MS=120000 Override Anthropic request timeout.
+  NEWSLETTER_MODEL=gpt-5-mini-2025-08-07
+  NEWSLETTER_FALLBACK_MODEL=gpt-5.4-mini-2026-03-17
+  MINI_CASE_MODEL=gpt-5.4-mini-2026-03-17
+  MINI_CASE_FALLBACK_MODEL=gpt-5.4-2026-03-05
+  BUSINESS_STORY_PROVIDER=anthropic
+  BUSINESS_STORY_MODEL=claude-sonnet-4-6
+  BUSINESS_STORY_FALLBACK_PROVIDER=openai
+  BUSINESS_STORY_FALLBACK_MODEL=gpt-5.4-2026-03-05
+  LEARNING_GENERATION_MODE=deterministic Keep Learning Path API-free while editorial USE_LLM=true.
   LIVE_RSS=true           Enable live RSS sources.
   LIVE_RSS_ONLY=true      Enable live RSS and disable sample_articles.
   ALLOW_SAMPLE_CONTENT=true Allow sample_articles only in dry-run/test-shaped commands.
@@ -192,7 +201,7 @@ Examples:
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_ASSIGN_TEST=true npm run assign-test-users -- --limit 5
   DRY_RUN=true LANGUAGES=fr,en npm run daily-job
   DRY_RUN=true LIVE_RSS_ONLY=true RSS_ARTICLES_PER_SOURCE=1 npm run daily-job
-  PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... npm run daily-job
+  PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run daily-job
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true npm run daily-job-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_DAILY_JOB_TEST=true LANGUAGES=fr,en USER_LIMIT=5 CONTENT_STATUS=published npm run daily-job-test
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_APP_PREVIEW_TEST=true USER_LIMIT=1 npm run app-preview-test -- --language en

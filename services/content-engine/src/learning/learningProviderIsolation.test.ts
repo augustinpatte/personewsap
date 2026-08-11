@@ -29,7 +29,7 @@ describe("learning provider isolation", () => {
     try {
       const resolution = resolveLearningProvider({
         useLlm: true,
-        env: { OPENAI_API_KEY: "", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
+        env: { LEARNING_GENERATION_MODE: "llm", OPENAI_API_KEY: "", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
       });
 
       expect(resolution.status).toBe("unavailable");
@@ -49,7 +49,7 @@ describe("learning provider isolation", () => {
     try {
       const resolution = resolveLearningProvider({
         useLlm: true,
-        env: { OPENAI_API_KEY: "injected-key", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
+        env: { LEARNING_GENERATION_MODE: "llm", OPENAI_API_KEY: "injected-key", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
       });
 
       expect(resolution.status).toBe("ready");
@@ -66,7 +66,7 @@ describe("learning provider isolation", () => {
     const repository = new InMemoryLearningRepository({ ...PATH_A });
     const resolution = resolveLearningProvider({
       useLlm: true,
-      env: { OPENAI_API_KEY: "", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
+      env: { LEARNING_GENERATION_MODE: "llm", OPENAI_API_KEY: "", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
     });
 
     expect(resolution.status).toBe("unavailable");
@@ -87,6 +87,18 @@ describe("learning provider isolation", () => {
       sessionId: null
     });
     expect(repository.sessions).toHaveLength(0);
+  });
+
+  it("keeps Learning deterministic by default even when editorial USE_LLM is true", () => {
+    const resolution = resolveLearningProvider({
+      useLlm: true,
+      env: { OPENAI_API_KEY: "", OPENAI_MODEL: "gpt-test" } as NodeJS.ProcessEnv
+    });
+
+    expect(resolution).toEqual({
+      status: "ready",
+      provider: "deterministic"
+    });
   });
 
   it("lets the next user proceed after one user's learning provider is unavailable", async () => {

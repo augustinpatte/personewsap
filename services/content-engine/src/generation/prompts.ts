@@ -74,7 +74,7 @@ export const CONTENT_TYPE_PROMPTS = {
   newsletter_article: [
     "Newsletter article output contract (daily drop envelope):",
     "- Follow newsletter_editorial_specification fully for editorial standard, tone, the 8 subjects, recency (J/J-1) discipline, neutrality/safety rules, per-category source priorities, single-date discipline, and anti-template writing.",
-    "- That specification is editorial intent only. Its standalone JSON shape (date/type/period/subjects/articles, dual FR+EN output, downloadable-file delivery, 48/16 article batches) is NOT the output envelope. Emit ONE newsletter_article per daily drop slot using the daily drop schema fields below, never that object.",
+    "- That specification is editorial intent only. Its standalone JSON shape (date/type/period/subjects/articles and downloadable-file delivery) is NOT the output envelope. Emit the requested newsletter_article item(s) using the daily drop schema fields below, never that object.",
     "- Use the requested language exactly (one language per run). Do not produce both FR and EN in the same response, and do not add any text outside the JSON object.",
     "- daily/weekly_digest separation is handled by the engine cadence, not by this item. Render only the daily drop schema fields for the slot you are given.",
     "- Explain one sourced factual development in 120-220 words, but lead with the thesis instead of a school-style recap.",

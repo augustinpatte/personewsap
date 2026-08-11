@@ -14,6 +14,7 @@ Non-dry production writes must have all of these set:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
 
 Recommended operator env:
 
@@ -43,6 +44,7 @@ npm run supabase:doctor -- --live
 
 ```sh
 OPENAI_API_KEY="..." \
+ANTHROPIC_API_KEY="..." \
 LANGUAGES=fr,en \
 npm run content:prod-dry-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
 ```
@@ -63,6 +65,7 @@ npm run content:prod-dry-run -- --topics business,finance,tech_ai,law,medicine,e
 SUPABASE_URL="https://your-project.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
 OPENAI_API_KEY="<openai-key>" \
+ANTHROPIC_API_KEY="<anthropic-key>" \
 LANGUAGES=fr,en \
 npm run content:prod-run
 ```
@@ -181,10 +184,11 @@ Minimum reliable loop:
 
 1. `cd /Users/<operator>/personewsap`
 2. Pull or deploy the already-reviewed release.
-3. Run a no-write production proof:
+3. Optionally run a no-write production proof for release/debug checks. Scheduled production automation should not run this before every edition because it would duplicate LLM cost:
 
 ```sh
 OPENAI_API_KEY="<openai-key>" \
+ANTHROPIC_API_KEY="<anthropic-key>" \
 LANGUAGES=fr,en \
 npm run content:prod-dry-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
 ```
@@ -195,6 +199,7 @@ npm run content:prod-dry-run -- --topics business,finance,tech_ai,law,medicine,e
 SUPABASE_URL="https://your-project.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
 OPENAI_API_KEY="<openai-key>" \
+ANTHROPIC_API_KEY="<anthropic-key>" \
 LANGUAGES=fr,en \
 RUN_ID="daily-job-$(date +%F)" \
 npm run content:prod-run
@@ -312,6 +317,7 @@ If FR fails and EN succeeds, or EN fails and FR succeeds:
 
 ```sh
 OPENAI_API_KEY="..." \
+ANTHROPIC_API_KEY="..." \
 LANGUAGES=fr \
 npm run content:prod-dry-run -- --topics business,finance --newsletter-count 1
 ```
@@ -322,6 +328,7 @@ npm run content:prod-dry-run -- --topics business,finance --newsletter-count 1
 SUPABASE_URL="https://your-project.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
 OPENAI_API_KEY="<openai-key>" \
+ANTHROPIC_API_KEY="<anthropic-key>" \
 RUN_ID="daily-job-$(date +%F)-fr-rerun-1" \
 LANGUAGES=fr \
 npm run content:prod-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
@@ -345,6 +352,7 @@ USE_LLM=true \
 SUPABASE_URL="https://your-project.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
 OPENAI_API_KEY="<openai-key>" \
+ANTHROPIC_API_KEY="<anthropic-key>" \
 LANGUAGES=fr,en \
 CONTENT_STATUS=published \
 npm run content:daily-job

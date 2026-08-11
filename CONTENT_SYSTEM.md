@@ -161,7 +161,7 @@ The mini-case should be practical, not academic trivia.
 
 ## Quick Quiz Format
 
-Quick quizzes are optional reinforcement tools, especially after concepts or mini-cases.
+Quick quizzes are optional reinforcement tools for legacy content or mini-cases. They are not part of the active four-edition Daily Drop generation path.
 
 Each quiz should include:
 
@@ -180,9 +180,9 @@ Rules:
 - Explanation must teach the point, not only say why the answer is correct.
 - Keep it under 45 seconds.
 
-## Key Concept Format
+## Key Concept Format (Legacy)
 
-The key concept teaches one reusable idea.
+The key concept teaches one reusable idea. The `concept` type remains in historical tables for backward compatibility, but it is no longer generated as an active Daily Drop module. Active editions contain Newsletter, Business Story, Mini Case, and the user-specific Learning Path session when eligible.
 
 It should include:
 

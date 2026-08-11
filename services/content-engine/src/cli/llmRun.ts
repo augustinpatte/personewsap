@@ -1,6 +1,6 @@
 import type { DailyDropPayload, Language, TopicId } from "../domain.js";
 import { LlmContentGenerator } from "../generation/llmGenerator.js";
-import { OpenAiJsonProvider } from "../generation/openAiProvider.js";
+import { createRoutedProviderFactory, toSafeModelRoutingSummary } from "../generation/modelRouting.js";
 import {
   assertValidDailyDropPayload,
   readProductionContentStrict,
@@ -18,11 +18,11 @@ import { parseDryRunOptions, type DryRunOptions } from "./dryRun.js";
 
 export type LlmRunOptions = DryRunOptions;
 
-const LLM_RUN_NEWSLETTER_ARTICLE_COUNT = 1;
+const LLM_RUN_NEWSLETTER_ITEMS_PER_TOPIC = 1;
 
 export type LlmRunOutput = {
   mode: "llm-run";
-  provider: "openai";
+  provider: "routed";
   persisted: false;
   diagnostics: Array<{
     language: Language;
@@ -43,11 +43,12 @@ export type LlmRunOutput = {
 export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
   const runOptions: LlmRunOptions = {
     ...options,
-    newsletterArticleCount: LLM_RUN_NEWSLETTER_ARTICLE_COUNT
+    newsletterArticleCount: options.topics.length * LLM_RUN_NEWSLETTER_ITEMS_PER_TOPIC
   };
 
   logProgress("local test limit active", {
-    newsletter_articles: LLM_RUN_NEWSLETTER_ARTICLE_COUNT,
+    newsletter_items_per_topic: LLM_RUN_NEWSLETTER_ITEMS_PER_TOPIC,
+    newsletter_articles: runOptions.newsletterArticleCount,
     business_stories: 1,
     mini_cases: 1,
     concepts: 0
@@ -81,10 +82,11 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
     live_rss_only: options.liveRssOnly,
     dry_run: true
   });
+  logProgress("model routing", toSafeModelRoutingSummary());
 
   const sourceFetcher = new SourceFetcher(connectors);
   const generator = new LlmContentGenerator({
-    provider: new OpenAiJsonProvider(),
+    providerForSection: createRoutedProviderFactory(),
     onProgress: logProgress
   });
   const diagnostics: LlmRunOutput["diagnostics"] = [];
@@ -135,9 +137,10 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
         dropDate: runOptions.dropDate,
         language,
         articles: rankedArticles,
-        newsletterTopics: runOptions.topics,
-        newsletterArticleCount: runOptions.newsletterArticleCount
-      })
+          newsletterTopics: runOptions.topics,
+          newsletterArticleCount: runOptions.newsletterArticleCount,
+          newsletterItemsPerTopic: LLM_RUN_NEWSLETTER_ITEMS_PER_TOPIC
+        })
     );
 
     for (const item of payload.items) {
@@ -189,7 +192,7 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
 
   return {
     mode: "llm-run",
-    provider: "openai",
+    provider: "routed",
     persisted: false,
     diagnostics,
     drops
@@ -199,7 +202,7 @@ export async function runLlmRun(options: LlmRunOptions): Promise<LlmRunOutput> {
 export function parseLlmRunOptions(args: string[]): LlmRunOptions {
   return {
     ...parseDryRunOptions(args),
-    newsletterArticleCount: LLM_RUN_NEWSLETTER_ARTICLE_COUNT
+    newsletterArticleCount: LLM_RUN_NEWSLETTER_ITEMS_PER_TOPIC
   };
 }
 

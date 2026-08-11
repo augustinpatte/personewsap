@@ -30,7 +30,7 @@
     "quality-proof": "npm run build && node dist/cli.js quality-proof",
     "learning-proof": "npm run build && node dist/cli.js learning-proof",
     "prod-dry-run": "DRY_RUN=true LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true RSS_ARTICLES_PER_SOURCE=1 npm run daily-job --",
-    "prod-run": "PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true CONTENT_STATUS=published npm run daily-job --"
+    "prod-run": "PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic CONTENT_STATUS=published npm run daily-job --"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3"

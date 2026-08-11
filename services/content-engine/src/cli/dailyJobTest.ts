@@ -1,5 +1,6 @@
 import {
   MINI_CASE_TOPIC_IDS,
+  NEWSLETTER_ITEMS_PER_TOPIC,
   TOPIC_IDS,
   type ContentType,
   type DailyDropPayload,
@@ -14,7 +15,12 @@ import {
 } from "../domain.js";
 import { LlmContentGenerator } from "../generation/llmGenerator.js";
 import { classifyLlmFailure, serializeLlmFailure, type LlmFailureReason } from "../generation/llmErrors.js";
-import { OpenAiJsonProvider } from "../generation/openAiProvider.js";
+import {
+  createRoutedProviderFactory,
+  resolveContentModelRouting,
+  toSafeModelRoutingSummary,
+  type LlmCallMetric
+} from "../generation/modelRouting.js";
 import { resolveLearningProvider } from "../learning/learningProviderResolver.js";
 import { StructuredContentGenerator } from "../generation/structuredGenerator.js";
 import type { ContentGenerator } from "../generation/types.js";
@@ -268,6 +274,7 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
   const sourcePolicy = resolveSourcePolicy(options);
   const runId = options.runId ?? buildJobRunId(options);
   const pricing = readPricingConfig();
+  const llmCallMetrics: LlmCallMetric[] = [];
 
   logProgress("edition scheduled", {
     drop_date: options.dropDate,
@@ -282,6 +289,7 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
     languages: options.languages,
     topics: options.topics,
     use_llm: options.useLlm,
+    model_routing: options.useLlm ? toSafeModelRoutingSummary(resolveContentModelRouting()) : null,
     live_rss: options.liveRss,
     live_rss_only: options.liveRssOnly,
     source_mode: sourcePolicy.sourceMode,
@@ -293,7 +301,7 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
   }, options.logPrefix);
 
   const sourceFetcher = new SourceFetcher(sourcePolicy.connectors);
-  const generator = createGenerator(options.useLlm, options.logPrefix);
+  const generator = createGenerator(options.useLlm, options.logPrefix, llmCallMetrics);
   const repository = options.dryRun
     ? undefined
     : new ContentRepository(
@@ -326,6 +334,7 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
           language,
           options,
           pricing,
+          llmCallMetrics,
           repository,
           sourceFetcher,
           sourceConnectors: sourcePolicy.connectors,
@@ -508,9 +517,9 @@ export function parseDailyJobTestOptions(args: string[]): DailyJobTestOptions {
     dropDate: flags.get("date") ?? toDateOnly(new Date()),
     languages: parseLanguages(flags.get("languages") ?? flags.get("language") ?? process.env.LANGUAGES ?? DEFAULT_LANGUAGES),
     topics,
-    // Complete master catalog: one newsletter per editorial topic, independent of
+    // Complete master catalog: two newsletter articles per editorial topic, independent of
     // any user. Override with --newsletter-count for a smaller edition.
-    newsletterArticleCount: explicitNewsletterCount ?? topics.length,
+    newsletterArticleCount: explicitNewsletterCount ?? topics.length * NEWSLETTER_ITEMS_PER_TOPIC,
     liveRss: liveRssOnly || envFlag("LIVE_RSS") || flags.has("live-rss"),
     liveRssOnly,
     useLlm,
@@ -525,9 +534,9 @@ export function parseDailyJobOptions(args: string[]): DailyJobRunOptions {
   const liveRssOnly = envFlag("LIVE_RSS_ONLY") || flags.has("live-rss-only");
   const topics = applyTopicLimit(parseTopics(flags.get("topics") ?? flags.get("topic") ?? TOPIC_IDS.join(",")));
   const explicitNewsletterCount = readPositiveInteger(flags.get("newsletter-count"), "--newsletter-count");
-  // Complete master catalog: one newsletter per editorial topic, independent of
+  // Complete master catalog: two newsletter articles per editorial topic, independent of
   // any user. Override with --newsletter-count for a smaller edition.
-  const newsletterArticleCount = explicitNewsletterCount ?? topics.length;
+  const newsletterArticleCount = explicitNewsletterCount ?? topics.length * NEWSLETTER_ITEMS_PER_TOPIC;
 
   return {
     mode: "daily-job",
@@ -559,6 +568,7 @@ async function runDailyJobLanguage(input: {
   sourceFetcher: SourceFetcher;
   sourceConnectors: SourceConnector[];
   testRunId: string;
+  llmCallMetrics: LlmCallMetric[];
 }): Promise<DailyJobLanguageResult> {
   const { generator, language, options, pricing, repository, runId, sourceFetcher, sourceConnectors, testRunId } = input;
 
@@ -811,7 +821,8 @@ async function runDailyJobLanguage(input: {
     storedItems: storedItems.length,
     deduplicatedContentItems: countDeduplicatedContentItems(storedItems),
     assignedUsers: assignment.usersAssigned,
-    pricing
+    pricing,
+    llmCallMetrics: input.llmCallMetrics.filter((metric) => metric.language === language)
   });
 
   if (assignment.assignmentSkippedReason) {
@@ -1495,13 +1506,16 @@ async function runStage<T>(
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-function createGenerator(useLlm: boolean, logPrefix: string): ContentGenerator {
+function createGenerator(useLlm: boolean, logPrefix: string, llmCallMetrics: LlmCallMetric[]): ContentGenerator {
   if (!useLlm) {
     return new StructuredContentGenerator();
   }
 
   return new LlmContentGenerator({
-    provider: new OpenAiJsonProvider(),
+    providerForSection: createRoutedProviderFactory({
+      onCallMetric: (metric) => llmCallMetrics.push(metric)
+    }),
+    onLlmCallMetric: (metric) => llmCallMetrics.push(metric),
     onProgress: (message, details) => logProgress(message, details, logPrefix)
   });
 }
@@ -1672,9 +1686,12 @@ function buildOperatorSummary(
       selectedTopicCounts: mergeCountRecords(languageResults.map((result) => result.miniCaseSelectedTopicCounts))
     },
     costEstimate: {
-      available: metrics.estimated_cost_available,
-      estimatedUsd: metrics.estimated_cost_usd,
-      reason: metrics.estimated_cost_reason
+      available: metrics.llm_actual_cost_usd !== null || metrics.estimated_cost_available,
+      estimatedUsd: metrics.llm_actual_cost_usd ?? metrics.estimated_cost_usd,
+      reason:
+        metrics.llm_actual_cost_usd !== null
+          ? "Calculated from provider usage tokens and configured default model pricing. Verify provider prices when changing model IDs."
+          : metrics.estimated_cost_reason
     },
     idempotency: {
       stableRunId: true,
@@ -1810,6 +1827,17 @@ function isSampleUrl(value: string): boolean {
 
 function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
   const productionWrite = isProductionWrite(options);
+  const modelRouting = resolveContentModelRouting();
+  const requiresOpenAi = options.useLlm && Object.values({
+    newsletter_article: modelRouting.newsletter_article,
+    mini_case: modelRouting.mini_case,
+    business_story: modelRouting.business_story
+  }).some((route) => route.provider === "openai" || route.fallbackProvider === "openai");
+  const requiresAnthropic = options.useLlm && Object.values({
+    newsletter_article: modelRouting.newsletter_article,
+    mini_case: modelRouting.mini_case,
+    business_story: modelRouting.business_story
+  }).some((route) => route.provider === "anthropic" || route.fallbackProvider === "anthropic");
   const missing = [
     productionWrite && !options.productionConfirmed ? "PRODUCTION_DAILY_JOB=true" : null,
     productionWrite && process.env.DRY_RUN !== "false" ? "DRY_RUN=false" : null,
@@ -1820,7 +1848,8 @@ function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
     !options.dryRun && !process.env.SUPABASE_URL ? "SUPABASE_URL" : null,
     !options.dryRun && !process.env.SUPABASE_SERVICE_ROLE_KEY ? "SUPABASE_SERVICE_ROLE_KEY" : null,
     options.testMode && process.env.CONFIRM_DAILY_JOB_TEST !== "true" ? "CONFIRM_DAILY_JOB_TEST=true" : null,
-    (options.useLlm || productionWrite) && !process.env.OPENAI_API_KEY ? "OPENAI_API_KEY when USE_LLM=true" : null
+    (requiresOpenAi || productionWrite) && !process.env.OPENAI_API_KEY ? "OPENAI_API_KEY for configured OpenAI routes" : null,
+    requiresAnthropic && !process.env.ANTHROPIC_API_KEY ? "ANTHROPIC_API_KEY for configured Anthropic routes" : null
   ].filter((value): value is string => value !== null);
 
   if (missing.length === 0) {
@@ -1840,10 +1869,10 @@ function assertDailyJobEnvironment(options: DailyJobRunOptions): void {
       : [
           `daily-job refused to run because the following required setting(s) are missing: ${missing.join(", ")}.`,
           options.dryRun
-            ? "DRY_RUN=true prevents Supabase writes. USE_LLM=true still requires OPENAI_API_KEY."
+            ? "DRY_RUN=true prevents Supabase writes. USE_LLM=true still requires API keys for the configured model routes."
             : [
                 "Production writes require PRODUCTION_DAILY_JOB=true, DRY_RUN=false, LIVE_RSS=true, LIVE_RSS_ONLY=true, USE_LLM=true.",
-                "Production writes never use sample_articles and require server-side Supabase service-role and OpenAI credentials."
+                "Production writes never use sample_articles and require server-side Supabase service-role plus configured LLM provider credentials."
               ].join(" ")
         ].join(" ")
   );

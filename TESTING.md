@@ -97,7 +97,7 @@ USER_LIMIT=1 \
 npm run content:app-preview-test -- --language en
 ```
 
-Add `USE_LLM=true LIVE_RSS_ONLY=true OPENAI_API_KEY=...` for real LLM/RSS content instead of the deterministic sample generator. The command:
+Add `USE_LLM=true LIVE_RSS_ONLY=true OPENAI_API_KEY=... ANTHROPIC_API_KEY=...` for real LLM/RSS content instead of the deterministic sample generator. The command:
 
 - requires `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `CONFIRM_APP_PREVIEW_TEST=true`; it refuses to write otherwise;
 - marks content with the `[TEST daily-job-test]` title prefix and `is_test_data:true`;
@@ -515,18 +515,18 @@ DRY_RUN=true LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=false RSS_ARTICLES_PER_SOU
 
 The RSS-only run should log `source_mode: "rss"`, `sample_content_enabled: false`, and `connectors: ["rss"]`. Generated content should not contain `example.com` sample URLs.
 
-Cron or GitHub Actions should later use the same `npm run daily-job` command without `DRY_RUN=true`, with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY` supplied as server-side secrets.
+Cron or GitHub Actions should later use the same `npm run daily-job` command without `DRY_RUN=true`, with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY` supplied as server-side secrets.
 
 Production writes are fail-closed and RSS-only:
 
 ```sh
-PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... LANGUAGES=fr,en CONTENT_STATUS=published npm run daily-job
+PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... ANTHROPIC_API_KEY=... LANGUAGES=fr,en CONTENT_STATUS=published npm run daily-job
 ```
 
 Root wrapper equivalent:
 
 ```sh
-SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... LANGUAGES=fr,en npm run content:prod-run
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... ANTHROPIC_API_KEY=... LANGUAGES=fr,en npm run content:prod-run
 ```
 
 Sample articles can still be used in `dry-run`, `daily-job-test`, `persist-test`, smoke, and backend E2E. Non-dry `daily-job` refuses sample content and should not be used for sample-content write rehearsals.

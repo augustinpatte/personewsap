@@ -1,4 +1,5 @@
 import {
+  NEWSLETTER_ITEMS_PER_TOPIC,
   miniCaseTopicToContentTopics,
   type DailyDropPayload,
   type GeneratedContentItem,
@@ -21,6 +22,12 @@ import { compactBusinessStoryMemoryForPrompt } from "./editorialMemory.js";
 import { LlmGenerationError, serializeLlmFailure, toLlmGenerationError } from "./llmErrors.js";
 import type { LlmProvider } from "./llmProvider.js";
 import { sanitizeLlmDailyDropPayload } from "./llmSanitizer.js";
+import {
+  createRoutedProviderFactory,
+  type EditorialSection,
+  type LlmCallMetric,
+  type SectionProviderContext
+} from "./modelRouting.js";
 import {
   BUSINESS_STORY_PROMPT_FINAL,
   CONTENT_TYPE_PROMPTS,
@@ -48,9 +55,11 @@ const RETRY_BASE_DELAY_MS = 1_000;
 const RETRY_MAX_DELAY_MS = 8_000;
 
 type LlmContentGeneratorOptions = {
-  provider: LlmProvider;
+  provider?: LlmProvider;
+  providerForSection?: (context: SectionProviderContext) => LlmProvider;
   maxOutputTokens?: number;
   maxAttempts?: number;
+  onLlmCallMetric?: (metric: LlmCallMetric) => void;
   onProgress?: (message: string, details: Record<string, unknown>) => void;
 };
 
@@ -71,13 +80,21 @@ type SourcePacket = {
 };
 
 export class LlmContentGenerator implements ContentGenerator {
-  private readonly provider: LlmProvider;
+  private readonly providerForSection: (context: SectionProviderContext) => LlmProvider;
   private readonly maxOutputTokens: number;
   private readonly maxAttempts: number;
   private readonly onProgress?: (message: string, details: Record<string, unknown>) => void;
 
   constructor(options: LlmContentGeneratorOptions) {
-    this.provider = options.provider;
+    if (options.providerForSection) {
+      this.providerForSection = options.providerForSection;
+    } else if (options.provider) {
+      this.providerForSection = () => options.provider as LlmProvider;
+    } else {
+      this.providerForSection = createRoutedProviderFactory({
+        onCallMetric: options.onLlmCallMetric
+      });
+    }
     this.maxOutputTokens = options.maxOutputTokens ?? 6500;
     this.maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
     this.onProgress = options.onProgress;
@@ -89,84 +106,85 @@ export class LlmContentGenerator implements ContentGenerator {
       throw new LlmGenerationError("validation_error", `No source articles available for ${request.language} LLM generation.`);
     }
 
+    // One isolated LLM call per content type/topic. Each call only carries that
+    // section's editorial specification (newsletter / business story / mini
+    // case), so a failed mini-case topic never forces successful newsletter or
+    // business-story generations to be repeated.
+    const items: GeneratedContentItem[] = [];
+    for (const section of SECTION_ORDER) {
+      if (section === "newsletter_article") {
+        for (const newsletterTopic of request.newsletterTopics) {
+          items.push(...(await this.generateSectionWithRetries(section, request, sources, { newsletterTopic })));
+        }
+      } else if (section === "mini_case") {
+        for (const miniCaseTopic of miniCaseGenerationTopics(request)) {
+          items.push(...(await this.generateSectionWithRetries(section, request, sources, { miniCaseTopic })));
+        }
+      } else {
+        items.push(...(await this.generateSectionWithRetries(section, request, sources)));
+      }
+    }
+
+    const payload = assembleDailyDropPayload(
+      sanitizeLlmDailyDropPayload(
+        {
+          drop_date: request.dropDate,
+          language: request.language,
+          prompt_version: PROMPT_VERSION,
+          generator_version: LLM_GENERATOR_VERSION,
+          items
+        },
+        sources
+      )
+    );
+    const quality = validateDailyDropQuality(payload, {
+      articles: request.articles,
+      productionStrict: request.productionStrict ?? readProductionContentStrict(),
+      rssOnly: request.articles.every((article) => !isSampleUrl(article.url)),
+      miniCaseProductTopics: request.miniCaseProductTopics,
+      miniCaseMemory: request.miniCaseMemory?.recentOverall
+    });
+    const issues = [
+      ...validateDailyDropPayload(payload),
+      ...quality.issues.filter((issue) => issue.severity === "error"),
+      ...validateComposition(payload, request),
+      ...validateSourceUse(payload, sources)
+    ];
+
+    if (issues.length > 0) {
+      throw new LlmGenerationError("validation_error", `LLM generated catalog failed final validation: ${formatIssues(issues)}`);
+    }
+
+    return payload;
+  }
+
+  private async generateSectionWithRetries(
+    section: DropSection,
+    request: GenerationRequest,
+    allSources: SourcePacket[],
+    topic: SectionTopic = {}
+  ): Promise<GeneratedContentItem[]> {
     let feedback: string | undefined;
-    let lastError: Error | undefined;
+    let lastError: LlmGenerationError | undefined;
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       try {
-        this.reportProgress("OpenAI request started", {
-          language: request.language,
-          attempt,
-          max_attempts: this.maxAttempts,
-          provider: this.provider.name,
-          sections: SECTION_ORDER
-        });
-
-        // One isolated LLM call per content type. Each call only carries that
-        // section's editorial specification (newsletter / business story / mini
-        // case), so a generation never sees a foreign prompt: maximal token
-        // reduction and zero cross-prompt conflict. The newsletter is generated
-        // one article per editorial topic and mini-cases one per product topic —
-        // a focused call per topic guarantees the complete edition catalog and
-        // keeps each response within the output token budget. This is purely
-        // edition-driven: user preferences never influence what is generated.
-        const items: GeneratedContentItem[] = [];
-        for (const section of SECTION_ORDER) {
-          if (section === "newsletter_article") {
-            for (const newsletterTopic of request.newsletterTopics) {
-              items.push(...(await this.generateSection(section, request, sources, feedback, attempt, { newsletterTopic })));
-            }
-          } else if (section === "mini_case") {
-            for (const miniCaseTopic of miniCaseGenerationTopics(request)) {
-              items.push(...(await this.generateSection(section, request, sources, feedback, attempt, { miniCaseTopic })));
-            }
-          } else {
-            items.push(...(await this.generateSection(section, request, sources, feedback, attempt)));
-          }
-        }
-
-        this.reportProgress("OpenAI request completed", {
-          language: request.language,
-          attempt,
-          max_attempts: this.maxAttempts,
-          provider: this.provider.name,
-          sections: SECTION_ORDER
-        });
-
-        const payload = assembleDailyDropPayload(
-          sanitizeLlmDailyDropPayload(
-            {
-              drop_date: request.dropDate,
-              language: request.language,
-              prompt_version: PROMPT_VERSION,
-              generator_version: LLM_GENERATOR_VERSION,
-              items
-            },
-            sources
-          )
-        );
-        const quality = validateDailyDropQuality(payload, {
-          articles: request.articles,
-          productionStrict: request.productionStrict ?? readProductionContentStrict(),
-          rssOnly: request.articles.every((article) => !isSampleUrl(article.url)),
-          miniCaseProductTopics: request.miniCaseProductTopics,
-          miniCaseMemory: request.miniCaseMemory?.recentOverall
-        });
-        const issues = [
-          ...validateDailyDropPayload(payload),
-          ...quality.issues.filter((issue) => issue.severity === "error"),
-          ...validateComposition(payload, request),
-          ...validateSourceUse(payload, sources)
-        ];
-
+        const items = await this.generateSection(section, request, allSources, feedback, attempt, topic);
+        const issues = validateSectionItems(items, section, request, topic, allSources);
         if (issues.length === 0) {
-          return payload;
+          return items;
         }
 
         feedback = formatIssues(issues);
-        lastError = new LlmGenerationError("validation_error", `LLM generation failed validation on attempt ${attempt}: ${feedback}`);
-        this.reportProgress("LLM validation failed", {
+        lastError = new LlmGenerationError(
+          "validation_error",
+          `LLM ${section} failed validation on attempt ${attempt}: ${feedback}`
+        );
+        this.reportProgress("LLM section validation failed", {
           language: request.language,
+          section,
+          newsletter_topic: topic.newsletterTopic ?? null,
+          mini_case_topic: topic.miniCaseTopic ?? null,
           attempt,
           max_attempts: this.maxAttempts,
           failure_reason: "validation_error",
@@ -175,8 +193,11 @@ export class LlmContentGenerator implements ContentGenerator {
       } catch (error) {
         lastError = toLlmGenerationError(error);
         feedback = lastError.message;
-        this.reportProgress("LLM generation attempt failed", {
+        this.reportProgress("LLM section attempt failed", {
           language: request.language,
+          section,
+          newsletter_topic: topic.newsletterTopic ?? null,
+          mini_case_topic: topic.miniCaseTopic ?? null,
           attempt,
           max_attempts: this.maxAttempts,
           failure: serializeLlmFailure(lastError),
@@ -186,8 +207,11 @@ export class LlmContentGenerator implements ContentGenerator {
 
       if (attempt < this.maxAttempts) {
         const retryDelayMs = retryDelay(attempt);
-        this.reportProgress("LLM generation retry scheduled", {
+        this.reportProgress("LLM section retry scheduled", {
           language: request.language,
+          section,
+          newsletter_topic: topic.newsletterTopic ?? null,
+          mini_case_topic: topic.miniCaseTopic ?? null,
           next_attempt: attempt + 1,
           max_attempts: this.maxAttempts,
           retry_delay_ms: retryDelayMs,
@@ -197,7 +221,7 @@ export class LlmContentGenerator implements ContentGenerator {
       }
     }
 
-    throw lastError ?? new Error("LLM generation failed validation.");
+    throw lastError ?? new Error(`LLM ${section} failed before an attempt was recorded.`);
   }
 
   // Generates a single content-type section with an isolated LLM call. Only this
@@ -222,11 +246,21 @@ export class LlmContentGenerator implements ContentGenerator {
       source_count: scopedSources.length
     });
 
-    const raw = await this.provider.generateJson({
+    const provider = this.providerForSection({
+      section,
+      language: request.language,
+      newsletterTopic: topic.newsletterTopic,
+      miniCaseTopic: topic.miniCaseTopic,
+      attempt,
+      maxAttempts: this.maxAttempts
+    });
+
+    const raw = await provider.generateJson({
       systemPrompt: EDITORIAL_PROMPT,
       userPrompt: buildSectionPrompt(section, request, scopedSources, feedback, topic),
       jsonSchema: DAILY_DROP_SECTION_SCHEMAS[section] as unknown as Record<string, unknown>,
-      maxOutputTokens: this.maxOutputTokens
+      maxOutputTokens: this.maxOutputTokens,
+      schemaName: `personewsap_${section}`
     });
 
     const items = normalizeSectionItems(raw, section);
@@ -237,6 +271,7 @@ export class LlmContentGenerator implements ContentGenerator {
       newsletter_topic: topic.newsletterTopic ?? null,
       mini_case_topic: topic.miniCaseTopic ?? null,
       attempt,
+      provider: provider.name,
       generated_items: items.length
     });
 
@@ -248,7 +283,7 @@ export class LlmContentGenerator implements ContentGenerator {
   }
 }
 
-type DropSection = keyof typeof DAILY_DROP_SECTION_SCHEMAS;
+type DropSection = EditorialSection;
 
 const SECTION_ORDER: DropSection[] = [
   "newsletter_article",
@@ -259,8 +294,7 @@ const SECTION_ORDER: DropSection[] = [
 const SECTION_SPEC_FILE: Record<DropSection, string> = {
   newsletter_article: "newsletter_prompt_final.md",
   business_story: "business_story_prompt_final.md",
-  mini_case: "mini_case_prompt_final.md",
-  concept: "(no editorial markdown; daily-drop concept contract only)"
+  mini_case: "mini_case_prompt_final.md"
 };
 
 const BUSINESS_STORY_TOPICS: TopicId[] = ["business", "finance", "tech_ai"];
@@ -376,16 +410,14 @@ function sectionItemsExpectation(
   switch (section) {
     case "newsletter_article":
       return topic.newsletterTopic
-        ? `Exactly 1 newsletter_article item with topic "${topic.newsletterTopic}". The items array must contain exactly one newsletter_article.`
-        : `Exactly ${request.newsletterArticleCount} newsletter_article item(s)`;
+        ? `Exactly ${newsletterItemsPerTopic(request)} distinct newsletter_article items with topic "${topic.newsletterTopic}". The items array must contain exactly ${newsletterItemsPerTopic(request)} newsletter_article items.`
+        : `Exactly ${expectedNewsletterCount(request)} newsletter_article item(s)`;
     case "business_story":
       return "Exactly 1 business_story item";
     case "mini_case":
       return topic.miniCaseTopic
         ? `Exactly 1 mini_case item with product_topic "${topic.miniCaseTopic}". The items array must contain exactly one mini_case.`
         : "Exactly 1 mini_case item";
-    case "concept":
-      return "Exactly 1 concept item";
   }
 }
 
@@ -397,10 +429,6 @@ function miniCaseGenerationTopics(request: GenerationRequest): (MiniCaseTopicId 
 }
 
 function sectionSpecNote(section: DropSection): string {
-  if (section === "concept") {
-    return "content_type_guidance.concept defines the concept daily-drop output contract.";
-  }
-
   return `content_type_guidance.${section}.editorial_specification defines editorial style, depth, and quality. It is NOT the output envelope: any standalone JSON object shown inside it is illustrative only.`;
 }
 
@@ -412,8 +440,6 @@ function editorialRequirementsForSection(section: DropSection): string[] {
       return [...GENERIC_EDITORIAL_REQUIREMENTS, ...BUSINESS_STORY_EDITORIAL_REQUIREMENTS];
     case "mini_case":
       return [...GENERIC_EDITORIAL_REQUIREMENTS, ...MINI_CASE_EDITORIAL_REQUIREMENTS];
-    case "concept":
-      return GENERIC_EDITORIAL_REQUIREMENTS;
   }
 }
 
@@ -440,8 +466,6 @@ function sectionGuidance(section: DropSection): Record<string, unknown> {
           daily_drop_output_contract: CONTENT_TYPE_PROMPTS.mini_case
         }
       };
-    case "concept":
-      return { concept: CONTENT_TYPE_PROMPTS.concept };
   }
 }
 
@@ -453,15 +477,18 @@ function sectionRequestContext(
   switch (section) {
     case "newsletter_article":
       return topic.newsletterTopic
-        ? { newsletter_topics: [topic.newsletterTopic], newsletter_article_count: 1 }
+        ? {
+            newsletter_topics: [topic.newsletterTopic],
+            newsletter_items_per_topic: newsletterItemsPerTopic(request),
+            newsletter_article_count: newsletterItemsPerTopic(request)
+          }
         : {
             newsletter_topics: request.newsletterTopics,
-            newsletter_article_count: request.newsletterArticleCount
+            newsletter_items_per_topic: newsletterItemsPerTopic(request),
+            newsletter_article_count: expectedNewsletterCount(request)
           };
     case "mini_case":
       return { mini_case_product_topics: topic.miniCaseTopic ? [topic.miniCaseTopic] : request.miniCaseProductTopics ?? [] };
-    case "concept":
-      return { concept_topic: request.newsletterTopics[0] ?? "business" };
     case "business_story":
       return {};
   }
@@ -560,8 +587,6 @@ function sectionSourceTopics(section: DropSection, request: GenerationRequest): 
       return BUSINESS_STORY_TOPICS;
     case "mini_case":
       return Array.from(new Set((request.miniCaseProductTopics ?? []).flatMap(miniCaseTopicToContentTopics)));
-    case "concept":
-      return [request.newsletterTopics[0] ?? "business"];
   }
 }
 
@@ -574,6 +599,68 @@ function normalizeSectionItems(payload: unknown, section: DropSection): Generate
   }
 
   return payload.items as GeneratedContentItem[];
+}
+
+function validateSectionItems(
+  items: GeneratedContentItem[],
+  section: DropSection,
+  request: GenerationRequest,
+  topic: SectionTopic,
+  sources: SourcePacket[]
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const expectedCount = expectedSectionItemCount(section, request);
+
+  if (items.length !== expectedCount) {
+    issues.push({
+      path: "items",
+      message: `Expected ${expectedCount} ${section} item(s), received ${items.length}.`
+    });
+  }
+
+  items.forEach((item, index) => {
+    if (item.content_type !== section) {
+      issues.push({
+        path: `items.${index}.content_type`,
+        message: `Expected content_type ${section}, received ${item.content_type}.`
+      });
+    }
+    if (item.language !== request.language) {
+      issues.push({
+        path: `items.${index}.language`,
+        message: `Expected language ${request.language}, received ${item.language}.`
+      });
+    }
+    if (section === "newsletter_article" && topic.newsletterTopic && item.topic !== topic.newsletterTopic) {
+      issues.push({
+        path: `items.${index}.topic`,
+        message: `Expected newsletter topic ${topic.newsletterTopic}, received ${item.topic ?? "null"}.`
+      });
+    }
+    if (section === "mini_case" && topic.miniCaseTopic && item.content_type === "mini_case" && item.product_topic !== topic.miniCaseTopic) {
+      issues.push({
+        path: `items.${index}.product_topic`,
+        message: `Expected mini-case product_topic ${topic.miniCaseTopic}, received ${item.product_topic}.`
+      });
+    }
+  });
+
+  issues.push(...validateSourceUse({
+    drop_date: request.dropDate,
+    language: request.language,
+    prompt_version: PROMPT_VERSION,
+    generator_version: LLM_GENERATOR_VERSION,
+    items
+  }, sources));
+
+  return issues;
+}
+
+function expectedSectionItemCount(section: DropSection, request: GenerationRequest): number {
+  if (section === "newsletter_article") {
+    return newsletterItemsPerTopic(request);
+  }
+  return 1;
 }
 
 function sourcePackets(request: GenerationRequest): SourcePacket[] {
@@ -605,10 +692,11 @@ function validateComposition(payload: DailyDropPayload, request: GenerationReque
   const conceptCount = payload.items.filter((item) => item.content_type === "concept").length;
   const requestedTopics = new Set<TopicId>(request.newsletterTopics);
 
-  if (newsletterCount !== request.newsletterArticleCount) {
+  const expectedNewsletterItems = expectedNewsletterCount(request);
+  if (newsletterCount !== expectedNewsletterItems) {
     issues.push({
       path: "items",
-      message: `Expected ${request.newsletterArticleCount} newsletter_article item(s), received ${newsletterCount}.`
+      message: `Expected ${expectedNewsletterItems} newsletter_article item(s), received ${newsletterCount}.`
     });
   }
 
@@ -635,6 +723,22 @@ function validateComposition(payload: DailyDropPayload, request: GenerationReque
   });
 
   return issues;
+}
+
+function newsletterItemsPerTopic(request: GenerationRequest): number {
+  if (request.newsletterItemsPerTopic !== undefined) {
+    return request.newsletterItemsPerTopic;
+  }
+
+  if (request.newsletterTopics.length > 0 && request.newsletterArticleCount % request.newsletterTopics.length === 0) {
+    return Math.max(1, request.newsletterArticleCount / request.newsletterTopics.length);
+  }
+
+  return NEWSLETTER_ITEMS_PER_TOPIC;
+}
+
+function expectedNewsletterCount(request: GenerationRequest): number {
+  return request.newsletterTopics.length * newsletterItemsPerTopic(request);
 }
 
 function validateSourceUse(payload: DailyDropPayload, sources: SourcePacket[]): ValidationIssue[] {

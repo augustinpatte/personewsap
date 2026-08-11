@@ -164,11 +164,11 @@ Safe no-write test commands:
 ```sh
 npm run content:dry-run
 npm run content:quality-proof
-LIVE_RSS=true OPENAI_API_KEY=... npm run content:llm-run
+LIVE_RSS=true OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run content:llm-run
 npm run supabase:doctor
 ```
 
-`content:llm-run` requires `OPENAI_API_KEY` and still does not write to Supabase. It uses live RSS by default in the safe command above; add `ALLOW_SAMPLE_CONTENT=true` only for an intentional sample-content LLM rehearsal. `supabase:doctor` reads local migrations by default.
+`content:llm-run` requires the provider keys used by the configured routes (`OPENAI_API_KEY` and, by default for Business Story, `ANTHROPIC_API_KEY`) and still does not write to Supabase. It uses live RSS by default in the safe command above; add `ALLOW_SAMPLE_CONTENT=true` only for an intentional sample-content LLM rehearsal. `supabase:doctor` reads local migrations by default.
 
 For a no-write daily-job run with samples disabled:
 
@@ -186,10 +186,10 @@ Production-shaped command:
 
 ```sh
 DRY_RUN=true npm run content:daily-job
-OPENAI_API_KEY=... npm run content:prod-dry-run
+OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run content:prod-dry-run
 ```
 
-Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow. Non-dry production writes require `PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true`, plus `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `OPENAI_API_KEY`. The guarded wrapper is `npm run content:prod-run`.
+Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow. Non-dry production writes require `PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic`, plus `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY` for the default routes. The guarded wrapper is `npm run content:prod-run`.
 
 Read-only diagnostic commands:
 

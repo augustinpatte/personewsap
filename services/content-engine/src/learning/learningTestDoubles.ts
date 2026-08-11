@@ -56,7 +56,7 @@ export class CountingLearningPromptProvider implements LearningPromptProvider {
       this.httpRequests += 1;
       this.requestedModels.push(model);
       for (const observer of this.observers) {
-        observer({ model, attempt, schemaName: request.schemaName ?? "personewsap_learning_prompt" });
+        observer({ provider: this.name, model, attempt, schemaName: request.schemaName ?? "personewsap_learning_prompt" });
       }
 
       if (this.failWith) {

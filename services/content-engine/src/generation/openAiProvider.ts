@@ -1,4 +1,12 @@
-import type { LlmJsonRequest, LlmProvider } from "./llmProvider.js";
+import type {
+  LlmJsonRequest,
+  LlmProvider,
+  LlmRequestAttempt,
+  LlmRequestAttemptObserver,
+  LlmRequestCompletion,
+  LlmRequestCompletionObserver,
+  LlmUsage
+} from "./llmProvider.js";
 import { MissingLlmApiKeyError } from "./llmProvider.js";
 import { LlmGenerationError, toLlmGenerationError } from "./llmErrors.js";
 
@@ -6,14 +14,8 @@ export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 export const DEFAULT_OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
 export const DEFAULT_OPENAI_REQUEST_TIMEOUT_MS = 120_000;
 
-export type OpenAiRequestAttempt = {
-  model: string;
-  /** 1-based index of the HTTP attempt inside a single generateJson call. */
-  attempt: number;
-  schemaName: string;
-};
-
-export type OpenAiRequestObserver = (attempt: OpenAiRequestAttempt) => void;
+export type OpenAiRequestAttempt = LlmRequestAttempt;
+export type OpenAiRequestObserver = LlmRequestAttemptObserver;
 
 type OpenAiProviderOptions = {
   apiKey?: string;
@@ -21,10 +23,13 @@ type OpenAiProviderOptions = {
   fallbackModel?: string;
   endpoint?: string;
   requestTimeoutMs?: number;
+  reasoningEffort?: string | null;
   /** When true the provider never tries a second model after a failure. */
   disableFallback?: boolean;
   /** Called once per real HTTP request, before it is sent. */
   onRequestAttempt?: OpenAiRequestObserver;
+  /** Called once per successful real HTTP request, after usage is known. */
+  onRequestCompletion?: LlmRequestCompletionObserver;
 };
 
 type OpenAiResponseContent = {
@@ -38,6 +43,16 @@ type OpenAiResponseOutput = {
 type OpenAiResponsesPayload = {
   output_text?: unknown;
   output?: OpenAiResponseOutput[];
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    input_tokens_details?: {
+      cached_tokens?: number;
+    };
+    output_tokens_details?: {
+      reasoning_tokens?: number;
+    };
+  };
   error?: {
     message?: string;
   };
@@ -50,7 +65,9 @@ export class OpenAiJsonProvider implements LlmProvider {
   private readonly models: string[];
   private readonly endpoint: string;
   private readonly requestTimeoutMs: number;
-  private readonly observers = new Set<OpenAiRequestObserver>();
+  private readonly reasoningEffort: string | null;
+  private readonly attemptObservers = new Set<OpenAiRequestObserver>();
+  private readonly completionObservers = new Set<LlmRequestCompletionObserver>();
 
   constructor(options: OpenAiProviderOptions = {}) {
     const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
@@ -65,16 +82,27 @@ export class OpenAiJsonProvider implements LlmProvider {
     ]);
     this.endpoint = options.endpoint ?? process.env.OPENAI_RESPONSES_ENDPOINT ?? DEFAULT_OPENAI_ENDPOINT;
     this.requestTimeoutMs = options.requestTimeoutMs ?? readRequestTimeoutMs();
+    this.reasoningEffort = normalizeReasoningEffort(options.reasoningEffort ?? process.env.OPENAI_REASONING_EFFORT ?? null);
     if (options.onRequestAttempt) {
-      this.observers.add(options.onRequestAttempt);
+      this.attemptObservers.add(options.onRequestAttempt);
+    }
+    if (options.onRequestCompletion) {
+      this.completionObservers.add(options.onRequestCompletion);
     }
   }
 
   /** Registers an observer for the real HTTP attempts. Returns an unsubscribe. */
   observeRequestAttempts(observer: OpenAiRequestObserver): () => void {
-    this.observers.add(observer);
+    this.attemptObservers.add(observer);
     return () => {
-      this.observers.delete(observer);
+      this.attemptObservers.delete(observer);
+    };
+  }
+
+  observeRequestCompletions(observer: LlmRequestCompletionObserver): () => void {
+    this.completionObservers.add(observer);
+    return () => {
+      this.completionObservers.delete(observer);
     };
   }
 
@@ -84,11 +112,11 @@ export class OpenAiJsonProvider implements LlmProvider {
 
     for (const model of this.models) {
       attempt += 1;
-      for (const observer of this.observers) {
-        observer({ model, attempt, schemaName: request.schemaName ?? "personewsap_daily_drop" });
+      for (const observer of this.attemptObservers) {
+        observer({ provider: this.name, model, attempt, schemaName: request.schemaName ?? "personewsap_daily_drop" });
       }
       try {
-        return await this.generateJsonWithModel(request, model);
+        return await this.generateJsonWithModel(request, model, attempt);
       } catch (error) {
         lastError = toLlmGenerationError(error);
         if (lastError.model === null) {
@@ -100,12 +128,39 @@ export class OpenAiJsonProvider implements LlmProvider {
     throw lastError ?? new LlmGenerationError("api_error", "OpenAI generation failed before a model was attempted.");
   }
 
-  private async generateJsonWithModel(request: LlmJsonRequest, model: string): Promise<unknown> {
+  private async generateJsonWithModel(request: LlmJsonRequest, model: string, attempt: number): Promise<unknown> {
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), this.requestTimeoutMs);
+    const startedAt = Date.now();
 
     let response: Response;
     try {
+      const body: Record<string, unknown> = {
+        model,
+        input: [
+          {
+            role: "system",
+            content: request.systemPrompt
+          },
+          {
+            role: "user",
+            content: request.userPrompt
+          }
+        ],
+        max_output_tokens: request.maxOutputTokens ?? 5000,
+        text: {
+          format: {
+            type: "json_schema",
+            name: request.schemaName ?? "personewsap_daily_drop",
+            strict: true,
+            schema: request.jsonSchema
+          }
+        }
+      };
+      if (this.reasoningEffort) {
+        body.reasoning = { effort: this.reasoningEffort };
+      }
+
       response = await fetch(this.endpoint, {
         method: "POST",
         signal: abortController.signal,
@@ -113,28 +168,7 @@ export class OpenAiJsonProvider implements LlmProvider {
           Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          model,
-          input: [
-            {
-              role: "system",
-              content: request.systemPrompt
-            },
-            {
-              role: "user",
-              content: request.userPrompt
-            }
-          ],
-          max_output_tokens: request.maxOutputTokens ?? 5000,
-          text: {
-            format: {
-              type: "json_schema",
-              name: request.schemaName ?? "personewsap_daily_drop",
-              strict: true,
-              schema: request.jsonSchema
-            }
-          }
-        })
+        body: JSON.stringify(body)
       });
     } catch (error) {
       throw formatOpenAiRequestError(error, this.requestTimeoutMs, model);
@@ -153,8 +187,29 @@ export class OpenAiJsonProvider implements LlmProvider {
       );
     }
 
+    for (const observer of this.completionObservers) {
+      observer({
+        provider: this.name,
+        model,
+        attempt,
+        schemaName: request.schemaName ?? "personewsap_daily_drop",
+        latencyMs: Date.now() - startedAt,
+        usage: parseOpenAiUsage(payload)
+      });
+    }
+
     return parseJsonOutput(payload, model);
   }
+}
+
+function parseOpenAiUsage(payload: OpenAiResponsesPayload): LlmUsage {
+  const usage = payload.usage;
+  return {
+    inputTokens: usage?.input_tokens ?? null,
+    outputTokens: usage?.output_tokens ?? null,
+    cachedInputTokens: usage?.input_tokens_details?.cached_tokens ?? null,
+    reasoningOutputTokens: usage?.output_tokens_details?.reasoning_tokens ?? null
+  };
 }
 
 function parseJsonOutput(payload: OpenAiResponsesPayload, model: string): unknown {
@@ -195,6 +250,15 @@ function readRequestTimeoutMs(): number {
   }
 
   return value;
+}
+
+function normalizeReasoningEffort(value: string | null): string | null {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized || normalized === "none") {
+    return null;
+  }
+
+  return normalized;
 }
 
 function formatOpenAiRequestError(error: unknown, timeoutMs: number, model: string): LlmGenerationError {

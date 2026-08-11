@@ -1,0 +1,65 @@
+name: PersoNewsAP Content Daily Job
+
+on:
+  schedule:
+    # 07:00 UTC on Monday, Wednesday, Friday, and Sunday.
+    - cron: "0 7 * * 1,3,5,0"
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: "Comma-separated languages"
+        required: false
+        default: "fr,en"
+      run_id:
+        description: "Optional stable run id"
+        required: false
+        default: ""
+
+jobs:
+  daily-job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      LANGUAGES: ${{ github.event.inputs.languages || 'fr,en' }}
+      CONTENT_STATUS: published
+      USE_LLM: "true"
+      LIVE_RSS: "true"
+      LIVE_RSS_ONLY: "true"
+      DRY_RUN: "false"
+      PRODUCTION_DAILY_JOB: "true"
+      LEARNING_GENERATION_MODE: deterministic
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build content engine
+        run: npm run content:build
+
+      - name: Deterministic preflight
+        run: npm run content:dry-run -- --languages "$LANGUAGES" --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
+
+      - name: Supabase schema doctor
+        run: npm run supabase:doctor
+
+      - name: Production generation and assignment
+        env:
+          RUN_ID: ${{ github.event.inputs.run_id }}
+        run: npm run content:prod-run
+
+      - name: Strict job health
+        if: always()
+        run: npm run content:job-health:strict -- --limit 5

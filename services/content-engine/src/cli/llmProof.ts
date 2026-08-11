@@ -117,7 +117,9 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
   });
 
   const generator = new LlmContentGenerator({
-    provider: new OpenAiJsonProvider(),
+    provider: new OpenAiJsonProvider({
+      disableFallback: true
+    }),
     maxAttempts: options.maxAttempts,
     maxOutputTokens: options.maxOutputTokens,
     onProgress: logProgress

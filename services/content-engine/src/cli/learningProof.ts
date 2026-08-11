@@ -56,7 +56,10 @@ export function parseLearningProofOptions(): Record<string, never> {
 }
 
 async function proveProviderIsolation(): Promise<ProofSection> {
-  const unavailable = resolveLearningProvider({ useLlm: true, env: {} });
+  const unavailable = resolveLearningProvider({
+    useLlm: true,
+    env: { LEARNING_GENERATION_MODE: "llm" } as NodeJS.ProcessEnv
+  });
   const blockedRepository = new InMemoryLearningRepository({ ...BASE_PATH });
   const blocked = await generateLearningSessionForUser({
     repository: blockedRepository,
