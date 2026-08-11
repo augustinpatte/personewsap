@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Share, StyleSheet, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, type Href } from "expo-router";
 
 import { AppScreen } from "../../src/components/AppScreen";
@@ -17,6 +18,7 @@ import { useAuth } from "../../src/features/auth";
 import { NotificationPreferencesCard } from "../../src/features/notifications";
 import { LearningAccountSection } from "../../src/features/learning";
 import { PreferencesEditor, updateProfileLanguage } from "../../src/features/preferences";
+import { recordLanguageChangeNotice } from "../../src/features/preferences/languageChangeNotice";
 import { shouldApplyLanguageSaveResult } from "../../src/features/preferences/languagePersistence";
 import { trackAnalyticsEvent } from "../../src/lib/analytics";
 import { formatLanguageName, localized } from "../../src/lib/i18n";
@@ -99,6 +101,7 @@ export default function AccountScreen() {
         return false;
       }
 
+      await recordLanguageChangeNotice(AsyncStorage, language);
       await refreshAuthState();
       return true;
     },

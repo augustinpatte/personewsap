@@ -129,8 +129,9 @@ function isNonEmptyString(value: unknown): value is string {
 
 export function validateTeachingPlanLanguage(plan: TeachingPlanV2, expectedLanguage: Language): string[] {
   const issues: string[] = [];
+  const fields = teachingPlanUserFacingFields(plan);
 
-  for (const { field, text } of teachingPlanUserFacingFields(plan)) {
+  for (const { field, text } of fields) {
     const words = tokenizeWords(text);
     if (words.size < 4) {
       continue;
@@ -155,7 +156,41 @@ export function validateTeachingPlanLanguage(plan: TeachingPlanV2, expectedLangu
     }
   }
 
+  const aggregateIssue = validateAggregateTeachingPlanLanguage(fields, expectedLanguage);
+  if (aggregateIssue) {
+    issues.push(aggregateIssue);
+  }
+
   return issues;
+}
+
+function validateAggregateTeachingPlanLanguage(
+  fields: Array<{ field: string; text: string }>,
+  expectedLanguage: Language
+): string | null {
+  const aggregateText = fields.map(({ text }) => text).join(" ");
+  const words = tokenizeWords(aggregateText);
+  if (words.size < 8) {
+    return null;
+  }
+
+  const englishHits = ENGLISH_MARKERS.filter((marker) => words.has(marker));
+  const frenchHits = FRENCH_MARKERS.filter((marker) => words.has(marker));
+  const accentedFrenchWords = aggregateText.match(/[a-zà-öø-ÿ]*[éèàêîôûçëïüœ][a-zà-öø-ÿ]*/gi) ?? [];
+
+  if (expectedLanguage === "fr") {
+    return englishHits.length >= 5 && englishHits.length > frenchHits.length * 2
+      ? "teaching_plan language mismatch: expected fr, detected mostly English"
+      : null;
+  }
+
+  if (frenchHits.length >= 5 && frenchHits.length > englishHits.length * 2) {
+    return "teaching_plan language mismatch: expected en, detected mostly French";
+  }
+
+  return frenchHits.length >= 4 && accentedFrenchWords.length >= 3
+    ? "teaching_plan language mismatch: expected en, detected accented French prose"
+    : null;
 }
 
 function teachingPlanUserFacingFields(plan: TeachingPlanV2): Array<{ field: string; text: string }> {
@@ -179,11 +214,15 @@ function tokenizeWords(text: string): Set<string> {
 const ENGLISH_MARKERS = [
   "the", "and", "with", "this", "that", "learner", "explain", "understand",
   "teach", "through", "example", "check", "apply", "prediction", "remember",
-  "because", "before", "after", "mechanism", "question"
+  "because", "before", "after", "mechanism", "question", "use", "concrete",
+  "examples", "compare", "both", "systems", "understanding", "concept",
+  "context", "again", "confuse", "terms", "key", "idea"
 ];
 
 const FRENCH_MARKERS = [
   "le", "la", "les", "des", "une", "avec", "cette", "apprenant", "expliquer",
   "comprendre", "enseigner", "par", "exemple", "vérifier", "appliquer",
-  "prédire", "retenir", "mécanisme", "question", "confondre", "pourquoi"
+  "prédire", "retenir", "mécanisme", "question", "confondre", "pourquoi",
+  "utilise", "exemples", "compare", "systèmes", "compréhension", "concept",
+  "contexte", "encore", "termes", "idée", "clé"
 ];

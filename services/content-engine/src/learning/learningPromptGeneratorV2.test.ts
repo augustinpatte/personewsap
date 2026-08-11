@@ -242,6 +242,45 @@ describe("learning prompt generator v2", () => {
     expect(englishProvider.httpRequests).toBe(1);
   });
 
+  it("rejects aggregate wrong-language short fragments with one HTTP request", async () => {
+    const step = await catalogStep();
+    const frenchProvider = new CountingLearningPromptProvider({
+      disableFallback: true,
+      buildPrompt: () => shortFragmentPlan(step, "en")
+    });
+    await expect(
+      generateLearningPrompt({
+        provider: frenchProvider,
+        path: path({ language: "fr" }),
+        step,
+        adaptationMode: "normal",
+        repetitionIndex: 0,
+        sessions: [],
+        feedbackRows: [],
+        sessionNumber: 1
+      })
+    ).rejects.toThrow(/mostly English/);
+    expect(frenchProvider.httpRequests).toBe(1);
+
+    const englishProvider = new CountingLearningPromptProvider({
+      disableFallback: true,
+      buildPrompt: () => shortFragmentPlan(step, "fr")
+    });
+    await expect(
+      generateLearningPrompt({
+        provider: englishProvider,
+        path: path({ language: "en" }),
+        step,
+        adaptationMode: "normal",
+        repetitionIndex: 0,
+        sessions: [],
+        feedbackRows: [],
+        sessionNumber: 1
+      })
+    ).rejects.toThrow(/mostly French|accented French/);
+    expect(englishProvider.httpRequests).toBe(1);
+  });
+
   it("localizes safety rules in the rendered tutor prompt", async () => {
     const catalog = await loadLearningCatalog();
     const medicalStep = catalog.find((candidate) => candidate.safety_category === "medical_educational");
@@ -391,6 +430,36 @@ function validPlan(step: LearningCatalogStep, adaptationMode: LearningAdaptation
     common_misconception: "Confusing vocabulary with mechanism.",
     recap_target: "the reusable mental model"
   };
+}
+
+function shortFragmentPlan(step: LearningCatalogStep, language: "en" | "fr") {
+  return language === "fr"
+    ? {
+        curriculum_step_key: step.key,
+        adaptation_mode: "normal" as const,
+        teaching_angle: "Utilise exemples",
+        hook: "Compare systèmes",
+        core_points: ["Vérifie compréhension", "Applique concept"],
+        example: "Cas concret",
+        first_check_goal: "Explique mécanisme",
+        application_goal: "Utilise contexte",
+        transfer_goal: "Compare encore",
+        common_misconception: "Confondre termes",
+        recap_target: "Idée clé"
+      }
+    : {
+        curriculum_step_key: step.key,
+        adaptation_mode: "normal" as const,
+        teaching_angle: "Use examples",
+        hook: "Compare systems",
+        core_points: ["Check understanding", "Apply concept"],
+        example: "Concrete case",
+        first_check_goal: "Explain mechanism",
+        application_goal: "Use context",
+        transfer_goal: "Compare again",
+        common_misconception: "Confuse terms",
+        recap_target: "Key idea"
+      };
 }
 
 async function catalogStep() {

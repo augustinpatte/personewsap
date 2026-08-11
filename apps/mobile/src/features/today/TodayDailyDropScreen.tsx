@@ -1,5 +1,6 @@
 import { useRouter, type Href } from "expo-router";
-import type { ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppScreen, AppText, Card } from "../../components";
@@ -7,6 +8,7 @@ import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { localized } from "../../lib/i18n";
 import { LearningPathCard, useLearningPath } from "../learning";
+import { shouldShowStoredLanguageChangeNotice } from "../preferences/languageChangeNotice";
 import {
   estimateReadMinutes,
   formatDropDate,
@@ -51,6 +53,7 @@ export function TodayDailyDropScreen() {
   const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
   const learningPath = useLearningPath();
+  const [showLanguageChangeNotice, setShowLanguageChangeNotice] = useState(false);
 
   const newsletter = drop.items.newsletter;
   const story = drop.items.business_story;
@@ -84,6 +87,35 @@ export function TodayDailyDropScreen() {
   });
   const moduleProgress = editionModules.total > 0 ? editionModules.progress : progress;
   const editionComplete = editionModules.isComplete;
+
+  useEffect(() => {
+    let active = true;
+
+    void shouldShowStoredLanguageChangeNotice(AsyncStorage, {
+      currentLanguage: language,
+      dropDate: drop.drop_date,
+      isEditionDay: isEditionDay(drop.drop_date),
+      isEmptyDrop
+    })
+      .then((visible) => {
+        if (active) {
+          setShowLanguageChangeNotice(visible);
+        }
+      })
+      .catch((error) => {
+        if (__DEV__) {
+          console.warn("[Today] could not read language change notice", error);
+        }
+        if (active) {
+          setShowLanguageChangeNotice(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [drop.drop_date, isEmptyDrop, language]);
+
   const learningCard = (
     <LearningPathCard
       completed={learningCompleted}
@@ -113,6 +145,7 @@ export function TodayDailyDropScreen() {
         learningCard={learningSession ? learningCard : null}
         onExploreLibrary={(filter) => router.push(libraryHref(filter))}
         onRefresh={reload}
+        showLanguageChangeNotice={showLanguageChangeNotice}
       />
     );
   }
@@ -170,13 +203,15 @@ function NoEditionScreen({
   language,
   learningCard,
   onExploreLibrary,
-  onRefresh
+  onRefresh,
+  showLanguageChangeNotice
 }: {
   dropDate: string;
   language: ContentLanguage;
   learningCard?: ReactNode;
   onExploreLibrary: (filter: LibraryFilter) => void;
   onRefresh: () => void;
+  showLanguageChangeNotice: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
   const copy = getTodayCopy(language);
@@ -207,7 +242,7 @@ function NoEditionScreen({
         <AppText color="muted" variant="read">
           {editionDay ? copy.comingSoonBody : copy.noEdition.body}
         </AppText>
-        {editionDay ? (
+        {editionDay && showLanguageChangeNotice ? (
           <AppText color="accentInk" variant="label">
             {copy.languageChangeAppliesNext}
           </AppText>

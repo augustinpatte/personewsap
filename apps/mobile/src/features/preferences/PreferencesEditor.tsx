@@ -29,7 +29,13 @@ import {
   saveEditablePreferences,
   type EditablePreferences
 } from "./preferencesPersistence";
-import { shouldApplyLanguageSaveResult, shouldRollbackLanguageSelection } from "./languagePersistence";
+import {
+  beginLanguageSave,
+  createLanguageSaveLockState,
+  finishLanguageSave,
+  shouldApplyLanguageSaveResult,
+  shouldRollbackLanguageSelection
+} from "./languagePersistence";
 
 type PreferencesEditorProps = {
   userId: string | null;
@@ -52,6 +58,7 @@ export function PreferencesEditor({
   const [saved, setSaved] = useState<EditablePreferences | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [languageSaving, setLanguageSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PreferencesTab>("newsletter");
@@ -59,7 +66,7 @@ export function PreferencesEditor({
   // if the counter has advanced during the save's async work, a fresher load
   // already committed state and the save result should not overwrite it.
   const loadGenerationRef = useRef(0);
-  const languageSaveGenerationRef = useRef(0);
+  const languageSaveLockRef = useRef(createLanguageSaveLockState());
   // Held in a ref so the immediate language switch (which changes
   // preferredUiLanguage) does not re-create loadPreferences and reload the form,
   // which would discard unsaved topic edits. Only used to localize load errors.
@@ -163,9 +170,15 @@ export function PreferencesEditor({
   // so the change is not flagged as a pending edit, while topic edits stay pending.
   const selectLanguage = useCallback(
     (language: Language) => {
+      const languageSave = beginLanguageSave(languageSaveLockRef.current);
+      languageSaveLockRef.current = languageSave.state;
+      if (!languageSave.started) {
+        return;
+      }
+
+      setLanguageSaving(true);
       const previousLanguage = draft?.language ?? saved?.language ?? preferredUiLanguage ?? "en";
-      const generation = languageSaveGenerationRef.current + 1;
-      languageSaveGenerationRef.current = generation;
+      const generation = languageSave.requestId;
       setDraft((current) =>
         current ? normalizeEditablePreferences({ ...current, language }) : current
       );
@@ -178,7 +191,7 @@ export function PreferencesEditor({
             !shouldRollbackLanguageSelection({
               persisted,
               requestId: generation,
-              latestRequestId: languageSaveGenerationRef.current
+              latestRequestId: languageSaveLockRef.current.latestRequestId
             })
           ) {
             return;
@@ -192,7 +205,7 @@ export function PreferencesEditor({
           if (
             !shouldApplyLanguageSaveResult({
               requestId: generation,
-              latestRequestId: languageSaveGenerationRef.current
+              latestRequestId: languageSaveLockRef.current.latestRequestId
             })
           ) {
             return;
@@ -201,6 +214,17 @@ export function PreferencesEditor({
             current ? normalizeEditablePreferences({ ...current, language: previousLanguage }) : current
           );
           setSaved((current) => (current ? { ...current, language: previousLanguage } : current));
+        })
+        .finally(() => {
+          languageSaveLockRef.current = finishLanguageSave(languageSaveLockRef.current, generation);
+          if (
+            shouldApplyLanguageSaveResult({
+              requestId: generation,
+              latestRequestId: languageSaveLockRef.current.latestRequestId
+            })
+          ) {
+            setLanguageSaving(false);
+          }
         });
     },
     [draft?.language, onLanguageChange, preferredUiLanguage, saved?.language]
@@ -376,6 +400,7 @@ export function PreferencesEditor({
         {languageOptions.map((option) => (
           <SelectableCard
             description={option.description}
+            disabled={languageSaving}
             key={option.id}
             label={option.label}
             onPress={() => selectLanguage(option.id)}

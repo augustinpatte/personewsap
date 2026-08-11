@@ -258,27 +258,6 @@ export async function saveEditablePreferences(
   }
 
   try {
-    const profileResult = await supabase
-      .from("profiles")
-      .update({ language: normalized.language })
-      .eq("id", userId);
-
-    if (profileResult.error) {
-      return {
-        ok: false,
-        error: normalizeSupabaseError(
-          profileResult.error,
-          localized(
-            {
-              en: "Could not save your profile.",
-              fr: "Impossible d'enregistrer ton profil."
-            },
-            normalized.language
-          )
-        )
-      };
-    }
-
     const newsletterArticleCount = normalized.selectedTopics.reduce(
       (total, topicId) =>
         total + clampNewsletterArticleCount(normalized.articlesPerTopic[topicId] ?? 1),
