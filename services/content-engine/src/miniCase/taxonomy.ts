@@ -75,8 +75,8 @@ export const MINI_CASE_ALLOWED_FRAMING: Record<MiniCaseTopicId, string> = {
   engineering_operations: "Engineering and operations education about reliability, capacity, bottlenecks, supply chains, and execution trade-offs."
 };
 
-export function isMiniCaseScenarioType(value: string): value is MiniCaseScenarioType {
-  return MINI_CASE_SCENARIO_TYPES.includes(value as MiniCaseScenarioType);
+export function isMiniCaseScenarioType(value: string | undefined | null): value is MiniCaseScenarioType {
+  return typeof value === "string" && MINI_CASE_SCENARIO_TYPES.includes(value as MiniCaseScenarioType);
 }
 
 export function isMiniCaseDecisionType(value: string): value is MiniCaseDecisionType {

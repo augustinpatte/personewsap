@@ -258,10 +258,12 @@ export async function saveEditablePreferences(
   }
 
   try {
-    const newsletterArticleCount = normalized.selectedTopics.reduce(
-      (total, topicId) =>
-        total + clampNewsletterArticleCount(normalized.articlesPerTopic[topicId] ?? 1),
-      0
+    const newsletterArticleCount = toStorableNewsletterArticleCount(
+      normalized.selectedTopics.reduce(
+        (total, topicId) =>
+          total + clampNewsletterArticleCount(normalized.articlesPerTopic[topicId] ?? 1),
+        0
+      )
     );
 
     const userPreferencesResult = await upsertUserPreferences({
@@ -396,6 +398,16 @@ export async function updateProfileLanguage(
   const result = await supabase.rpc("update_profile_language", { p_language: language });
 
   if (result.error) {
+    // Surfacing the Supabase code in dev is what turns "the app just stays in
+    // English" into an actionable diagnosis. PGRST202 here means the
+    // update_profile_language function is missing from the database, i.e. the
+    // profile-language migration was never applied to that project.
+    logPreferencesDebug("update_profile_language_failed", {
+      error: describeSupabaseError(result.error),
+      requested_language: language,
+      rpc: "update_profile_language"
+    });
+
     return {
       ok: false,
       error: normalizeSupabaseError(
@@ -412,6 +424,32 @@ export async function updateProfileLanguage(
   }
 
   return { ok: true };
+}
+
+/**
+ * `user_preferences.newsletter_article_count` is constrained to BETWEEN 1 AND 24.
+ * Turning the newsletter module off leaves no selected topics, so the computed
+ * total is 0 and the whole preferences save is rejected with 23514 — which is
+ * what made "save preferences" fail in the app whenever the newsletter module was
+ * disabled.
+ *
+ * The count is meaningless while `newsletter_enabled` is false (nothing reads it
+ * in that state), so it is stored at the schema minimum instead of 0. Clamping
+ * here keeps the constraint intact rather than weakening it, and the user's real
+ * per-topic counts still live in user_topic_preferences.
+ */
+export const MIN_STORED_NEWSLETTER_ARTICLE_COUNT = 1;
+export const MAX_STORED_NEWSLETTER_ARTICLE_COUNT = 24;
+
+export function toStorableNewsletterArticleCount(total: number): number {
+  if (!Number.isFinite(total)) {
+    return MIN_STORED_NEWSLETTER_ARTICLE_COUNT;
+  }
+
+  return Math.min(
+    MAX_STORED_NEWSLETTER_ARTICLE_COUNT,
+    Math.max(MIN_STORED_NEWSLETTER_ARTICLE_COUNT, Math.round(total))
+  );
 }
 
 export function normalizeEditablePreferences(preferences: EditablePreferences): EditablePreferences {
@@ -434,7 +472,9 @@ export function normalizeEditablePreferences(preferences: EditablePreferences): 
 }
 
 function logPreferencesDebug(event: string, details: Record<string, unknown>) {
-  if (__DEV__) {
+  // `__DEV__` is a React Native global. Guarding on typeof keeps this helper
+  // usable from tests and any non-RN runtime, where a bare reference throws.
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
     console.info("[Preferences debug]", {
       event,
       ...details

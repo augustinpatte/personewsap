@@ -471,7 +471,7 @@ export function validateLanguageConsistency(item: GeneratedContentItem, path: st
 // User-facing text fields per content type. Metadata-only fields (mechanism ids,
 // editorial_memory, scenario taxonomy) are intentionally excluded to avoid false
 // positives from English snake_case identifiers.
-function userFacingLanguageFields(item: GeneratedContentItem): Array<{ field: string; text: string }> {
+export function userFacingLanguageFields(item: GeneratedContentItem): Array<{ field: string; text: string }> {
   const fields: Array<{ field: string; text: string }> = [];
   const add = (field: string, value: unknown) => {
     if (typeof value === "string" && value.trim().length > 0) {
@@ -524,7 +524,7 @@ function userFacingLanguageFields(item: GeneratedContentItem): Array<{ field: st
 // Removes structured citation lines, markdown links, URLs, and ISO dates so the
 // language check only inspects natural prose. The "Source: …, published …,
 // retrieved …" line stays structurally English in both languages by design.
-function stripCitationAndLinks(text: string): string {
+export function stripCitationAndLinks(text: string): string {
   return text
     .split("\n")
     .filter((line) => !/^\s*source\s*:/i.test(line))

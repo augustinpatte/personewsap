@@ -15,6 +15,15 @@ const REQUIRED_SLOTS = ["newsletter", "business_story", "mini_case"] as const;
 type PersonalizeTestOptions = {
   dropDate: string;
   limit: number;
+  /**
+   * Restricts assignment to exactly one user. This is the safe default shape for
+   * proving the catalog -> edition -> app circuit: without it the command fans
+   * out to the first `limit` app users, which is not something you want to
+   * trigger by accident against real accounts.
+   */
+  targetUserId: string | null;
+  /** Rebuild an edition that already exists for the date, even if its language still matches. */
+  refresh: boolean;
 };
 
 type AssignablePublishedContentItem = {
@@ -34,6 +43,7 @@ export type PersonalizeTestOutput = {
   persisted: true;
   dropDate: string;
   limit: number;
+  targetUserId: string | null;
   usersRead: number;
   usersSelected: number;
   assignedDropCount: number;
@@ -55,7 +65,8 @@ export async function runPersonalizeTest(options: PersonalizeTestOptions): Promi
 
   logProgress("personalize-test started", {
     drop_date: options.dropDate,
-    limit: options.limit
+    limit: options.limit,
+    target_user_id: options.targetUserId ? redactLogIdentifiers(options.targetUserId) : null
   });
 
   const repository = new ContentRepository(
@@ -69,7 +80,17 @@ export async function runPersonalizeTest(options: PersonalizeTestOptions): Promi
     ...(await repository.listUserDailyDropPreferences("fr"))
   ];
   const appUserPreferences = allPreferences.filter((preference) => preference.topics.length > 0);
-  const selectedPreferences = appUserPreferences.slice(0, options.limit);
+  const targetedPreferences = options.targetUserId
+    ? appUserPreferences.filter((preference) => preference.user_id === options.targetUserId)
+    : appUserPreferences;
+
+  if (options.targetUserId && targetedPreferences.length === 0) {
+    throw new Error(
+      `personalize-test found no app user with onboarding preferences for the requested --user-id. The user must have completed onboarding (profile + preferences + at least one newsletter topic) before an edition can be assigned.`
+    );
+  }
+
+  const selectedPreferences = targetedPreferences.slice(0, options.targetUserId ? 1 : options.limit);
   const languages = [...new Set(selectedPreferences.map((preference) => preference.language))];
   const contentRows = await repository.listPublishedContentItems({
     languages,
@@ -91,12 +112,29 @@ export async function runPersonalizeTest(options: PersonalizeTestOptions): Promi
   });
 
   for (const preference of selectedPreferences) {
-    if (existingDrops.has(preference.user_id)) {
-      skippedUsers.push({
+    const existingDrop = existingDrops.get(preference.user_id);
+
+    if (existingDrop) {
+      // An edition left behind in the user's previous language is worse than no
+      // edition: Today filters by language, so the user sees an empty day after
+      // switching. That case is always rebuilt. An edition already in the right
+      // language is only rebuilt on an explicit --refresh.
+      const staleLanguage = existingDrop.language !== preference.language;
+
+      if (!staleLanguage && !options.refresh) {
+        skippedUsers.push({
+          user_id: preference.user_id,
+          reason: "daily drop already exists for date"
+        });
+        continue;
+      }
+
+      logProgress("rebuilding existing daily drop", {
         user_id: preference.user_id,
-        reason: "daily drop already exists for date"
+        reason: staleLanguage ? "language_changed" : "refresh_requested",
+        existing_language: existingDrop.language,
+        current_language: preference.language
       });
-      continue;
     }
 
     const itemIds = selectPublishedContentForPreference(preference, contentItems);
@@ -147,6 +185,7 @@ export async function runPersonalizeTest(options: PersonalizeTestOptions): Promi
     persisted: true,
     dropDate: options.dropDate,
     limit: options.limit,
+    targetUserId: options.targetUserId,
     usersRead: allPreferences.length,
     usersSelected: selectedPreferences.length,
     assignedDropCount: assignedDrops.length,
@@ -157,9 +196,27 @@ export async function runPersonalizeTest(options: PersonalizeTestOptions): Promi
 }
 
 export function parsePersonalizeTestOptions(args: string[]): PersonalizeTestOptions {
+  const targetUserId = readStringOption(args, "user-id") ?? process.env.TARGET_USER_ID ?? null;
+  const limit = readPositiveIntegerOption(args, "limit") ?? DEFAULT_PERSONALIZE_LIMIT;
+
+  // Broadcast guard: assigning to more than one user at a time needs its own
+  // explicit confirmation, so a stray `--limit 50` cannot quietly write an
+  // edition for every account.
+  if (!targetUserId && limit > 1 && process.env.CONFIRM_PERSONALIZE_BROADCAST !== "true") {
+    throw new Error(
+      [
+        `personalize-test refused to assign an edition to ${limit} users at once.`,
+        "Pass --user-id <uuid> (or TARGET_USER_ID) to assign exactly one user, which is the safe way to preview the catalog in the app.",
+        "To intentionally assign several users, set CONFIRM_PERSONALIZE_BROADCAST=true as well."
+      ].join(" ")
+    );
+  }
+
   return {
     dropDate: readStringOption(args, "date") ?? toDateOnly(new Date()),
-    limit: readPositiveIntegerOption(args, "limit") ?? DEFAULT_PERSONALIZE_LIMIT
+    limit,
+    targetUserId,
+    refresh: args.includes("--refresh") || process.env.REFRESH_EXISTING_DROP === "true"
   };
 }
 

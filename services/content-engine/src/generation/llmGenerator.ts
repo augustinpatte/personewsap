@@ -38,7 +38,12 @@ import {
   PROMPT_VERSION,
   STRONG_WRITING_EXAMPLES
 } from "./prompts.js";
-import type { ContentGenerator, GenerationRequest } from "./types.js";
+import {
+  EDITORIAL_SECTION_ORDER,
+  requestedSections,
+  type ContentGenerator,
+  type GenerationRequest
+} from "./types.js";
 import {
   BANNED_EDITORIAL_PHRASES,
   readProductionContentStrict,
@@ -111,7 +116,7 @@ export class LlmContentGenerator implements ContentGenerator {
     // case), so a failed mini-case topic never forces successful newsletter or
     // business-story generations to be repeated.
     const items: GeneratedContentItem[] = [];
-    for (const section of SECTION_ORDER) {
+    for (const section of requestedSections(request)) {
       if (section === "newsletter_article") {
         for (const newsletterTopic of request.newsletterTopics) {
           items.push(...(await this.generateSectionWithRetries(section, request, sources, { newsletterTopic })));
@@ -285,11 +290,7 @@ export class LlmContentGenerator implements ContentGenerator {
 
 type DropSection = EditorialSection;
 
-const SECTION_ORDER: DropSection[] = [
-  "newsletter_article",
-  "business_story",
-  "mini_case"
-];
+const SECTION_ORDER: DropSection[] = EDITORIAL_SECTION_ORDER;
 
 const SECTION_SPEC_FILE: Record<DropSection, string> = {
   newsletter_article: "newsletter_prompt_final.md",
@@ -395,11 +396,47 @@ function buildSectionPrompt(
       ...sectionRequestContext(section, request, topic)
     },
     ...sectionMemoryContext(section, request, topic),
+    ...sectionLanguagePairContext(section, request),
     allowed_source_urls: allowedSourceUrls,
     source_material: sources
   };
 
   return JSON.stringify(prompt, null, 2);
+}
+
+// Rules for producing the counterpart language of an already-generated catalog
+// entry. The editorial specification still governs how the item is written; this
+// block only pins the invariants that must not drift between the FR and EN
+// versions of the SAME entry.
+export const LANGUAGE_PAIR_RULES = [
+  "You are writing the counterpart-language version of an existing catalog entry, not a new entry.",
+  "Keep identical: the sourced facts, the source URLs, the dates, the mechanism, the difficulty, the reasoning path, the taxonomy fields, and the correct answer.",
+  "For a mini_case, keep the same number of questions, the same question roles in the same order, the same option ids A/B/C/D, and mark exactly the SAME option id as is_correct in every question.",
+  "Do NOT translate word by word. Rewrite the entry natively in the requested language so it reads as if it had been written in that language first.",
+  "Localize rhythm, idioms, connectors, and sentence structure; keep proper nouns, company names, URLs, and ISO dates unchanged.",
+  "Never leave any sentence, option, or feedback string in the reference language. The output must be 100% in the requested language.",
+  "Titles must be natural in the requested language, not a transliteration, but must describe the same story or case."
+];
+
+function sectionLanguagePairContext(section: DropSection, request: GenerationRequest): Record<string, unknown> {
+  const pair = request.languagePair;
+  if (!pair || pair.referenceItems.length === 0) {
+    return {};
+  }
+
+  const referenceItems = pair.referenceItems.filter((item) => item.content_type === section);
+  if (referenceItems.length === 0) {
+    return {};
+  }
+
+  return {
+    language_pair_context: {
+      reference_language: pair.referenceLanguage,
+      target_language: request.language,
+      rules: LANGUAGE_PAIR_RULES,
+      reference_items: referenceItems
+    }
+  };
 }
 
 function sectionItemsExpectation(
@@ -664,8 +701,17 @@ function expectedSectionItemCount(section: DropSection, request: GenerationReque
 }
 
 function sourcePackets(request: GenerationRequest): SourcePacket[] {
-  return request.articles
-    .filter((article) => article.language === request.language)
+  // Normal generation only sees same-language source material. When generating
+  // the counterpart language of an existing catalog entry, the allowed sources
+  // are exactly the sources the reference version cited — a source document's
+  // own language is independent of the language the item is written in.
+  const pairSourceUrls = new Set((request.languagePair?.referenceItems ?? []).flatMap((item) => item.source_urls));
+  const candidates =
+    pairSourceUrls.size > 0
+      ? request.articles.filter((article) => pairSourceUrls.has(article.url))
+      : request.articles.filter((article) => article.language === request.language);
+
+  return candidates
     .slice(0, MAX_SOURCE_ARTICLES)
     .map((article, index) => ({
       source_id: `source_${index + 1}`,
@@ -691,8 +737,9 @@ function validateComposition(payload: DailyDropPayload, request: GenerationReque
   const miniCaseCount = payload.items.filter((item) => item.content_type === "mini_case").length;
   const conceptCount = payload.items.filter((item) => item.content_type === "concept").length;
   const requestedTopics = new Set<TopicId>(request.newsletterTopics);
+  const sections = new Set(requestedSections(request));
 
-  const expectedNewsletterItems = expectedNewsletterCount(request);
+  const expectedNewsletterItems = sections.has("newsletter_article") ? expectedNewsletterCount(request) : 0;
   if (newsletterCount !== expectedNewsletterItems) {
     issues.push({
       path: "items",
@@ -700,11 +747,15 @@ function validateComposition(payload: DailyDropPayload, request: GenerationReque
     });
   }
 
-  if (businessStoryCount !== 1) {
-    issues.push({ path: "items", message: `Expected 1 business_story item, received ${businessStoryCount}.` });
+  const expectedBusinessStoryCount = sections.has("business_story") ? 1 : 0;
+  if (businessStoryCount !== expectedBusinessStoryCount) {
+    issues.push({
+      path: "items",
+      message: `Expected ${expectedBusinessStoryCount} business_story item, received ${businessStoryCount}.`
+    });
   }
 
-  const expectedMiniCaseCount = request.miniCaseProductTopics?.length ?? 1;
+  const expectedMiniCaseCount = sections.has("mini_case") ? request.miniCaseProductTopics?.length ?? 1 : 0;
   if (miniCaseCount !== expectedMiniCaseCount) {
     issues.push({ path: "items", message: `Expected ${expectedMiniCaseCount} mini_case item(s), received ${miniCaseCount}.` });
   }

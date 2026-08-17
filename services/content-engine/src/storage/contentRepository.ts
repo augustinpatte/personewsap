@@ -177,6 +177,8 @@ type DailyDropAssignmentRow = {
   id: string;
   user_id: string;
   status: DailyDropStatus;
+  /** Needed to detect an edition left behind in the user's previous language. */
+  language: Language;
 };
 
 type DailyDropItemRow = {
@@ -1500,7 +1502,7 @@ export class ContentRepository {
 
     const { data, error } = await this.supabase
       .from("daily_drops")
-      .select("id,user_id,status")
+      .select("id,user_id,status,language")
       .eq("drop_date", input.dropDate)
       .in("user_id", userIds)
       .returns<DailyDropAssignmentRow[]>();

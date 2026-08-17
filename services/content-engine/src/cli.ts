@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseAppPreviewTestOptions, runAppPreviewTest } from "./cli/appPreviewTest.js";
 import { parseAssignTestUsersOptions, runAssignTestUsers } from "./cli/assignTestUsers.js";
+import { parseBootstrapCatalogOptions, runBootstrapCatalogCli } from "./cli/bootstrapCatalog.js";
 import { parseBusinessStoryMemoryOptions, runBusinessStoryMemory } from "./cli/businessStoryMemory.js";
 import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
 import { parseDailyJobOptions, runDailyJob } from "./cli/dailyJob.js";
@@ -107,6 +108,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "bootstrap-catalog") {
+    const output = await runBootstrapCatalogCli(parseBootstrapCatalogOptions(args));
+    writeJson(output, { redactIdentifiers: true });
+    return;
+  }
+
   if (command === "quality-proof") {
     const output = runQualityProof();
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
@@ -145,6 +152,7 @@ Commands:
   debug-users             Read-only daily-job-test user eligibility diagnostic.
   personalize-test        Assign already-published content from app user preferences.
   rss-check               Fetch live RSS only, without LLM or Supabase persistence.
+  bootstrap-catalog       Build the initial FR/EN editorial inventory (Business Stories + Mini Cases). No-write by default.
   quality-proof           Prove production-strict editorial validation rejects bad generated content.
 
 Options:
@@ -190,6 +198,14 @@ Daily job env:
   ALLOW_SAMPLE_CONTENT=true Allow sample_articles only in dry-run/test-shaped commands.
   CONTENT_STATUS=published Store draft, review, or published test content.
 
+Bootstrap catalog env:
+  LANGUAGES=fr,en         Languages to build. The first one is the reference version; the others are generated as its pairs.
+  BUSINESS_STORY_COUNT=10 Distinct Business Stories to build.
+  MINI_CASE_COUNT_PER_TOPIC=5 Distinct Mini Cases per mini-case topic.
+  MINI_CASE_TOPICS=...    Restrict to a subset of the 6 approved mini-case topics.
+  CONFIRM_BOOTSTRAP_CATALOG=true Required, together with --persist, before anything is written.
+  BOOTSTRAP_RUN_ID=...    Stable run id. Re-running with the same id reuses existing rows instead of duplicating them.
+
 Examples:
   npm run dry-run
   npm run dry-run -- --languages en,fr --newsletter-count 3
@@ -210,6 +226,9 @@ Examples:
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run debug-users -- --language en --date 2026-04-26
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... CONFIRM_PERSONALIZE_TEST=true npm run personalize-test
   npm run rss-check -- --languages en --topics business,finance --limit-per-source 3
+  LANGUAGES=fr,en BUSINESS_STORY_COUNT=10 MINI_CASE_COUNT_PER_TOPIC=5 npm run bootstrap-catalog
+  LIVE_RSS_ONLY=true USE_LLM=true OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run bootstrap-catalog
+  CONFIRM_BOOTSTRAP_CATALOG=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run bootstrap-catalog -- --persist
   npm run quality-proof
   OPENAI_API_KEY=... npm run llm-proof -- --languages en --topics business,finance
   OPENAI_API_KEY=... OPENAI_REQUEST_TIMEOUT_MS=120000 npm run llm-proof -- --languages fr,en --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media --max-attempts 2

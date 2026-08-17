@@ -30,7 +30,7 @@ export function parseXmlFeed(xml: string): ParsedFeedItem[] {
           publisher: readItemPublisher(element.innerXml) ?? feedPublisher,
           rawDate,
           summary: readFeedSummary(element.innerXml),
-          title: readText(element.innerXml, ["title"]),
+          title: sanitizeFeedTitle(readText(element.innerXml, ["title"])),
           url: readFeedUrl(element.innerXml),
           publishedAt: normalizePublishedAt(rawDate)
         };
@@ -38,6 +38,37 @@ export function parseXmlFeed(xml: string): ParsedFeedItem[] {
         return [];
       }
     });
+}
+
+/**
+ * A headline is one short line. When a feed ships a malformed item — an unclosed
+ * tag, an escaped `<` inside the title — the scanner's closing-tag search runs
+ * past the real end and the "title" swallows several entries' worth of text and
+ * URLs. That is how a BBC item once produced a 1051-character title containing
+ * three headlines and their links.
+ *
+ * Such a value is parse debris, not a headline. Returning null drops the item in
+ * the fetcher (which requires a title), so garbage never reaches ranking,
+ * generation, or the catalog.
+ */
+const MAX_FEED_TITLE_CHARS = 300;
+
+export function sanitizeFeedTitle(rawTitle: string | null): string | null {
+  if (!rawTitle) {
+    return null;
+  }
+
+  const title = rawTitle.replace(/\s+/g, " ").trim();
+
+  if (title.length === 0 || title.length > MAX_FEED_TITLE_CHARS) {
+    return null;
+  }
+
+  if (/https?:\/\//i.test(title)) {
+    return null;
+  }
+
+  return title;
 }
 
 function readFeedUrl(xml: string): string | null {

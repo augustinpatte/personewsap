@@ -1,4 +1,5 @@
 import {
+  CONTENT_DIFFICULTIES,
   MINI_CASE_TOPIC_IDS,
   miniCaseTopicToContentTopics
 } from "../domain.js";
@@ -9,6 +10,7 @@ import type {
   KeyConcept,
   Language,
   MiniCaseChallenge,
+  MiniCaseTopicId,
   NewsletterArticle,
   RankedArticle,
   TopicId
@@ -18,11 +20,31 @@ import {
   MINI_CASE_CORRECT_ANSWER_PATTERNS,
   MINI_CASE_DECISION_TYPES,
   MINI_CASE_QUESTION_PATTERNS,
-  MINI_CASE_SCENARIO_TYPES
+  MINI_CASE_SCENARIO_TYPES,
+  isMiniCaseScenarioType,
+  type MiniCaseScenarioType
 } from "../miniCase/taxonomy.js";
 import { normalizeMemoryKey } from "./editorialMemory.js";
 import { GENERATOR_VERSION, PROMPT_VERSION } from "./prompts.js";
-import type { ContentGenerator, GenerationRequest } from "./types.js";
+import { requestedSections, type ContentGenerator, type GenerationRequest } from "./types.js";
+
+/**
+ * Reference item of the same content type from the other language of the SAME
+ * catalog entry. When present, the counterpart reuses its taxonomy, difficulty,
+ * and correct-answer layout so the FR and EN versions can never diverge on
+ * logic. Only the prose changes language.
+ */
+function pairReference<Type extends GeneratedContentItem["content_type"]>(
+  request: GenerationRequest,
+  contentType: Type,
+  match?: (item: Extract<GeneratedContentItem, { content_type: Type }>) => boolean
+): Extract<GeneratedContentItem, { content_type: Type }> | null {
+  const items = (request.languagePair?.referenceItems ?? []).filter(
+    (item): item is Extract<GeneratedContentItem, { content_type: Type }> => item.content_type === contentType
+  );
+
+  return items.find((item) => (match ? match(item) : true)) ?? null;
+}
 
 const CONCEPTS: Record<TopicId, { title: Record<Language, string>; definition: Record<Language, string>; mistake: Record<Language, string> }> = {
   business: {
@@ -91,6 +113,37 @@ const CONCEPTS: Record<TopicId, { title: Record<Language, string>; definition: R
   }
 };
 
+// Human-readable, per-language names for the mini-case scenario taxonomy. The
+// taxonomy ids themselves are English snake_case identifiers and must never leak
+// into user-facing text: a French title containing "acquisition_decision" is both
+// unreadable and a language-consistency failure.
+const SCENARIO_TYPE_LABELS: Record<MiniCaseScenarioType, { en: string; fr: string }> = {
+  acquisition_decision: { en: "an acquisition call", fr: "une décision d'acquisition" },
+  pricing_decision: { en: "a pricing call", fr: "une décision de prix" },
+  compliance_risk: { en: "a compliance risk", fr: "un risque de conformité" },
+  capital_allocation: { en: "a capital allocation", fr: "une allocation de capital" },
+  product_launch: { en: "a product launch", fr: "un lancement de produit" },
+  market_entry: { en: "a market entry", fr: "une entrée sur un marché" },
+  cost_optimization: { en: "a cost trade-off", fr: "un arbitrage de coûts" },
+  clinical_trial_decision: { en: "a clinical trial call", fr: "une décision d'essai clinique" },
+  supply_chain_constraint: { en: "a supply-chain constraint", fr: "une contrainte d'approvisionnement" },
+  ai_build_vs_buy: { en: "an AI build-versus-buy call", fr: "un arbitrage IA entre construire et acheter" },
+  portfolio_risk: { en: "a portfolio risk", fr: "un risque de portefeuille" },
+  contract_negotiation: { en: "a contract negotiation", fr: "une négociation de contrat" },
+  capacity_planning: { en: "a capacity plan", fr: "un plan de capacité" }
+};
+
+// Per-language names for the six product-facing mini-case topics, so a title can
+// say which topic the case belongs to without leaking the snake_case topic id.
+const MINI_CASE_TOPIC_LABELS: Record<MiniCaseTopicId, { en: string; fr: string }> = {
+  finance_economy: { en: "Finance and economy", fr: "Finance et économie" },
+  stock_market: { en: "Markets", fr: "Marchés" },
+  ai: { en: "AI", fr: "IA" },
+  law_compliance: { en: "Compliance", fr: "Conformité" },
+  health_pharma: { en: "Health and pharma", fr: "Santé et pharma" },
+  engineering_operations: { en: "Operations", fr: "Opérations" }
+};
+
 const TOPIC_LABELS: Record<TopicId, { en: string; fr: string }> = {
   business: { en: "Business", fr: "Business" },
   finance: { en: "Finance", fr: "Finance" },
@@ -155,6 +208,44 @@ const TOPIC_EDGES: Record<TopicId, { en: string; fr: string; watchEn: string; wa
 
 function sentence(article: RankedArticle): string {
   return article.summary?.replace(/\s+/g, " ").trim() || article.title;
+}
+
+/**
+ * Opening context sentence for a template-generated item.
+ *
+ * When the source document is in the item's language, the source summary is
+ * reused directly. When a catalog entry cites the SAME source in both languages,
+ * one of the two versions reads a foreign-language source: copying its summary
+ * would leak untranslated prose into the item. In that case the template falls
+ * back to structured metadata only (topic, publisher, date) — all facts the
+ * engine already holds, nothing invented.
+ */
+function sourceContextSentence(article: RankedArticle, language: Language, dropDate: string): string {
+  if (article.language === language) {
+    return sentence(article);
+  }
+
+  const label = topicLabel(article.topic, language);
+  const date = article.published_at?.slice(0, 10) ?? dropDate;
+
+  return languageLine(
+    language,
+    `A ${label} development reported by ${article.publisher} on ${date} is the starting point.`,
+    `Un développement en ${label} rapporté par ${article.publisher} le ${date} sert de point de départ.`
+  );
+}
+
+/**
+ * Short headline-style reference to the source. Same rule as
+ * sourceContextSentence: never echo a foreign-language headline.
+ */
+function sourceHeadlineLabel(article: RankedArticle, language: Language, dropDate: string): string {
+  if (article.language === language) {
+    return article.title;
+  }
+
+  const date = article.published_at?.slice(0, 10) ?? dropDate;
+  return `${topicLabel(article.topic, language)} — ${article.publisher}, ${date}`;
 }
 
 function sourceUrls(articles: RankedArticle[]): string[] {
@@ -341,16 +432,25 @@ function newsletterBody(request: GenerationRequest, article: RankedArticle, topi
 
 export class StructuredContentGenerator implements ContentGenerator {
   async generateDailyDrop(request: GenerationRequest): Promise<DailyDropPayload> {
-    const newsletter = this.generateNewsletter(request);
-    const businessStory = this.generateBusinessStory(request);
-    const miniCases = this.generateMiniCases(request);
+    const sections = new Set(requestedSections(request));
+    const items: GeneratedContentItem[] = [];
+
+    if (sections.has("newsletter_article")) {
+      items.push(...this.generateNewsletter(request));
+    }
+    if (sections.has("business_story")) {
+      items.push(this.generateBusinessStory(request));
+    }
+    if (sections.has("mini_case")) {
+      items.push(...this.generateMiniCases(request));
+    }
 
     return {
       drop_date: request.dropDate,
       language: request.language,
       prompt_version: PROMPT_VERSION,
       generator_version: GENERATOR_VERSION,
-      items: [...newsletter, businessStory, ...miniCases]
+      items
     };
   }
 
@@ -397,25 +497,35 @@ export class StructuredContentGenerator implements ContentGenerator {
   }
 
   private generateBusinessStory(request: GenerationRequest): BusinessStory {
-    const article = this.pickBusinessStoryArticle(request);
-    const setup = sentence(article);
+    const reference = pairReference(request, "business_story");
+    const article = reference
+      ? this.findArticleByUrl(request, reference.source_urls[0]) ?? this.pickBusinessStoryArticle(request)
+      : this.pickBusinessStoryArticle(request);
+    const setup = sourceContextSentence(article, request.language, request.dropDate);
     const label = topicLabel(article.topic, request.language);
     const watch = watchSignal(article.topic, request.language);
-    const keyMechanism = pickPreferred(
-      request.businessStoryMemory?.underusedMechanisms,
-      topicEdge(article.topic, request.language)
-    );
-    const industry = pickPreferred(
-      request.businessStoryMemory?.underusedIndustries,
-      article.topic === "tech_ai" ? "software" : article.topic === "finance" ? "finance" : "consumer"
-    );
+    // A paired counterpart reuses the reference mechanism/industry verbatim so the
+    // FR and EN versions of one story share the same editorial memory identity.
+    const keyMechanism =
+      reference?.editorial_memory?.key_mechanism ??
+      pickPreferred(request.businessStoryMemory?.underusedMechanisms, topicEdge(article.topic, request.language));
+    const industry =
+      reference?.editorial_memory?.industry ??
+      pickPreferred(
+        request.businessStoryMemory?.underusedIndustries,
+        article.topic === "tech_ai" ? "software" : article.topic === "finance" ? "finance" : "consumer"
+      );
 
     const story: BusinessStory = {
       content_type: "business_story",
       slot: "business_story",
       topic: article.topic,
       language: request.language,
-      title: languageLine(request.language, `The business lesson inside ${article.title}`, `La leçon business derrière ${article.title}`),
+      title: languageLine(
+        request.language,
+        `The business lesson inside ${sourceHeadlineLabel(article, request.language, request.dropDate)}`,
+        `La leçon business derrière ${sourceHeadlineLabel(article, request.language, request.dropDate)}`
+      ),
       company_or_market: article.publisher,
       story_date: article.published_at?.slice(0, 10) ?? request.dropDate,
       setup,
@@ -461,7 +571,7 @@ export class StructuredContentGenerator implements ContentGenerator {
       source_urls: [article.url],
       editorial_memory: {
         entity_name: article.publisher,
-        entity_type: "company",
+        entity_type: reference?.editorial_memory?.entity_type ?? "company",
         main_company: article.publisher,
         companies_mentioned: [article.publisher],
         industry,
@@ -507,8 +617,11 @@ export class StructuredContentGenerator implements ContentGenerator {
 
     return productTopics.map((productTopic, index) => {
       const contentTopics = miniCaseTopicToContentTopics(productTopic);
-      const article = this.pickArticle(request, contentTopics);
-      return this.generateMiniCase(request, productTopic, article, index);
+      const reference = pairReference(request, "mini_case", (item) => item.product_topic === productTopic);
+      const article = reference
+        ? this.findArticleByUrl(request, reference.source_urls[0]) ?? this.pickArticle(request, contentTopics)
+        : this.pickArticle(request, contentTopics);
+      return this.generateMiniCase(request, productTopic, article, index, reference);
     });
   }
 
@@ -516,15 +629,29 @@ export class StructuredContentGenerator implements ContentGenerator {
     request: GenerationRequest,
     productTopic: (typeof MINI_CASE_TOPIC_IDS)[number],
     article: RankedArticle,
-    index: number
+    index: number,
+    reference: MiniCaseChallenge | null = null
   ): MiniCaseChallenge {
     const label = topicLabel(article.topic, request.language);
     const watch = watchSignal(article.topic, request.language);
-    const scenarioType = pickRotating(MINI_CASE_SCENARIO_TYPES, index, request.miniCaseMemory?.bannedScenarioTypes);
-    const decisionType = pickRotating(MINI_CASE_DECISION_TYPES, index, request.miniCaseMemory?.bannedDecisionTypes);
-    const conceptTested = pickRotating(MINI_CASE_CONCEPTS, index, request.miniCaseMemory?.bannedConcepts);
-    const questionPattern = pickRotating(MINI_CASE_QUESTION_PATTERNS, index, request.miniCaseMemory?.bannedQuestionPatterns);
-    const correctAnswerPattern = pickRotating(MINI_CASE_CORRECT_ANSWER_PATTERNS, index);
+    const variant = index + (request.catalogVariantIndex ?? 0);
+    // A paired counterpart copies the reference taxonomy and difficulty instead of
+    // re-rotating, so the FR and EN versions of one case can never test a
+    // different concept or expect a different answer.
+    const scenarioType = isMiniCaseScenarioType(reference?.scenario_type)
+      ? reference.scenario_type
+      : pickRotating(MINI_CASE_SCENARIO_TYPES, variant, request.miniCaseMemory?.bannedScenarioTypes);
+    const decisionType =
+      reference?.decision_type ?? pickRotating(MINI_CASE_DECISION_TYPES, variant, request.miniCaseMemory?.bannedDecisionTypes);
+    const conceptTested =
+      reference?.concept_tested ?? pickRotating(MINI_CASE_CONCEPTS, variant, request.miniCaseMemory?.bannedConcepts);
+    const questionPattern =
+      reference?.question_pattern ??
+      pickRotating(MINI_CASE_QUESTION_PATTERNS, variant, request.miniCaseMemory?.bannedQuestionPatterns);
+    const correctAnswerPattern =
+      reference?.correct_answer_pattern ?? pickRotating(MINI_CASE_CORRECT_ANSWER_PATTERNS, variant);
+    const difficulty: MiniCaseChallenge["difficulty"] =
+      reference?.difficulty ?? CONTENT_DIFFICULTIES[variant % CONTENT_DIFFICULTIES.length];
 
     return {
       content_type: "mini_case",
@@ -539,9 +666,13 @@ export class StructuredContentGenerator implements ContentGenerator {
       correct_answer_pattern: correctAnswerPattern,
       core_takeaway: languageLine(request.language, `Use ${conceptTested} to choose the next evidence-backed step, not to overreact to one source.`, `Utilise ${conceptTested} pour choisir la prochaine étape fondée sur les preuves, pas pour surréagir à une seule source.`),
       language: request.language,
-      title: languageLine(request.language, `Mini-case: brief the ${label} move`, `Mini-cas : briefer le mouvement ${label}`),
-      difficulty: "medium",
-      context: sentence(article),
+      title: languageLine(
+        request.language,
+        `Mini-case — ${MINI_CASE_TOPIC_LABELS[productTopic].en}: brief ${SCENARIO_TYPE_LABELS[scenarioType].en}`,
+        `Mini-cas — ${MINI_CASE_TOPIC_LABELS[productTopic].fr} : briefer ${SCENARIO_TYPE_LABELS[scenarioType].fr}`
+      ),
+      difficulty,
+      context: sourceContextSentence(article, request.language, request.dropDate),
       challenge: languageLine(
         request.language,
         `You are preparing a five-minute brief for someone deciding whether the ${article.publisher} development deserves action this week.`,
@@ -563,8 +694,8 @@ export class StructuredContentGenerator implements ContentGenerator {
       ],
       sample_answer: languageLine(
         request.language,
-        `I would wait for one confirming signal before committing resources. The sourced fact is ${sentence(article)} The judgment is whether that changes behavior; I would test it through ${watch}.`,
-        `J'attendrais un signal de confirmation avant d'engager des ressources. Le fait source est le suivant : ${sentence(article)} Le jugement porte sur le changement de comportement ; je le testerais avec ${watch}.`
+        `I would wait for one confirming signal before committing resources. The sourced fact is: ${sourceContextSentence(article, request.language, request.dropDate)} The judgment is whether that changes behavior; I would test it through ${watch}.`,
+        `J'attendrais un signal de confirmation avant d'engager des ressources. Le fait source est le suivant : ${sourceContextSentence(article, request.language, request.dropDate)} Le jugement porte sur le changement de comportement ; je le testerais avec ${watch}.`
       ),
       conclusion: languageLine(
         request.language,
@@ -578,7 +709,7 @@ export class StructuredContentGenerator implements ContentGenerator {
       ),
       score_max: 3,
       body_md: [
-        sentence(article),
+        sourceContextSentence(article, request.language, request.dropDate),
         languageLine(
           request.language,
           `Your task is to brief a decision-maker in five minutes. Keep the sourced fact separate from your judgment, then recommend acting now, waiting, or narrowing the decision.`,
@@ -650,6 +781,16 @@ export class StructuredContentGenerator implements ContentGenerator {
       source_urls: sourceUrls([article]),
       version: 1
     };
+  }
+
+  // Used when generating the counterpart language of an existing catalog entry:
+  // both versions must cite exactly the same source article.
+  private findArticleByUrl(request: GenerationRequest, url: string | undefined): RankedArticle | null {
+    if (!url) {
+      return null;
+    }
+
+    return request.articles.find((candidate) => candidate.url === url) ?? null;
   }
 
   private pickArticle(request: GenerationRequest, topics: TopicId[]): RankedArticle {
