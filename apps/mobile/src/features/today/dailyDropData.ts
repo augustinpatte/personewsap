@@ -6,6 +6,7 @@ import {
   type DataFetchResult
 } from "../../lib/dataState";
 import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
+import { allowMockContent } from "../../lib/mockPolicy";
 import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import {
   flattenDailyDropItems,
@@ -73,7 +74,7 @@ export async function fetchTodayDrop(
   options: FetchTodayDropOptions = {}
 ): Promise<DataFetchResult<TodayDailyDrop>> {
   const dropDate = normalizeDropDate(date);
-  const fallbackDrop = getMockTodayDrop(options.language);
+  const fallbackDrop = getFallbackTodayDrop(options.language ?? "en", dropDate);
 
   if (!userId) {
     logTodayDataProof("mock_fallback", {
@@ -206,7 +207,9 @@ export async function fetchTodayDrop(
 export async function fetchContentItemSources(
   contentItemId: string
 ): Promise<DataFetchResult<SourceMetadata[]>> {
-  const fallbackSources = getMockSourcesForContentItem(contentItemId);
+  const fallbackSources = allowMockContent
+    ? getMockSourcesForContentItem(contentItemId)
+    : [];
 
   if (!supabase) {
     return createMockFallbackResult(
@@ -300,7 +303,7 @@ export async function fetchContentItemSources(
 export async function fetchContentItemById(
   contentItemId: string
 ): Promise<DataFetchResult<DailyDropContentItem | null>> {
-  const fallbackItem = getMockContentItemById(contentItemId);
+  const fallbackItem = allowMockContent ? getMockContentItemById(contentItemId) : null;
 
   if (!supabase) {
     return createMockFallbackResult(
@@ -633,8 +636,20 @@ function mapSource(source: Source): SourceMetadata {
   };
 }
 
-function getMockTodayDrop(language: ContentLanguage = "en"): TodayDailyDrop {
-  return mockTodayDailyDropsByLanguage[language] ?? mockTodayDailyDropsByLanguage.en;
+/**
+ * What a data failure falls back to. Development and explicit preview builds
+ * may show the sample edition; every other build gets an honest empty drop so
+ * demo content is never presented as real (see lib/mockPolicy).
+ */
+export function getFallbackTodayDrop(
+  language: ContentLanguage,
+  dropDate: string
+): TodayDailyDrop {
+  if (allowMockContent) {
+    return mockTodayDailyDropsByLanguage[language] ?? mockTodayDailyDropsByLanguage.en;
+  }
+
+  return buildEmptyTodayDrop(language, dropDate);
 }
 
 /**
@@ -643,7 +658,7 @@ function getMockTodayDrop(language: ContentLanguage = "en"): TodayDailyDrop {
  * 4×/week cadence). The UI renders a deliberate empty-edition screen rather than
  * mock/sample content, which keeps the app free of any "sample" surface.
  */
-function buildEmptyTodayDrop(
+export function buildEmptyTodayDrop(
   language: ContentLanguage,
   dropDate: string
 ): TodayDailyDrop {

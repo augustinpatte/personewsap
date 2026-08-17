@@ -63,7 +63,7 @@ export function AuthRedirect() {
     return <Redirect href="/(onboarding)/language" />;
   }
 
-  return <Redirect href="/(tabs)/today" />;
+  return <Redirect href="/(tabs)/newsletter" />;
 }
 
 function getAuthRedirectCopy(language: Language | null | undefined) {

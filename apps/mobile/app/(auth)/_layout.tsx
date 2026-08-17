@@ -16,7 +16,7 @@ export default function AuthLayout() {
   }
 
   if (status === "ready" && !isResetPasswordRoute) {
-    return <Redirect href="/(tabs)/today" />;
+    return <Redirect href="/(tabs)/newsletter" />;
   }
 
   return (

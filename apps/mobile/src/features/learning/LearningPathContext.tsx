@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren
 } from "react";
@@ -39,6 +40,13 @@ import {
   type LearningOutboxSyncFailure,
   type LearningOutboxEvent
 } from "./learningOutbox";
+import { fetchLearningCatalogSteps } from "./catalog/catalogData";
+import { prepareLearningSession } from "./catalog/sessionPrompt";
+import {
+  countUsedStepKeys,
+  pickNextLearningStep,
+  resolveLearningAdaptationMode
+} from "./catalog/stepSelection";
 import {
   learningDomainOrder,
   mockLearningDomains,
@@ -94,6 +102,21 @@ type LearningPathContextValue = LearningPathBundle & {
     sessionId: string
   ) => Promise<{ ok: boolean; error: NormalizedSupabaseError | null; syncPending: boolean }>;
   disableLearningPath: () => Promise<{ ok: boolean; error: NormalizedSupabaseError | null }>;
+  /**
+   * Materialise the next session of the active path, on the reader's command.
+   * Progress is never bound to the edition calendar: a reader can run as many
+   * sessions in a row as they like, but only ever one tap at a time.
+   */
+  advanceLearningPath: () => Promise<{
+    ok: boolean;
+    /** The session to open, when one is ready. */
+    session: LearningSession | null;
+    /** True when the curriculum has no step left for this path. */
+    pathCompleted: boolean;
+    error: NormalizedSupabaseError | null;
+  }>;
+  /** True while an advance is in flight, so the CTA can lock itself. */
+  advancing: boolean;
   getSessionById: (sessionId: string) => LearningSession | undefined;
   loadSessionsForPath: (pathId: string) => Promise<LearningSession[]>;
   reload: () => Promise<void>;
@@ -120,6 +143,10 @@ const initialBundle = createBundle({
 
 export function LearningPathProvider({ children }: PropsWithChildren) {
   const { profileLanguage, status: authStatus, user } = useAuth();
+  const [advancing, setAdvancing] = useState(false);
+  // Ref, not state: the guard must reject a second tap within the same tick,
+  // before React has re-rendered with advancing=true.
+  const advanceInFlightRef = useRef(false);
   const [state, setState] = useState<LearningPathState>({
     ...initialBundle,
     status: "loading",
@@ -402,6 +429,143 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
     [load, user?.id]
   );
 
+  const advanceLearningPath = useCallback<LearningPathContextValue["advanceLearningPath"]>(
+    async () => {
+      // Guard first: a double tap must never create two sessions, and must
+      // never fire two requests.
+      if (advanceInFlightRef.current) {
+        return { ok: true, session: null, pathCompleted: false, error: null };
+      }
+
+      const path = state.activePath;
+
+      if (!supabase || !user?.id || !path) {
+        return {
+          ok: false,
+          session: null,
+          pathCompleted: false,
+          error: normalizeSupabaseError(
+            getSupabaseConfigError(),
+            "Your learning path is unavailable."
+          )
+        };
+      }
+
+      // A session already waiting is the answer: open it instead of making one.
+      // Same selection the UI shows, so the CTA and this action never disagree.
+      const waiting = state.availableSession;
+
+      if (waiting && !isSessionComplete(waiting)) {
+        return { ok: true, session: waiting, pathCompleted: false, error: null };
+      }
+
+      advanceInFlightRef.current = true;
+      setAdvancing(true);
+
+      try {
+        const catalog = await fetchLearningCatalogSteps(path.domain_id);
+
+        if (catalog.length === 0) {
+          return {
+            ok: false,
+            session: null,
+            pathCompleted: false,
+            error: normalizeSupabaseError(
+              { code: "learning_catalog_unavailable", message: "Curriculum unavailable." },
+              "Your next session could not be prepared."
+            )
+          };
+        }
+
+        const orderedSessions = [...state.sessions].sort(
+          (left, right) => left.session_number - right.session_number
+        );
+        const lastSession = orderedSessions[orderedSessions.length - 1] ?? null;
+        const feedback = lastSession
+          ? await fetchSessionFeedback(user.id, lastSession.id)
+          : null;
+        const adaptationMode = resolveLearningAdaptationMode(
+          feedback,
+          lastSession?.adaptation_mode === "reinforce"
+        );
+        const selection = pickNextLearningStep({
+          catalog,
+          domainId: path.domain_id,
+          objectiveId: path.objective_id,
+          currentLevel: path.current_level,
+          targetLevel: path.target_level,
+          usedStepKeys: countUsedStepKeys(orderedSessions),
+          adaptationMode,
+          lastStepKey: lastSession?.curriculum_step_key ?? null
+        });
+
+        // Every step up to the target level has been delivered: the path is done.
+        if (selection.status === "completed") {
+          await supabase
+            .from("user_learning_paths")
+            .update({ status: "completed", completed_at: new Date().toISOString() })
+            .eq("id", path.id)
+            .eq("user_id", user.id)
+            .eq("status", "active");
+          await load();
+
+          return { ok: true, session: null, pathCompleted: true, error: null };
+        }
+
+        const prepared = prepareLearningSession({
+          step: selection.step,
+          // The session is authored in the path's current language; sessions
+          // already delivered keep the language they were written in.
+          language: path.language === "fr" ? "fr" : "en",
+          repetitionIndex: selection.repetitionIndex,
+          adaptationMode,
+          skippedStepKey: selection.skippedStepKey
+        });
+
+        const { data, error } = await supabase.rpc("create_next_learning_session", {
+          p_curriculum_step_key: prepared.curriculumStepKey,
+          p_skipped_step_key: prepared.skippedStepKey,
+          p_adaptation_mode: prepared.adaptationMode,
+          p_title_fr: prepared.titleFr,
+          p_title_en: prepared.titleEn,
+          p_summary_fr: prepared.summaryFr,
+          p_summary_en: prepared.summaryEn,
+          p_objectives_fr: prepared.objectivesFr,
+          p_objectives_en: prepared.objectivesEn,
+          p_prompt_text: prepared.promptText
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        const session = data ? coerceSession(data as LearningSession) : null;
+        await load();
+
+        trackAnalyticsEvent("learning_session_started", {
+          language: profileLanguage ?? undefined
+        });
+
+        return { ok: Boolean(session), session, pathCompleted: false, error: null };
+      } catch (error) {
+        if (__DEV__) {
+          console.warn("[LearningPath] advanceLearningPath failed", error);
+        }
+
+        return {
+          ok: false,
+          session: null,
+          pathCompleted: false,
+          error: normalizeSupabaseError(error, "Your next session could not be prepared.")
+        };
+      } finally {
+        advanceInFlightRef.current = false;
+        setAdvancing(false);
+      }
+    },
+    [load, profileLanguage, state.activePath, state.availableSession, state.sessions, user?.id]
+  );
+
   const submitFeedback = useCallback<LearningPathContextValue["submitFeedback"]>(
     async (sessionId, ratings) => {
       if (!supabase || !user?.id) {
@@ -660,6 +824,8 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
   const value = useMemo<LearningPathContextValue>(
     () => ({
       ...state,
+      advanceLearningPath,
+      advancing,
       disableLearningPath,
       markSessionOpened,
       markSessionStarted,
@@ -671,6 +837,8 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
       reload: () => load()
     }),
     [
+      advanceLearningPath,
+      advancing,
       disableLearningPath,
       loadSessionsForPath,
       load,
@@ -820,6 +988,43 @@ export function isLearningHealthcheckReady(value: unknown): boolean {
     payload.indexes_ready === true &&
     payload.rls_ready === true
   );
+}
+
+/**
+ * Ratings the reader gave on one session, used to adapt the next one. RLS
+ * scopes learning_session_feedback to its owner, and the explicit user filter
+ * keeps that intent visible at the call site.
+ */
+async function fetchSessionFeedback(
+  userId: string,
+  sessionId: string
+): Promise<{
+  comprehensionRating: number;
+  explainabilityRating: number;
+  interestRating: number;
+  difficultyRating: number;
+} | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("learning_session_feedback")
+    .select("comprehension_rating,explainability_rating,interest_rating,difficulty_rating")
+    .eq("session_id", sessionId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return {
+    comprehensionRating: data.comprehension_rating,
+    explainabilityRating: data.explainability_rating,
+    interestRating: data.interest_rating,
+    difficultyRating: data.difficulty_rating
+  };
 }
 
 async function enqueueLearningOutboxEvent(userId: string | null, event: LearningOutboxEvent) {

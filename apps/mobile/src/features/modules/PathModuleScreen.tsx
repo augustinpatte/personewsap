@@ -1,0 +1,331 @@
+import { useRouter, type Href } from "expo-router";
+import { useMemo, useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import {
+  AppText,
+  Card,
+  EmptyState,
+  PrimaryButton,
+  SecondaryButton
+} from "../../components";
+import { tokens } from "../../design/tokens";
+import { useThemedStyles, type ThemeColors } from "../../design/theme";
+import { useLearningPath } from "../learning";
+import { localizeLearningField, localizeSessionTitle } from "../learning/learningTypes";
+import { formatDropDate } from "../today/contentCopy";
+import { useDailyDrop } from "../today/DailyDropContext";
+import { getModuleCopy } from "./moduleCopy";
+import { ModuleHeader, ModuleLoading, ModuleScroll, ViewSwitch } from "./ModuleChrome";
+
+/**
+ * The Parcours tab is the existing Learning Path product — sessions generated
+ * for the reader's own objective. It is unrelated to the retired "concept"
+ * content type and never lists concepts.
+ *
+ * It is deliberately self-paced: nothing here reads the edition calendar. A
+ * session becomes available because the reader asked for it, so several
+ * sessions can be done back to back — but only ever on an explicit tap, never
+ * by auto-advancing.
+ */
+export function PathModuleScreen() {
+  const [view, setView] = useState<"left" | "right">("left");
+  const { language, drop } = useDailyDrop();
+  const styles = useThemedStyles(createStyles);
+  const copy = getModuleCopy(language);
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.chrome}>
+        <ModuleHeader
+          eyebrow={formatDropDate(drop.drop_date, language)}
+          language={language}
+          title={copy.path.title}
+        />
+        <ViewSwitch
+          leftLabel={copy.common.currentView}
+          onChange={setView}
+          rightLabel={copy.common.historyView}
+          value={view}
+        />
+      </View>
+      {view === "left" ? <PathCurrent /> : <PathHistory />}
+    </SafeAreaView>
+  );
+}
+
+function PathCurrent() {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const { language } = useDailyDrop();
+  const learningPath = useLearningPath();
+  const copy = getModuleCopy(language);
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
+
+  const completedSessions = useMemo(
+    () =>
+      learningPath.sessions.filter(
+        (session) => Boolean(session.completed_at) || session.status === "completed"
+      ),
+    [learningPath.sessions]
+  );
+
+  if (learningPath.status === "loading") {
+    return <ModuleLoading label={copy.common.loading} />;
+  }
+
+  const path = learningPath.activePath;
+  const completedPath = learningPath.latestCompletedPath;
+
+  // No path yet: the only thing to do is create one.
+  if (!path) {
+    if (completedPath) {
+      return (
+        <ModuleScroll>
+          <EmptyState
+            actionLabel={copy.path.newPath}
+            description={copy.path.completedBody}
+            onActionPress={() => router.push("/(learning)/setup" as Href)}
+            title={copy.path.completedTitle}
+          />
+        </ModuleScroll>
+      );
+    }
+
+    return (
+      <ModuleScroll>
+        <PathIntroCard onCreate={() => router.push("/(learning)/setup" as Href)} />
+      </ModuleScroll>
+    );
+  }
+
+  // The session waiting to be done, whatever edition it came from. There is no
+  // date test here by design: the calendar never gates the path.
+  const pendingSession =
+    learningPath.availableSession &&
+    !learningPath.availableSession.completed_at &&
+    learningPath.availableSession.status !== "completed"
+      ? learningPath.availableSession
+      : null;
+  const isFirstSession = learningPath.sessions.length === 0;
+
+  const openSession = (sessionId: string) => {
+    router.push({
+      pathname: "/(learning)/session/[id]",
+      params: { id: sessionId }
+    } as unknown as Href);
+  };
+
+  const onAdvance = async () => {
+    setAdvanceError(null);
+    const result = await learningPath.advanceLearningPath();
+
+    if (result.pathCompleted) {
+      return;
+    }
+
+    if (!result.ok || !result.session) {
+      setAdvanceError(copy.path.advanceFailed);
+      return;
+    }
+
+    openSession(result.session.id);
+  };
+
+  const ctaLabel = pendingSession
+    ? pendingSession.status === "opened" || pendingSession.status === "started"
+      ? copy.path.resume
+      : copy.path.nextSession
+    : isFirstSession
+      ? copy.path.startFirst
+      : copy.path.continuePath;
+
+  return (
+    <ModuleScroll>
+      <Card padding="lg" style={styles.sessionCard} tone="accent">
+        <AppText color="muted" variant="eyebrow">
+          {learningPath.displayDomain
+            ? localizeLearningField(learningPath.displayDomain, language)
+            : copy.path.title}
+        </AppText>
+
+        {pendingSession ? (
+          <>
+            <AppText color="muted" variant="eyebrow">
+              {copy.path.sessionLabel(pendingSession.session_number)}
+            </AppText>
+            <AppText variant="title">
+              {localizeSessionTitle(pendingSession, pendingSession.language ?? language)}
+            </AppText>
+          </>
+        ) : (
+          <AppText variant="title">
+            {isFirstSession ? copy.path.startFirst : copy.path.continuePath}
+          </AppText>
+        )}
+
+        <AppText color="inkSoft" variant="read">
+          {copy.path.selfPacedHint}
+        </AppText>
+
+        <PrimaryButton
+          disabled={learningPath.advancing}
+          label={learningPath.advancing ? copy.path.preparing : ctaLabel}
+          loading={learningPath.advancing}
+          onPress={() =>
+            pendingSession ? openSession(pendingSession.id) : void onAdvance()
+          }
+        />
+
+        {advanceError ? (
+          <AppText color="danger" variant="body">
+            {advanceError}
+          </AppText>
+        ) : null}
+      </Card>
+
+      <Card padding="lg" tone="muted">
+        <View style={styles.infoRow}>
+          <AppText color="muted" variant="caption">
+            {copy.path.sessionsCompleted}
+          </AppText>
+          <AppText variant="bodyStrong">{String(completedSessions.length)}</AppText>
+        </View>
+        {learningPath.displayObjective ? (
+          <View style={styles.infoRow}>
+            <AppText color="muted" variant="caption">
+              {localizeLearningField(learningPath.displayObjective, language)}
+            </AppText>
+          </View>
+        ) : null}
+        <SecondaryButton
+          label={copy.path.pastPaths}
+          onPress={() => router.push("/(learning)/overview" as Href)}
+        />
+      </Card>
+    </ModuleScroll>
+  );
+}
+
+function PathIntroCard({ onCreate }: { onCreate: () => void }) {
+  const styles = useThemedStyles(createStyles);
+  const { language } = useDailyDrop();
+  const copy = getModuleCopy(language);
+
+  return (
+    <Card padding="lg" style={styles.sessionCard} tone="muted">
+      <AppText variant="eyebrow">{copy.path.title}</AppText>
+      <AppText variant="title">{copy.path.startFirst}</AppText>
+      <AppText color="muted" variant="read">
+        {copy.path.selfPacedHint}
+      </AppText>
+      <PrimaryButton label={copy.path.newPath} onPress={onCreate} />
+    </Card>
+  );
+}
+
+function PathHistory() {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const { language } = useDailyDrop();
+  const learningPath = useLearningPath();
+  const copy = getModuleCopy(language);
+
+  const completedSessions = useMemo(
+    () =>
+      learningPath.sessions
+        .filter(
+          (session) => Boolean(session.completed_at) || session.status === "completed"
+        )
+        .sort((left, right) => right.session_number - left.session_number),
+    [learningPath.sessions]
+  );
+
+  if (learningPath.status === "loading") {
+    return <ModuleLoading label={copy.common.loading} />;
+  }
+
+  return (
+    <ModuleScroll>
+      {completedSessions.length === 0 ? (
+        <EmptyState
+          description={copy.path.historyEmptyBody}
+          title={copy.path.historyEmptyTitle}
+        />
+      ) : (
+        <View style={styles.historyList}>
+          <AppText color="muted" variant="eyebrow">
+            {copy.path.historyTitle}
+          </AppText>
+          {completedSessions.map((session) => (
+            <Pressable
+              accessibilityRole="button"
+              key={session.id}
+              onPress={() =>
+                router.push(
+                  {
+                    pathname: "/(learning)/history-session",
+                    params: {
+                      pathId: learningPath.displayPath?.id ?? "",
+                      sessionId: session.id
+                    }
+                  } as unknown as Href
+                )
+              }
+              style={({ pressed }) => [
+                styles.historyRow,
+                pressed ? styles.pressed : null
+              ]}
+            >
+              <AppText color="muted" variant="caption">
+                {copy.path.sessionLabel(session.session_number)}
+              </AppText>
+              <AppText variant="bodyStrong">
+                {/* A past session keeps the language it was written in. */}
+                {localizeSessionTitle(session, session.language ?? language)}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      <SecondaryButton
+        label={copy.path.pastPaths}
+        onPress={() => router.push("/(learning)/history" as Href)}
+      />
+    </ModuleScroll>
+  );
+}
+
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    safeArea: {
+      backgroundColor: c.background,
+      flex: 1
+    },
+    chrome: {
+      gap: tokens.space.lg,
+      paddingHorizontal: tokens.space.lg,
+      paddingTop: tokens.space.md
+    },
+    sessionCard: {
+      gap: tokens.space.md
+    },
+    infoRow: {
+      gap: tokens.space.xs
+    },
+    historyList: {
+      gap: tokens.space.lg
+    },
+    historyRow: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.xs,
+      minHeight: 44,
+      paddingTop: tokens.space.md
+    },
+    pressed: {
+      opacity: 0.6
+    }
+  });

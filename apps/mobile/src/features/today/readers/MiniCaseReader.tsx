@@ -25,9 +25,13 @@ import type {
 } from "../contentTypes";
 import {
   readMiniCaseResponse,
+  writeLocalMiniCaseResponses,
   writeMiniCaseResponse,
   type MiniCaseResponseRecord
 } from "../miniCaseResponses";
+import { readMiniCaseResponseAnywhere } from "../miniCaseSync";
+import { MarkdownBody } from "./MarkdownBody";
+import { resolveOptionFeedback } from "./miniCaseFeedback";
 import { ReaderScaffold } from "./ReaderScaffold";
 
 type Phase = "decide" | "feedback" | "debrief";
@@ -87,11 +91,20 @@ function MiniCaseFlow({ challenge }: { challenge: MiniCaseChallenge }) {
     }
 
     let active = true;
-    void readMiniCaseResponse(challenge.id).then((record) => {
+
+    void (async () => {
+      const local = await readMiniCaseResponse(challenge.id);
+      // A case solved on another device has its answers only on the server.
+      const record = await readMiniCaseResponseAnywhere(challenge.id, local);
+
+      if (record && !local) {
+        await writeLocalMiniCaseResponses({ [challenge.id]: record });
+      }
+
       if (active) {
         setSavedResponse(record);
       }
-    });
+    })();
 
     return () => {
       active = false;
@@ -155,7 +168,7 @@ function CaseIntro({
         <AppText color="muted" variant="eyebrow">
           {copy.context}
         </AppText>
-        <AppText variant="read">{challenge.context}</AppText>
+        <MarkdownBody markdown={challenge.context} />
       </View>
 
       {challenge.constraints.length > 0 ? (
@@ -277,8 +290,6 @@ function MiniCaseQuizFlow({
   function renderQuestion() {
     const roleLabel = currentQuestion.role ? roleLabelFor(currentQuestion.role, copy) : null;
     const stepLabel = copy.questionStep(index + 1, questionCount);
-    const selectedOption =
-      currentQuestion.options.find((option) => option.id === selectedId) ?? null;
 
     return (
       <View style={styles.quiz}>
@@ -290,73 +301,22 @@ function MiniCaseQuizFlow({
         </View>
 
         <View style={styles.options}>
-          {currentQuestion.options.map((option, optionIndex) => {
-            const isSelected = option.id === selectedId;
-            const isBest = option.outcome === "best";
-            const showBest = answered && isBest;
-            const showWrong = answered && isSelected && !isBest;
-
-            return (
-              <Pressable
-                accessibilityRole="button"
-                disabled={answered}
-                key={option.id}
-                onPress={() => onSelect(option)}
-                style={({ pressed }) => [
-                  styles.option,
-                  pressed && !answered ? styles.optionPressed : null,
-                  showBest ? styles.optionBest : null,
-                  showWrong ? styles.optionWrong : null,
-                  answered && !isSelected && !isBest ? styles.optionDimmed : null
-                ]}
-              >
-                <View
-                  style={[
-                    styles.optionMarker,
-                    showBest ? styles.optionMarkerBest : null,
-                    showWrong ? styles.optionMarkerWrong : null
-                  ]}
-                >
-                  <AppText
-                    color={showBest ? "success" : showWrong ? "danger" : "muted"}
-                    variant="label"
-                  >
-                    {showBest ? "✓" : showWrong ? "✕" : String.fromCharCode(65 + optionIndex)}
-                  </AppText>
-                </View>
-                <AppText style={styles.optionLabel} variant="body">
-                  {option.label}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {answered && selectedOption ? (
-          <Animated.View
-            style={[
-              styles.feedback,
-              {
-                opacity: reveal,
-                transform: [
-                  {
-                    translateY: reveal.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [8, 0]
-                    })
-                  }
-                ]
-              }
-            ]}
-          >
-            <QuestionFeedback
+          {currentQuestion.options.map((option, optionIndex) => (
+            <OptionCard
+              answered={answered}
               challenge={challenge}
               copy={copy}
+              key={option.id}
+              onSelect={() => onSelect(option)}
+              option={option}
+              optionIndex={optionIndex}
               question={currentQuestion}
-              selectedOption={selectedOption}
+              reveal={reveal}
+              selectedId={selectedId}
             />
-          </Animated.View>
-        ) : null}
+          ))}
+        </View>
+
       </View>
     );
   }
@@ -420,93 +380,148 @@ function MiniCaseQuizFlow({
 // Shared explanation block used by both the live quiz and read-only review.
 // Surfaces a concise confirmation when correct, a miss + the strongest answer
 // when wrong, and only the strongest answer when no pick was recorded.
-function QuestionFeedback({
+/**
+ * One answer option, with its verdict and explanation inside the card.
+ *
+ * After an answer the card the reader picked says whether it was right and
+ * why; when it was wrong, the correct card explains itself in place too, so
+ * the mistaken and the sound reasoning sit side by side instead of in a block
+ * further down the screen. Cards grow to fit their explanation, which keeps
+ * large font sizes readable.
+ */
+function OptionCard({
+  answered,
   challenge,
   copy,
+  onSelect,
+  option,
+  optionIndex,
   question,
-  selectedOption
+  reveal,
+  selectedId,
+  showYourAnswerTag = false
 }: {
+  answered: boolean;
   challenge: MiniCaseChallenge;
   copy: ReaderCopy;
+  onSelect?: () => void;
+  option: MiniCaseOption;
+  optionIndex: number;
   question: MiniCaseQuestion;
-  selectedOption: MiniCaseOption | null;
+  reveal?: Animated.Value;
+  selectedId: string | null;
+  showYourAnswerTag?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
-  const bestOption = question.options.find((option) => option.outcome === "best") ?? null;
-  const isCorrect = selectedOption != null && selectedOption.outcome === "best";
+  const isSelected = option.id === selectedId;
+  const isBest = option.outcome === "best";
+  const showBest = answered && isBest;
+  const showWrong = answered && isSelected && !isBest;
+  const feedback = resolveOptionFeedback({
+    answered,
+    challenge,
+    copy,
+    option,
+    question,
+    selectedId
+  });
 
-  const whyBest =
-    firstNonEmpty(
-      bestOption?.feedback,
-      question.explanation,
-      challenge.final_takeaway,
-      challenge.expected_reasoning[0]
-    ) ?? copy.feedbackFallback;
+  const cardStyle = [
+    styles.option,
+    showBest ? styles.optionBest : null,
+    showWrong ? styles.optionWrong : null,
+    answered && !isSelected && !isBest ? styles.optionDimmed : null
+  ];
 
-  if (isCorrect) {
-    const whyCorrect =
-      firstNonEmpty(
-        selectedOption?.feedback,
-        question.explanation,
-        challenge.final_takeaway,
-        challenge.expected_reasoning[0]
-      ) ?? copy.feedbackFallback;
-
-    return (
-      <>
-        <AppText color="success" variant="eyebrow">
-          {copy.correct}
-        </AppText>
-        <AppText style={styles.feedbackBody} variant="read">
-          {whyCorrect}
-        </AppText>
-      </>
-    );
-  }
-
-  if (!selectedOption) {
-    return (
-      <>
-        <AppText color="success" variant="eyebrow">
-          {copy.correctAnswer}
-        </AppText>
-        {bestOption ? (
-          <AppText style={styles.feedbackBody} variant="read">
-            {bestOption.label}
-          </AppText>
-        ) : null}
-        <AppText color="inkSoft" variant="read">
-          {whyBest}
-        </AppText>
-      </>
-    );
-  }
-
-  const whyWrong = firstNonEmpty(selectedOption.feedback) ?? copy.feedbackFallback;
-
-  return (
+  const body = (
     <>
-      <AppText color="danger" variant="eyebrow">
-        {copy.incorrect}
-      </AppText>
-      <AppText style={styles.feedbackBody} variant="read">
-        {whyWrong}
-      </AppText>
-      {bestOption ? (
-        <View style={styles.correctAnswer}>
-          <AppText color="success" variant="eyebrow">
-            {copy.correctAnswer}
+      <View style={styles.optionHeader}>
+        <View
+          style={[
+            styles.optionMarker,
+            showBest ? styles.optionMarkerBest : null,
+            showWrong ? styles.optionMarkerWrong : null
+          ]}
+        >
+          <AppText
+            color={showBest ? "success" : showWrong ? "danger" : "muted"}
+            variant="label"
+          >
+            {showBest ? "✓" : showWrong ? "✕" : String.fromCharCode(65 + optionIndex)}
           </AppText>
-          <AppText style={styles.feedbackBody} variant="read">
-            {bestOption.label}
+        </View>
+        <AppText style={styles.optionLabel} variant="body">
+          {option.label}
+        </AppText>
+        {showYourAnswerTag && isSelected ? (
+          <View style={styles.optionTag}>
+            <AppText color="muted" variant="caption">
+              {copy.yourAnswer}
+            </AppText>
+          </View>
+        ) : null}
+      </View>
+
+      {feedback ? (
+        <View style={styles.optionFeedback}>
+          <AppText
+            color={feedback.tone === "incorrect" ? "danger" : "success"}
+            variant="eyebrow"
+          >
+            {copy[feedback.labelKey]}
           </AppText>
-          <AppText color="inkSoft" variant="read">
-            {whyBest}
+          <AppText color="inkSoft" style={styles.optionFeedbackBody} variant="body">
+            {feedback.body}
           </AppText>
         </View>
       ) : null}
     </>
   );
+
+  if (!onSelect) {
+    return (
+      <View
+        accessibilityLabel={buildOptionAccessibilityLabel(option, feedback, copy)}
+        style={cardStyle}
+      >
+        {body}
+      </View>
+    );
+  }
+
+  const content = (
+    <Pressable
+      accessibilityLabel={buildOptionAccessibilityLabel(option, feedback, copy)}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: answered, selected: isSelected }}
+      disabled={answered}
+      onPress={onSelect}
+      style={({ pressed }) => [
+        ...cardStyle,
+        pressed && !answered ? styles.optionPressed : null
+      ]}
+    >
+      {body}
+    </Pressable>
+  );
+
+  // The reveal only fades the freshly answered question in; an unanswered card
+  // must stay fully opaque and tappable.
+  if (!answered || !reveal) {
+    return content;
+  }
+
+  return <Animated.View style={{ opacity: reveal }}>{content}</Animated.View>;
+}
+
+function buildOptionAccessibilityLabel(
+  option: MiniCaseOption,
+  feedback: ReturnType<typeof resolveOptionFeedback>,
+  copy: ReaderCopy
+): string {
+  return feedback
+    ? `${option.label}. ${copy[feedback.labelKey]}. ${feedback.body}`
+    : option.label;
 }
 
 // Read-only replay of a completed multi-question case. Options are plain Views
@@ -532,8 +547,6 @@ function MiniCaseReviewFlow({
   const total = questions.length;
   const currentQuestion = questions[index];
   const selectedId = response?.selections[currentQuestion.id] ?? null;
-  const selectedOption =
-    currentQuestion.options.find((option) => option.id === selectedId) ?? null;
   const roleLabel = currentQuestion.role ? roleLabelFor(currentQuestion.role, copy) : null;
   const stepLabel = copy.questionStep(index + 1, total);
 
@@ -584,57 +597,19 @@ function MiniCaseReviewFlow({
         </View>
 
         <View style={styles.options}>
-          {currentQuestion.options.map((option, optionIndex) => {
-            const isSelected = option.id === selectedId;
-            const isBest = option.outcome === "best";
-            const showWrong = isSelected && !isBest;
-
-            return (
-              <View
-                key={option.id}
-                style={[
-                  styles.option,
-                  isBest ? styles.optionBest : null,
-                  showWrong ? styles.optionWrong : null,
-                  !isBest && !isSelected ? styles.optionDimmed : null
-                ]}
-              >
-                <View
-                  style={[
-                    styles.optionMarker,
-                    isBest ? styles.optionMarkerBest : null,
-                    showWrong ? styles.optionMarkerWrong : null
-                  ]}
-                >
-                  <AppText
-                    color={isBest ? "success" : showWrong ? "danger" : "muted"}
-                    variant="label"
-                  >
-                    {isBest ? "✓" : showWrong ? "✕" : String.fromCharCode(65 + optionIndex)}
-                  </AppText>
-                </View>
-                <AppText style={styles.optionLabel} variant="body">
-                  {option.label}
-                </AppText>
-                {isSelected ? (
-                  <View style={styles.optionTag}>
-                    <AppText color="muted" variant="caption">
-                      {copy.yourAnswer}
-                    </AppText>
-                  </View>
-                ) : null}
-              </View>
-            );
-          })}
-        </View>
-
-        <View style={styles.feedback}>
-          <QuestionFeedback
-            challenge={challenge}
-            copy={copy}
-            question={currentQuestion}
-            selectedOption={selectedOption}
-          />
+          {currentQuestion.options.map((option, optionIndex) => (
+            <OptionCard
+              answered
+              challenge={challenge}
+              copy={copy}
+              key={option.id}
+              option={option}
+              optionIndex={optionIndex}
+              question={currentQuestion}
+              selectedId={selectedId}
+              showYourAnswerTag
+            />
+          ))}
         </View>
       </View>
 
@@ -927,17 +902,31 @@ const createStyles = (c: ThemeColors) =>
       gap: tokens.space.md,
       marginTop: tokens.space.lg
     },
+    // The card is a column so its feedback can grow under the answer; the
+    // answer row itself stays horizontal.
     option: {
-      alignItems: "center",
       backgroundColor: c.surface,
       borderColor: c.border,
       borderRadius: tokens.radius.md,
       borderWidth: 1,
-      flexDirection: "row",
       gap: tokens.space.md,
       minHeight: 60,
       paddingHorizontal: tokens.space.lg,
       paddingVertical: tokens.space.md
+    },
+    optionHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    optionFeedback: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.xs,
+      paddingTop: tokens.space.md
+    },
+    optionFeedbackBody: {
+      flexShrink: 1
     },
     optionPressed: {
       backgroundColor: c.surfaceMuted
@@ -981,10 +970,6 @@ const createStyles = (c: ThemeColors) =>
     },
     feedbackBody: {
       color: c.ink
-    },
-    correctAnswer: {
-      gap: tokens.space.xs,
-      marginTop: tokens.space.xs
     },
     results: {
       borderTopColor: c.border,

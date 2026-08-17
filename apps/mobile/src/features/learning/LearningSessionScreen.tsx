@@ -157,7 +157,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
           <AppText color="muted" variant="body">
             {copy.unavailableBody}
           </AppText>
-          <PrimaryButton label={copy.backToday} onPress={() => router.replace("/(tabs)/today")} />
+          <PrimaryButton label={copy.backToday} onPress={() => router.replace("/(tabs)/path")} />
         </Card>
       </AppScreen>
     );

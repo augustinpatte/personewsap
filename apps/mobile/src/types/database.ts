@@ -483,6 +483,9 @@ export type Database = {
           answer_md: string;
           ai_feedback_md: string | null;
           score: number | null;
+          score_max: number | null;
+          selections: Record<string, string> | null;
+          completed_at: string | null;
           created_at: string;
           updated_at: string;
         },
@@ -493,6 +496,9 @@ export type Database = {
           answer_md: string;
           ai_feedback_md?: string | null;
           score?: number | null;
+          score_max?: number | null;
+          selections?: Record<string, string> | null;
+          completed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         },
@@ -503,6 +509,9 @@ export type Database = {
           answer_md?: string;
           ai_feedback_md?: string | null;
           score?: number | null;
+          score_max?: number | null;
+          selections?: Record<string, string> | null;
+          completed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         }
@@ -739,6 +748,29 @@ export type Database = {
           created_at?: string;
         }
       >;
+      learning_catalog_domains: TableDefinition<
+        {
+          domain_id: string;
+          version: string;
+          payload: unknown;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          domain_id: string;
+          version: string;
+          payload: unknown;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          domain_id?: string;
+          version?: string;
+          payload?: unknown;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
     };
     Views: Record<string, never>;
     Functions: {
@@ -810,6 +842,45 @@ export type Database = {
           objectives_fr: string[];
           objectives_en: string[];
           prompt_text: string;
+          status: LearningSessionStatus;
+          available_on: string | null;
+          opened_at: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        } | null;
+      };
+      create_next_learning_session: {
+        Args: {
+          p_curriculum_step_key: string;
+          p_skipped_step_key: string | null;
+          p_adaptation_mode: string;
+          p_title_fr: string;
+          p_title_en: string;
+          p_summary_fr: string;
+          p_summary_en: string;
+          p_objectives_fr: string[];
+          p_objectives_en: string[];
+          p_prompt_text: string;
+        };
+        Returns: {
+          id: string;
+          path_id: string;
+          daily_drop_id: string | null;
+          curriculum_step_key: string;
+          skipped_step_key: string | null;
+          session_number: number;
+          adaptation_mode: "normal" | "reinforce" | "accelerate" | "context_shift" | "prerequisite";
+          language: Language;
+          title_fr: string;
+          title_en: string;
+          summary_fr: string;
+          summary_en: string;
+          objectives_fr: string[];
+          objectives_en: string[];
+          prompt_text: string;
+          generation_status: "queued" | "generating" | "ready" | "failed";
           status: LearningSessionStatus;
           available_on: string | null;
           opened_at: string | null;

@@ -6,6 +6,7 @@ import {
   type DataFetchResult
 } from "../../lib/dataState";
 import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
+import { allowMockContent } from "../../lib/mockPolicy";
 import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import { mockLibraryDrops } from "../../mocks";
 import type { TopicId } from "../../constants/product";
@@ -16,15 +17,38 @@ import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
 
 type FetchLibraryDropsOptions = {
   cacheTtlMs?: number;
-  limit?: number;
+  /** Editions per page. The archive is paginated, never loaded whole. */
+  pageSize?: number;
+  /**
+   * Keyset cursor: only editions strictly older than this drop_date are
+   * returned. Paging on drop_date (not offset) keeps pages stable while the
+   * archive grows and never re-reads earlier pages.
+   */
+  beforeDate?: string | null;
   // Active reading language. When set, the archive is filtered to this language
   // so the library never lists or opens content in another language. Also keys
   // the cache so a language switch never reads stale other-language drops.
   language?: ContentLanguage;
 };
 
+/** One page of the archive, plus whether older editions remain. */
+export type LibraryDropsPage = DataFetchResult<LibraryDropSummary[]> & {
+  hasMore: boolean;
+};
+
+function withPageFlag(
+  result: DataFetchResult<LibraryDropSummary[]>,
+  hasMore: boolean
+): LibraryDropsPage {
+  return { ...result, hasMore };
+}
+
+// Sample archive only in dev/preview builds; production falls back to an empty,
+// honest archive (see lib/mockPolicy).
+const fallbackLibraryDrops = () => (allowMockContent ? mockLibraryDrops : []);
+
 const archiveDropStatuses = ["published", "read", "archived"] as const;
-const defaultLibraryDropLimit = 20;
+const defaultLibraryDropLimit = 25;
 const libraryDropCacheTtlMs = 60_000;
 const liveDataProofMode = process.env.EXPO_PUBLIC_LIVE_DATA_PROOF_MODE === "true";
 const maxLibraryDropLimit = 50;
@@ -54,51 +78,25 @@ const topicIds = [
   "culture_media"
 ] as const satisfies TopicId[];
 
-/**
- * Best-effort read of the account creation date, used to age the library access
- * gate (see accessPolicy). Never throws: on any failure we return null, which
- * the policy treats as a brand-new account (most restrictive, base access).
- */
-export async function fetchProfileCreatedAt(
-  userId: string | null | undefined
-): Promise<string | null> {
-  if (!supabase || !userId) {
-    return null;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("created_at")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (error || !data) {
-      return null;
-    }
-
-    return data.created_at ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchLibraryDrops(
   userId: string | null | undefined,
   options: FetchLibraryDropsOptions = {}
-): Promise<DataFetchResult<LibraryDropSummary[]>> {
+): Promise<LibraryDropsPage> {
   if (!userId) {
     logLibraryDataProof("mock_fallback", {
       reason: "missing_auth_session"
     });
 
-    return createMockFallbackResult(
-      mockLibraryDrops,
-      "missing_auth_session",
-      normalizeSupabaseError({
-        code: "missing_auth_session",
-        message: "Sign in to load your library."
-      })
+    return withPageFlag(
+      createMockFallbackResult(
+        fallbackLibraryDrops(),
+        "missing_auth_session",
+        normalizeSupabaseError({
+          code: "missing_auth_session",
+          message: "Sign in to load your library."
+        })
+      ),
+      false
     );
   }
 
@@ -107,31 +105,35 @@ export async function fetchLibraryDrops(
       reason: "missing_supabase_config"
     });
 
-    return createMockFallbackResult(
-      mockLibraryDrops,
-      "missing_supabase_config",
-      normalizeSupabaseError({
-        code: "missing_supabase_config",
-        message: "Live archive is not configured for this build.",
-        hint:
-          "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
-      })
+    return withPageFlag(
+      createMockFallbackResult(
+        fallbackLibraryDrops(),
+        "missing_supabase_config",
+        normalizeSupabaseError({
+          code: "missing_supabase_config",
+          message: "Live archive is not configured for this build.",
+          hint:
+            "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
+        })
+      ),
+      false
     );
   }
 
   try {
-    const limit = normalizeLibraryLimit(options.limit);
-    const cacheKey = getLibraryDropsCacheKey(userId, limit, options.language);
-    const cachedDrops = getCachedValue<LibraryDropSummary[]>(cacheKey);
+    const pageSize = normalizeLibraryLimit(options.pageSize);
+    const beforeDate = options.beforeDate ?? null;
+    const cacheKey = getLibraryDropsCacheKey(userId, pageSize, options.language, beforeDate);
+    const cachedPage = getCachedValue<{ drops: LibraryDropSummary[]; hasMore: boolean }>(cacheKey);
 
-    if (cachedDrops) {
+    if (cachedPage) {
       logLibraryDataProof("live_library_drops_cache_hit", {
-        drop_count: cachedDrops.length,
-        limit,
+        drop_count: cachedPage.drops.length,
+        page_size: pageSize,
         user_id: redactIdentifier(userId)
       });
 
-      return createCachedResult(cachedDrops);
+      return withPageFlag(createCachedResult(cachedPage.drops), cachedPage.hasMore);
     }
 
     let dropsQuery = supabase
@@ -144,9 +146,14 @@ export async function fetchLibraryDrops(
       dropsQuery = dropsQuery.eq("language", options.language);
     }
 
+    if (beforeDate) {
+      dropsQuery = dropsQuery.lt("drop_date", beforeDate);
+    }
+
+    // One extra row is the cheapest reliable "is there another page" signal.
     const { data: drops, error: dropsError } = await dropsQuery
       .order("drop_date", { ascending: false })
-      .limit(limit);
+      .limit(pageSize + 1);
 
     if (dropsError) {
       const normalizedError = normalizeSupabaseError(dropsError);
@@ -157,46 +164,49 @@ export async function fetchLibraryDrops(
         user_id: redactIdentifier(userId)
       });
 
-      return createMockFallbackResult(
-        mockLibraryDrops,
-        fallbackReason,
-        normalizedError
+      return withPageFlag(
+        createMockFallbackResult(fallbackLibraryDrops(), fallbackReason, normalizedError),
+        false
       );
     }
 
-    if (!drops || drops.length === 0) {
+    const hasMore = (drops?.length ?? 0) > pageSize;
+    const pageDrops = (drops ?? []).slice(0, pageSize);
+
+    if (pageDrops.length === 0) {
       logLibraryDataProof("mock_fallback", {
         reason: "no_supabase_data",
         user_id: redactIdentifier(userId)
       });
 
-      return createMockFallbackResult(mockLibraryDrops, "no_supabase_data");
+      // A first page with no data is a genuine empty archive; a later page with
+      // no data simply means the end of history — never a mock fallback.
+      return withPageFlag(
+        beforeDate
+          ? createSupabaseResult<LibraryDropSummary[]>([])
+          : createMockFallbackResult(fallbackLibraryDrops(), "no_supabase_data"),
+        false
+      );
     }
 
-    const summaries = await buildLibraryDropSummaries(drops, userId);
-
+    const summaries = await buildLibraryDropSummaries(pageDrops, userId);
     const displayableSummaries = summaries.filter((summary) => summary.item_count > 0);
 
-    if (displayableSummaries.length === 0) {
-      logLibraryDataProof("mock_fallback", {
-        drop_count: drops.length,
-        reason: "no_displayable_items",
-        user_id: redactIdentifier(userId)
-      });
-
-      return createMockFallbackResult(mockLibraryDrops, "no_supabase_data");
-    }
-
-    setCachedValue(cacheKey, displayableSummaries, options.cacheTtlMs ?? libraryDropCacheTtlMs);
+    setCachedValue(
+      cacheKey,
+      { drops: displayableSummaries, hasMore },
+      options.cacheTtlMs ?? libraryDropCacheTtlMs
+    );
 
     logLibraryDataProof("live_library_drops", {
       drop_count: displayableSummaries.length,
+      has_more: hasMore,
       latest_drop_date: displayableSummaries[0]?.drop_date ?? null,
-      limit,
+      page_size: pageSize,
       user_id: redactIdentifier(userId)
     });
 
-    return createSupabaseResult(displayableSummaries);
+    return withPageFlag(createSupabaseResult(displayableSummaries), hasMore);
   } catch (error) {
     const normalizedError = normalizeSupabaseError(error);
     const fallbackReason = getFallbackReasonForError(normalizedError);
@@ -206,12 +216,156 @@ export async function fetchLibraryDrops(
       user_id: redactIdentifier(userId)
     });
 
-    return createMockFallbackResult(
-      mockLibraryDrops,
-      fallbackReason,
+    return withPageFlag(
+      createMockFallbackResult(fallbackLibraryDrops(), fallbackReason, normalizedError),
+      false
+    );
+  }
+}
+
+/**
+ * Search the user's whole archive for one content type, server-side.
+ *
+ * Paging the archive means the client only holds a window of it, so a search
+ * restricted to loaded pages would silently miss older items. This queries
+ * Supabase directly (title match and/or drop_date period) so an item from any
+ * point in the history is findable. RLS still scopes every row to the caller;
+ * the explicit user_id filter keeps the query index-friendly.
+ */
+export async function searchLibraryItems(
+  userId: string | null | undefined,
+  options: {
+    contentType: "business_story" | "mini_case";
+    text: string;
+    from?: string | null;
+    toExclusive?: string | null;
+    language?: ContentLanguage;
+    limit?: number;
+  }
+): Promise<DataFetchResult<LibraryItemSummary[]>> {
+  if (!userId || !supabase) {
+    return createMockFallbackResult<LibraryItemSummary[]>(
+      [],
+      userId ? "missing_supabase_config" : "missing_auth_session"
+    );
+  }
+
+  const limit = Math.min(Math.max(options.limit ?? 40, 1), 100);
+  const text = options.text.trim();
+
+  try {
+    let query = supabase
+      .from("daily_drop_items")
+      .select(
+        `content_item_id,
+         daily_drops!inner(id,user_id,drop_date,language,status),
+         content_items!inner(id,title,content_type,status,topic_id,language,source_count,metadata)`
+      )
+      .eq("daily_drops.user_id", userId)
+      .in("daily_drops.status", [...archiveDropStatuses])
+      .eq("content_items.status", publishedContentStatus)
+      .eq("content_items.content_type", options.contentType);
+
+    if (options.language) {
+      query = query.eq("daily_drops.language", options.language);
+    }
+
+    if (text.length > 0) {
+      query = query.ilike("content_items.title", `%${escapeLikePattern(text)}%`);
+    }
+
+    if (options.from) {
+      query = query.gte("daily_drops.drop_date", options.from);
+    }
+
+    if (options.toExclusive) {
+      query = query.lt("daily_drops.drop_date", options.toExclusive);
+    }
+
+    const { data, error } = await query
+      .order("drop_date", { ascending: false, referencedTable: "daily_drops" })
+      .limit(limit);
+
+    if (error) {
+      const normalizedError = normalizeSupabaseError(error);
+
+      return createMockFallbackResult<LibraryItemSummary[]>(
+        [],
+        getFallbackReasonForError(normalizedError),
+        normalizedError
+      );
+    }
+
+    const rows = (data ?? []) as unknown as ArchiveSearchRow[];
+    const contentItemIds = [...new Set(rows.map((row) => row.content_item_id))];
+    const interactions = await fetchLibraryInteractions(userId, contentItemIds);
+    const completedItemIds = getInteractedContentItemIds(interactions, "complete");
+    const savedItemIds = getInteractedContentItemIds(interactions, "save");
+    const seen = new Set<string>();
+    const items: LibraryItemSummary[] = [];
+
+    for (const row of rows) {
+      const drop = firstRelated(row.daily_drops);
+      const contentItem = firstRelated(row.content_items);
+
+      if (!drop || !contentItem || seen.has(contentItem.id)) {
+        continue;
+      }
+
+      seen.add(contentItem.id);
+      const contentType = mapLibraryContentType(contentItem);
+
+      if (!contentType) {
+        continue;
+      }
+
+      items.push({
+        id: contentItem.id,
+        content_type: contentType,
+        drop_date: drop.drop_date,
+        drop_id: drop.id,
+        is_completed: completedItemIds.has(contentItem.id),
+        is_saved: savedItemIds.has(contentItem.id),
+        language: contentItem.language,
+        source_count: contentItem.source_count,
+        title: contentItem.title,
+        topic: readLibraryTopic(contentItem)
+      });
+    }
+
+    items.sort((left, right) => right.drop_date.localeCompare(left.drop_date));
+
+    return createSupabaseResult(items);
+  } catch (error) {
+    const normalizedError = normalizeSupabaseError(error);
+
+    return createMockFallbackResult<LibraryItemSummary[]>(
+      [],
+      getFallbackReasonForError(normalizedError),
       normalizedError
     );
   }
+}
+
+type ArchiveSearchRow = {
+  content_item_id: string;
+  daily_drops: DailyDrop | DailyDrop[] | null;
+  content_items: ContentItem | ContentItem[] | null;
+};
+
+// PostgREST returns an embedded row as an object or a single-element array
+// depending on how it infers the relationship; accept both shapes.
+function firstRelated<T>(value: T | T[] | null): T | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
+}
+
+// `%` and `_` are wildcards in ILIKE; a user typing them must match literally.
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 async function buildLibraryDropSummaries(
@@ -444,10 +598,17 @@ function normalizeLibraryLimit(limit: number | undefined): number {
 
 function getLibraryDropsCacheKey(
   userId: string,
-  limit: number,
-  language: ContentLanguage | undefined
+  pageSize: number,
+  language: ContentLanguage | undefined,
+  beforeDate: string | null
 ): string {
-  return ["library-drops", userId, limit, language ?? "any"].join(":");
+  return [
+    "library-drops",
+    userId,
+    pageSize,
+    language ?? "any",
+    beforeDate ?? "head"
+  ].join(":");
 }
 
 function getFallbackReasonForError(error: ReturnType<typeof normalizeSupabaseError>): DataFallbackReason {

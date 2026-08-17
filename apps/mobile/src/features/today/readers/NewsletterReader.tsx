@@ -8,11 +8,11 @@ import {
   estimateReadMinutes,
   formatDropDate,
   getReaderCopy,
-  getTopicLabel,
-  splitParagraphs
+  getTopicLabel
 } from "../contentCopy";
 import { useDailyDrop } from "../DailyDropContext";
-import { DropCapParagraph } from "./DropCapParagraph";
+import { MarkdownBody } from "./MarkdownBody";
+import { stripMarkdownInline } from "./markdown";
 import { ReaderScaffold } from "./ReaderScaffold";
 
 export function NewsletterReader({ articleId }: { articleId: string }) {
@@ -39,7 +39,6 @@ export function NewsletterReader({ articleId }: { articleId: string }) {
   }
 
   const completed = isItemComplete(item.id);
-  const paragraphs = splitParagraphs(item.body_md);
 
   const onFinish = async () => {
     if (!completed) {
@@ -70,28 +69,18 @@ export function NewsletterReader({ articleId }: { articleId: string }) {
       </AppText>
 
       <AppText style={styles.lede} variant="lede">
-        {item.summary}
+        {stripMarkdownInline(item.summary)}
       </AppText>
 
       <View style={styles.rule} />
 
-      <View style={styles.body}>
-        {paragraphs.map((paragraph, index) =>
-          index === 0 ? (
-            <DropCapParagraph key={index} text={paragraph} />
-          ) : (
-            <AppText key={index} variant="read">
-              {paragraph}
-            </AppText>
-          )
-        )}
-      </View>
+      <MarkdownBody markdown={item.body_md} />
 
       <View style={styles.matters}>
         <AppText color="accentInk" variant="eyebrow">
           {copy.whyItMatters}
         </AppText>
-        <AppText variant="pullQuote">{item.why_it_matters}</AppText>
+        <AppText variant="pullQuote">{stripMarkdownInline(item.why_it_matters)}</AppText>
       </View>
     </ReaderScaffold>
   );
@@ -114,9 +103,6 @@ const createStyles = (c: ThemeColors) =>
       height: 1,
       marginVertical: tokens.space.xl,
       width: 48
-    },
-    body: {
-      gap: tokens.space.lg
     },
     matters: {
       borderLeftColor: c.accent,

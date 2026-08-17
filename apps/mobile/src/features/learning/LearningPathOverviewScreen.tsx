@@ -6,7 +6,6 @@ import { AppScreen, AppText, Card, PrimaryButton, SecondaryButton } from "../../
 import { tokens } from "../../design/tokens";
 import { useThemedStyles } from "../../design/theme";
 import type { Language } from "../../types/domain";
-import { nextEditionDate } from "../today/editionCadence";
 import { getCurrentLevelLabel, getTargetLevelLabel } from "./learningLevels";
 import { getLearningCopy } from "./learningCopy";
 import { useLearningPath } from "./LearningPathContext";
@@ -35,7 +34,6 @@ export function LearningPathOverviewScreen({
     domains,
     learningPaths,
     loadSessionsForPath,
-    nextAvailableAt,
     objectives,
     sessions,
     status
@@ -116,7 +114,6 @@ export function LearningPathOverviewScreen({
     );
   }
 
-  const nextDate = nextAvailableAt ?? nextEditionDate(new Date().toISOString().slice(0, 10))?.date ?? null;
   const pathDateInfo = getLearningPathDateInfo(selectedPath);
 
   return (
@@ -141,17 +138,16 @@ export function LearningPathOverviewScreen({
           value={String(completedSessions.length)}
         />
         <InfoRow label={copy.conceptsStudied} value={String(completedSessions.length)} />
-        {isDefaultPath && selectedPath.status === "active" ? (
-          <InfoRow
-            label={copy.nextEdition}
-            value={nextDate ? formatDate(nextDate, pathLanguage) : copy.nextUnknown}
-          />
-        ) : (
-          <InfoRow
-            label={copy[pathDateInfo.labelKey]}
-            value={pathDateInfo.value ? formatDateTime(pathDateInfo.value, pathLanguage) : copy.nextUnknown}
-          />
-        )}
+        {/* The path is self-paced: there is no "next edition" date to show, the
+            reader decides when the next session happens. */}
+        <InfoRow
+          label={copy[pathDateInfo.labelKey]}
+          value={
+            pathDateInfo.value
+              ? formatDateTime(pathDateInfo.value, pathLanguage)
+              : copy.nextUnknown
+          }
+        />
         <InfoRow
           label={copy.currentLevel}
           value={getCurrentLevelLabel(selectedPath.current_level, pathLanguage)}
@@ -234,12 +230,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatDate(date: string, language: Language | null | undefined) {
-  return new Intl.DateTimeFormat(language === "fr" ? "fr" : "en", {
-    day: "numeric",
-    month: "long"
-  }).format(new Date(`${date}T12:00:00Z`));
-}
 
 function formatDateTime(date: string, language: Language | null | undefined) {
   return new Intl.DateTimeFormat(language === "fr" ? "fr" : "en", {

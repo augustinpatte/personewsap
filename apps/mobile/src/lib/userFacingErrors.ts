@@ -73,6 +73,10 @@ export function getUserFacingError(
     return copy(language).missingMiniCasePreferences;
   }
 
+  if (code === "account_deletion_endpoint_missing") {
+    return copy(language).deletionUnavailable;
+  }
+
   if (surface === "onboarding" || surface === "preferences") {
     return copy(language).preferencesSaveFailed;
   }
@@ -184,6 +188,11 @@ function copy(language: Language | null | undefined) {
           title: "Action not completed",
           message: "We could not complete this action. Please try again."
         },
+        deletionUnavailable: {
+          title: "Deletion request unavailable",
+          message:
+            "Account deletion requests are not enabled in this build. Contact PersoNewsAP support to delete your account."
+        },
         invalidEmail: {
           title: "Invalid email",
           message: "Invalid email address."
@@ -253,6 +262,11 @@ function copy(language: Language | null | undefined) {
         generic: {
           title: "Action non terminée",
           message: "Impossible de terminer cette action. Réessaie."
+        },
+        deletionUnavailable: {
+          title: "Demande de suppression indisponible",
+          message:
+            "Les demandes de suppression de compte ne sont pas activées dans cette version. Contacte le support PersoNewsAP pour supprimer ton compte."
         },
         invalidEmail: {
           title: "Email invalide",

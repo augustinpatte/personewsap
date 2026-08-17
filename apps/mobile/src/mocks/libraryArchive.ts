@@ -53,7 +53,10 @@ const archivedMockLibraryDrops = [
   }
 ] satisfies LibraryDropSummary[];
 
-export const mockLibraryDrops = [
+// The bare drop summaries; items are attached below once the item mocks exist,
+// so consumers that read `drop.items` (the shared archive) see the same data
+// as consumers that join `mockLibraryItems` by drop_id.
+const bareMockLibraryDrops = [
   ...currentMockLibraryDrops,
   ...archivedMockLibraryDrops
 ] satisfies LibraryDropSummary[];
@@ -229,3 +232,10 @@ export const mockLibraryItems = [
   ...currentMockLibraryItems,
   ...archivedMockLibraryItems
 ] satisfies LibraryItemSummary[];
+
+export const mockLibraryDrops: LibraryDropSummary[] = bareMockLibraryDrops.map(
+  (drop) => ({
+    ...drop,
+    items: mockLibraryItems.filter((item) => item.drop_id === drop.drop_id)
+  })
+);

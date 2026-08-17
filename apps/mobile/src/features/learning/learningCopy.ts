@@ -42,10 +42,10 @@ export function getLearningCopy(language: Language | null | undefined) {
           kicker: "Learning path",
           createTitle: "Create your learning path",
           createBody:
-            "Choose one domain, one direction and a level. Your next edition will include a five-minute session.",
+            "Choose one domain, one direction and a level. Your first five-minute session starts right after.",
           createButton: "Create path",
           readyTitle: "Your path is ready.",
-          readyBody: "The first session will arrive with the next edition.",
+          readyBody: "Your first session is ready whenever you are.",
           sessionLabel: (value: number) => `Session ${value}`,
           duration: "5 min",
           available: "Available",
@@ -116,7 +116,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           sessionLabel: (value: number) => `Session ${value}`,
           unavailableTitle: "Session unavailable",
           unavailableBody: "This session is no longer available. Return to Today to refresh your path.",
-          backToday: "Back to Today"
+          backToday: "Back to your path"
         },
         feedback: {
           eyebrow: "Learning path",
@@ -143,7 +143,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           error: "Feedback could not be saved. Your ratings are still selected.",
           syncPending:
             "Your answers are saved on this device and will sync automatically.",
-          backToday: "Back to Today"
+          backToday: "Back to your path"
         },
         overview: {
           eyebrow: "Learning path",
@@ -169,8 +169,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           history: "Session history",
           pathHistory: "Path history",
           noHistory: "No completed session yet.",
-          nextEdition: "Next edition",
-          nextUnknown: "With the next edition",
+          nextEdition: "Next session",
+          nextUnknown: "Whenever you choose",
           replace: "Change path",
           loading: "Loading your path",
           emptyTitle: "No active path yet",
@@ -220,10 +220,10 @@ export function getLearningCopy(language: Language | null | undefined) {
           kicker: "Parcours",
           createTitle: "Créer votre parcours",
           createBody:
-            "Choisissez un domaine, une orientation et un niveau. Votre prochaine édition inclura une session de cinq minutes.",
+            "Choisissez un domaine, une orientation et un niveau. Votre première session de cinq minutes démarre juste après.",
           createButton: "Créer le parcours",
           readyTitle: "Votre parcours est prêt.",
-          readyBody: "La première session arrivera avec la prochaine édition.",
+          readyBody: "Votre première session est prête quand vous l'êtes.",
           sessionLabel: (value: number) => `Session ${value}`,
           duration: "5 min",
           available: "Disponible",
@@ -295,7 +295,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           unavailableTitle: "Session indisponible",
           unavailableBody:
             "Cette session n'est plus disponible. Revenez à Aujourd'hui pour actualiser votre parcours.",
-          backToday: "Retour à Aujourd'hui"
+          backToday: "Retour au parcours"
         },
         feedback: {
           eyebrow: "Parcours",
@@ -323,7 +323,7 @@ export function getLearningCopy(language: Language | null | undefined) {
             "Le retour n'a pas pu être enregistré. Vos notes restent sélectionnées.",
           syncPending:
             "Vos réponses sont enregistrées sur cet appareil et seront synchronisées automatiquement.",
-          backToday: "Retour à Aujourd'hui"
+          backToday: "Retour au parcours"
         },
         overview: {
           eyebrow: "Parcours",
@@ -349,8 +349,8 @@ export function getLearningCopy(language: Language | null | undefined) {
           history: "Historique des sessions",
           pathHistory: "Historique des parcours",
           noHistory: "Aucune session terminée pour le moment.",
-          nextEdition: "Prochaine édition",
-          nextUnknown: "Avec la prochaine édition",
+          nextEdition: "Prochaine session",
+          nextUnknown: "Quand vous le décidez",
           replace: "Changer de parcours",
           loading: "Chargement du parcours",
           emptyTitle: "Aucun parcours actif",

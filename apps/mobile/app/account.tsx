@@ -1,30 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Modal, Share, StyleSheet, View } from "react-native";
+import { Modal, Pressable, Share, StyleSheet, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter, type Href } from "expo-router";
+import { Redirect, useRouter, type Href } from "expo-router";
 
-import { AppScreen } from "../../src/components/AppScreen";
-import { AppText } from "../../src/components/AppText";
-import { Card } from "../../src/components/Card";
-import { PrimaryButton } from "../../src/components/PrimaryButton";
-import { SecondaryButton } from "../../src/components/SecondaryButton";
-import { tokens } from "../../src/design/tokens";
-import { useThemedStyles, type ThemeColors } from "../../src/design/theme";
+import { AppScreen } from "../src/components/AppScreen";
+import { AppText } from "../src/components/AppText";
+import { Card } from "../src/components/Card";
+import { PrimaryButton } from "../src/components/PrimaryButton";
+import { SecondaryButton } from "../src/components/SecondaryButton";
+import { tokens } from "../src/design/tokens";
+import { useThemedStyles, type ThemeColors } from "../src/design/theme";
 import {
   exportAuthenticatedUserData,
   requestAuthenticatedAccountDeletion
-} from "../../src/features/account/privacyData";
-import { useAuth } from "../../src/features/auth";
-import { NotificationPreferencesCard } from "../../src/features/notifications";
-import { LearningAccountSection } from "../../src/features/learning";
-import { PreferencesEditor, updateProfileLanguage } from "../../src/features/preferences";
-import { recordLanguageChangeNotice } from "../../src/features/preferences/languageChangeNotice";
-import { shouldApplyLanguageSaveResult } from "../../src/features/preferences/languagePersistence";
-import { trackAnalyticsEvent } from "../../src/lib/analytics";
-import { formatLanguageName, localized } from "../../src/lib/i18n";
-import { type NormalizedSupabaseError } from "../../src/lib/supabase";
-import type { Language } from "../../src/types/domain";
-import { getUserFacingError } from "../../src/lib/userFacingErrors";
+} from "../src/features/account/privacyData";
+import { useAuth } from "../src/features/auth";
+import { NotificationPreferencesCard } from "../src/features/notifications";
+import { LearningAccountSection } from "../src/features/learning";
+import { PreferencesEditor, updateProfileLanguage } from "../src/features/preferences";
+import { recordLanguageChangeNotice } from "../src/features/preferences/languageChangeNotice";
+import { shouldApplyLanguageSaveResult } from "../src/features/preferences/languagePersistence";
+import { trackAnalyticsEvent } from "../src/lib/analytics";
+import { formatLanguageName, localized } from "../src/lib/i18n";
+import { type NormalizedSupabaseError } from "../src/lib/supabase";
+import type { Language } from "../src/types/domain";
+import { getUserFacingError } from "../src/lib/userFacingErrors";
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -35,6 +35,7 @@ export default function AccountScreen() {
     profileLanguage,
     refreshAuthState,
     signOut,
+    status,
     user
   } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -192,9 +193,24 @@ export default function AccountScreen() {
     setDeleteRequestMessage(copy.deletionRequested);
   }, [copy.deletionRequested, copy.noActiveUser, user?.id]);
 
+  if (status === "signedOut") {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
     <AppScreen>
       <AppScreen.Header>
+        <Pressable
+          accessibilityLabel={copy.back}
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/newsletter" as Href))}
+          style={({ pressed }) => [styles.backButton, pressed ? styles.backPressed : null]}
+        >
+          <AppText color="muted" style={styles.backGlyph} variant="subtitle">
+            ←
+          </AppText>
+        </Pressable>
         <View style={styles.headerCopy}>
           <AppText color="muted" variant="eyebrow">{copy.eyebrow}</AppText>
           <AppText variant="title">{copy.title}</AppText>
@@ -275,7 +291,7 @@ export default function AccountScreen() {
             ) : null}
             {privacyActionError ? (
               <AppText color="danger" variant="body">
-                {privacyActionError.message}
+                {getUserFacingError(privacyActionError, profileLanguage, "account").message}
               </AppText>
             ) : null}
           </View>
@@ -398,6 +414,7 @@ function getAccountCopy(language: string | null) {
         deletionRequested: "Deletion request submitted.",
         cancel: "Cancel",
         close: "Close",
+        back: "Back",
         confirmDeletion: "Request deletion"
       },
       fr: {
@@ -427,6 +444,7 @@ function getAccountCopy(language: string | null) {
         deletionRequested: "Demande de suppression envoyée.",
         cancel: "Annuler",
         close: "Fermer",
+        back: "Retour",
         confirmDeletion: "Demander la suppression"
       }
     },
@@ -438,6 +456,20 @@ const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     actions: {
       gap: tokens.space.md
+    },
+    backButton: {
+      alignItems: "flex-start",
+      height: 40,
+      justifyContent: "center",
+      marginLeft: -tokens.space.xs,
+      width: 40
+    },
+    backPressed: {
+      opacity: 0.5
+    },
+    backGlyph: {
+      fontSize: 26,
+      lineHeight: 28
     },
     headerCopy: {
       gap: tokens.space.sm

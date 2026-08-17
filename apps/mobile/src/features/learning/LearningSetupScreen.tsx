@@ -222,7 +222,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
 
     await AsyncStorage.removeItem(getLearningSetupDraftKey(user?.id));
     await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY_V1);
-    router.replace("/(tabs)/today");
+    router.replace("/(tabs)/path");
   };
 
   const handleRetry = async () => {
@@ -247,7 +247,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
 
     await AsyncStorage.removeItem(getLearningSetupDraftKey(user?.id));
     await AsyncStorage.removeItem(LEARNING_SETUP_DRAFT_KEY_V1);
-    router.replace("/(tabs)/today");
+    router.replace("/(tabs)/path");
   };
 
   return (

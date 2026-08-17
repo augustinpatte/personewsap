@@ -10,8 +10,8 @@ import {
 
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import type { DataFetchSource } from "../../lib/dataState";
-import { getAuthSession } from "../../lib/supabase";
-import { flattenDailyDropItems, mockTodayDailyDropsByLanguage } from "../../mocks";
+import { getAuthSession, type NormalizedSupabaseError } from "../../lib/supabase";
+import { flattenDailyDropItems } from "../../mocks";
 import { useAuth } from "../auth";
 import {
   createEmptyContentInteractionSnapshot,
@@ -24,7 +24,7 @@ import type {
   DailyDropContentItem,
   TodayDailyDrop
 } from "./contentTypes";
-import { fetchTodayDrop } from "./dailyDropData";
+import { fetchTodayDrop, getFallbackTodayDrop } from "./dailyDropData";
 import { getProductEditionDate } from "./editionCadence";
 
 export type DailyDropContextValue = {
@@ -32,6 +32,8 @@ export type DailyDropContextValue = {
   drop: TodayDailyDrop;
   status: "loading" | "ready";
   source: DataFetchSource;
+  /** Last fetch error, so screens can show an honest offline/error state. */
+  error: NormalizedSupabaseError | null;
   items: DailyDropContentItem[];
   isEmptyDrop: boolean;
   totalItemCount: number;
@@ -51,17 +53,23 @@ type DailyDropState = {
   drop: TodayDailyDrop;
   source: DataFetchSource;
   status: "loading" | "ready";
+  error: NormalizedSupabaseError | null;
 };
 
 export function DailyDropProvider({ children }: PropsWithChildren) {
   const { profileLanguage, status: authStatus } = useAuth();
   const language: ContentLanguage = profileLanguage ?? "en";
-  const fallbackDrop = mockTodayDailyDropsByLanguage[language];
+  // Mock only in dev/preview builds; production starts from an honest empty drop.
+  const fallbackDrop = useMemo(
+    () => getFallbackTodayDrop(language, getProductEditionDate()),
+    [language]
+  );
 
   const [state, setState] = useState<DailyDropState>({
     drop: fallbackDrop,
     source: "mock",
-    status: "loading"
+    status: "loading",
+    error: null
   });
   const [interactions, setInteractions] = useState<ContentInteractionSnapshot>(
     createEmptyContentInteractionSnapshot
@@ -76,7 +84,7 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
 
       if (!userId) {
         if (isActive()) {
-          setState({ drop: fallbackDrop, source: "mock", status: "ready" });
+          setState({ drop: fallbackDrop, source: "mock", status: "ready", error: null });
           setInteractions(createEmptyContentInteractionSnapshot());
         }
 
@@ -88,7 +96,12 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
       });
 
       if (isActive()) {
-        setState({ drop: result.data, source: result.source, status: "ready" });
+        setState({
+          drop: result.data,
+          source: result.source,
+          status: "ready",
+          error: result.error
+        });
         trackAnalyticsEvent("daily_drop_loaded", {
           drop_date: result.data.drop_date,
           language: result.data.language
@@ -181,6 +194,7 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
       drop: state.drop,
       status: state.status,
       source: state.source,
+      error: state.error,
       items,
       isEmptyDrop: totalItemCount === 0,
       totalItemCount,
@@ -204,6 +218,7 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
     load,
     markItemsComplete,
     state.drop,
+    state.error,
     state.source,
     state.status,
     totalItemCount

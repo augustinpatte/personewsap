@@ -6,6 +6,7 @@ import { tokens } from "../../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../../design/theme";
 import { getConceptCategoryLabel, getReaderCopy } from "../contentCopy";
 import { useDailyDrop } from "../DailyDropContext";
+import { MarkdownBody } from "./MarkdownBody";
 import { ReaderScaffold } from "./ReaderScaffold";
 
 export function ConceptReader({ conceptId }: { conceptId: string }) {
@@ -71,7 +72,7 @@ export function ConceptReader({ conceptId }: { conceptId: string }) {
             <AppText color="muted" variant="eyebrow">
               {section.label}
             </AppText>
-            <AppText variant="read">{section.body}</AppText>
+            <MarkdownBody markdown={section.body} />
           </View>
         ))}
       </View>

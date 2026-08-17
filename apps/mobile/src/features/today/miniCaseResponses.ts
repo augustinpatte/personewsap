@@ -1,5 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { getAuthSession } from "../../lib/supabase";
+import { pushMiniCaseResponse } from "./miniCaseSync";
+
 const STORAGE_KEY = "personews:mini-case-responses:v1";
 
 export type MiniCaseResponseRecord = {
@@ -9,7 +12,7 @@ export type MiniCaseResponseRecord = {
   completedAt: string;
 };
 
-type MiniCaseResponseMap = Record<string, MiniCaseResponseRecord>;
+export type MiniCaseResponseMap = Record<string, MiniCaseResponseRecord>;
 
 export async function readMiniCaseResponse(
   itemId: string
@@ -18,19 +21,62 @@ export async function readMiniCaseResponse(
   return map[itemId] ?? null;
 }
 
+/** All stored responses in one storage read — used by the archive list. */
+export async function readAllMiniCaseResponses(): Promise<MiniCaseResponseMap> {
+  return readAll();
+}
+
 // Persists the answers once. A saved record is never overwritten, so reopening
 // a completed case can only ever review the original decisions.
 export async function writeMiniCaseResponse(
   itemId: string,
   record: MiniCaseResponseRecord
 ): Promise<void> {
-  const map = await readAll();
+  const existing = await readMiniCaseResponse(itemId);
 
-  if (map[itemId]) {
+  // Already recorded on this device: nothing to store and nothing to send.
+  // The effect that calls this can re-run on re-render, so this guard is what
+  // keeps one finished case to exactly one write and one request.
+  if (existing) {
     return;
   }
 
-  map[itemId] = record;
+  await writeLocalMiniCaseResponses({ [itemId]: record });
+
+  // The device copy is the offline cache; the server copy is what makes the
+  // result follow the reader to another device. A failed push is not an error
+  // here: the next sync finds the record local-only and retries it.
+  const sessionResult = await getAuthSession();
+  const userId = sessionResult.data?.user.id;
+
+  if (userId) {
+    await pushMiniCaseResponse(userId, itemId, record);
+  }
+}
+
+/**
+ * Write records into the on-device cache without overwriting an existing one.
+ * Used both by the reader (a freshly finished case) and by the server sync
+ * (results recorded on another device).
+ */
+export async function writeLocalMiniCaseResponses(
+  records: MiniCaseResponseMap
+): Promise<MiniCaseResponseMap> {
+  const map = await readAll();
+  let changed = false;
+
+  for (const [itemId, record] of Object.entries(records)) {
+    if (map[itemId]) {
+      continue;
+    }
+
+    map[itemId] = record;
+    changed = true;
+  }
+
+  if (!changed) {
+    return map;
+  }
 
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(map));
@@ -38,6 +84,8 @@ export async function writeMiniCaseResponse(
     // Device storage is best-effort; a failed write just means review mode
     // falls back to showing the model answers without the user's own picks.
   }
+
+  return map;
 }
 
 async function readAll(): Promise<MiniCaseResponseMap> {

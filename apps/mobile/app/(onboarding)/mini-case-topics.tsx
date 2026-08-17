@@ -68,7 +68,7 @@ export default function MiniCaseTopicsScreen() {
     });
     await clearStoredOnboardingDraft();
     await refreshAuthState();
-    router.replace(state.enabledModules.includes("learning_path") ? learningSetupHref : "/(tabs)/today");
+    router.replace(state.enabledModules.includes("learning_path") ? learningSetupHref : "/(tabs)/newsletter");
   };
 
   return (

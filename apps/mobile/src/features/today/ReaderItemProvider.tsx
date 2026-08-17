@@ -110,6 +110,7 @@ function FetchedReaderProvider({
       drop: buildSingleItemDrop(item, language),
       status: fetchState.status,
       source: "supabase",
+      error: null,
       items,
       isEmptyDrop: items.length === 0,
       totalItemCount: items.length,

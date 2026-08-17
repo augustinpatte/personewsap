@@ -6,7 +6,8 @@ import { tokens } from "../../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../../design/theme";
 import { estimateReadMinutes, getReaderCopy } from "../contentCopy";
 import { useDailyDrop } from "../DailyDropContext";
-import { DropCapParagraph } from "./DropCapParagraph";
+import { MarkdownBody } from "./MarkdownBody";
+import { stripMarkdownInline } from "./markdown";
 import { ReaderScaffold } from "./ReaderScaffold";
 
 export function BusinessStoryReader({ storyId }: { storyId: string }) {
@@ -78,11 +79,7 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
                 {chapter.label}
               </AppText>
             </View>
-            {index === 0 ? (
-              <DropCapParagraph text={chapter.body} />
-            ) : (
-              <AppText variant="read">{chapter.body}</AppText>
-            )}
+            <MarkdownBody markdown={chapter.body} />
           </View>
         ))}
       </View>
@@ -91,7 +88,7 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
         <AppText color="accentInk" variant="eyebrow">
           {copy.lesson}
         </AppText>
-        <AppText variant="pullQuote">{item.lesson}</AppText>
+        <AppText variant="pullQuote">{stripMarkdownInline(item.lesson)}</AppText>
       </View>
     </ReaderScaffold>
   );

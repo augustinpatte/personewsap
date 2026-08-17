@@ -15,7 +15,7 @@ export default function OnboardingLayout() {
   }
 
   if (status === "ready") {
-    return <Redirect href="/(tabs)/today" />;
+    return <Redirect href="/(tabs)/newsletter" />;
   }
 
   return (

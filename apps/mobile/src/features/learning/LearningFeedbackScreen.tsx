@@ -82,7 +82,7 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
       return;
     }
 
-    router.replace("/(tabs)/today");
+    router.replace("/(tabs)/path");
   };
 
   return (
@@ -139,7 +139,7 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
         disabled={(!allAnswered && !syncMessage) || submitting}
         label={syncMessage ? copy.backToday : submitting ? copy.submitting : copy.submit}
         loading={submitting}
-        onPress={syncMessage ? () => router.replace("/(tabs)/today") : submit}
+        onPress={syncMessage ? () => router.replace("/(tabs)/path") : submit}
       />
     </AppScreen>
   );
