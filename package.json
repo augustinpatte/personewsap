@@ -55,6 +55,7 @@
     "smoke": "npm run mobile:typecheck && npm run content:build && npm run content:dry-run",
     "smoke:mobile": "npm run mobile:typecheck",
     "smoke:content:build": "npm run content:build",
+    "qa:scale": "node scripts/product-scale-diagnostics.mjs",
     "smoke:content:dry-run": "npm run content:dry-run",
     "test": "vitest run",
     "test:watch": "vitest",

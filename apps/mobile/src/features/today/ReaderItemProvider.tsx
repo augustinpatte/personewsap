@@ -8,6 +8,7 @@ import { isSupabaseContentItemId } from "../../lib/contentItemId";
 import type { DataFetchSource } from "../../lib/dataState";
 import type { NormalizedSupabaseError } from "../../lib/supabase";
 import { getReaderCopy } from "./contentCopy";
+import { useAuth } from "../auth";
 import {
   readContentInteractionSnapshot,
   writeContentInteraction
@@ -76,6 +77,7 @@ function FetchedReaderProvider({
   language: ContentLanguage;
   children: ReactNode;
 }) {
+  const { user } = useAuth();
   const [fetchState, setFetchState] = useState<FetchState>({
     status: "loading",
     item: null,
@@ -90,7 +92,10 @@ function FetchedReaderProvider({
     setCompleted(false);
 
     void (async () => {
-      const result = await fetchContentItemById(contentItemId);
+      const result = await fetchContentItemById(contentItemId, {
+        language,
+        userId: user?.id ?? null
+      });
 
       if (!active) {
         return;
@@ -116,7 +121,7 @@ function FetchedReaderProvider({
     return () => {
       active = false;
     };
-  }, [contentItemId]);
+  }, [contentItemId, language, user?.id]);
 
   const value = useMemo<DailyDropContextValue>(() => {
     const item = fetchState.item;

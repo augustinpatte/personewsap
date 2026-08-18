@@ -42,6 +42,7 @@ async function runLocalQa() {
   await runRequired("lint", "npm", ["run", "lint"]);
   await runRequired("smoke", "npm", ["run", "smoke"]);
   await runRequired("quality proof", "npm", ["run", "content:quality-proof"]);
+  await runRequired("production scale diagnostics", "npm", ["run", "qa:scale"]);
   await runRequired("static supabase doctor", "npm", ["run", "supabase:doctor"]);
 }
 

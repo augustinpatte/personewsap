@@ -36,6 +36,12 @@ type FetchTodayDropOptions = {
   language?: ContentLanguage;
 };
 
+type FetchContentByIdOptions = {
+  cacheTtlMs?: number;
+  language?: ContentLanguage;
+  userId?: string | null;
+};
+
 type SourcesByContentItemId = Record<
   string,
   {
@@ -205,7 +211,8 @@ export async function fetchTodayDrop(
 }
 
 export async function fetchContentItemSources(
-  contentItemId: string
+  contentItemId: string,
+  options: FetchContentByIdOptions = {}
 ): Promise<DataFetchResult<SourceMetadata[]>> {
   const fallbackSources = allowMockContent
     ? getMockSourcesForContentItem(contentItemId)
@@ -225,7 +232,7 @@ export async function fetchContentItemSources(
   }
 
   try {
-    const cacheKey = getContentSourcesCacheKey(contentItemId);
+    const cacheKey = getContentSourcesCacheKey(contentItemId, options);
     const cachedSources = getCachedValue<SourceMetadata[]>(cacheKey);
 
     if (cachedSources) {
@@ -301,7 +308,8 @@ export async function fetchContentItemSources(
  * so the reader can show its "no longer available" state instead of a dead tap.
  */
 export async function fetchContentItemById(
-  contentItemId: string
+  contentItemId: string,
+  options: FetchContentByIdOptions = {}
 ): Promise<DataFetchResult<DailyDropContentItem | null>> {
   const fallbackItem = allowMockContent ? getMockContentItemById(contentItemId) : null;
 
@@ -319,19 +327,24 @@ export async function fetchContentItemById(
   }
 
   try {
-    const cacheKey = getContentItemCacheKey(contentItemId);
+    const cacheKey = getContentItemCacheKey(contentItemId, options);
     const cachedItem = getCachedValue<DailyDropContentItem>(cacheKey);
 
     if (cachedItem) {
       return createCachedResult(cachedItem);
     }
 
-    const { data: contentItem, error } = await supabase
+    let contentQuery = supabase
       .from("content_items")
       .select(contentItemSelect)
       .eq("id", contentItemId)
-      .eq("status", "published")
-      .maybeSingle();
+      .eq("status", "published");
+
+    if (options.language) {
+      contentQuery = contentQuery.eq("language", options.language);
+    }
+
+    const { data: contentItem, error } = await contentQuery.maybeSingle();
 
     if (error) {
       const normalizedError = normalizeSupabaseError(error);
@@ -345,6 +358,10 @@ export async function fetchContentItemById(
 
     if (!contentItem) {
       // Authoritative "this item is gone" answer, not a fallback.
+      return createSupabaseResult(null);
+    }
+
+    if (options.userId && !(await isContentItemAssignedToUser(contentItemId, options.userId))) {
       return createSupabaseResult(null);
     }
 
@@ -365,7 +382,7 @@ export async function fetchContentItemById(
       return createSupabaseResult(null);
     }
 
-    setCachedValue(cacheKey, mappedItem, todayDropCacheTtlMs);
+    setCachedValue(cacheKey, mappedItem, options.cacheTtlMs ?? todayDropCacheTtlMs);
 
     return createSupabaseResult(mappedItem);
   } catch (error) {
@@ -377,6 +394,29 @@ export async function fetchContentItemById(
       normalizedError
     );
   }
+}
+
+async function isContentItemAssignedToUser(
+  contentItemId: string,
+  userId: string
+): Promise<boolean> {
+  if (!supabase) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("daily_drop_items")
+    .select("content_item_id,daily_drops!inner(user_id)")
+    .eq("content_item_id", contentItemId)
+    .eq("daily_drops.user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data);
 }
 
 async function fetchAndMapDailyDrop(
@@ -965,12 +1005,28 @@ function getTodayDropCacheKey(
   return ["today-drop", userId, dropDate, language ?? "any"].join(":");
 }
 
-function getContentSourcesCacheKey(contentItemId: string): string {
-  return ["content-sources", contentItemId].join(":");
+function getContentSourcesCacheKey(
+  contentItemId: string,
+  options: FetchContentByIdOptions = {}
+): string {
+  return [
+    "content-sources",
+    options.userId ?? "anonymous",
+    options.language ?? "any",
+    contentItemId
+  ].join(":");
 }
 
-function getContentItemCacheKey(contentItemId: string): string {
-  return ["content-item", contentItemId].join(":");
+function getContentItemCacheKey(
+  contentItemId: string,
+  options: FetchContentByIdOptions = {}
+): string {
+  return [
+    "content-item",
+    options.userId ?? "anonymous",
+    options.language ?? "any",
+    contentItemId
+  ].join(":");
 }
 
 function getFallbackReasonForError(error: ReturnType<typeof normalizeSupabaseError>): DataFallbackReason {
