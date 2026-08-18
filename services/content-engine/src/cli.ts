@@ -3,6 +3,8 @@ import { parseAppPreviewTestOptions, runAppPreviewTest } from "./cli/appPreviewT
 import { parseAssignTestUsersOptions, runAssignTestUsers } from "./cli/assignTestUsers.js";
 import { parseBootstrapCatalogOptions, runBootstrapCatalogCli } from "./cli/bootstrapCatalog.js";
 import { parseBusinessStoryMemoryOptions, runBusinessStoryMemory } from "./cli/businessStoryMemory.js";
+import { parseCatalogPublishOptions, runCatalogPublish } from "./cli/catalogPublish.js";
+import { parseCatalogReportOptions, runCatalogReport } from "./cli/catalogReport.js";
 import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
 import { parseDailyJobOptions, runDailyJob } from "./cli/dailyJob.js";
 import { parseDailyJobTestOptions, runDailyJobTest } from "./cli/dailyJobTest.js";
@@ -121,6 +123,18 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "catalog-report") {
+    const output = await runCatalogReport(parseCatalogReportOptions(args));
+    writeJson(output, { redactIdentifiers: true });
+    return;
+  }
+
+  if (command === "catalog-publish") {
+    const output = await runCatalogPublish(parseCatalogPublishOptions(args));
+    writeJson(output, { redactIdentifiers: true });
+    return;
+  }
+
   if (command === "quality-proof") {
     const output = runQualityProof();
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
@@ -161,6 +175,8 @@ Commands:
   personalize-test        Assign already-published content from app user preferences.
   rss-check               Fetch live RSS only, without LLM or Supabase persistence.
   bootstrap-catalog       Build the initial FR/EN editorial inventory (Business Stories + Mini Cases). No-write by default.
+  catalog-report          Inspect persisted review/published bootstrap catalog inventory.
+  catalog-publish         Publish reviewed bootstrap catalog inventory after explicit confirmation.
   quality-proof           Prove production-strict editorial validation rejects bad generated content.
 
 Options:
@@ -213,6 +229,7 @@ Bootstrap catalog env:
   MINI_CASE_TOPICS=...    Restrict to a subset of the 6 approved mini-case topics.
   CONFIRM_BOOTSTRAP_CATALOG=true Required, together with --persist, before anything is written.
   BOOTSTRAP_RUN_ID=...    Stable run id. Re-running with the same id reuses existing rows instead of duplicating them.
+  CONFIRM_CATALOG_PUBLISH=true Required by catalog-publish after reviewing catalog-report.
 
 Examples:
   npm run dry-run
@@ -237,6 +254,8 @@ Examples:
   LANGUAGES=fr,en BUSINESS_STORY_COUNT=10 MINI_CASE_COUNT_PER_TOPIC=5 npm run bootstrap-catalog
   LIVE_RSS_ONLY=true USE_LLM=true OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run bootstrap-catalog
   CONFIRM_BOOTSTRAP_CATALOG=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run bootstrap-catalog -- --persist
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run catalog-report -- --run-id bootstrap-catalog-2026-08-17
+  CONFIRM_CATALOG_PUBLISH=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run catalog-publish -- --run-id bootstrap-catalog-2026-08-17
   npm run quality-proof
   OPENAI_API_KEY=... npm run llm-proof -- --languages en --topics business,finance
   OPENAI_API_KEY=... OPENAI_REQUEST_TIMEOUT_MS=120000 npm run llm-proof -- --languages fr,en --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media --max-attempts 2

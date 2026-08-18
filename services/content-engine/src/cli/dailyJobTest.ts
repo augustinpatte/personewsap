@@ -1,4 +1,11 @@
 import {
+  buildAssignmentPool,
+  describeCatalogReuse,
+  excludeAlreadyAssignedForUser,
+  isCatalogReuseEnabled,
+  planCatalogAwareGeneration
+} from "../catalog/catalogInventory.js";
+import {
   MINI_CASE_TOPIC_IDS,
   NEWSLETTER_ITEMS_PER_TOPIC,
   TOPIC_IDS,
@@ -21,11 +28,9 @@ import {
   toSafeModelRoutingSummary,
   type LlmCallMetric
 } from "../generation/modelRouting.js";
-import { resolveLearningProvider } from "../learning/learningProviderResolver.js";
 import { StructuredContentGenerator } from "../generation/structuredGenerator.js";
 import type { ContentGenerator } from "../generation/types.js";
 import { assertValidDailyDropPayload } from "../generation/validation.js";
-import { generateLearningSessionForUser } from "../learning/learningSessionOrchestrator.js";
 import { emptyLearningGenerationMetrics, type LearningGenerationMetrics } from "../learning/learningTypes.js";
 import {
   aggregateJobRunMetrics,
@@ -38,7 +43,11 @@ import {
   type RssMetricDiagnostics
 } from "../ops/jobMetrics.js";
 import { processArticles } from "../processing/pipeline.js";
-import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "../scheduler/dailyDropBuilder.js";
+import {
+  assembleDailyDropPayload,
+  selectDailyDropItemsForUser,
+  type StoredContentSelection
+} from "../scheduler/dailyDropBuilder.js";
 import {
   getProductEditionDate,
   nextEditionDate,
@@ -165,6 +174,15 @@ export type DailyJobTestOptions = {
 
 type StoredItems = Awaited<ReturnType<ContentRepository["storeDailyPayload"]>>;
 
+type PreparedAssignment = {
+  selection: Awaited<ReturnType<ContentRepository["listUserDailyDropPreferenceSelection"]>>;
+  candidates: UserDailyDropPreference[];
+  inventory: StoredContentSelection[];
+  assignedReusableContentByUser: Map<string, Set<string>>;
+  catalogPlan: ReturnType<typeof planCatalogAwareGeneration>;
+  reuseEnabled: boolean;
+};
+
 export type DailyJobOutput = {
   mode: DailyJobMode;
   confirmation?: "CONFIRM_DAILY_JOB_TEST=true";
@@ -241,6 +259,13 @@ export type DailyJobTestOutput = DailyJobOutput & {
 
 type DailyJobLanguageResult = DailyJobOutput["languages"][number];
 
+export type DailyJobDependencies = {
+  sourceFetcher?: Pick<SourceFetcher, "fetch">;
+  sourceConnectors?: SourceConnector[];
+  generator?: ContentGenerator;
+  repository?: ContentRepository;
+};
+
 export async function runDailyJobTest(options: DailyJobTestOptions): Promise<DailyJobTestOutput> {
   const output = await runDailyJob({
     ...options,
@@ -261,7 +286,10 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
   };
 }
 
-export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJobOutput> {
+export async function runDailyJob(
+  options: DailyJobRunOptions,
+  dependencies: DailyJobDependencies = {}
+): Promise<DailyJobOutput> {
   const scheduledEdition = resolveEditionType(options.dropDate);
   const forcedEdition = parseForcedEditionType(process.env.FORCE_EDITION);
   const editionType = scheduledEdition ?? forcedEdition;
@@ -300,11 +328,11 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
     dry_run: options.dryRun
   }, options.logPrefix);
 
-  const sourceFetcher = new SourceFetcher(sourcePolicy.connectors);
-  const generator = createGenerator(options.useLlm, options.logPrefix, llmCallMetrics);
+  const sourceFetcher = dependencies.sourceFetcher ?? new SourceFetcher(sourcePolicy.connectors);
+  const generator = dependencies.generator ?? createGenerator(options.useLlm, options.logPrefix, llmCallMetrics);
   const repository = options.dryRun
     ? undefined
-    : new ContentRepository(
+    : dependencies.repository ?? new ContentRepository(
         createServiceRoleSupabaseClient({
           requireCredentials: true
         })
@@ -337,7 +365,7 @@ export async function runDailyJob(options: DailyJobRunOptions): Promise<DailyJob
           llmCallMetrics,
           repository,
           sourceFetcher,
-          sourceConnectors: sourcePolicy.connectors,
+          sourceConnectors: dependencies.sourceConnectors ?? sourcePolicy.connectors,
           runId,
           testRunId
         })
@@ -565,7 +593,7 @@ async function runDailyJobLanguage(input: {
   pricing: PricingConfig;
   repository: ContentRepository | undefined;
   runId: string;
-  sourceFetcher: SourceFetcher;
+  sourceFetcher: Pick<SourceFetcher, "fetch">;
   sourceConnectors: SourceConnector[];
   testRunId: string;
   llmCallMetrics: LlmCallMetric[];
@@ -642,11 +670,42 @@ async function runDailyJobLanguage(input: {
         dropDate: options.dropDate
       })
     : undefined;
-  // GENERATION PHASE — the master editorial catalog is edition-driven, never
-  // user-driven. Mini-cases always cover all 6 product topics and the newsletter
-  // covers all editorial topics, even if no current user selected some of them.
-  // Editorial memory is read only to avoid repetition, not to decide coverage.
-  const miniCaseProductTopics: MiniCaseTopicId[] = [...MINI_CASE_TOPIC_IDS];
+  const preparedAssignment =
+    repository && !options.dryRun && options.contentStatus === "published"
+      ? await prepareAssignment({
+          repository,
+          language,
+          dropDate: options.dropDate,
+          userLimit: options.userLimit,
+          logPrefix: options.logPrefix
+        })
+      : null;
+  const sections = preparedAssignment?.catalogPlan.sections ?? ["newsletter_article", "business_story", "mini_case"];
+  const miniCaseProductTopics: MiniCaseTopicId[] =
+    preparedAssignment?.catalogPlan.miniCaseProductTopics.length
+      ? preparedAssignment.catalogPlan.miniCaseProductTopics
+      : sections.includes("mini_case")
+      ? [...MINI_CASE_TOPIC_IDS]
+      : [];
+
+  if (preparedAssignment) {
+    logProgress("catalog reuse plan", {
+      run_id: runId,
+      test_run_id: testRunId,
+      language,
+      drop_date: options.dropDate,
+      users_considered: preparedAssignment.candidates.length,
+      users_served_by_inventory: preparedAssignment.catalogPlan.usersServedByInventory,
+      users_needing_business_story: preparedAssignment.catalogPlan.usersNeedingBusinessStory,
+      users_needing_mini_case: preparedAssignment.catalogPlan.usersNeedingMiniCase,
+      users_needing_mini_case_by_topic: preparedAssignment.catalogPlan.usersNeedingMiniCaseByTopic,
+      ...describeCatalogReuse({
+        inventory: preparedAssignment.inventory,
+        sections,
+        reuseEnabled: preparedAssignment.reuseEnabled
+      })
+    }, options.logPrefix);
+  }
 
   logProgress("generated_catalog_plan", {
     run_id: runId,
@@ -656,9 +715,11 @@ async function runDailyJobLanguage(input: {
     newsletter_topics_to_generate: options.topics,
     newsletter_items_to_generate: options.newsletterArticleCount,
     mini_case_topics_to_generate: miniCaseProductTopics,
-    business_story_count: 1,
+    business_story_count: sections.includes("business_story") ? 1 : 0,
     concept_count: 0,
-    user_preferences_used_for_generation: false
+    sections_to_generate: sections,
+    catalog_reuse_enabled: preparedAssignment?.reuseEnabled ?? false,
+    user_preferences_used_for_generation: Boolean(preparedAssignment)
   }, options.logPrefix);
 
   const payload = await runStage(
@@ -684,6 +745,7 @@ async function runDailyJobLanguage(input: {
           articles: rankedArticles,
           newsletterTopics: options.topics,
           newsletterArticleCount: options.newsletterArticleCount,
+          sections,
           miniCaseProductTopics,
           miniCaseMemory,
           businessStoryMemory
@@ -718,7 +780,7 @@ async function runDailyJobLanguage(input: {
       assertValidDailyDropPayload(jobPayload, {
         articles: rankedArticles,
         rssOnly: options.liveRssOnly,
-        miniCaseProductTopics,
+        miniCaseProductTopics: miniCaseProductTopics.length ? miniCaseProductTopics : undefined,
         miniCaseMemory: miniCaseMemory?.recentOverall,
         businessStoryMemory
       });
@@ -801,6 +863,7 @@ async function runDailyJobLanguage(input: {
             assignStoredDropToUsers({
               repository: repository ?? missingRepository(),
               storedItems,
+              preparedAssignment: preparedAssignment ?? undefined,
               dropDate: jobPayload.drop_date,
               language,
               userLimit: options.userLimit,
@@ -887,6 +950,7 @@ async function runDailyJobLanguage(input: {
 async function assignStoredDropToUsers(input: {
   repository: ContentRepository;
   storedItems: StoredItems;
+  preparedAssignment?: PreparedAssignment;
   dropDate: string;
   language: Language;
   userLimit: number | null;
@@ -908,9 +972,15 @@ async function assignStoredDropToUsers(input: {
   assignedPreviews: AssignedDropPreview[];
   learning: LearningGenerationMetrics;
 }> {
-  assertAssignableStoredItems(input.storedItems, input.language);
+  const assignmentPool = buildAssignmentPool({
+    fresh: input.storedItems,
+    inventory: input.preparedAssignment?.inventory ?? [],
+    reuseEnabled: input.preparedAssignment?.reuseEnabled
+  });
+
+  assertAssignableStoredItems(assignmentPool, input.language);
   const contentTypeByItemId = new Map(
-    input.storedItems.map((stored) => [stored.content_item_id, stored.item.content_type])
+    assignmentPool.map((stored) => [stored.content_item_id, stored.item.content_type])
   );
   const assignedPreviews: AssignedDropPreview[] = [];
 
@@ -918,17 +988,26 @@ async function assignStoredDropToUsers(input: {
   // which already-generated catalog items each user receives; they never decided
   // what was generated. USER_LIMIT slices the number of users assigned, not the
   // catalog.
-  const selection = await input.repository.listUserDailyDropPreferenceSelection(input.language);
-  const preferences = selection.preferences;
-  const sortedPreferences = [...preferences].sort((left, right) => left.user_id.localeCompare(right.user_id));
-  const candidates = input.userLimit === null ? sortedPreferences : sortedPreferences.slice(0, input.userLimit);
+  const selection = input.preparedAssignment?.selection ?? await input.repository.listUserDailyDropPreferenceSelection(input.language);
+  const sortedPreferences = [...selection.preferences].sort((left, right) => left.user_id.localeCompare(right.user_id));
+  const candidates =
+    input.preparedAssignment?.candidates ??
+    (input.userLimit === null ? sortedPreferences : sortedPreferences.slice(0, input.userLimit));
+  const assignedReusableContentByUser =
+    input.preparedAssignment?.assignedReusableContentByUser ??
+    await input.repository.listAssignedContentItemIdsByUser({
+      userIds: candidates.map((preference) => preference.user_id),
+      beforeDropDate: input.dropDate
+    });
 
   logProgress("assignment phase started", {
     language: input.language,
     drop_date: input.dropDate,
     user_preferences_used_for_assignment: true,
     user_limit: input.userLimit ?? "all",
-    catalog_items_available: input.storedItems.length,
+    catalog_items_available: assignmentPool.length,
+    same_run_items_available: input.storedItems.length,
+    reusable_inventory_items_available: input.preparedAssignment?.inventory.length ?? 0,
     users_eligible: sortedPreferences.length,
     users_considered: candidates.length
   }, input.logPrefix);
@@ -951,7 +1030,7 @@ async function assignStoredDropToUsers(input: {
     user_preferences_read: selection.userPreferencesRead,
     user_topic_preferences_read: selection.userTopicPreferencesRead,
     user_mini_case_topic_preferences_read: selection.userMiniCasePreferencesRead,
-    preferences_loaded: preferences.length,
+    preferences_loaded: selection.preferences.length,
     users_skipped_before_limit: selection.skippedUsers.length,
     user_limit: input.userLimit ?? "all",
     users_considered: candidates.length,
@@ -982,26 +1061,23 @@ async function assignStoredDropToUsers(input: {
   const miniCaseFallbackReasons: Record<string, number> = {};
   const miniCaseSelectedTopicCounts: Record<string, number> = {};
   const learning = emptyLearningGenerationMetrics();
-  const learningProviderResolution = resolveLearningProvider({
-    useLlm: input.useLlm
-  });
-
-  if (learningProviderResolution.status === "unavailable") {
-    logProgress("learning provider unavailable", {
-      drop_date: input.dropDate,
-      language: input.language,
-      use_llm: input.useLlm,
-      error: serializePersistenceError(learningProviderResolution.error)
-    }, input.logPrefix);
-  }
+  logProgress("learning generation skipped", {
+    drop_date: input.dropDate,
+    language: input.language,
+    reason: "learning_path_is_self_paced_and_not_advanced_by_editions"
+  }, input.logPrefix);
 
   for (const preference of candidates) {
     const existingDrop = existingDrops.get(preference.user_id);
+    const userPool = excludeAlreadyAssignedForUser(
+      assignmentPool,
+      assignedReusableContentByUser.get(preference.user_id) ?? new Set<string>()
+    );
 
-    const selection = selectDailyDropItemsForUser(preference, input.storedItems, {
+    const selection = selectDailyDropItemsForUser(preference, userPool, {
       dropDate: input.dropDate
     });
-    const completedSelection = completeSelection(selection.items, input.storedItems);
+    const completedSelection = completeSelection(selection.items, userPool);
     const itemIds = completedSelection.items;
     const miniCaseItem = itemIds.find((item) => item.slot === "mini_case");
     incrementCount(miniCaseFallbackReasons, selection.diagnostics.miniCase.fallbackReason);
@@ -1082,41 +1158,6 @@ async function assignStoredDropToUsers(input: {
       itemIds
     });
 
-    const learningResult = await generateLearningSessionForUser({
-      repository: input.repository,
-      userId: preference.user_id,
-      dailyDropId: assignment.dailyDropId,
-      dropDate: input.dropDate,
-      providerResolution: learningProviderResolution
-    }).catch((error) => {
-      logProgress("learning session generation failed without blocking daily drop", {
-        user_id: redactIdentifier(preference.user_id),
-        daily_drop_id: assignment.dailyDropId,
-        drop_date: input.dropDate,
-        language: input.language,
-        error: serializePersistenceError(error)
-      }, input.logPrefix);
-      return {
-        ...emptyLearningGenerationMetrics(),
-        learning_sessions_failed: 1,
-        status: "failed" as const,
-        reason: "learning_exception",
-        sessionId: null
-      };
-    });
-    mergeLearningMetrics(learning, learningResult);
-
-    logProgress("learning session result", {
-      user_id: redactIdentifier(preference.user_id),
-      daily_drop_id: assignment.dailyDropId,
-      drop_date: input.dropDate,
-      language: input.language,
-      status: learningResult.status,
-      reason: learningResult.reason,
-      session_id: learningResult.sessionId,
-      learning_api_calls: learningResult.learning_api_calls
-    }, input.logPrefix);
-
     usersAssigned += 1;
     usersCreated += assignment.existingDropUpdated ? 0 : 1;
     usersUpdatedExistingDrop += assignment.existingDropUpdated ? 1 : 0;
@@ -1162,8 +1203,55 @@ async function assignStoredDropToUsers(input: {
     miniCaseFallbackReasons,
     miniCaseSelectedTopicCounts,
     assignmentSkippedReason: null,
-    assignedPreviews
-    ,learning
+    assignedPreviews,
+    learning
+  };
+}
+
+async function prepareAssignment(input: {
+  repository: ContentRepository;
+  language: Language;
+  dropDate: string;
+  userLimit: number | null;
+  logPrefix: string;
+}): Promise<PreparedAssignment> {
+  const reuseEnabled = isCatalogReuseEnabled();
+  const selection = await input.repository.listUserDailyDropPreferenceSelection(input.language);
+  const sortedPreferences = [...selection.preferences].sort((left, right) => left.user_id.localeCompare(right.user_id));
+  const candidates = input.userLimit === null ? sortedPreferences : sortedPreferences.slice(0, input.userLimit);
+  const [inventory, assignedReusableContentByUser] = await Promise.all([
+    reuseEnabled ? input.repository.listReusableCatalogItems({ language: input.language }) : Promise.resolve([]),
+    input.repository.listAssignedContentItemIdsByUser({
+      userIds: candidates.map((preference) => preference.user_id),
+      beforeDropDate: input.dropDate
+    })
+  ]);
+  const catalogPlan = planCatalogAwareGeneration({
+    preferences: candidates,
+    inventory,
+    assignedByUser: assignedReusableContentByUser,
+    dropDate: input.dropDate,
+    reuseEnabled
+  });
+
+  logProgress("assignment preparation completed", {
+    language: input.language,
+    drop_date: input.dropDate,
+    user_limit: input.userLimit ?? "all",
+    users_eligible: sortedPreferences.length,
+    users_considered: candidates.length,
+    skipped_users: selection.skippedUsers.length,
+    reusable_inventory_items: inventory.length,
+    reusable_content_history_users: assignedReusableContentByUser.size
+  }, input.logPrefix);
+
+  return {
+    selection,
+    candidates,
+    inventory,
+    assignedReusableContentByUser,
+    catalogPlan,
+    reuseEnabled
   };
 }
 
@@ -1377,7 +1465,7 @@ function completeSelection(
     slot: DailyDropSlot;
     position: number;
   }>,
-  storedItems: StoredItems
+  storedItems: StoredContentSelection[]
 ): AssignmentCompletion {
   const completed = [...selected];
   const fallbackSlots: DailyDropSlot[] = [];
@@ -1410,9 +1498,9 @@ function completeSelection(
   };
 }
 
-function assertAssignableStoredItems(storedItems: StoredItems, language: Language): void {
+function assertAssignableStoredItems(storedItems: StoredContentSelection[], language: Language): void {
   if (storedItems.length === 0) {
-    throw new Error("Assignment refused because no same-run stored content items are available.");
+    throw new Error("Assignment refused because no same-language content items are available.");
   }
 
   const wrongLanguageItems = storedItems.filter((stored) => stored.item.language !== language);
@@ -1779,12 +1867,9 @@ function assertStrictProductionPayload(payload: DailyDropPayload, options: Daily
   }
 
   const issues: string[] = [];
-  const slots = new Set(payload.items.map((item) => item.slot));
 
-  for (const slot of REQUIRED_SLOTS) {
-    if (!slots.has(slot)) {
-      issues.push(`missing required slot ${slot}`);
-    }
+  if (!payload.items.some((item) => item.slot === "newsletter")) {
+    issues.push("missing freshly generated newsletter slot");
   }
 
   payload.items.forEach((item, index) => {
@@ -1796,7 +1881,7 @@ function assertStrictProductionPayload(payload: DailyDropPayload, options: Daily
       issues.push(`items.${index}.language must match payload language`);
     }
 
-    if (item.topic && !options.topics.includes(item.topic)) {
+    if (item.content_type === "newsletter_article" && item.topic && !options.topics.includes(item.topic)) {
       issues.push(`items.${index}.topic ${item.topic} is outside requested topics`);
     }
 

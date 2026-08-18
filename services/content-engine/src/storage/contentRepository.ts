@@ -65,6 +65,9 @@ type GenerationRunRow = {
   id: string;
 };
 
+const SUPABASE_PAGE_SIZE = 1000;
+const USER_ID_FILTER_BATCH_SIZE = 100;
+
 export type JobRunStatus = "running" | "completed" | "partial_failed" | "failed";
 
 export type JobRunRow = {
@@ -85,6 +88,20 @@ export type JobRunRow = {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type CatalogReportItem = {
+  contentItemId: string;
+  catalogRunId: string | null;
+  catalogEntryId: string | null;
+  contentType: "business_story" | "mini_case";
+  language: Language;
+  title: string;
+  status: string;
+  miniCaseTopic: MiniCaseTopicId | null;
+  validationStatus: "review" | "published" | "other";
+  sourceUrls: string[];
+  createdAt: string;
 };
 
 type SourceRow = {
@@ -1005,34 +1022,44 @@ export class ContentRepository {
     limit?: number;
   }): Promise<StoredContentSelection[]> {
     const contentTypes = input.contentTypes ?? ["business_story", "mini_case"];
-    const limit = Math.min(Math.max(input.limit ?? 200, 1), 1000);
+    const limit = input.limit && input.limit > 0 ? input.limit : null;
+    const rows: Array<{
+      id: string;
+      content_type: "business_story" | "mini_case";
+      topic_id: TopicId | null;
+      language: Language;
+      title: string;
+      metadata: Record<string, unknown> | null;
+    }> = [];
 
-    const { data, error } = await this.supabase
-      .from("content_items")
-      .select("id,content_type,topic_id,language,title,status,metadata,created_at")
-      .eq("language", input.language)
-      .eq("status", "published")
-      .in("content_type", contentTypes)
-      .order("created_at", { ascending: true })
-      .limit(limit);
+    for (let offset = 0; limit === null || rows.length < limit; offset += SUPABASE_PAGE_SIZE) {
+      const pageSize = limit === null ? SUPABASE_PAGE_SIZE : Math.min(SUPABASE_PAGE_SIZE, limit - rows.length);
+      const { data, error } = await this.supabase
+        .from("content_items")
+        .select("id,content_type,topic_id,language,title,status,metadata,created_at")
+        .eq("language", input.language)
+        .eq("status", "published")
+        .in("content_type", contentTypes)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
 
-    if (error) {
-      throwPersistenceError({
-        table: "content_items",
-        action: "select reusable catalog inventory",
-        error
-      });
+      if (error) {
+        throwPersistenceError({
+          table: "content_items",
+          action: "select reusable catalog inventory",
+          error
+        });
+      }
+
+      rows.push(...((data ?? []) as typeof rows));
+
+      if ((data ?? []).length < pageSize) {
+        break;
+      }
     }
 
-    return (data ?? []).map((row) => {
-      const item = row as {
-        id: string;
-        content_type: "business_story" | "mini_case";
-        topic_id: TopicId | null;
-        language: Language;
-        title: string;
-        metadata: Record<string, unknown> | null;
-      };
+    return rows.map((item) => {
       const metadata = item.metadata ?? {};
       const slot = typeof metadata.slot === "string" ? metadata.slot : item.content_type;
       const productTopic = metadata.product_topic;
@@ -1058,6 +1085,102 @@ export class ContentRepository {
     });
   }
 
+  async listCatalogReportItems(input: {
+    runId: string | null;
+    limit: number | null;
+  }): Promise<CatalogReportItem[]> {
+    const rows: Array<{
+      id: string;
+      content_type: "business_story" | "mini_case";
+      language: Language;
+      title: string;
+      status: string;
+      metadata: Record<string, unknown> | null;
+      created_at: string;
+    }> = [];
+
+    for (let offset = 0; input.limit === null || rows.length < input.limit; offset += SUPABASE_PAGE_SIZE) {
+      const pageSize =
+        input.limit === null ? SUPABASE_PAGE_SIZE : Math.min(SUPABASE_PAGE_SIZE, input.limit - rows.length);
+      let query = this.supabase
+        .from("content_items")
+        .select("id,content_type,language,title,status,metadata,created_at")
+        .in("content_type", ["business_story", "mini_case"])
+        .in("status", ["review", "published"])
+        .eq("metadata->>scheduler_mode", "bootstrap-catalog")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (input.runId) {
+        query = query.eq("metadata->>bootstrap_run_id", input.runId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throwPersistenceError({
+          table: "content_items",
+          action: "select catalog report items",
+          error
+        });
+      }
+
+      rows.push(...((data ?? []) as typeof rows));
+
+      if ((data ?? []).length < pageSize) {
+        break;
+      }
+    }
+
+    return rows.map(mapCatalogReportItem);
+  }
+
+  async publishReviewedCatalogItems(input: { runId: string }): Promise<{ published: number }> {
+    const items = await this.listCatalogReportItems({ runId: input.runId, limit: null });
+
+    if (items.length === 0) {
+      throw new Error(`No review/published bootstrap catalog items found for run ${input.runId}.`);
+    }
+
+    const unsafe = items.filter((item) => item.sourceUrls.some(isSampleUrl));
+    if (unsafe.length > 0) {
+      throw new Error(
+        `catalog-publish refused ${input.runId}: ${unsafe.length} item(s) contain sample/example.com source URLs. Regenerate the catalog with LIVE_RSS_ONLY=true.`
+      );
+    }
+
+    const reviewIds = items
+      .filter((item) => item.status === "review")
+      .map((item) => item.contentItemId);
+
+    if (reviewIds.length === 0) {
+      return { published: 0 };
+    }
+
+    let published = 0;
+    for (const batch of chunk(reviewIds, USER_ID_FILTER_BATCH_SIZE)) {
+      const { data, error } = await this.supabase
+        .from("content_items")
+        .update({ status: "published" })
+        .in("id", batch)
+        .eq("status", "review")
+        .select("id");
+
+      if (error) {
+        throwPersistenceError({
+          table: "content_items",
+          action: "publish reviewed catalog items",
+          error
+        });
+      }
+
+      published += (data ?? []).length;
+    }
+
+    return { published };
+  }
+
   /**
    * Everything these readers have already been assigned, of the reusable kinds.
    *
@@ -1068,39 +1191,59 @@ export class ContentRepository {
   async listAssignedContentItemIdsByUser(input: {
     userIds: string[];
     contentTypes?: Array<"business_story" | "mini_case">;
+    beforeDropDate?: string;
   }): Promise<Map<string, Set<string>>> {
     const assigned = new Map<string, Set<string>>();
+    const userIds = [...new Set(input.userIds)];
+    const contentTypes = input.contentTypes ?? ["business_story", "mini_case"];
 
-    if (input.userIds.length === 0) {
+    if (userIds.length === 0) {
       return assigned;
     }
 
-    const { data, error } = await this.supabase
-      .from("daily_drop_items")
-      .select("content_item_id,daily_drops!inner(user_id)")
-      .in("daily_drops.user_id", input.userIds);
+    for (const batch of chunk(userIds, USER_ID_FILTER_BATCH_SIZE)) {
+      for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+        let query = this.supabase
+          .from("daily_drop_items")
+          .select("content_item_id,daily_drops!inner(user_id,drop_date),content_items!inner(content_type)")
+          .in("daily_drops.user_id", batch)
+          .in("content_items.content_type", contentTypes)
+          .order("content_item_id", { ascending: true })
+          .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
 
-    if (error) {
-      throwPersistenceError({
-        table: "daily_drop_items",
-        action: "select previously assigned content items",
-        error
-      });
-    }
+        if (input.beforeDropDate) {
+          query = query.lt("daily_drops.drop_date", input.beforeDropDate);
+        }
 
-    for (const row of (data ?? []) as Array<{
-      content_item_id: string;
-      daily_drops: { user_id: string } | Array<{ user_id: string }> | null;
-    }>) {
-      const drop = Array.isArray(row.daily_drops) ? row.daily_drops[0] : row.daily_drops;
+        const { data, error } = await query;
 
-      if (!drop) {
-        continue;
+        if (error) {
+          throwPersistenceError({
+            table: "daily_drop_items",
+            action: "select previously assigned content items",
+            error
+          });
+        }
+
+        for (const row of (data ?? []) as Array<{
+          content_item_id: string;
+          daily_drops: { user_id: string; drop_date: string } | Array<{ user_id: string; drop_date: string }> | null;
+        }>) {
+          const drop = Array.isArray(row.daily_drops) ? row.daily_drops[0] : row.daily_drops;
+
+          if (!drop) {
+            continue;
+          }
+
+          const current = assigned.get(drop.user_id) ?? new Set<string>();
+          current.add(row.content_item_id);
+          assigned.set(drop.user_id, current);
+        }
+
+        if ((data ?? []).length < SUPABASE_PAGE_SIZE) {
+          break;
+        }
       }
-
-      const current = assigned.get(drop.user_id) ?? new Set<string>();
-      current.add(row.content_item_id);
-      assigned.set(drop.user_id, current);
     }
 
     return assigned;
@@ -1432,96 +1575,123 @@ export class ContentRepository {
   }
 
   private async listAppProfilesForPreferenceSelection(): Promise<AppProfilePreferenceRow[]> {
-    const { data, error } = await this.supabase
-      .from("profiles")
-      .select("id,language")
-      .returns<AppProfilePreferenceRow[]>();
+    const rows: AppProfilePreferenceRow[] = [];
 
-    if (error) {
-      throwPersistenceError({
-        table: "profiles",
-        action: "select profiles for daily drop preference selection",
-        error
-      });
+    for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+      const { data, error } = await this.supabase
+        .from("profiles")
+        .select("id,language")
+        .order("id", { ascending: true })
+        .range(offset, offset + SUPABASE_PAGE_SIZE - 1)
+        .returns<AppProfilePreferenceRow[]>();
+
+      if (error) {
+        throwPersistenceError({
+          table: "profiles",
+          action: "select profiles for daily drop preference selection",
+          error
+        });
+      }
+
+      rows.push(...(data ?? []));
+
+      if ((data ?? []).length < SUPABASE_PAGE_SIZE) {
+        break;
+      }
     }
 
-    return data ?? [];
+    return rows;
   }
 
   private async listAppUserPreferences(userIds: string[]): Promise<AppUserPreferenceRow[]> {
     const uniqueUserIds = [...new Set(userIds)];
+    const rows: AppUserPreferenceRow[] = [];
 
     if (uniqueUserIds.length === 0) {
       return [];
     }
 
-    const { data, error } = await this.supabase
-      .from("user_preferences")
-      .select("user_id,goal,frequency,newsletter_enabled,business_stories_enabled,mini_cases_enabled,newsletter_article_count")
-      .in("user_id", uniqueUserIds)
-      .returns<AppUserPreferenceRow[]>();
+    for (const batch of chunk(uniqueUserIds, USER_ID_FILTER_BATCH_SIZE)) {
+      const { data, error } = await this.supabase
+        .from("user_preferences")
+        .select("user_id,goal,frequency,newsletter_enabled,business_stories_enabled,mini_cases_enabled,newsletter_article_count")
+        .in("user_id", batch)
+        .returns<AppUserPreferenceRow[]>();
 
-    if (error) {
-      throwPersistenceError({
-        table: "user_preferences",
-        action: "select user preferences for daily drop preference selection",
-        error
-      });
+      if (error) {
+        throwPersistenceError({
+          table: "user_preferences",
+          action: "select user preferences for daily drop preference selection",
+          error
+        });
+      }
+
+      rows.push(...(data ?? []));
     }
 
-    return data ?? [];
+    return rows;
   }
 
   private async listAppUserMiniCaseTopicPreferences(userIds: string[]): Promise<AppUserMiniCasePreferenceRow[]> {
     const uniqueUserIds = [...new Set(userIds)];
+    const rows: AppUserMiniCasePreferenceRow[] = [];
 
     if (uniqueUserIds.length === 0) {
       return [];
     }
 
-    const { data, error } = await this.supabase
-      .from("user_mini_case_topic_preferences")
-      .select("user_id,topic_id,position,enabled")
-      .in("user_id", uniqueUserIds)
-      .order("position", { ascending: true, nullsFirst: false })
-      .order("topic_id", { ascending: true })
-      .returns<AppUserMiniCasePreferenceRow[]>();
+    for (const batch of chunk(uniqueUserIds, USER_ID_FILTER_BATCH_SIZE)) {
+      const { data, error } = await this.supabase
+        .from("user_mini_case_topic_preferences")
+        .select("user_id,topic_id,position,enabled")
+        .in("user_id", batch)
+        .order("position", { ascending: true, nullsFirst: false })
+        .order("topic_id", { ascending: true })
+        .returns<AppUserMiniCasePreferenceRow[]>();
 
-    if (error) {
-      throwPersistenceError({
-        table: "user_mini_case_topic_preferences",
-        action: "select mini-case topic preferences for daily drop preference selection",
-        error
-      });
+      if (error) {
+        throwPersistenceError({
+          table: "user_mini_case_topic_preferences",
+          action: "select mini-case topic preferences for daily drop preference selection",
+          error
+        });
+      }
+
+      rows.push(...(data ?? []));
     }
 
-    return data ?? [];
+    return rows;
   }
 
   private async listAppUserTopicPreferences(userIds: string[]): Promise<AppUserTopicPreferenceRow[]> {
     const uniqueUserIds = [...new Set(userIds)];
+    const rows: AppUserTopicPreferenceRow[] = [];
 
     if (uniqueUserIds.length === 0) {
       return [];
     }
 
-    const { data, error } = await this.supabase
-      .from("user_topic_preferences")
-      .select("user_id,topic_id,articles_count,position,enabled")
-      .in("user_id", uniqueUserIds)
-      .order("position", { ascending: true, nullsFirst: false })
-      .order("topic_id", { ascending: true })
-      .returns<AppUserTopicPreferenceRow[]>();
+    for (const batch of chunk(uniqueUserIds, USER_ID_FILTER_BATCH_SIZE)) {
+      const { data, error } = await this.supabase
+        .from("user_topic_preferences")
+        .select("user_id,topic_id,articles_count,position,enabled")
+        .in("user_id", batch)
+        .order("position", { ascending: true, nullsFirst: false })
+        .order("topic_id", { ascending: true })
+        .returns<AppUserTopicPreferenceRow[]>();
 
-    if (error) {
-      throwPersistenceError({
-        table: "user_topic_preferences",
-        action: "select user topic preferences for daily drop preference selection",
-        error
-      });
+      if (error) {
+        throwPersistenceError({
+          table: "user_topic_preferences",
+          action: "select user topic preferences for daily drop preference selection",
+          error
+        });
+      }
+
+      rows.push(...(data ?? []));
     }
 
-    return data ?? [];
+    return rows;
   }
 
   private async listDebugProfiles(): Promise<DebugProfileRow[]> {
@@ -1615,27 +1785,32 @@ export class ContentRepository {
     dropDate: string;
   }): Promise<Map<string, DailyDropAssignmentRow>> {
     const userIds = [...new Set(input.userIds)];
+    const rows: DailyDropAssignmentRow[] = [];
 
     if (userIds.length === 0) {
       return new Map();
     }
 
-    const { data, error } = await this.supabase
-      .from("daily_drops")
-      .select("id,user_id,status,language")
-      .eq("drop_date", input.dropDate)
-      .in("user_id", userIds)
-      .returns<DailyDropAssignmentRow[]>();
+    for (const batch of chunk(userIds, USER_ID_FILTER_BATCH_SIZE)) {
+      const { data, error } = await this.supabase
+        .from("daily_drops")
+        .select("id,user_id,status,language")
+        .eq("drop_date", input.dropDate)
+        .in("user_id", batch)
+        .returns<DailyDropAssignmentRow[]>();
 
-    if (error) {
-      throwPersistenceError({
-        table: "daily_drops",
-        action: "select existing daily drops for users on date",
-        error
-      });
+      if (error) {
+        throwPersistenceError({
+          table: "daily_drops",
+          action: "select existing daily drops for users on date",
+          error
+        });
+      }
+
+      rows.push(...(data ?? []));
     }
 
-    return new Map((data ?? []).map((drop) => [drop.user_id, drop]));
+    return new Map(rows.map((drop) => [drop.user_id, drop]));
   }
 
   async createDailyDropForUser(input: {
@@ -2402,4 +2577,57 @@ function isContentItemIdConflict(error: unknown): boolean {
 
 function isUniqueConflict(error: unknown): boolean {
   return isRecord(error) && error.code === "23505";
+}
+
+function mapCatalogReportItem(row: {
+  id: string;
+  content_type: "business_story" | "mini_case";
+  language: Language;
+  title: string;
+  status: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}): CatalogReportItem {
+  const metadata = isRecord(row.metadata) ? row.metadata : {};
+  const sourceUrls = Array.isArray(metadata.source_urls)
+    ? metadata.source_urls.filter((url): url is string => typeof url === "string")
+    : [];
+  const miniCaseTopic = normalizeMiniCasePreferenceTopicId(
+    typeof metadata.product_topic === "string"
+      ? metadata.product_topic
+      : typeof metadata.catalog_mini_case_topic === "string"
+      ? metadata.catalog_mini_case_topic
+      : null
+  );
+
+  return {
+    contentItemId: row.id,
+    catalogRunId: typeof metadata.bootstrap_run_id === "string" ? metadata.bootstrap_run_id : null,
+    catalogEntryId: typeof metadata.catalog_entry_id === "string" ? metadata.catalog_entry_id : null,
+    contentType: row.content_type,
+    language: row.language,
+    title: row.title,
+    status: row.status,
+    miniCaseTopic,
+    validationStatus: row.status === "review" || row.status === "published" ? row.status : "other",
+    sourceUrls,
+    createdAt: row.created_at
+  };
+}
+
+function isSampleUrl(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "example.com" || hostname.endsWith(".example.com");
+  } catch {
+    return value.includes("example.com");
+  }
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }

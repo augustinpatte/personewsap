@@ -134,6 +134,21 @@ npm run business-story-memory
 
 `prod-run` sets the required production write controls (`PRODUCTION_DAILY_JOB=true`, `DRY_RUN=false`, `LIVE_RSS=true`, `LIVE_RSS_ONLY=true`, `USE_LLM=true`, `CONTENT_STATUS=published`). It refuses to run unless server-side Supabase service-role credentials and the configured provider keys are present.
 
+## Catalog Review And Publish
+
+Reusable Business Stories and Mini Cases are prepared as catalog inventory before the scheduler needs them. The safe operator flow is:
+
+```sh
+LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LANGUAGES=fr,en CONTENT_STATUS=review npm run bootstrap-catalog
+CONFIRM_BOOTSTRAP_CATALOG=true LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LANGUAGES=fr,en CONTENT_STATUS=review SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run bootstrap-catalog -- --persist
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run catalog-report -- --run-id bootstrap-catalog-YYYY-MM-DD
+CONFIRM_CATALOG_PUBLISH=true SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run catalog-publish -- --run-id bootstrap-catalog-YYYY-MM-DD
+```
+
+`bootstrap-catalog --persist` refuses to write unless `LIVE_RSS_ONLY=true`, so persisted catalog inventory cannot include `sample_articles`. `catalog-publish` only promotes reviewed bootstrap catalog items and refuses any item whose source URLs include `example.com` sample material. The production daily job consumes only `published` reusable inventory; newsletters are always freshly generated for the edition.
+
+Learning Path is intentionally outside this scheduler loop. Publishing a PersoNewsAP edition never creates, advances, or attaches a Learning session; Learning sessions are created only by the explicit self-paced Learning flow.
+
 The default dry run uses bundled sample articles, including a duplicate URL variant, then runs the normal pipeline:
 
 1. source collection

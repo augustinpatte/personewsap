@@ -1,6 +1,6 @@
-import type { DailyDropSlot } from "../domain.js";
+import { type DailyDropSlot, type MiniCaseTopicId, type UserDailyDropPreference } from "../domain.js";
 import type { EditorialSection } from "../generation/modelRouting.js";
-import type { StoredContentSelection } from "../scheduler/dailyDropBuilder.js";
+import { selectDailyDropItemsForUser, type StoredContentSelection } from "../scheduler/dailyDropBuilder.js";
 
 /**
  * Using the editorial inventory in a daily edition.
@@ -143,6 +143,17 @@ export type CatalogReuseDiagnostics = {
   sectionsSkipped: EditorialSection[];
 };
 
+export type CatalogAwareGenerationPlan = {
+  sections: EditorialSection[];
+  miniCaseProductTopics: MiniCaseTopicId[];
+  reusableInventory: StoredContentSelection[];
+  usersServedByInventory: number;
+  usersNeedingBusinessStory: number;
+  usersNeedingMiniCase: number;
+  usersNeedingMiniCaseByTopic: Record<string, number>;
+  requestedReusableSlots: DailyDropSlot[];
+};
+
 /** What the run did with the inventory, for the operator log and job health. */
 export function describeCatalogReuse(input: {
   inventory: StoredContentSelection[];
@@ -168,4 +179,162 @@ export function describeCatalogReuse(input: {
     sectionsGenerated: input.sections,
     sectionsSkipped: allSections.filter((section) => !input.sections.includes(section))
   };
+}
+
+/**
+ * Plans generation for the real daily job from the users who will actually be
+ * assigned today. Global inventory size is not enough: a full shelf can still
+ * be exhausted for a reader who has already seen every item on it.
+ */
+export function planCatalogAwareGeneration(input: {
+  preferences: UserDailyDropPreference[];
+  inventory: StoredContentSelection[];
+  assignedByUser: ReadonlyMap<string, ReadonlySet<string>>;
+  dropDate: string;
+  reuseEnabled?: boolean;
+}): CatalogAwareGenerationPlan {
+  const reuseEnabled = input.reuseEnabled ?? true;
+  const requestedReusableSlots = requestedReusableSlotsFor(input.preferences);
+
+  if (!reuseEnabled) {
+    return {
+      sections: resolveDailyGenerationSections({
+        inventory: [],
+        requestedSlots: ["newsletter", ...requestedReusableSlots],
+        reuseEnabled: false
+      }),
+      miniCaseProductTopics: selectedMiniCaseTopics(input.preferences),
+      reusableInventory: [],
+      usersServedByInventory: 0,
+      usersNeedingBusinessStory: input.preferences.filter((preference) => preference.modules.business_story).length,
+      usersNeedingMiniCase: input.preferences.filter((preference) => preference.modules.mini_case).length,
+      usersNeedingMiniCaseByTopic: countNeededMiniCaseTopics(input.preferences, input.dropDate),
+      requestedReusableSlots
+    };
+  }
+
+  const sections: EditorialSection[] = ["newsletter_article"];
+  const neededMiniCaseTopics = new Set<MiniCaseTopicId>();
+  let usersServedByInventory = 0;
+  let usersNeedingBusinessStory = 0;
+  let usersNeedingMiniCase = 0;
+  const usersNeedingMiniCaseByTopic: Record<string, number> = {};
+
+  for (const preference of input.preferences) {
+    const unseenInventory = excludeAlreadyAssignedForUser(
+      input.inventory,
+      input.assignedByUser.get(preference.user_id) ?? new Set<string>()
+    );
+    let servedByInventory = true;
+
+    if (preference.modules.business_story) {
+      const hasUnseenStory = unseenInventory.some((entry) => entry.item.slot === "business_story");
+      if (!hasUnseenStory) {
+        usersNeedingBusinessStory += 1;
+        servedByInventory = false;
+      }
+    }
+
+    if (preference.modules.mini_case) {
+      const selection = selectDailyDropItemsForUser(
+        {
+          ...preference,
+          modules: {
+            newsletter: false,
+            business_story: false,
+            mini_case: true
+          },
+          topics: [],
+          newsletter_article_count: 0
+        },
+        unseenInventory,
+        { dropDate: input.dropDate }
+      );
+
+      if (!selection.items.some((item) => item.slot === "mini_case")) {
+        usersNeedingMiniCase += 1;
+        servedByInventory = false;
+        const topicToReplenish = selection.diagnostics.miniCase.requestedTopicId ?? preference.mini_case_topics[0]?.topic_id;
+        if (topicToReplenish) {
+          neededMiniCaseTopics.add(topicToReplenish);
+          usersNeedingMiniCaseByTopic[topicToReplenish] = (usersNeedingMiniCaseByTopic[topicToReplenish] ?? 0) + 1;
+        }
+      }
+    }
+
+    if (servedByInventory) {
+      usersServedByInventory += 1;
+    }
+  }
+
+  if (usersNeedingBusinessStory > 0 && requestedReusableSlots.includes("business_story")) {
+    sections.push("business_story");
+  }
+
+  if (neededMiniCaseTopics.size > 0 && requestedReusableSlots.includes("mini_case")) {
+    sections.push("mini_case");
+  }
+
+  return {
+    sections,
+    miniCaseProductTopics: [...neededMiniCaseTopics],
+    reusableInventory: input.inventory,
+    usersServedByInventory,
+    usersNeedingBusinessStory,
+    usersNeedingMiniCase,
+    usersNeedingMiniCaseByTopic,
+    requestedReusableSlots
+  };
+}
+
+function requestedReusableSlotsFor(preferences: UserDailyDropPreference[]): DailyDropSlot[] {
+  const slots: DailyDropSlot[] = [];
+  if (preferences.some((preference) => preference.modules.business_story)) {
+    slots.push("business_story");
+  }
+  if (preferences.some((preference) => preference.modules.mini_case)) {
+    slots.push("mini_case");
+  }
+  return slots;
+}
+
+function selectedMiniCaseTopics(preferences: UserDailyDropPreference[]): MiniCaseTopicId[] {
+  return [
+    ...new Set(
+      preferences
+        .filter((preference) => preference.modules.mini_case)
+        .flatMap((preference) =>
+          [...preference.mini_case_topics]
+            .sort((left, right) => (left.position ?? Number.MAX_SAFE_INTEGER) - (right.position ?? Number.MAX_SAFE_INTEGER))
+            .map((topic) => topic.topic_id)
+        )
+    )
+  ];
+}
+
+function countNeededMiniCaseTopics(
+  preferences: UserDailyDropPreference[],
+  dropDate: string
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const preference of preferences) {
+    if (!preference.modules.mini_case) {
+      continue;
+    }
+    const selection = selectDailyDropItemsForUser(
+      {
+        ...preference,
+        modules: { newsletter: false, business_story: false, mini_case: true },
+        topics: [],
+        newsletter_article_count: 0
+      },
+      [],
+      { dropDate }
+    );
+    const topic = selection.diagnostics.miniCase.requestedTopicId ?? preference.mini_case_topics[0]?.topic_id;
+    if (topic) {
+      counts[topic] = (counts[topic] ?? 0) + 1;
+    }
+  }
+  return counts;
 }

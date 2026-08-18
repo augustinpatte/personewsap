@@ -35,7 +35,7 @@ function inventoryItem(
       title: `Item ${id}`,
       topic: "business",
       source_urls: [`https://example.test/${id}`],
-      product_topic: slot === "mini_case" ? "business_strategy" : null,
+      product_topic: slot === "mini_case" ? "finance_economy" : null,
       ...overrides
     }
   };
@@ -208,7 +208,7 @@ describe("inventory items are assignable exactly like generated ones", () => {
         language: "fr",
         modules: { newsletter: false, business_story: false, mini_case: true },
         topics: [],
-        mini_case_topics: [{ topic_id: "business_strategy", position: 0 }],
+        mini_case_topics: [{ topic_id: "finance_economy", position: 0 }],
         newsletter_article_count: 0
       },
       [inventoryItem("stock-mc", "mini_case")],
@@ -218,7 +218,7 @@ describe("inventory items are assignable exactly like generated ones", () => {
     expect(selection.items).toEqual([
       { contentItemId: "stock-mc", slot: "mini_case", position: 0 }
     ]);
-    expect(selection.diagnostics.miniCase.selectedTopicId).toBe("business_strategy");
+    expect(selection.diagnostics.miniCase.selectedTopicId).toBe("finance_economy");
   });
 
   it("serves the same stock item to different readers", () => {

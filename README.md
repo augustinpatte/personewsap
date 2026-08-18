@@ -262,6 +262,6 @@ PersoNewsAP is not production-ready until TestFlight setup, privacy review, edit
 | Backend persistence safety | done | Write commands fail closed behind confirmation flags and service-role env vars. |
 | Mobile live-data path | implemented, wave proof required | Supported through marked test persistence and assignment; still needs a selected tester Supabase project and manual proof run. |
 | TestFlight | partial | Expo config, icons/splash, iOS build number, and EAS profiles exist; Apple signing, App Store Connect setup, final privacy/support copy, and device proof are still required. |
-| Production scheduler | partial | `content:daily-job` exists and writes `job_runs` monitoring summaries; unattended scheduling and operational ownership are not wired. |
+| Production scheduler | ready for staging | `content:prod-run` uses the production daily-job path, GitHub Actions schedules Mon/Wed/Fri/Sun, and `job_runs` records monitoring summaries. |
 | Editorial production workflow | missing | LLM output still needs human review before production publication. |
 | Source licensing | missing | RSS/source terms need review before production use. |

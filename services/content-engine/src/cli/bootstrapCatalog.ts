@@ -45,6 +45,12 @@ export type BootstrapCatalogCliOptions = BootstrapCatalogOptions & {
 export async function runBootstrapCatalogCli(
   options: BootstrapCatalogCliOptions
 ): Promise<BootstrapCatalogOutput> {
+  if (options.persist && !options.liveRssOnly) {
+    throw new Error(
+      "bootstrap-catalog refused to persist because sample_articles would be enabled. Persisted catalog inventory requires LIVE_RSS_ONLY=true."
+    );
+  }
+
   const connectors: SourceConnector[] = [];
   if (!options.liveRssOnly) {
     connectors.push(new SampleArticleConnector());
