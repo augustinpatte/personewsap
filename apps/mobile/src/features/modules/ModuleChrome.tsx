@@ -131,6 +131,80 @@ export function ModuleScroll({
   );
 }
 
+/**
+ * A printed rule, optionally carrying a small-caps label.
+ *
+ * The device that makes a screen read as a publication rather than a stack of
+ * cards: it separates without boxing, so the paper background stays continuous.
+ * Decorative, so it is hidden from screen readers when it carries no label.
+ */
+export function EditorialRule({ label }: { label?: string }) {
+  const styles = useThemedStyles(createStyles);
+
+  if (!label) {
+    return <View accessibilityElementsHidden importantForAccessibility="no" style={styles.rule} />;
+  }
+
+  return (
+    <View style={styles.ruleRow}>
+      <View style={styles.ruleSegment} />
+      <AppText color="muted" variant="eyebrow">
+        {label}
+      </AppText>
+      <View style={styles.ruleSegment} />
+    </View>
+  );
+}
+
+/**
+ * One quiet line of metadata — topic, reading time, state — separated by
+ * middots. Empty entries are dropped so a missing value never leaves a dangling
+ * separator, and the whole line is announced as one phrase rather than as three
+ * disconnected fragments.
+ */
+export function MetaLine({
+  items,
+  tone = "muted"
+}: {
+  items: Array<string | null | undefined>;
+  tone?: "muted" | "accentInk";
+}) {
+  const parts = items.filter((item): item is string => Boolean(item && item.trim()));
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return (
+    <AppText accessibilityLabel={parts.join(", ")} color={tone} variant="caption">
+      {parts.join("  ·  ")}
+    </AppText>
+  );
+}
+
+/**
+ * A small square monogram: the first letters of a company or market, set in the
+ * editorial serif. It gives a story a visual identity without inventing a logo
+ * or loading a remote image.
+ */
+export function Monogram({ label }: { label: string }) {
+  const styles = useThemedStyles(createStyles);
+  const initials = label
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("");
+
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no" style={styles.monogram}>
+      <AppText color="accentInk" variant="label">
+        {initials || "—"}
+      </AppText>
+    </View>
+  );
+}
+
 export function ModuleLoading({ label }: { label: string }) {
   const styles = useThemedStyles(createStyles);
   const colors = useThemeColors();
@@ -200,6 +274,28 @@ const createStyles = (c: ThemeColors) =>
     },
     switchItemActive: {
       borderBottomColor: c.accent
+    },
+    rule: {
+      backgroundColor: c.border,
+      height: 1
+    },
+    ruleRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    ruleSegment: {
+      backgroundColor: c.border,
+      flex: 1,
+      height: 1
+    },
+    monogram: {
+      alignItems: "center",
+      backgroundColor: c.accentSoft,
+      borderRadius: tokens.radius.sm,
+      height: 40,
+      justifyContent: "center",
+      width: 40
     },
     loading: {
       alignItems: "center",

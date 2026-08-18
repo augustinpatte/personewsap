@@ -53,33 +53,35 @@ function getPrivacyCopy(language: string | null) {
       en: {
         eyebrow: "Privacy",
         title: "Privacy Policy",
-        updated: "Launch-ready summary for PersoNewsAP mobile beta. Last updated: May 22, 2026.",
+        updated: "Last updated 18 August 2026. The full policy is at personewsap /privacy.",
         back: "Back",
         sections: [
           {
             title: "Data we use",
             lines: [
               "Email is used for account sign-up, login, password reset, and account support.",
-              "Profile language is used to show the app and daily drop in French or English.",
-              "Newsletter preferences and mini-case preferences are used to assign your daily learning drop.",
-              "Content interactions such as saved, completed, viewed, shared, feedback, and ratings help keep your Library and progress useful.",
-              "Mini-case responses, feedback, and scores are stored so you can review your learning history."
+              "Profile language decides whether the app and your editions are in French or English.",
+              "Newsletter and mini-case preferences decide what each edition contains.",
+              "Content interactions — opened, completed, saved, rated — keep your archive and progress accurate.",
+              "Mini-case answers and scores are stored so you can review a completed case, on any of your devices.",
+              "Learning path: the objective and level you chose, the sessions prepared for you, and your session ratings."
             ]
           },
           {
             title: "Device and product signals",
             lines: [
-              "Push tokens are stored only when notifications are enabled, so PersoNewsAP can send daily reminders.",
-              "If analytics is configured, the app sends limited product events such as language, topic, content type, drop date, and item ID. These events are used to improve reliability and product quality.",
-              "The mobile app never contains a Supabase service-role key or server-side generation secret."
+              "Push tokens are stored only when notifications are on, so PersoNewsAP can send one notification per published edition — four a week, never on a quiet day.",
+              "If analytics is configured for this build, the app sends limited product events such as language, topic, content type, edition date, and item ID. When it is not configured, nothing is sent.",
+              "The mobile app never contains a Supabase service-role key or any server-side generation secret."
             ]
           },
           {
             title: "Your controls",
             lines: [
-              "You can update language, newsletter topics, mini-case topics, notifications, and content preferences from Account.",
-              "You can export your account data as JSON from Account. The export uses only authenticated, row-level-secured reads for your own data.",
-              "You can request account deletion from Account. Deletion requires a secure backend endpoint; if it is unavailable in a test build, contact the PersoNewsAP operator through the official TestFlight or App Store support channel."
+              "You can change language, newsletter topics, mini-case topics, notifications and content preferences from Account.",
+              "You can export your account data as JSON from Account. The export reads only your own data, through authenticated row-level-secured queries.",
+              "You can delete your account from Account, or from the website without installing the app. Deletion is immediate and permanent, and signs you out.",
+              "Editorial content itself is shared by all readers and is not deleted; it simply stops being linked to you."
             ]
           }
         ]
@@ -88,33 +90,35 @@ function getPrivacyCopy(language: string | null) {
         eyebrow: "Confidentialité",
         title: "Politique de confidentialité",
         updated:
-          "Résumé pour la bêta mobile PersoNewsAP. Dernière mise à jour : 22 mai 2026.",
+          "Dernière mise à jour le 18 août 2026. La politique complète est sur personewsap /privacy.",
         back: "Retour",
         sections: [
           {
             title: "Données utilisées",
             lines: [
-              "L'email sert à créer le compte, se connecter, réinitialiser le mot de passe et gérer le support compte.",
-              "La langue du profil sert à afficher l'app et la mise à jour quotidienne en français ou en anglais.",
-              "Les préférences newsletter et mini-cas servent à assigner ta mise à jour d'apprentissage quotidienne.",
-              "Les interactions de contenu comme enregistré, terminé, vu, partagé, retours et notes gardent ta Bibliothèque et ta progression utiles.",
-              "Les réponses aux mini-cas, les retours et les résultats sont stockés pour revoir ton historique d'apprentissage."
+              "L'e-mail sert à créer le compte, se connecter, réinitialiser le mot de passe et gérer le support.",
+              "La langue du profil détermine si l'application et vos éditions sont en français ou en anglais.",
+              "Les préférences newsletter et mini-cas déterminent le contenu de chaque édition.",
+              "Les interactions — ouvert, terminé, enregistré, noté — gardent votre archive et votre progression exactes.",
+              "Vos réponses et scores aux mini-cas sont conservés pour pouvoir revoir un cas terminé, sur chacun de vos appareils.",
+              "Parcours : l'objectif et le niveau choisis, les sessions préparées pour vous et vos évaluations de session."
             ]
           },
           {
             title: "Signaux appareil et produit",
             lines: [
-              "Les jetons push sont stockés seulement quand les notifications sont activées, afin d'envoyer les rappels quotidiens.",
-              "Si l'analyse produit est configurée, l'app envoie des événements limités comme la langue, le sujet, le type de contenu, la date de la mise à jour et l'identifiant de l'élément. Ces événements servent à améliorer la fiabilité et la qualité produit.",
-              "L'app mobile ne contient jamais de clé Supabase service-role ni de secret de génération côté serveur."
+              "Les jetons push sont conservés uniquement lorsque les notifications sont activées, afin d'envoyer une notification par édition publiée — quatre par semaine, jamais un jour sans édition.",
+              "Si l'analyse produit est configurée pour cette version, l'application envoie des événements limités : langue, thème, type de contenu, date d'édition et identifiant de contenu. Sans configuration, rien n'est envoyé.",
+              "L'application mobile ne contient jamais de clé Supabase service-role ni de secret de génération côté serveur."
             ]
           },
           {
-            title: "Tes contrôles",
+            title: "Vos contrôles",
             lines: [
-              "Tu peux modifier la langue, les topics newsletter, les topics mini-cas, les notifications et les préférences depuis Compte.",
-              "Tu peux exporter les données de ton compte en JSON depuis Compte. L'export utilise seulement des lectures authentifiées protégées par RLS sur tes propres données.",
-              "Tu peux demander la suppression du compte depuis Compte. La suppression exige un service sécurisé côté serveur ; s'il est indisponible dans une version test, contacte l'opérateur PersoNewsAP via le canal de support officiel TestFlight ou App Store."
+              "Vous pouvez modifier la langue, les thèmes newsletter, les thèmes mini-cas, les notifications et vos préférences depuis Compte.",
+              "Vous pouvez exporter les données de votre compte en JSON depuis Compte. L'export ne lit que vos propres données, via des requêtes authentifiées protégées par RLS.",
+              "Vous pouvez supprimer votre compte depuis Compte, ou depuis le site sans installer l'application. La suppression est immédiate, définitive, et vous déconnecte.",
+              "Le contenu éditorial est partagé par tous les lecteurs et n'est pas supprimé ; il cesse simplement d'être associé à vous."
             ]
           }
         ]

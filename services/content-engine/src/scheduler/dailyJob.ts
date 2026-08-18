@@ -5,6 +5,13 @@ import { processArticles } from "../processing/pipeline.js";
 import type { SourceFetcher } from "../sources/sourceFetcher.js";
 import type { ContentRepository } from "../storage/contentRepository.js";
 import { redactIdentifier } from "../utils/redactIdentifier.js";
+import {
+  buildAssignmentPool,
+  describeCatalogReuse,
+  excludeAlreadyAssignedForUser,
+  isCatalogReuseEnabled,
+  resolveDailyGenerationSections
+} from "../catalog/catalogInventory.js";
 import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "./dailyDropBuilder.js";
 
 const REQUIRED_DAILY_DROP_SLOTS = ["newsletter", "business_story", "mini_case"] as const;
@@ -68,6 +75,29 @@ export class DailyContentJob {
             dropDate: options.dropDate
           })
         : undefined;
+
+      // Editorial inventory prepared ahead of time (bootstrap-catalog). With
+      // stock on the shelf the run asks the model for the newsletter only,
+      // which is both the point of the catalog and where the API saving comes
+      // from. With no inventory this resolves to every section, exactly as
+      // before.
+      const reuseEnabled = isCatalogReuseEnabled();
+      const inventory =
+        persistenceRepository && reuseEnabled
+          ? await persistenceRepository.listReusableCatalogItems({ language })
+          : [];
+      const sections = resolveDailyGenerationSections({
+        inventory,
+        requestedSlots: [...REQUIRED_DAILY_DROP_SLOTS],
+        reuseEnabled
+      });
+
+      console.info("[content-engine] catalog reuse", {
+        language,
+        drop_date: options.dropDate,
+        ...describeCatalogReuse({ inventory, sections, reuseEnabled })
+      });
+
       const payload = assembleDailyDropPayload(
         await this.generator.generateDailyDrop({
           dropDate: options.dropDate,
@@ -75,7 +105,8 @@ export class DailyContentJob {
           articles: rankedArticles,
           newsletterTopics: topics,
           newsletterArticleCount: options.newsletterArticleCount ?? 8,
-          businessStoryMemory
+          businessStoryMemory,
+          sections
         })
       );
 
@@ -98,8 +129,25 @@ export class DailyContentJob {
         const preferences = await persistenceRepository.listUserDailyDropPreferences(language);
         const dropStatus: DailyDropStatus = options.publish ? "published" : "generated";
 
+        // What a reader may be offered today: this run's items plus the
+        // inventory, minus anything they have already received.
+        const assignmentPool = buildAssignmentPool({
+          fresh: stored,
+          inventory,
+          reuseEnabled
+        });
+        const assignedByUser = reuseEnabled
+          ? await persistenceRepository.listAssignedContentItemIdsByUser({
+              userIds: preferences.map((preference) => preference.user_id)
+            })
+          : new Map<string, Set<string>>();
+
         for (const preference of preferences) {
-          const selection = selectDailyDropItemsForUser(preference, stored, {
+          const userPool = excludeAlreadyAssignedForUser(
+            assignmentPool,
+            assignedByUser.get(preference.user_id) ?? new Set<string>()
+          );
+          const selection = selectDailyDropItemsForUser(preference, userPool, {
             dropDate: options.dropDate
           });
           const missingSlots = missingRequiredSlots(selection.items);

@@ -27,6 +27,7 @@
     "content:app-preview-test": "npm --prefix services/content-engine run app-preview-test --",
     "content:assignment-test": "vitest run services/content-engine/src/scheduler/dailyDropBuilder.test.ts",
     "content:health": "npm --prefix services/content-engine run health --",
+    "content:push-notifications": "npm --prefix services/content-engine run push-notifications --",
     "content:job-health": "npm --prefix services/content-engine run job-health --",
     "content:job-health:strict": "npm --prefix services/content-engine run job-health -- --strict",
     "content:business-story-memory": "npm --prefix services/content-engine run business-story-memory --",

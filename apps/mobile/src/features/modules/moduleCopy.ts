@@ -33,6 +33,12 @@ export function getModuleCopy(language: Language | null | undefined) {
           searchOffline: "Offline — showing the editions already loaded.",
           loadEarlier: "Load earlier editions",
           loadMoreResults: "Load more results",
+          // Distinct from the plain empty state: the archive is not empty, the
+          // editions loaded so far simply carry nothing of this kind.
+          noneInLoadedTitle: "Nothing of this kind yet",
+          noneInLoadedBody:
+            "The editions loaded so far carry none. Earlier editions may.",
+          seeEarlierEditions: "Load earlier editions",
           searchPageFailed: "Could not load more results. Check your connection.",
           minuteCount: (count: number) => `${count} min`,
           quietDayTitle: "No new edition today",
@@ -135,6 +141,10 @@ export function getModuleCopy(language: Language | null | undefined) {
           searchOffline: "Hors ligne — seules les éditions déjà chargées sont affichées.",
           loadEarlier: "Afficher les éditions précédentes",
           loadMoreResults: "Afficher plus de résultats",
+          noneInLoadedTitle: "Rien de ce type pour l'instant",
+          noneInLoadedBody:
+            "Les éditions chargées n'en contiennent pas. Les éditions précédentes, peut-être.",
+          seeEarlierEditions: "Voir les éditions précédentes",
           searchPageFailed: "Impossible de charger plus de résultats. Vérifiez votre connexion.",
           minuteCount: (count: number) => `${count} min`,
           quietDayTitle: "Aucune nouvelle édition aujourd'hui",

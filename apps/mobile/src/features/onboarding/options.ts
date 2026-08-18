@@ -33,15 +33,15 @@ export const LANGUAGE_OPTIONS: Array<OnboardingOption<Language>> = [
   {
     id: "en",
     label: "English",
-    description: "Sharp daily briefing written naturally in English.",
+    description: "Sharp editorial briefing written naturally in English.",
     translations: {
       en: {
         label: "English",
-        description: "Sharp daily briefing written naturally in English."
+        description: "Sharp editorial briefing written naturally in English."
       },
       fr: {
         label: "Anglais",
-        description: "Briefing quotidien net, rédigé naturellement en anglais."
+        description: "Briefing éditorial net, rédigé naturellement en anglais."
       }
     }
   }

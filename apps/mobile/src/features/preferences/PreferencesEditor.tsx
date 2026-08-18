@@ -626,13 +626,13 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
     {
       en: {
         title: "Preferences",
-        signIn: "Sign in to edit your daily drop preferences.",
+        signIn: "Sign in to edit your edition preferences.",
         loading: "Loading preferences...",
         tryAgain: "Try again",
-        saved: "Saved. Future daily drops will use these preferences.",
+        saved: "Saved. Your next editions will use these preferences.",
         language: "Language",
         modules: "Modules",
-        modulesHelp: "Choose which daily formats stay active.",
+        modulesHelp: "Choose which formats stay active in your editions.",
         newsletterTab: "Newsletter",
         miniCaseTab: "Mini cases",
         topics: "Newsletter topics",
@@ -650,19 +650,19 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         reset: "Reset",
         saving: "Saving...",
         saveChanges: "Save changes",
-        countLabel: (count: number) => `${count} per drop`,
+        countLabel: (count: number) => `${count} per edition`,
         miniCaseSelectedFooter: (count: number) =>
           `${count}/3 mini-case topic${count === 1 ? "" : "s"} selected`
       },
       fr: {
         title: "Préférences",
-        signIn: "Connecte-toi pour modifier tes préférences de mise à jour quotidienne.",
+        signIn: "Connectez-vous pour modifier vos préférences d'édition.",
         loading: "Chargement des préférences...",
         tryAgain: "Réessayer",
-        saved: "Enregistré. Les prochaines mises à jour utiliseront ces préférences.",
+        saved: "Enregistré. Vos prochaines éditions utiliseront ces préférences.",
         language: "Langue",
         modules: "Modules",
-        modulesHelp: "Choisis les formats quotidiens qui restent actifs.",
+        modulesHelp: "Choisissez les formats qui restent actifs dans vos éditions.",
         newsletterTab: "Newsletter",
         miniCaseTab: "Mini-cas",
         topics: "Sujets newsletter",
@@ -680,7 +680,7 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         reset: "Réinitialiser",
         saving: "Enregistrement...",
         saveChanges: "Enregistrer",
-        countLabel: (count: number) => `${count} par jour`,
+        countLabel: (count: number) => `${count} par édition`,
         miniCaseSelectedFooter: (count: number) =>
           `${count}/3 sujet${count > 1 ? "s" : ""} mini-cas sélectionné${count > 1 ? "s" : ""}`
       }

@@ -17,10 +17,12 @@ import {
 import { useDailyDrop } from "../today/DailyDropContext";
 import {
   readAllMiniCaseResponses,
+  readMiniCaseResponse,
   writeLocalMiniCaseResponses,
-  type MiniCaseResponseMap
+  type MiniCaseResponseMap,
+  type MiniCaseResponseRecord
 } from "../today/miniCaseResponses";
-import { syncMiniCaseResponses } from "../today/miniCaseSync";
+import { readMiniCaseResponseAnywhere, syncMiniCaseResponses } from "../today/miniCaseSync";
 import { stripMarkdownInline } from "../today/readers/markdown";
 import { ItemArchiveList } from "./ItemArchiveList";
 import { getModuleCopy } from "./moduleCopy";
@@ -70,6 +72,37 @@ function MiniCaseToday() {
     useDailyDrop();
   const copy = getModuleCopy(language);
   const miniCase = drop.items.mini_case;
+  // A solved case shows its result here too, so the card is a record of what
+  // you decided rather than just a "done" mark.
+  const [todayScore, setTodayScore] = useState<MiniCaseResponseRecord | null>(null);
+  const caseId = miniCase?.id ?? null;
+  const caseCompleted = caseId ? isItemComplete(caseId) : false;
+
+  useEffect(() => {
+    if (!caseId || !caseCompleted) {
+      setTodayScore(null);
+      return;
+    }
+
+    let active = true;
+
+    void (async () => {
+      const local = await readMiniCaseResponse(caseId);
+      const record = await readMiniCaseResponseAnywhere(caseId, local);
+
+      if (active) {
+        setTodayScore(record);
+      }
+    })().catch(() => {
+      if (active) {
+        setTodayScore(null);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [caseCompleted, caseId]);
 
   if (status === "loading") {
     return <ModuleLoading label={copy.common.loading} />;
@@ -111,29 +144,47 @@ function MiniCaseToday() {
         onPress={() => router.push(caseHref(miniCase.id))}
         style={({ pressed }) => (pressed ? styles.pressed : null)}
       >
+        {/* Built to announce a decision, not an article: the framing sits on
+            top, the question is the centre of the card, and the call sits at
+            the bottom where the eye ends. */}
         <Card padding="lg" style={styles.caseCard} tone="accent">
           <View style={styles.kicker}>
             <AppText variant="eyebrow">{copy.cases.kicker}</AppText>
-            <AppText color="muted" variant="eyebrow">
-              {`${getTopicLabel(miniCase.topic, language)} · ${getDifficultyLabel(
-                miniCase.difficulty,
-                language
-              )}`}
-            </AppText>
+            <View style={styles.difficultyChip}>
+              <AppText color="accentInk" variant="eyebrow">
+                {getDifficultyLabel(miniCase.difficulty, language)}
+              </AppText>
+            </View>
           </View>
+
+          <AppText color="muted" variant="caption">
+            {getTopicLabel(miniCase.topic, language)}
+          </AppText>
           <AppText variant="title">{miniCase.title}</AppText>
 
-          <View style={styles.casePrompt}>
-            <AppText color="muted" variant="eyebrow">
-              {copy.cases.decision}
-            </AppText>
-            <AppText variant="lede">{stripMarkdownInline(miniCase.question)}</AppText>
+          {/* The accent rail is what makes the question read as the thing being
+              asked of you, rather than as a subtitle. */}
+          <View style={styles.decisionBlock}>
+            <View style={styles.decisionRail} />
+            <View style={styles.decisionCopy}>
+              <AppText color="muted" variant="eyebrow">
+                {copy.cases.decision}
+              </AppText>
+              <AppText variant="lede">{stripMarkdownInline(miniCase.question)}</AppText>
+            </View>
           </View>
 
           <View style={styles.statusRow}>
             {completed ? <View style={styles.statusDot} /> : null}
             <AppText color="accentInk" variant="label">
-              {completed ? copy.common.solved : `${copy.cases.decide} →`}
+              {completed
+                ? todayScore
+                  ? `${copy.common.solved}  ·  ${copy.cases.score(
+                      todayScore.score,
+                      todayScore.total
+                    )}`
+                  : copy.common.solved
+                : `${copy.cases.decide} →`}
             </AppText>
           </View>
         </Card>
@@ -247,7 +298,29 @@ const createStyles = (c: ThemeColors) =>
       opacity: 0.7
     },
     caseCard: {
-      gap: tokens.space.md
+      gap: tokens.space.sm
+    },
+    difficultyChip: {
+      backgroundColor: c.surface,
+      borderColor: c.borderStrong,
+      borderRadius: tokens.radius.xs,
+      borderWidth: 1,
+      paddingHorizontal: tokens.space.sm,
+      paddingVertical: 2
+    },
+    decisionBlock: {
+      flexDirection: "row",
+      gap: tokens.space.md,
+      marginTop: tokens.space.sm
+    },
+    decisionRail: {
+      backgroundColor: c.accent,
+      borderRadius: tokens.radius.pill,
+      width: 3
+    },
+    decisionCopy: {
+      flex: 1,
+      gap: tokens.space.xs
     },
     kicker: {
       alignItems: "center",

@@ -22,6 +22,7 @@
     "daily-job-test": "npm run build && node dist/cli.js daily-job-test",
     "app-preview-test": "npm run build && node dist/cli.js app-preview-test",
     "health": "npm run job-health --",
+    "push-notifications": "npm run build && node dist/cli.js push-notifications",
     "job-health": "npm run build && node dist/cli.js job-health",
     "job-health:strict": "npm run job-health -- --strict",
     "business-story-memory": "npm run build && node dist/cli.js business-story-memory",

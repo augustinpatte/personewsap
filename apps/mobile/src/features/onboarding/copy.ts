@@ -15,7 +15,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         language: {
           title: "Pick your briefing language",
           description:
-            "Choose the language for your daily drop. FR and EN are written as native editorial versions.",
+            "Choose the language for your editions. FR and EN are written as native editorial versions.",
           selectedFooter: "You can change language later from Account.",
           emptyFooter: "Choose one language to continue.",
           backToLogin: "Back to login"
@@ -23,7 +23,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         modules: {
           title: "Choose your daily modules",
           description:
-            "Pick the formats you want in your five-minute daily drop.",
+            "Pick the formats you want in your five-minute edition.",
           selectedFooter: (count: number) =>
             `${count} module${count === 1 ? "" : "s"} selected`,
           emptyFooter: "Choose at least one module to continue."
@@ -72,15 +72,15 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         language: {
           title: "Choisis la langue de ton briefing",
           description:
-            "Choisis la langue de ta mise à jour quotidienne. FR et EN sont écrits comme deux versions éditoriales natives.",
+            "Choisissez la langue de vos éditions. FR et EN sont écrits comme deux versions éditoriales natives.",
           selectedFooter: "Tu pourras changer la langue plus tard dans Compte.",
           emptyFooter: "Choisis une langue pour continuer.",
           backToLogin: "Retour à la connexion"
         },
         modules: {
-          title: "Choisis tes modules quotidiens",
+          title: "Choisissez vos modules",
           description:
-            "Sélectionne les formats que tu veux dans ta mise à jour quotidienne de cinq minutes.",
+            "Sélectionnez les formats que vous voulez dans votre édition de cinq minutes.",
           selectedFooter: (count: number) =>
             `${count} module${count > 1 ? "s" : ""} sélectionné${count > 1 ? "s" : ""}`,
           emptyFooter: "Choisis au moins un module pour continuer."
@@ -88,7 +88,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         topics: {
           title: "Quels sujets veux-tu dans ta newsletter ?",
           description:
-            "Choisis 1 à 8 sujets pour ta newsletter quotidienne.",
+            "Choisissez 1 à 8 sujets pour votre newsletter.",
           selectedFooter: (count: number) =>
             `${count} sujet${count > 1 ? "s" : ""} newsletter sélectionné${count > 1 ? "s" : ""}`,
           emptyFooter: "Choisis au moins un sujet newsletter pour continuer."
@@ -96,7 +96,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
         miniCaseTopics: {
           title: "Quels sujets veux-tu pour les mini-cas ?",
           description:
-            "Choisis 1 à 3 sujets pour ton mini-cas quotidien. Ces choix sont séparés des sujets newsletter.",
+            "Choisissez 1 à 3 sujets pour vos mini-cas. Ces choix sont séparés des sujets newsletter.",
           selectedFooter: (count: number) =>
             `${count} sujet${count > 1 ? "s" : ""} mini-cas sélectionné${count > 1 ? "s" : ""}`,
           emptyFooter: "Choisis au moins un sujet mini-cas pour continuer.",
@@ -105,7 +105,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           saving: "Enregistrement..."
         },
         articleCount: {
-          title: "Dose ton contenu quotidien",
+          title: "Dosez votre contenu",
           description: "Choisis combien d'articles newsletter chaque sujet sélectionné reçoit.",
           selectedFooter: "Un ou deux articles par sujet sélectionné. Garde un format lisible.",
           emptyFooter: "Choisis des sujets newsletter avant de régler le nombre d'articles.",

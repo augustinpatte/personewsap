@@ -1,9 +1,25 @@
 name: PersoNewsAP Content Daily Job
 
+# PersoNewsAP publishes four editions a week: Monday, Wednesday, Friday and
+# Sunday. The editorial date is always resolved in the single product timezone
+# (Europe/Paris) by the content engine itself, so this schedule only decides
+# *when* the run starts, never which date it builds.
+#
+# 07:17 UTC is 09:17 in Paris in summer and 08:17 in winter — a stable morning
+# slot, deliberately off the hour: GitHub's scheduler is busiest at :00 and
+# delays runs by tens of minutes there. GitHub cron does not accept an IANA
+# timezone (schedules are UTC only), which is exactly why the engine and not the
+# scheduler owns the editorial date: a DST shift moves the run by an hour but
+# never moves the edition to the wrong day.
+#
+# IMPORTANT: a scheduled workflow only becomes active once this file exists on
+# the repository's DEFAULT BRANCH (main). While it lives on a feature branch it
+# can be started manually with "Run workflow", but it will never fire on its own.
+
 on:
   schedule:
-    # 07:00 UTC on Monday, Wednesday, Friday, and Sunday.
-    - cron: "0 7 * * 1,3,5,0"
+    # 07:17 UTC on Monday, Wednesday, Friday and Sunday.
+    - cron: "17 7 * * 1,3,5,0"
   workflow_dispatch:
     inputs:
       languages:
@@ -59,6 +75,20 @@ jobs:
         env:
           RUN_ID: ${{ github.event.inputs.run_id }}
         run: npm run content:prod-run
+
+      # Announcing the edition is a separate, re-runnable step on purpose: the
+      # edition is already published by the step above, and a push failure must
+      # never undo or block it. Deliveries are recorded per device and per
+      # edition, so re-running this sends nothing twice.
+      - name: Edition push notifications
+        id: push_notifications
+        continue-on-error: true
+        run: npm run content:push-notifications
+
+      - name: Report notification failure
+        if: steps.push_notifications.outcome == 'failure'
+        run: |
+          echo "::warning title=Edition notifications::The edition is published, but notifications did not all go out. Re-run 'npm run content:push-notifications -- --date <YYYY-MM-DD>'; already-notified devices are skipped."
 
       - name: Strict job health
         if: always()

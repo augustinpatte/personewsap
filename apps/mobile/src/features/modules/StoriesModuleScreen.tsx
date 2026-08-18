@@ -101,18 +101,29 @@ function StoriesToday() {
         onPress={() => router.push(storyHref(story.id))}
         style={({ pressed }) => (pressed ? styles.pressed : null)}
       >
+        {/* Read as a company dossier: a filed label, the subject on the tab,
+            then the case itself. The monogram carries the identity — never a
+            real logo, never a remote image. */}
         <Card padding="lg" style={styles.storyCard}>
+          <View style={styles.dossierTab}>
+            <AppText color="accentInk" variant="eyebrow">
+              {copy.stories.kicker}
+            </AppText>
+          </View>
+
           <View style={styles.storyHeader}>
             <Monogram label={story.company_or_market} />
             <View style={styles.storyHeaderCopy}>
-              <AppText variant="eyebrow">{copy.stories.kicker}</AppText>
+              <AppText numberOfLines={2} variant="bodyStrong">
+                {story.company_or_market}
+              </AppText>
               <AppText color="muted" variant="caption">
-                {`${story.company_or_market} · ${copy.common.minuteCount(
-                  estimateReadMinutes(story)
-                )}`}
+                {copy.common.minuteCount(estimateReadMinutes(story))}
               </AppText>
             </View>
           </View>
+
+          <View style={styles.dossierRule} />
 
           <AppText variant="title">{story.title}</AppText>
           <AppText color="inkSoft" variant="read">
@@ -203,6 +214,18 @@ const createStyles = (c: ThemeColors) =>
     },
     storyCard: {
       gap: tokens.space.md
+    },
+    // The filed-label tab that tells the card apart from a generic Card.
+    dossierTab: {
+      alignSelf: "flex-start",
+      backgroundColor: c.accentSoft,
+      borderRadius: tokens.radius.xs,
+      paddingHorizontal: tokens.space.sm,
+      paddingVertical: 3
+    },
+    dossierRule: {
+      backgroundColor: c.border,
+      height: 1
     },
     storyHeader: {
       alignItems: "center",

@@ -9,6 +9,7 @@ import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import {
+  resolveArchiveEmptyState,
   selectNewsletterEditions,
   useArchive,
   useArchiveData,
@@ -26,6 +27,8 @@ import { isEditionDay } from "../today/editionCadence";
 import { stripMarkdownInline } from "../today/readers/markdown";
 import { getModuleCopy } from "./moduleCopy";
 import {
+  EditorialRule,
+  MetaLine,
   ModuleError,
   ModuleHeader,
   ModuleLoading,
@@ -140,9 +143,17 @@ function NewsletterToday() {
 
   return (
     <ModuleScroll contentStyle={styles.todayContent}>
-      <AppText color="muted" variant="caption">
-        {copy.newsletter.progress(readCount, articles.length)}
-      </AppText>
+      {/* Masthead line: the edition, then how far through it you are. Reads as
+          the top of a front page rather than as a progress widget. */}
+      <View style={styles.masthead}>
+        <MetaLine
+          items={[
+            formatDropDate(drop.drop_date, language),
+            copy.newsletter.progress(readCount, articles.length)
+          ]}
+        />
+        <EditorialRule />
+      </View>
 
       <Pressable
         accessibilityHint={copy.common.openHint}
@@ -152,16 +163,16 @@ function NewsletterToday() {
       >
         <View style={styles.kicker}>
           <AppText variant="eyebrow">{copy.newsletter.lead}</AppText>
-          <AppText color="muted" variant="eyebrow">
-            {copy.common.minuteCount(estimateReadMinutes(lead))}
-          </AppText>
         </View>
-        <AppText color="muted" variant="caption">
-          {getTopicLabel(lead.topic, language)}
-        </AppText>
         <AppText style={styles.leadHeadline} variant="display">
           {lead.title}
         </AppText>
+        <MetaLine
+          items={[
+            getTopicLabel(lead.topic, language),
+            copy.common.minuteCount(estimateReadMinutes(lead))
+          ]}
+        />
         <AppText variant="lede">{stripMarkdownInline(lead.summary)}</AppText>
         <ReadStatus
           completed={isItemComplete(lead.id)}
@@ -172,9 +183,9 @@ function NewsletterToday() {
 
       {rest.length > 0 ? (
         <View style={styles.alsoBlock}>
-          <AppText color="muted" variant="eyebrow">
-            {copy.newsletter.alsoInBrief}
-          </AppText>
+          {/* The rule carries the section name, so the secondaries read as a
+              column under the lead instead of as more cards. */}
+          <EditorialRule label={copy.newsletter.alsoInBrief} />
           {rest.map((article) => (
             <Pressable
               accessibilityHint={copy.common.openHint}
@@ -183,18 +194,17 @@ function NewsletterToday() {
               onPress={() => router.push(readerHref("newsletter", article.id))}
               style={({ pressed }) => [styles.alsoItem, pressed ? styles.pressed : null]}
             >
-              <AppText color="muted" variant="caption">
-                {getTopicLabel(article.topic, language)}
+              <AppText style={styles.alsoHeadline} variant="subtitle">
+                {article.title}
               </AppText>
-              <AppText variant="subtitle">{article.title}</AppText>
-              {isItemComplete(article.id) ? (
-                <View style={styles.statusRow}>
-                  <View style={styles.statusDot} />
-                  <AppText color="accentInk" variant="caption">
-                    {copy.common.read}
-                  </AppText>
-                </View>
-              ) : null}
+              <MetaLine
+                items={[
+                  getTopicLabel(article.topic, language),
+                  copy.common.minuteCount(estimateReadMinutes(article)),
+                  isItemComplete(article.id) ? copy.common.read : null
+                ]}
+                tone={isItemComplete(article.id) ? "accentInk" : "muted"}
+              />
             </Pressable>
           ))}
         </View>
@@ -239,17 +249,43 @@ function NewsletterArchive() {
     return <ModuleLoading label={copy.common.loading} />;
   }
 
-  if (editions.length === 0) {
+  const emptyState = resolveArchiveEmptyState({
+    itemCount: editions.length,
+    isSearchActive: false,
+    hasError: Boolean(archive.error),
+    hasMore: archive.hasMore
+  });
+
+  if (emptyState === "error") {
     return (
       <ModuleScroll>
-        {archive.error ? (
-          <ModuleError language={archive.language} onRetry={archive.reload} />
-        ) : (
-          <EmptyState
-            description={copy.newsletter.archiveEmptyBody}
-            title={copy.newsletter.archiveEmptyTitle}
-          />
-        )}
+        <ModuleError language={archive.language} onRetry={archive.reload} />
+      </ModuleScroll>
+    );
+  }
+
+  // Same rule as the other modules: loaded editions carrying no newsletter is
+  // not an empty archive, and the reader keeps an explicit way further back.
+  if (emptyState === "load-earlier") {
+    return (
+      <ModuleScroll>
+        <EmptyState
+          actionLabel={archive.loadingMore ? undefined : copy.common.seeEarlierEditions}
+          description={copy.common.noneInLoadedBody}
+          onActionPress={archive.loadingMore ? undefined : archive.loadMore}
+          title={copy.common.noneInLoadedTitle}
+        />
+      </ModuleScroll>
+    );
+  }
+
+  if (emptyState === "empty") {
+    return (
+      <ModuleScroll>
+        <EmptyState
+          description={copy.newsletter.archiveEmptyBody}
+          title={copy.newsletter.archiveEmptyTitle}
+        />
       </ModuleScroll>
     );
   }
@@ -422,23 +458,30 @@ const createStyles = (c: ThemeColors) =>
     pressed: {
       opacity: 0.7
     },
+    masthead: {
+      gap: tokens.space.sm
+    },
+    // The lead owns the top of the page: no rule above it (the masthead already
+    // draws one) and generous air, so the eye lands on the headline first.
     lead: {
-      borderTopColor: c.borderStrong,
-      borderTopWidth: 1,
       gap: tokens.space.sm,
-      paddingTop: tokens.space.lg
+      paddingBottom: tokens.space.md
     },
     leadHeadline: {
       marginTop: tokens.space.xs
     },
     alsoBlock: {
-      borderTopColor: c.border,
-      borderTopWidth: 1,
-      gap: tokens.space.lg,
-      paddingTop: tokens.space.lg
+      gap: tokens.space.lg
     },
+    // Secondaries are deliberately tighter than the lead: title then one quiet
+    // metadata line, nothing else competing.
     alsoItem: {
-      gap: tokens.space.xs
+      gap: tokens.space.xs,
+      minHeight: 44,
+      paddingVertical: tokens.space.xs
+    },
+    alsoHeadline: {
+      lineHeight: 24
     },
     statusRow: {
       alignItems: "center",

@@ -87,7 +87,7 @@ export async function fetchTodayDrop(
       "missing_auth_session",
       normalizeSupabaseError({
         code: "missing_auth_session",
-        message: "Sign in to load your assigned daily drop."
+        message: "Sign in to load your edition."
       })
     );
   }
@@ -103,7 +103,7 @@ export async function fetchTodayDrop(
       "missing_supabase_config",
       normalizeSupabaseError({
         code: "missing_supabase_config",
-        message: "Live daily drops are not configured for this build.",
+        message: "Live editions are not configured for this build.",
         hint:
           "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
       })

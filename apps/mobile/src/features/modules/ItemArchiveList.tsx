@@ -11,7 +11,12 @@ import {
 import { AppText, EmptyState, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
-import { useArchive, useArchiveSearch, type ArchiveSearchState } from "../archive";
+import {
+  resolveArchiveEmptyState,
+  useArchive,
+  useArchiveSearch,
+  type ArchiveSearchState
+} from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
 import { formatDropDate } from "../today/contentCopy";
 import { getModuleCopy } from "./moduleCopy";
@@ -56,14 +61,42 @@ export function ItemArchiveList({
     return <ModuleLoading label={copy.common.loading} />;
   }
 
-  if (items.length === 0 && !search.isSearchActive) {
+  const emptyState = resolveArchiveEmptyState({
+    itemCount: items.length,
+    isSearchActive: search.isSearchActive,
+    hasError: Boolean(archive.error),
+    hasMore: archive.hasMore
+  });
+
+  if (emptyState === "error") {
     return (
       <ModuleScroll>
-        {archive.error ? (
-          <ModuleError language={archive.language} onRetry={archive.reload} />
-        ) : (
-          <EmptyState description={emptyBody} title={emptyTitle} />
-        )}
+        <ModuleError language={archive.language} onRetry={archive.reload} />
+      </ModuleScroll>
+    );
+  }
+
+  // Nothing of this kind in the editions loaded so far, but the archive has
+  // older ones: say exactly that, and offer the same explicit one-page step the
+  // list footer uses. Never an automatic search backwards.
+  if (emptyState === "load-earlier") {
+    return (
+      <ModuleScroll>
+        <EmptyState
+          actionLabel={archive.loadingMore ? undefined : copy.common.seeEarlierEditions}
+          description={copy.common.noneInLoadedBody}
+          onActionPress={archive.loadingMore ? undefined : archive.loadMore}
+          title={copy.common.noneInLoadedTitle}
+        />
+        {archive.loadingMore ? <ActivityIndicator color={colors.muted} /> : null}
+      </ModuleScroll>
+    );
+  }
+
+  if (emptyState === "empty") {
+    return (
+      <ModuleScroll>
+        <EmptyState description={emptyBody} title={emptyTitle} />
       </ModuleScroll>
     );
   }
@@ -193,18 +226,21 @@ function ArchiveRow({
       onPress={() => onOpen(item)}
       style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
     >
+      {/* Date rail on the left, title as the thing you scan. The arrow sits
+          with the date rather than beside the title, so nothing competes with
+          the headline. */}
       <View style={styles.rowHead}>
         <AppText color="muted" variant="eyebrow">
           {formatDropDate(item.drop_date, language)}
         </AppText>
-        <AppText color="accentInk" variant="label">
+        <AppText color="mutedSoft" variant="label">
           →
         </AppText>
       </View>
-      <AppText numberOfLines={2} variant="subtitle">
+      <AppText numberOfLines={2} style={styles.rowTitle} variant="subtitle">
         {item.title}
       </AppText>
-      {renderMeta(item)}
+      <View style={styles.rowMeta}>{renderMeta(item)}</View>
     </Pressable>
   );
 }
@@ -242,7 +278,14 @@ const createStyles = (c: ThemeColors) =>
       borderTopWidth: 1,
       gap: tokens.space.xs,
       minHeight: 44,
+      paddingBottom: tokens.space.xs,
       paddingTop: tokens.space.lg
+    },
+    rowTitle: {
+      lineHeight: 24
+    },
+    rowMeta: {
+      minHeight: 18
     },
     rowPressed: {
       opacity: 0.6

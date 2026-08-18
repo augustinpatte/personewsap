@@ -101,6 +101,11 @@ export function getLearningCopy(language: Language | null | undefined) {
           openWith: "Open with",
           copyPrompt: "Copy prompt",
           promptCopied: "Prompt copied. Paste it into a new conversation.",
+          // Named destination: the reader is being handed to a specific app and
+          // has one thing to do when they land there.
+          promptCopiedFor: (provider: string) => `Prompt copied. Paste it into ${provider}.`,
+          openFailedFor: (provider: string) =>
+            `The prompt is copied. Open ${provider} and paste it.`,
           copyFailed: "The prompt could not be copied. Try again.",
           progressFailed:
             "The prompt was copied, but your progress could not be saved. Try again before submitting feedback.",
@@ -279,6 +284,9 @@ export function getLearningCopy(language: Language | null | undefined) {
           openWith: "Ouvrir avec",
           copyPrompt: "Copier le prompt",
           promptCopied: "Prompt copié. Collez-le dans une nouvelle conversation.",
+          promptCopiedFor: (provider: string) => `Prompt copié. Collez-le dans ${provider}.`,
+          openFailedFor: (provider: string) =>
+            `Le prompt est copié. Ouvrez ${provider} et collez-le.`,
           copyFailed: "Le prompt n'a pas pu être copié. Réessayez.",
           progressFailed:
             "Le prompt est copié, mais votre progression n'a pas pu être enregistrée. Réessayez avant d'envoyer votre retour.",

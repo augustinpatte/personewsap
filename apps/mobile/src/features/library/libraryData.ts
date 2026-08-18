@@ -664,10 +664,10 @@ function getLibraryDropTitle(drop: DailyDrop): string {
   const isWeeklyDigest = resolveEditionType(drop.drop_date) === "weekly_digest";
 
   if (drop.language === "fr") {
-    return isWeeklyDigest ? "Synthèse hebdomadaire" : "Brief quotidien";
+    return isWeeklyDigest ? "Synthèse hebdomadaire" : "Brief du jour";
   }
 
-  return isWeeklyDigest ? "Weekly digest" : "Daily drop";
+  return isWeeklyDigest ? "Weekly digest" : "Edition brief";
 }
 
 function normalizeLibraryLimit(limit: number | undefined): number {

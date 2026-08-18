@@ -189,9 +189,13 @@ export default function AccountScreen() {
       return;
     }
 
+    // The account no longer exists server-side, so the local session is dead
+    // too: clear it and let the redirect below take the reader to login rather
+    // than leaving them on a screen for an account that is gone.
     setDeleteModalVisible(false);
-    setDeleteRequestMessage(copy.deletionRequested);
-  }, [copy.deletionRequested, copy.noActiveUser, user?.id]);
+    setDeleteRequestMessage(copy.deletionCompleted);
+    await signOut();
+  }, [copy.deletionCompleted, copy.noActiveUser, signOut, user?.id]);
 
   if (status === "signedOut") {
     return <Redirect href="/(auth)/login" />;
@@ -395,7 +399,7 @@ function getAccountCopy(language: string | null) {
         noActiveUser: "No active user",
         complete:
           "Your setup is complete. Today will show your edition when one is available.",
-        finishOnboarding: "Finish onboarding to unlock your daily edition.",
+        finishOnboarding: "Finish onboarding to unlock your editions.",
         dailyDropLanguage: "Reading language",
         refresh: "Refresh",
         logOut: "Log out",
@@ -408,14 +412,14 @@ function getAccountCopy(language: string | null) {
         exportShareTitle: "PersoNewsAP data export",
         exportShared: "Data export opened.",
         exportShareFailed: "The data export could not be opened on this device.",
-        deleteConfirmTitle: "Request account deletion?",
+        deleteConfirmTitle: "Delete your account?",
         deleteConfirmDescription:
-          "This is permanent once processed. Your account, preferences, interactions, mini-case responses, push tokens, and assigned daily drop links may be removed by the secure backend deletion process.",
-        deletionRequested: "Deletion request submitted.",
+          "This cannot be undone. Your account, preferences, reading history, mini-case results, learning path and notification settings are deleted immediately. You will be signed out.",
+        deletionCompleted: "Your account has been deleted.",
         cancel: "Cancel",
         close: "Close",
         back: "Back",
-        confirmDeletion: "Request deletion"
+        confirmDeletion: "Delete my account"
       },
       fr: {
         eyebrow: "Profil",
@@ -425,7 +429,7 @@ function getAccountCopy(language: string | null) {
         noActiveUser: "Aucun utilisateur actif",
         complete:
           "Votre configuration est terminée. L'écran Aujourd'hui affichera votre édition dès qu'elle sera disponible.",
-        finishOnboarding: "Terminez la configuration pour débloquer votre édition quotidienne.",
+        finishOnboarding: "Terminez la configuration pour débloquer vos éditions.",
         dailyDropLanguage: "Langue de lecture",
         refresh: "Actualiser",
         logOut: "Se déconnecter",
@@ -438,14 +442,14 @@ function getAccountCopy(language: string | null) {
         exportShareTitle: "Export de données PersoNewsAP",
         exportShared: "Export de données ouvert.",
         exportShareFailed: "L'export de données ne peut pas être ouvert sur cet appareil.",
-        deleteConfirmTitle: "Demander la suppression du compte ?",
+        deleteConfirmTitle: "Supprimer votre compte ?",
         deleteConfirmDescription:
-          "Cette action est permanente une fois traitée. Ton compte, tes préférences, interactions, réponses aux mini-cas, jetons push et liens de mises à jour assignées peuvent être supprimés par le processus sécurisé côté serveur.",
-        deletionRequested: "Demande de suppression envoyée.",
+          "Cette action est irréversible. Votre compte, vos préférences, votre historique de lecture, vos résultats de mini-cas, votre parcours et vos réglages de notification sont supprimés immédiatement. Vous serez déconnecté.",
+        deletionCompleted: "Votre compte a été supprimé.",
         cancel: "Annuler",
         close: "Fermer",
         back: "Retour",
-        confirmDeletion: "Demander la suppression"
+        confirmDeletion: "Supprimer mon compte"
       }
     },
     uiLanguage

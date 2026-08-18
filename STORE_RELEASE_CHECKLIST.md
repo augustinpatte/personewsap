@@ -5,6 +5,9 @@ Manual actions only. Everything automatable is already done in the repo
 Owner: Apple Developer / App Store Connect / Google Play Console / Supabase /
 EAS account holder.
 
+Everything in code is ready to receive these values; nothing here can be done
+from the repository. See KNOWN_ISSUES.md for what is still open.
+
 Current app config: `com.personewsap.mobile`, version `1.0.0`,
 iOS buildNumber `1`, Android versionCode `1`, `supportsTablet: false`,
 Expo SDK 55 (targets Android API 36, builds with the iOS 26 SDK on EAS's
@@ -24,8 +27,10 @@ current Xcode image).
 - [ ] App Privacy questionnaire ("Data Safety" equivalent): declare email,
       user content interactions and push tokens; all linked to the account;
       no tracking, no third-party ads.
-- [ ] Add the Support URL and Privacy Policy URL (the in-app policy exists at
-      the `/privacy` route; it must also be hosted at a public HTTPS URL).
+- [ ] Add the Support URL and Privacy Policy URL. Both are now public web
+      routes: `/privacy` and `/support` (plus `/delete-account`). Set
+      `VITE_SUPPORT_EMAIL` before submitting — until it is set, /support says
+      no address is configured rather than showing a fake one.
 - [ ] Screenshots for 6.7" and 6.1" iPhones (4 tabs: Newsletter, Mini cases,
       Stories, Parcours + a reader).
 - [ ] Confirm "Account deletion" review requirement: the in-app path is
@@ -40,8 +45,9 @@ current Xcode image).
 - [ ] Create the app (`com.personewsap.mobile`), accept the developer
       declarations (target API 36 is already satisfied by SDK 55).
 - [ ] Data Safety form: email, in-app interactions, push token; encrypted in
-      transit; deletion available via in-app request.
-- [ ] Upload the privacy policy URL.
+      transit; deletion available in-app and from the web.
+- [ ] Upload the privacy policy URL (`/privacy`) and the external account
+      deletion URL (`/delete-account`), which Play asks for separately.
 - [ ] Store listing: screenshots (phone), feature graphic, descriptions FR/EN.
 - [ ] Create a service account JSON key for Play submissions and store it
       OUTSIDE git; reference it when running
@@ -52,17 +58,26 @@ current Xcode image).
 
 ## Supabase
 
-- [ ] Deploy a server-side account-deletion endpoint (Edge Function with the
-      service-role key) that deletes the auth user + rows in profiles,
-      user_preferences, topic preferences, content_interactions,
-      mini_case_responses, push_tokens, daily_drops for the JWT's user, then
-      set its URL as `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT` in the EAS build
-      env. Until then the app shows an honest "deletion requests not enabled"
-      message.
+- [ ] Deploy the account-deletion Edge Function. It is written and reviewed —
+      see `supabase/functions/delete-account/` — and only needs deploying:
+      `supabase functions deploy delete-account --project-ref <ref>`.
+      Then set its URL as `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT` (EAS build
+      env) and `VITE_ACCOUNT_DELETION_ENDPOINT` (web env). Until then both the
+      app and /delete-account say deletion is not enabled rather than failing.
+- [ ] Set `ACCOUNT_DELETION_ALLOWED_ORIGINS` on the function to the public web
+      origin, so the browser page can call it:
+      `supabase secrets set ACCOUNT_DELETION_ALLOWED_ORIGINS="https://<domain>"`.
+- [ ] Verify the two curl checks in
+      `supabase/functions/delete-account/README.md` both answer 401 before
+      testing a real deletion with a throwaway account.
 - [ ] Verify the production project has only the checked-in migrations applied
       (`npx supabase migration list` against the linked project).
 - [ ] Confirm the daily content job (content-engine) runs on the 4×/week
       cadence with production env vars (no test flags).
+- [ ] Merge `.github/workflows/content-daily-job.yml` to `main`: a scheduled
+      workflow never fires from a feature branch. Set the repository secrets it
+      reads (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`,
+      `ANTHROPIC_API_KEY`).
 
 ## EAS
 

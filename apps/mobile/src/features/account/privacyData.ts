@@ -125,6 +125,17 @@ export async function exportAuthenticatedUserData(
   }
 }
 
+/**
+ * Delete the signed-in account, for good.
+ *
+ * The caller's identity is carried by the access token and by nothing else: no
+ * user id is sent, because the endpoint would ignore it anyway. That is the
+ * property that makes this safe to expose — a request can only ever delete the
+ * account whose token signed it.
+ *
+ * The `userId` argument is kept for the caller's own guard (there must be a
+ * signed-in user to delete) and is deliberately never transmitted.
+ */
 export async function requestAuthenticatedAccountDeletion(
   userId: string
 ): Promise<PrivacyActionResult<{ requested: true }>> {
@@ -141,7 +152,7 @@ export async function requestAuthenticatedAccountDeletion(
 
   const sessionResult = await getAuthSession();
 
-  if (sessionResult.error || !sessionResult.data) {
+  if (!userId || sessionResult.error || !sessionResult.data) {
     return {
       data: null,
       error:
@@ -160,15 +171,24 @@ export async function requestAuthenticatedAccountDeletion(
         Authorization: `Bearer ${sessionResult.data.access_token}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ user_id: userId })
+      // Empty body on purpose: the server derives the account from the JWT.
+      body: JSON.stringify({})
     });
 
     if (!response.ok) {
+      // The account is untouched on any non-2xx: the caller keeps its session
+      // and can retry.
       return {
         data: null,
         error: {
-          code: "account_deletion_request_failed",
-          message: "Could not submit the deletion request.",
+          code:
+            response.status === 401
+              ? "account_deletion_unauthorized"
+              : "account_deletion_request_failed",
+          message:
+            response.status === 401
+              ? "Log in again, then retry the deletion."
+              : "Your account was not deleted. Please try again.",
           status: response.status
         }
       };
@@ -181,7 +201,7 @@ export async function requestAuthenticatedAccountDeletion(
   } catch (error) {
     return {
       data: null,
-      error: normalizeSupabaseError(error, "Could not submit the deletion request.")
+      error: normalizeSupabaseError(error, "Your account was not deleted. Please try again.")
     };
   }
 }

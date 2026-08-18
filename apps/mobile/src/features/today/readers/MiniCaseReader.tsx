@@ -9,6 +9,7 @@ import {
   useThemedStyles,
   type ThemeColors
 } from "../../../design/theme";
+import { useReducedMotion } from "../../../design/useReducedMotion";
 import {
   getDifficultyLabel,
   getReaderCopy,
@@ -211,6 +212,7 @@ function MiniCaseQuizFlow({
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState(false);
   const reveal = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   // Navigation tracks the real question count; the score denominator prefers the
   // engine's score_max (=== number of questions) and falls back to the count for
@@ -256,6 +258,13 @@ function MiniCaseQuizFlow({
       return;
     }
     setSelections((current) => ({ ...current, [currentQuestion.id]: option.id }));
+    // Reduce Motion: show the answer at once instead of fading it in. The state
+    // change still happens — only the movement is dropped.
+    if (reduceMotion) {
+      reveal.setValue(1);
+      return;
+    }
+
     reveal.setValue(0);
     Animated.timing(reveal, {
       toValue: 1,
@@ -664,6 +673,7 @@ function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const reveal = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   const selectedOption =
     challenge.options?.find((option) => option.id === selectedId) ?? null;
@@ -680,6 +690,12 @@ function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
     }
     setSelectedId(option.id);
     setPhase("feedback");
+
+    if (reduceMotion) {
+      reveal.setValue(1);
+      return;
+    }
+
     reveal.setValue(0);
     Animated.timing(reveal, {
       toValue: 1,

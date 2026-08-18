@@ -212,8 +212,8 @@ export async function saveEditablePreferences(
         code: "missing_modules",
         message: localized(
           {
-            en: "Choose at least one daily module before saving preferences.",
-            fr: "Choisis au moins un module quotidien avant d'enregistrer les préférences."
+            en: "Choose at least one module before saving preferences.",
+            fr: "Choisissez au moins un module avant d'enregistrer les préférences."
           },
           normalized.language
         )

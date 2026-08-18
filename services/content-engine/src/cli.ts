@@ -14,6 +14,7 @@ import { parseLlmRunOptions, runLlmRun } from "./cli/llmRun.js";
 import { parseLlmProofOptions, runLlmProof } from "./cli/llmProof.js";
 import { parsePersonalizeTestOptions, runPersonalizeTest } from "./cli/personalizeTest.js";
 import { parsePersistTestOptions, runPersistTest } from "./cli/persistTest.js";
+import { parsePushNotificationsOptions, runPushNotifications } from "./cli/pushNotifications.js";
 import { runQualityProof } from "./cli/qualityProof.js";
 import { parseRssCheckOptions, runRssCheck } from "./cli/rssCheck.js";
 import { formatPersistenceError } from "./storage/persistenceError.js";
@@ -84,6 +85,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "push-notifications") {
+    const output = await runPushNotifications(parsePushNotificationsOptions(args));
+    writeJson(output, { redactIdentifiers: true });
+    return;
+  }
+
   if (command === "job-health") {
     const output = await runJobHealth(parseJobHealthOptions(args));
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
@@ -147,6 +154,7 @@ Commands:
   daily-job               Production daily scheduler command. Writes require explicit production env confirmation.
   daily-job-test          Generate, publish, and assign a limited marked test daily drop.
   app-preview-test        Generate + persist + assign ONE test drop (USER_LIMIT=1) so engine output is visible in the app.
+  push-notifications      Send the "edition is ready" notification for a published edition. Idempotent per device.
   job-health              Read production job_runs health summary with service-role credentials.
   business-story-memory   Read-only editorial memory report for Business Stories.
   debug-users             Read-only daily-job-test user eligibility diagnostic.

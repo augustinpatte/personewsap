@@ -1,9 +1,12 @@
 export { getModuleCopy } from "./moduleCopy";
 export {
+  EditorialRule,
+  MetaLine,
   ModuleError,
   ModuleHeader,
   ModuleLoading,
   ModuleScroll,
+  Monogram,
   ViewSwitch
 } from "./ModuleChrome";
 export { ItemArchiveList } from "./ItemArchiveList";

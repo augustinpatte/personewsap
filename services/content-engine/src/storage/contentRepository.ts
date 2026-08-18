@@ -42,6 +42,7 @@ import type {
   MiniCaseQuestionPattern,
   MiniCaseScenarioType
 } from "../miniCase/taxonomy.js";
+import type { StoredContentSelection } from "../scheduler/dailyDropBuilder.js";
 import { normalizeUrl, sha256 } from "../utils/hash.js";
 import {
   assertDailyPayloadSourcesArePersistable,
@@ -984,6 +985,125 @@ export class ContentRepository {
     }
 
     return storedItems;
+  }
+
+  /**
+   * Editorial inventory available for reuse in an edition.
+   *
+   * Business Stories and Mini Cases are prepared ahead of time by
+   * bootstrap-catalog; this is what makes that stock reachable by the daily
+   * job. Only published items of the reusable slots, in the requested language,
+   * are returned — the newsletter is never reused, because it must be about
+   * today.
+   *
+   * The rows come back in the narrow shape assignment needs, so no generated
+   * item has to be reconstructed field by field.
+   */
+  async listReusableCatalogItems(input: {
+    language: Language;
+    contentTypes?: Array<"business_story" | "mini_case">;
+    limit?: number;
+  }): Promise<StoredContentSelection[]> {
+    const contentTypes = input.contentTypes ?? ["business_story", "mini_case"];
+    const limit = Math.min(Math.max(input.limit ?? 200, 1), 1000);
+
+    const { data, error } = await this.supabase
+      .from("content_items")
+      .select("id,content_type,topic_id,language,title,status,metadata,created_at")
+      .eq("language", input.language)
+      .eq("status", "published")
+      .in("content_type", contentTypes)
+      .order("created_at", { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      throwPersistenceError({
+        table: "content_items",
+        action: "select reusable catalog inventory",
+        error
+      });
+    }
+
+    return (data ?? []).map((row) => {
+      const item = row as {
+        id: string;
+        content_type: "business_story" | "mini_case";
+        topic_id: TopicId | null;
+        language: Language;
+        title: string;
+        metadata: Record<string, unknown> | null;
+      };
+      const metadata = item.metadata ?? {};
+      const slot = typeof metadata.slot === "string" ? metadata.slot : item.content_type;
+      const productTopic = metadata.product_topic;
+      const sourceUrls = Array.isArray(metadata.source_urls)
+        ? metadata.source_urls.filter((url): url is string => typeof url === "string")
+        : [];
+
+      return {
+        content_item_id: item.id,
+        item: {
+          content_type: item.content_type,
+          slot: slot as StoredContentSelection["item"]["slot"],
+          language: item.language,
+          title: item.title,
+          topic: item.topic_id,
+          source_urls: sourceUrls,
+          product_topic:
+            typeof productTopic === "string"
+              ? (productTopic as MiniCaseTopicId)
+              : null
+        }
+      } satisfies StoredContentSelection;
+    });
+  }
+
+  /**
+   * Everything these readers have already been assigned, of the reusable kinds.
+   *
+   * Reuse across readers is the point of the inventory; reuse across a single
+   * reader's own editions would be a repeat, so this is what the daily job
+   * subtracts from each reader's pool.
+   */
+  async listAssignedContentItemIdsByUser(input: {
+    userIds: string[];
+    contentTypes?: Array<"business_story" | "mini_case">;
+  }): Promise<Map<string, Set<string>>> {
+    const assigned = new Map<string, Set<string>>();
+
+    if (input.userIds.length === 0) {
+      return assigned;
+    }
+
+    const { data, error } = await this.supabase
+      .from("daily_drop_items")
+      .select("content_item_id,daily_drops!inner(user_id)")
+      .in("daily_drops.user_id", input.userIds);
+
+    if (error) {
+      throwPersistenceError({
+        table: "daily_drop_items",
+        action: "select previously assigned content items",
+        error
+      });
+    }
+
+    for (const row of (data ?? []) as Array<{
+      content_item_id: string;
+      daily_drops: { user_id: string } | Array<{ user_id: string }> | null;
+    }>) {
+      const drop = Array.isArray(row.daily_drops) ? row.daily_drops[0] : row.daily_drops;
+
+      if (!drop) {
+        continue;
+      }
+
+      const current = assigned.get(drop.user_id) ?? new Set<string>();
+      current.add(row.content_item_id);
+      assigned.set(drop.user_id, current);
+    }
+
+    return assigned;
   }
 
   async listBusinessStoryMemoryContext(input: {

@@ -10,7 +10,7 @@ export function ExampleScreen() {
     <AppScreen>
       <AppScreen.Header>
         <AppText variant="eyebrow">Today</AppText>
-        <AppText variant="title">Your daily drop</AppText>
+        <AppText variant="title">Your edition</AppText>
       </AppScreen.Header>
 
       <Card>

@@ -251,9 +251,9 @@ function getNotificationCopy(language: Language) {
   return localized(
     {
       en: {
-        title: "Daily reminder",
-        description: "Optional push reminder after account setup.",
-        signIn: "Sign in to manage push reminder preferences.",
+        title: "Edition notification",
+        description: "One notification per published edition — four a week.",
+        signIn: "Sign in to manage edition notifications.",
         loading: "Loading reminder settings...",
         language: "Language",
         pushToken: "Reminder status",
@@ -268,14 +268,14 @@ function getNotificationCopy(language: Language) {
         storageNeeded: "Unavailable",
         checking: "Checking",
         off: "Off",
-        disabled: "Daily reminder disabled.",
-        enabled: "Daily reminder enabled for future drops.",
+        disabled: "Edition notifications turned off.",
+        enabled: "You will be notified when each new edition is published.",
         saved: "Reminder settings saved."
       },
       fr: {
-        title: "Rappel quotidien",
-        description: "Notification optionnelle après la configuration du compte.",
-        signIn: "Connecte-toi pour gérer les notifications de rappel.",
+        title: "Notification d'édition",
+        description: "Une notification par édition publiée — quatre par semaine.",
+        signIn: "Connectez-vous pour gérer les notifications d'édition.",
         loading: "Chargement des réglages de rappel...",
         language: "Langue",
         pushToken: "État du rappel",
@@ -290,8 +290,8 @@ function getNotificationCopy(language: Language) {
         storageNeeded: "Indisponible",
         checking: "Vérification",
         off: "Désactivé",
-        disabled: "Rappel quotidien désactivé.",
-        enabled: "Rappel quotidien activé pour les prochaines mises à jour.",
+        disabled: "Notifications d'édition désactivées.",
+        enabled: "Vous serez notifié à la publication de chaque nouvelle édition.",
         saved: "Réglages de rappel enregistrés."
       }
     },

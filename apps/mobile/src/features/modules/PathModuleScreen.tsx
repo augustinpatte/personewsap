@@ -192,12 +192,19 @@ function PathCurrent() {
       </Card>
 
       <Card padding="lg" tone="muted">
-        <View style={styles.infoRow}>
-          <AppText color="muted" variant="caption">
-            {copy.path.sessionsCompleted}
-          </AppText>
-          <AppText variant="bodyStrong">{String(completedSessions.length)}</AppText>
-        </View>
+        {/* A quiet trail of where the path stands: completed sessions behind,
+            the current one, nothing ahead that has not been asked for. It is a
+            record, not a score — no streak, no points, no daily target. */}
+        <SessionTrail
+          completedCount={completedSessions.length}
+          currentLabel={
+            pendingSession
+              ? copy.path.sessionLabel(pendingSession.session_number)
+              : null
+          }
+          label={copy.path.sessionsCompleted}
+        />
+
         {learningPath.displayObjective ? (
           <View style={styles.infoRow}>
             <AppText color="muted" variant="caption">
@@ -211,6 +218,54 @@ function PathCurrent() {
         />
       </Card>
     </ModuleScroll>
+  );
+}
+
+/**
+ * The progression marker.
+ *
+ * Deliberately restrained: filled marks for what is done, a hollow one for what
+ * is open, and a count. It shows the shape of the path without turning it into
+ * a game — no streak, no XP, no leaderboard, no daily goal. The marks are
+ * decorative; the count beside them is what a screen reader announces.
+ */
+function SessionTrail({
+  completedCount,
+  currentLabel,
+  label
+}: {
+  completedCount: number;
+  currentLabel: string | null;
+  label: string;
+}) {
+  const styles = useThemedStyles(createStyles);
+  // Long paths stay one line: past a point the count is the information, not
+  // the number of dots.
+  const shownMarks = Math.min(completedCount, 8);
+
+  return (
+    <View style={styles.trail}>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+        style={styles.trailMarks}
+      >
+        {Array.from({ length: shownMarks }, (_, index) => (
+          <View key={`done-${index}`} style={styles.trailMarkDone} />
+        ))}
+        {completedCount > shownMarks ? <View style={styles.trailMore} /> : null}
+        {currentLabel ? <View style={styles.trailMarkCurrent} /> : null}
+      </View>
+
+      <View style={styles.trailCopy}>
+        <AppText color="muted" variant="caption">
+          {label}
+        </AppText>
+        <AppText variant="bodyStrong">
+          {currentLabel ? `${completedCount}  ·  ${currentLabel}` : String(completedCount)}
+        </AppText>
+      </View>
+    </View>
   );
 }
 
@@ -319,6 +374,37 @@ const createStyles = (c: ThemeColors) =>
       gap: tokens.space.md
     },
     infoRow: {
+      gap: tokens.space.xs
+    },
+    trail: {
+      gap: tokens.space.sm
+    },
+    trailMarks: {
+      alignItems: "center",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: tokens.space.xs
+    },
+    trailMarkDone: {
+      backgroundColor: c.accent,
+      borderRadius: tokens.radius.pill,
+      height: 6,
+      width: 18
+    },
+    trailMarkCurrent: {
+      borderColor: c.accent,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      height: 6,
+      width: 26
+    },
+    trailMore: {
+      backgroundColor: c.mutedSoft,
+      borderRadius: tokens.radius.pill,
+      height: 6,
+      width: 6
+    },
+    trailCopy: {
       gap: tokens.space.xs
     },
     historyList: {

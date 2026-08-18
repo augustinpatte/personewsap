@@ -41,7 +41,11 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     Boolean(session?.started_at) || session?.status === "started" || session?.status === "completed"
   );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [statusTone, setStatusTone] = useState<"success" | "danger">("success");
+  // "warning" covers the recoverable case: the prompt is copied and the session
+  // is recorded, only the hand-off to the assistant did not happen.
+  const [statusTone, setStatusTone] = useState<"success" | "warning" | "danger">(
+    "success"
+  );
   const openedSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -101,7 +105,8 @@ export function LearningSessionScreen({ language }: { language: Language | null 
       providerId,
       providerUrl: provider.url,
       copyPrompt,
-      canOpenUrl: Linking.canOpenURL,
+      // No canOpenURL pre-check: these are plain HTTPS links the OS can always
+      // route (installed app via universal link, otherwise the browser).
       openUrl: Linking.openURL,
       onPromptReady: (copied) => {
         setPromptUsed(copied.progressRecorded);
@@ -110,7 +115,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
           copied.progressRecorded
             ? copied.syncPending
               ? copy.syncPending
-              : copy.promptCopied
+              : copy.promptCopiedFor(provider.label)
             : copy.progressFailed
         );
       },
@@ -119,8 +124,14 @@ export function LearningSessionScreen({ language }: { language: Language | null 
         setStatusMessage(copy.copyFailed);
       },
       onOpenFailed: (copied) => {
-        setStatusTone("danger");
-        setStatusMessage(copied.progressRecorded ? copy.openFailed : copy.progressFailed);
+        // Not a failure the reader has to solve twice: the prompt is copied, so
+        // the instruction is simply to open the assistant and paste.
+        setStatusTone(copied.progressRecorded ? "warning" : "danger");
+        setStatusMessage(
+          copied.progressRecorded
+            ? copy.openFailedFor(provider.label)
+            : copy.progressFailed
+        );
       },
       onOpenSucceeded: (_providerId, copied) => {
         setStatusTone(copied.progressRecorded ? "success" : "danger");
@@ -128,9 +139,10 @@ export function LearningSessionScreen({ language }: { language: Language | null 
           copied.progressRecorded
             ? copied.syncPending
               ? copy.syncPending
-              : copy.promptCopied
+              : copy.promptCopiedFor(provider.label)
             : copy.progressFailed
         );
+        // Recorded only here: an attempt that did not open is not an open.
         trackAnalyticsEvent("learning_provider_opened", {
           language: sessionLanguage
         });

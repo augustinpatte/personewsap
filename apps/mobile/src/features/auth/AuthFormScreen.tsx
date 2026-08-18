@@ -301,7 +301,7 @@ function getAuthFormCopy(language: Language | null | undefined) {
         emailConfirmationSent: "Check your email to confirm the account, then log in.",
         emailHint: "Enter the email you want to use for PersoNewsAP.",
         logIn: "Log in",
-        loginDescription: "Log in to continue your five-minute daily briefing.",
+        loginDescription: "Log in to continue your five-minute edition.",
         loginTitle: "Welcome back",
         password: "Password",
         passwordHint: "Password must be at least 8 characters.",
@@ -315,7 +315,7 @@ function getAuthFormCopy(language: Language | null | undefined) {
         signInNotSetup: "Sign-in is not set up for this build.",
         signInUnavailable: "Sign-in unavailable",
         signupDescription:
-          "Create an account, then set up the daily drop you want to receive.",
+          "Create an account, then set up the editions you want to receive.",
         signupTitle: "Create your account"
       },
       fr: {
@@ -329,7 +329,7 @@ function getAuthFormCopy(language: Language | null | undefined) {
         emailConfirmationSent: "Vérifie ton email pour confirmer le compte, puis connecte-toi.",
         emailHint: "Entre l'email que tu veux utiliser pour PersoNewsAP.",
         logIn: "Se connecter",
-        loginDescription: "Connecte-toi pour continuer ton briefing quotidien de cinq minutes.",
+        loginDescription: "Connectez-vous pour continuer votre édition de cinq minutes.",
         loginTitle: "Bon retour",
         password: "Mot de passe",
         passwordHint: "Le mot de passe doit contenir au moins 8 caractères.",
@@ -343,7 +343,7 @@ function getAuthFormCopy(language: Language | null | undefined) {
         signInNotSetup: "La connexion n'est pas configurée pour cette version.",
         signInUnavailable: "Connexion indisponible",
         signupDescription:
-          "Crée un compte, puis configure la mise à jour quotidienne que tu veux recevoir.",
+          "Créez un compte, puis configurez les éditions que vous souhaitez recevoir.",
         signupTitle: "Crée ton compte"
       }
     },
