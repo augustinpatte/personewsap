@@ -1,0 +1,48 @@
+name: PersoNewsAP Push Receipt Reconciliation
+
+# Expo push tickets are accepted before APNs/FCM delivery is final. This job
+# runs after the edition notification window and reconciles receipts without
+# delaying or blocking publication.
+#
+# GitHub cron is UTC-only. The content job starts at 07:17 UTC on edition days;
+# this follow-up gives Expo time to make receipts available.
+
+on:
+  schedule:
+    # 07:52 UTC on Monday, Wednesday, Friday and Sunday.
+    - cron: "52 7 * * 1,3,5,0"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum awaiting receipts to check"
+        required: false
+        default: "1000"
+
+jobs:
+  push-receipts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DRY_RUN: "false"
+      PUSH_RECEIPT_LIMIT: ${{ github.event.inputs.limit || '1000' }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build content engine
+        run: npm run content:build
+
+      - name: Reconcile Expo push receipts
+        run: npm run content:push-receipts

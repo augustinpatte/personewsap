@@ -22,34 +22,46 @@ import type { DeliveryRecord, PushNotificationStore } from "./pushSender.js";
  */
 
 const PUBLISHED_DROP_STATUSES = ["published"] as const;
+const SUPABASE_PAGE_SIZE = 1000;
+const USER_ID_FILTER_BATCH_SIZE = 100;
 
 export function createSupabasePushNotificationStore(
   supabase: SupabaseClient
 ): PushNotificationStore {
   return {
     async loadEditionDrops({ dropDate, languages }) {
-      let query = supabase
-        .from("daily_drops")
-        .select("id,user_id,language,status")
-        .eq("drop_date", dropDate)
-        .in("status", [...PUBLISHED_DROP_STATUSES]);
-
-      if (languages && languages.length > 0) {
-        query = query.in("language", languages);
-      }
-
-      const { data: drops, error } = await query;
-
-      if (error) {
-        throw new Error(`Could not read published drops for ${dropDate}: ${error.message}`);
-      }
-
-      const rows = (drops ?? []) as Array<{
+      const rows: Array<{
         id: string;
         user_id: string;
         language: Language;
         status: string;
-      }>;
+      }> = [];
+
+      for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+        let query = supabase
+          .from("daily_drops")
+          .select("id,user_id,language,status")
+          .eq("drop_date", dropDate)
+          .in("status", [...PUBLISHED_DROP_STATUSES])
+          .order("id", { ascending: true })
+          .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+
+        if (languages && languages.length > 0) {
+          query = query.in("language", languages);
+        }
+
+        const { data: drops, error } = await query;
+
+        if (error) {
+          throw new Error(`Could not read published drops for ${dropDate}: ${error.message}`);
+        }
+
+        rows.push(...((drops ?? []) as typeof rows));
+
+        if ((drops ?? []).length < SUPABASE_PAGE_SIZE) {
+          break;
+        }
+      }
 
       if (rows.length === 0) {
         return [];
@@ -57,54 +69,51 @@ export function createSupabasePushNotificationStore(
 
       // The slots actually linked, so an edition missing its business story is
       // never announced as complete.
-      const { data: items, error: itemsError } = await supabase
-        .from("daily_drop_items")
-        .select("daily_drop_id,slot")
-        .in(
-          "daily_drop_id",
-          rows.map((row) => row.id)
-        );
-
-      if (itemsError) {
-        throw new Error(
-          `Could not read drop items for ${dropDate}: ${itemsError.message}`
-        );
-      }
-
       const slotsByDropId = new Map<string, DailyDropSlot[]>();
+      for (const batch of chunk(rows.map((row) => row.id), USER_ID_FILTER_BATCH_SIZE)) {
+        const { data: items, error: itemsError } = await supabase
+          .from("daily_drop_items")
+          .select("daily_drop_id,slot")
+          .in("daily_drop_id", batch);
 
-      for (const item of (items ?? []) as Array<{
-        daily_drop_id: string;
-        slot: DailyDropSlot;
-      }>) {
-        slotsByDropId.set(item.daily_drop_id, [
-          ...(slotsByDropId.get(item.daily_drop_id) ?? []),
-          item.slot
-        ]);
-      }
+        if (itemsError) {
+          throw new Error(
+            `Could not read drop items for ${dropDate}: ${itemsError.message}`
+          );
+        }
 
-      const { data: preferences, error: preferencesError } = await supabase
-        .from("user_preferences")
-        .select("user_id,newsletter_enabled,business_stories_enabled,mini_cases_enabled")
-        .in(
-          "user_id",
-          rows.map((row) => row.user_id)
-        );
-
-      if (preferencesError) {
-        throw new Error(
-          `Could not read user module preferences for ${dropDate}: ${preferencesError.message}`
-        );
+        for (const item of (items ?? []) as Array<{
+          daily_drop_id: string;
+          slot: DailyDropSlot;
+        }>) {
+          slotsByDropId.set(item.daily_drop_id, [
+            ...(slotsByDropId.get(item.daily_drop_id) ?? []),
+            item.slot
+          ]);
+        }
       }
 
       const requiredSlotsByUserId = new Map<string, DailyDropSlot[]>();
-      for (const preference of (preferences ?? []) as Array<{
-        user_id: string;
-        newsletter_enabled: boolean | null;
-        business_stories_enabled: boolean | null;
-        mini_cases_enabled: boolean | null;
-      }>) {
-        requiredSlotsByUserId.set(preference.user_id, requiredEditionSlotsForPreference(preference));
+      for (const batch of chunk([...new Set(rows.map((row) => row.user_id))], USER_ID_FILTER_BATCH_SIZE)) {
+        const { data: preferences, error: preferencesError } = await supabase
+          .from("user_preferences")
+          .select("user_id,newsletter_enabled,business_stories_enabled,mini_cases_enabled")
+          .in("user_id", batch);
+
+        if (preferencesError) {
+          throw new Error(
+            `Could not read user module preferences for ${dropDate}: ${preferencesError.message}`
+          );
+        }
+
+        for (const preference of (preferences ?? []) as Array<{
+          user_id: string;
+          newsletter_enabled: boolean | null;
+          business_stories_enabled: boolean | null;
+          mini_cases_enabled: boolean | null;
+        }>) {
+          requiredSlotsByUserId.set(preference.user_id, requiredEditionSlotsForPreference(preference));
+        }
       }
 
       return rows.map<NotificationCandidateDrop>((row) => ({
@@ -122,17 +131,25 @@ export function createSupabasePushNotificationStore(
         return new Set();
       }
 
-      const { data, error } = await supabase
-        .from("user_preferences")
-        .select("user_id,notifications_enabled")
-        .in("user_id", userIds)
-        .eq("notifications_enabled", true);
+      const enabled = new Set<string>();
 
-      if (error) {
-        throw new Error(`Could not read notification preferences: ${error.message}`);
+      for (const batch of chunk([...new Set(userIds)], USER_ID_FILTER_BATCH_SIZE)) {
+        const { data, error } = await supabase
+          .from("user_preferences")
+          .select("user_id,notifications_enabled")
+          .in("user_id", batch)
+          .eq("notifications_enabled", true);
+
+        if (error) {
+          throw new Error(`Could not read notification preferences: ${error.message}`);
+        }
+
+        for (const row of data ?? []) {
+          enabled.add((row as { user_id: string }).user_id);
+        }
       }
 
-      return new Set((data ?? []).map((row) => (row as { user_id: string }).user_id));
+      return enabled;
     },
 
     async loadEnabledPushTokens(userIds) {
@@ -140,63 +157,85 @@ export function createSupabasePushNotificationStore(
         return [];
       }
 
-      const { data, error } = await supabase
-        .from("push_tokens")
-        .select("id,user_id,expo_push_token,enabled")
-        .in("user_id", userIds)
-        .eq("enabled", true);
+      const tokens: NotificationCandidateToken[] = [];
 
-      if (error) {
-        throw new Error(`Could not read push tokens: ${error.message}`);
+      for (const batch of chunk([...new Set(userIds)], USER_ID_FILTER_BATCH_SIZE)) {
+        for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+          const { data, error } = await supabase
+            .from("push_tokens")
+            .select("id,user_id,expo_push_token,enabled")
+            .in("user_id", batch)
+            .eq("enabled", true)
+            .order("id", { ascending: true })
+            .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+
+          if (error) {
+            throw new Error(`Could not read push tokens: ${error.message}`);
+          }
+
+          tokens.push(
+            ...((data ?? []) as Array<{
+              id: string;
+              user_id: string;
+              expo_push_token: string;
+              enabled: boolean;
+            }>).map<NotificationCandidateToken>((token) => ({
+              pushTokenId: token.id,
+              userId: token.user_id,
+              expoPushToken: token.expo_push_token,
+              enabled: token.enabled
+            }))
+          );
+
+          if ((data ?? []).length < SUPABASE_PAGE_SIZE) {
+            break;
+          }
+        }
       }
 
-      return (data ?? []).map<NotificationCandidateToken>((row) => {
-        const token = row as {
-          id: string;
-          user_id: string;
-          expo_push_token: string;
-          enabled: boolean;
-        };
-
-        return {
-          pushTokenId: token.id,
-          userId: token.user_id,
-          expoPushToken: token.expo_push_token,
-          enabled: token.enabled
-        };
-      });
+      return tokens;
     },
 
     async loadDeliveries({ dropDate, notificationKind }) {
-      const { data, error } = await supabase
-        .from("push_notification_deliveries")
-        .select("push_token_id,drop_date,notification_kind,status,attempt_count,expo_ticket_id")
-        .eq("drop_date", dropDate)
-        .eq("notification_kind", notificationKind);
+      const rows: DeliveryRecord[] = [];
 
-      if (error) {
-        throw new Error(`Could not read notification deliveries: ${error.message}`);
+      for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("push_notification_deliveries")
+          .select("push_token_id,drop_date,notification_kind,status,attempt_count,expo_ticket_id")
+          .eq("drop_date", dropDate)
+          .eq("notification_kind", notificationKind)
+          .order("push_token_id", { ascending: true })
+          .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+
+        if (error) {
+          throw new Error(`Could not read notification deliveries: ${error.message}`);
+        }
+
+        rows.push(
+          ...((data ?? []) as Array<{
+            push_token_id: string;
+            drop_date: string;
+            notification_kind: string;
+            status: DeliveryRecord["status"];
+            attempt_count: number;
+            expo_ticket_id: string | null;
+          }>).map<DeliveryRecord>((delivery) => ({
+            pushTokenId: delivery.push_token_id,
+            dropDate: delivery.drop_date,
+            notificationKind: delivery.notification_kind,
+            status: delivery.status,
+            attemptCount: delivery.attempt_count,
+            expoTicketId: delivery.expo_ticket_id
+          }))
+        );
+
+        if ((data ?? []).length < SUPABASE_PAGE_SIZE) {
+          break;
+        }
       }
 
-      return (data ?? []).map<DeliveryRecord>((row) => {
-        const delivery = row as {
-          push_token_id: string;
-          drop_date: string;
-          notification_kind: string;
-          status: DeliveryRecord["status"];
-          attempt_count: number;
-          expo_ticket_id: string | null;
-        };
-
-        return {
-          pushTokenId: delivery.push_token_id,
-          dropDate: delivery.drop_date,
-          notificationKind: delivery.notification_kind,
-          status: delivery.status,
-          attemptCount: delivery.attempt_count,
-          expoTicketId: delivery.expo_ticket_id
-        };
-      });
+      return rows;
     },
 
     async claimDeliveries(rows) {
@@ -204,24 +243,31 @@ export function createSupabasePushNotificationStore(
         return new Set();
       }
 
-      const { data, error } = await supabase.rpc("claim_push_notification_deliveries", {
-        p_claim_id: crypto.randomUUID(),
-        p_claim_ttl_seconds: 900,
-        p_rows: rows.map((row) => ({
-          push_token_id: row.pushTokenId,
-          user_id: row.userId,
-          drop_date: row.dropDate,
-          notification_kind: row.notificationKind
-        }))
-      });
+      const claimed = new Set<string>();
+      const claimId = crypto.randomUUID();
 
-      if (error) {
-        throw new Error(`Could not claim notification deliveries: ${error.message}`);
+      for (const batch of chunk(rows, USER_ID_FILTER_BATCH_SIZE)) {
+        const { data, error } = await supabase.rpc("claim_push_notification_deliveries", {
+          p_claim_id: claimId,
+          p_claim_ttl_seconds: 900,
+          p_rows: batch.map((row) => ({
+            push_token_id: row.pushTokenId,
+            user_id: row.userId,
+            drop_date: row.dropDate,
+            notification_kind: row.notificationKind
+          }))
+        });
+
+        if (error) {
+          throw new Error(`Could not claim notification deliveries: ${error.message}`);
+        }
+
+        for (const row of (data ?? []) as Array<{ push_token_id: string }>) {
+          claimed.add(row.push_token_id);
+        }
       }
 
-      return new Set(
-        ((data ?? []) as Array<{ push_token_id: string }>).map((row) => row.push_token_id)
-      );
+      return claimed;
     },
 
     async recordDeliveryResult({
@@ -360,4 +406,12 @@ function receiptStatus(outcome: ReceiptOutcome): DeliveryRecord["status"] {
     return "retryable_failure";
   }
   return "terminal_failure";
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { AppScreen, AppText, Card, PrimaryButton } from "../../components";
+import { AppScreen, AppText, Card, IconBadge, PrimaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import type { Language } from "../../types/domain";
@@ -88,6 +88,7 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
   return (
     <AppScreen contentStyle={styles.screen}>
       <View style={styles.header}>
+        <IconBadge name="check-circle" tone="accent" />
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
         <AppText variant="title">{copy.title}</AppText>
         <AppText color="muted" variant="body">

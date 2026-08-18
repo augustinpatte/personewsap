@@ -3,7 +3,14 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
-import { AppScreen, AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
+import {
+  AppScreen,
+  AppText,
+  Card,
+  IconBadge,
+  PrimaryButton,
+  SecondaryButton
+} from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
@@ -154,6 +161,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     return (
       <AppScreen centered>
         <Card elevated padding="lg">
+          <IconBadge name="compass" tone="muted" />
           <AppText variant="title">{copy.loading}</AppText>
         </Card>
       </AppScreen>
@@ -164,6 +172,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     return (
       <AppScreen centered>
         <Card elevated padding="lg">
+          <IconBadge name="compass" tone="muted" />
           <AppText variant="eyebrow">{copy.eyebrow}</AppText>
           <AppText variant="title">{copy.unavailableTitle}</AppText>
           <AppText color="muted" variant="body">
@@ -178,6 +187,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   return (
     <AppScreen contentStyle={styles.screen}>
       <View style={styles.header}>
+        <IconBadge name="compass" tone="accent" />
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
         {displayDomain && displayObjective ? (
           <AppText color="muted" variant="caption">

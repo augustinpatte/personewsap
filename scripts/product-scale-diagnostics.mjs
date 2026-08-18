@@ -54,6 +54,8 @@ check("mini-case, learning and push retry idempotency constraints exist", () => 
   assertIncludes(migrations, "learning_sessions_one_unstarted_per_path");
   assertIncludes(migrations, "learning_session_feedback_session_unique");
   assertIncludes(migrations, "push_notification_deliveries_identity_unique");
+  assertIncludes(migrations, "claim_push_notification_deliveries");
+  assertIncludes(migrations, "idx_push_notification_deliveries_awaiting_receipt");
 });
 
 check("backend assignment queries batch large user lists", () => {
@@ -63,6 +65,15 @@ check("backend assignment queries batch large user lists", () => {
   assertIncludes(repository, "SUPABASE_PAGE_SIZE");
   assertIncludes(repository, "for (const batch of chunk(userIds, USER_ID_FILTER_BATCH_SIZE))");
   assertIncludes(repository, "content_items!inner(content_type)");
+});
+
+check("push notification backend batches large readership queries", () => {
+  const store = read("services/content-engine/src/notifications/supabasePushStore.ts");
+
+  assertIncludes(store, "SUPABASE_PAGE_SIZE");
+  assertIncludes(store, "USER_ID_FILTER_BATCH_SIZE");
+  assertIncludes(store, "for (const batch of chunk([...new Set(userIds)], USER_ID_FILTER_BATCH_SIZE))");
+  assertIncludes(store, "claim_push_notification_deliveries");
 });
 
 check("production scale model fixture is present", () => {
@@ -130,7 +141,8 @@ function readMigrations() {
     "supabase/migrations/20260429120000_assigned_content_rls_hardening.sql",
     "supabase/migrations/20260731170000_learning_session_lifecycle.sql",
     "supabase/migrations/20260817120000_mini_case_response_sync.sql",
-    "supabase/migrations/20260818100000_push_notification_deliveries.sql"
+    "supabase/migrations/20260818100000_push_notification_deliveries.sql",
+    "supabase/migrations/20260818123000_push_receipts_and_atomic_claims.sql"
   ]
     .map(read)
     .join("\n");

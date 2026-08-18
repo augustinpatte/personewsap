@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
-import { AppScreen, AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
+import {
+  AppScreen,
+  AppText,
+  Card,
+  IconBadge,
+  PrimaryButton,
+  SecondaryButton
+} from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles } from "../../design/theme";
 import type { Language } from "../../types/domain";
@@ -90,6 +97,7 @@ export function LearningPathOverviewScreen({
     return (
       <AppScreen centered>
         <Card elevated padding="lg">
+          <IconBadge name="compass" tone="muted" />
           <AppText variant="title">{copy.loading}</AppText>
         </Card>
       </AppScreen>
@@ -100,6 +108,7 @@ export function LearningPathOverviewScreen({
     return (
       <AppScreen centered>
         <Card elevated padding="lg">
+          <IconBadge name="compass" tone="muted" />
           <AppText variant="eyebrow">{copy.eyebrow}</AppText>
           <AppText variant="title">{copy.emptyTitle}</AppText>
           <AppText color="muted" variant="body">
@@ -119,6 +128,7 @@ export function LearningPathOverviewScreen({
   return (
     <AppScreen contentStyle={styles.screen}>
       <View style={styles.header}>
+        <IconBadge name="compass" tone="accent" />
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
         <AppText variant="title">{copy.title}</AppText>
         <AppText color="muted" variant="body">

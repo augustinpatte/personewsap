@@ -3,7 +3,14 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { AppScreen, AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
+import {
+  AppScreen,
+  AppText,
+  Card,
+  IconBadge,
+  PrimaryButton,
+  SecondaryButton
+} from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
@@ -253,6 +260,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
   return (
     <AppScreen contentStyle={styles.screen}>
       <View style={styles.header}>
+        <IconBadge name="compass" tone="accent" />
         <AppText variant="eyebrow">{copy.eyebrow}</AppText>
         <AppText variant="title">{replacing ? copy.replacingTitle : copy.title}</AppText>
         <AppText color="muted" variant="body">
