@@ -57,24 +57,24 @@ public `/delete-account` web page does not.
 ## Deploy (run by the project owner)
 
 ```bash
-supabase functions deploy delete-account --project-ref yxftxegtdvpxvcatckpu
+supabase functions deploy delete-account --project-ref wkbviidrbmehmjbhvpeh
 supabase secrets set ACCOUNT_DELETION_ALLOWED_ORIGINS="https://your-web-domain" \
-  --project-ref yxftxegtdvpxvcatckpu
+  --project-ref wkbviidrbmehmjbhvpeh
 ```
 
 Then point the clients at it:
 
-- mobile: `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT=https://yxftxegtdvpxvcatckpu.supabase.co/functions/v1/delete-account`
+- mobile: `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT=https://wkbviidrbmehmjbhvpeh.supabase.co/functions/v1/delete-account`
 - web: `VITE_ACCOUNT_DELETION_ENDPOINT=` same URL
 
 ## Verify after deploying
 
 ```bash
 # 401 without a token
-curl -i -X POST https://yxftxegtdvpxvcatckpu.supabase.co/functions/v1/delete-account
+curl -i -X POST https://wkbviidrbmehmjbhvpeh.supabase.co/functions/v1/delete-account
 
 # 401 with a body-supplied id and no token (the body must never be trusted)
-curl -i -X POST https://yxftxegtdvpxvcatckpu.supabase.co/functions/v1/delete-account \
+curl -i -X POST https://wkbviidrbmehmjbhvpeh.supabase.co/functions/v1/delete-account \
   -H 'content-type: application/json' \
   -d '{"user_id":"00000000-0000-0000-0000-000000000000"}'
 ```

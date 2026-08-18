@@ -1,1 +1,11 @@
-project_id = "yxftxegtdvpxvcatckpu"
+# Local-only identifier. The Supabase CLI uses project_id to namespace the local
+# Docker stack (supabase_db_<project_id>); it is NOT the remote project this
+# repository is linked to and it is never used to target production.
+#
+# The remote project is stored in supabase/.temp/project-ref (gitignored) and is
+# set with:
+#   supabase link --project-ref <ref>
+#
+# Production project ref: wkbviidrbmehmjbhvpeh
+# (https://supabase.com/dashboard/project/wkbviidrbmehmjbhvpeh)
+project_id = "personewsap-local"
