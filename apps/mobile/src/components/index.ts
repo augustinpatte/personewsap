@@ -3,6 +3,7 @@ export { AppErrorBoundary } from "./AppErrorBoundary";
 export { AppText } from "./AppText";
 export { Card } from "./Card";
 export { EmptyState } from "./EmptyState";
+export { IconBadge, type IconBadgeName } from "./IconBadge";
 export { PlaceholderScreen } from "./PlaceholderScreen";
 export { PrimaryButton } from "./PrimaryButton";
 export { ProgressPill } from "./ProgressPill";

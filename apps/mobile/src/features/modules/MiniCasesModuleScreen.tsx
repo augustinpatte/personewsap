@@ -30,6 +30,7 @@ import {
   ModuleError,
   ModuleHeader,
   ModuleLoading,
+  MetaLine,
   ModuleScroll,
   ViewSwitch
 } from "./ModuleChrome";
@@ -50,7 +51,13 @@ export function MiniCasesModuleScreen() {
       <View style={styles.chrome}>
         <ModuleHeader
           eyebrow={formatDropDate(drop.drop_date, language)}
+          iconName="check-square"
           language={language}
+          metaItems={[
+            copy.common.editionRhythm,
+            copy.cases.headerMeta,
+            drop.items.mini_case ? getTopicLabel(drop.items.mini_case.topic, language) : null
+          ]}
           title={copy.cases.title}
         />
         <ViewSwitch
@@ -119,7 +126,12 @@ function MiniCaseToday() {
   if (isEmptyDrop) {
     return (
       <ModuleScroll>
-        <TodayQuietState dropDate={drop.drop_date} language={language} onRefresh={reload} />
+        <TodayQuietState
+          dropDate={drop.drop_date}
+          iconName="check-square"
+          language={language}
+          onRefresh={reload}
+        />
       </ModuleScroll>
     );
   }
@@ -157,9 +169,15 @@ function MiniCaseToday() {
             </View>
           </View>
 
-          <AppText color="muted" variant="caption">
-            {getTopicLabel(miniCase.topic, language)}
-          </AppText>
+          <MetaLine
+            items={[
+              getTopicLabel(miniCase.topic, language),
+              getDifficultyLabel(miniCase.difficulty, language),
+              miniCase.questions?.length
+                ? copy.cases.questionCount(miniCase.questions.length)
+                : null
+            ]}
+          />
           <AppText variant="title">{miniCase.title}</AppText>
 
           {/* The accent rail is what makes the question read as the thing being

@@ -3,6 +3,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { tokens } from "../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../design/theme";
 import { AppText } from "./AppText";
+import { IconBadge, type IconBadgeName } from "./IconBadge";
 import { PrimaryButton } from "./PrimaryButton";
 import { SecondaryButton } from "./SecondaryButton";
 
@@ -14,6 +15,7 @@ type EmptyStateProps = {
   onActionPress?: () => void;
   secondaryActionLabel?: string;
   onSecondaryActionPress?: () => void;
+  iconName?: IconBadgeName;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -25,6 +27,7 @@ export function EmptyState({
   onActionPress,
   secondaryActionLabel,
   onSecondaryActionPress,
+  iconName,
   style
 }: EmptyStateProps) {
   const styles = useThemedStyles(createStyles);
@@ -32,6 +35,7 @@ export function EmptyState({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.copy}>
+        {iconName ? <IconBadge name={iconName} tone="muted" /> : null}
         {eyebrow ? <AppText align="center" variant="eyebrow">{eyebrow}</AppText> : null}
         <AppText align="center" variant="subtitle">
           {title}

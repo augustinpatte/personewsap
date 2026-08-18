@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import type { PropsWithChildren } from "react";
 
-import { AppText, EmptyState } from "../../components";
+import { AppText, EmptyState, IconBadge, type IconBadgeName } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useAuth } from "../auth";
@@ -26,11 +26,15 @@ import type { Language } from "../../types/domain";
 
 export function ModuleHeader({
   eyebrow,
+  iconName,
   title,
+  metaItems,
   language
 }: {
   eyebrow: string;
+  iconName: IconBadgeName;
   title: string;
+  metaItems?: Array<string | null | undefined>;
   language: Language | null | undefined;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -41,11 +45,13 @@ export function ModuleHeader({
 
   return (
     <View style={styles.header}>
+      <IconBadge accessibilityLabel={eyebrow} name={iconName} tone="accent" />
       <View style={styles.headerCopy}>
         <AppText color="muted" variant="eyebrow">
           {eyebrow}
         </AppText>
         <AppText variant="title">{title}</AppText>
+        {metaItems ? <MetaLine items={metaItems} /> : null}
       </View>
       <Pressable
         accessibilityHint={copy.accountHint}
@@ -229,6 +235,7 @@ export function ModuleError({
     <EmptyState
       actionLabel={copy.retry}
       description={copy.offlineBody}
+      iconName="wifi-off"
       onActionPress={onRetry}
       title={copy.offlineTitle}
     />

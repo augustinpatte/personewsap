@@ -85,6 +85,7 @@ export function ItemArchiveList({
         <EmptyState
           actionLabel={archive.loadingMore ? undefined : copy.common.seeEarlierEditions}
           description={copy.common.noneInLoadedBody}
+          iconName="archive"
           onActionPress={archive.loadingMore ? undefined : archive.loadMore}
           title={copy.common.noneInLoadedTitle}
         />
@@ -96,7 +97,7 @@ export function ItemArchiveList({
   if (emptyState === "empty") {
     return (
       <ModuleScroll>
-        <EmptyState description={emptyBody} title={emptyTitle} />
+        <EmptyState description={emptyBody} iconName="archive" title={emptyTitle} />
       </ModuleScroll>
     );
   }
@@ -108,6 +109,7 @@ export function ItemArchiveList({
           <EmptyState
             actionLabel={copy.common.clearSearch}
             description={copy.common.noResultsBody}
+            iconName="search"
             onActionPress={() => setQuery("")}
             title={copy.common.noResultsTitle}
           />

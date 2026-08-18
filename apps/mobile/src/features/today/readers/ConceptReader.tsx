@@ -26,6 +26,7 @@ export function ConceptReader({ conceptId }: { conceptId: string }) {
               ? "Ce concept n'est plus disponible."
               : "This concept is no longer available."
           }
+          iconName="bookmark"
           title={language === "fr" ? "Introuvable" : "Not found"}
         />
       </ReaderScaffold>
@@ -53,6 +54,7 @@ export function ConceptReader({ conceptId }: { conceptId: string }) {
     <ReaderScaffold
       closeLabel={copy.close}
       eyebrow={copy.conceptEyebrow}
+      iconName="bookmark"
       footer={
         <PrimaryButton label={completed ? copy.back : copy.keepConcept} onPress={onFinish} />
       }

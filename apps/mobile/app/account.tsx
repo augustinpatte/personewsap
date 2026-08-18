@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Feather } from "@expo/vector-icons";
 import { Modal, Pressable, Share, StyleSheet, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Redirect, useRouter, type Href } from "expo-router";
@@ -6,6 +7,7 @@ import { Redirect, useRouter, type Href } from "expo-router";
 import { AppScreen } from "../src/components/AppScreen";
 import { AppText } from "../src/components/AppText";
 import { Card } from "../src/components/Card";
+import { IconBadge, type IconBadgeName } from "../src/components/IconBadge";
 import { PrimaryButton } from "../src/components/PrimaryButton";
 import { SecondaryButton } from "../src/components/SecondaryButton";
 import { tokens } from "../src/design/tokens";
@@ -211,9 +213,7 @@ export default function AccountScreen() {
           onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/newsletter" as Href))}
           style={({ pressed }) => [styles.backButton, pressed ? styles.backPressed : null]}
         >
-          <AppText color="muted" style={styles.backGlyph} variant="subtitle">
-            ←
-          </AppText>
+          <Feather name="arrow-left" size={24} style={styles.backIcon} />
         </Pressable>
         <View style={styles.headerCopy}>
           <AppText color="muted" variant="eyebrow">{copy.eyebrow}</AppText>
@@ -225,81 +225,109 @@ export default function AccountScreen() {
       </AppScreen.Header>
 
       <AppScreen.Body>
-        <Card elevated padding="lg" style={styles.heroCard}>
-          <AppText variant="subtitle">{user?.email ?? copy.noActiveUser}</AppText>
-          <AppText color="muted" variant="body">
-            {profileCompleted ? copy.complete : copy.finishOnboarding}
-          </AppText>
-          <InfoRow
-            label={copy.dailyDropLanguage}
-            value={formatLanguageName(profileLanguage, profileLanguage)}
+        <AccountIdentityCard
+          email={user?.email ?? copy.noActiveUser}
+          language={formatLanguageName(profileLanguage, profileLanguage)}
+          languageLabel={copy.dailyDropLanguage}
+          status={profileCompleted ? copy.complete : copy.finishOnboarding}
+          statusLabel={copy.accountStatus}
+          statusValue={profileCompleted ? copy.accountReady : copy.accountSetupRequired}
+        />
+
+        <SettingsSection
+          description={copy.contentDescription}
+          iconName="layers"
+          title={copy.contentTitle}
+        >
+          <PreferencesEditor
+            onLanguageChange={handleLanguageChange}
+            onSaved={refreshAuthState}
+            refreshKey={preferencesRefreshKey}
+            uiLanguage={profileLanguage}
+            userId={user?.id ?? null}
           />
-        </Card>
 
-        <PreferencesEditor
-          onLanguageChange={handleLanguageChange}
-          onSaved={refreshAuthState}
-          refreshKey={preferencesRefreshKey}
-          uiLanguage={profileLanguage}
-          userId={user?.id ?? null}
-        />
+          <LearningAccountSection
+            language={profileLanguage}
+            onCreate={() => router.push("/(learning)/setup" as Href)}
+            onHistory={() => router.push("/(learning)/history" as Href)}
+            onOverview={() => router.push("/(learning)/overview" as Href)}
+            onReplace={() =>
+              router.push(
+                { pathname: "/(learning)/setup", params: { replace: "1" } } as unknown as Href
+              )
+            }
+          />
+        </SettingsSection>
 
-        <NotificationPreferencesCard
-          language={profileLanguage}
-          refreshKey={preferencesRefreshKey}
-          userId={user?.id ?? null}
-        />
+        <SettingsSection
+          description={copy.appDescription}
+          iconName="sliders"
+          title={copy.appTitle}
+        >
+          <NotificationPreferencesCard
+            language={profileLanguage}
+            refreshKey={preferencesRefreshKey}
+            userId={user?.id ?? null}
+          />
+          <Card tone="muted">
+            <SettingsRow
+              iconName="moon"
+              label={copy.appearanceTitle}
+              value={copy.appearanceSystem}
+            />
+          </Card>
+        </SettingsSection>
 
-        <LearningAccountSection
-          language={profileLanguage}
-          onCreate={() => router.push("/(learning)/setup" as Href)}
-          onHistory={() => router.push("/(learning)/history" as Href)}
-          onOverview={() => router.push("/(learning)/overview" as Href)}
-          onReplace={() =>
-            router.push(
-              { pathname: "/(learning)/setup", params: { replace: "1" } } as unknown as Href
-            )
-          }
-        />
-
-        <Card tone="muted">
-          <View style={styles.connectionCard}>
-            <AppText variant="subtitle">{copy.privacyTitle}</AppText>
-            <AppText color="muted" variant="body">
-              {copy.privacyDescription}
-            </AppText>
-            <View style={styles.linkActions}>
-              <SecondaryButton
-                label={copy.privacyPolicy}
-                onPress={() => router.push("/privacy" as Href)}
+        <SettingsSection
+          description={copy.accountDescription}
+          iconName="shield"
+          title={copy.accountTitle}
+        >
+          <Card tone="muted">
+            <View style={styles.connectionCard}>
+              <SettingsRow
+                iconName="mail"
+                label={copy.emailLabel}
+                value={user?.email ?? copy.noActiveUser}
               />
-              <SecondaryButton
-                disabled={isExportingData}
-                label={copy.exportData}
-                onPress={handleExportData}
-              />
-              <SecondaryButton
-                label={copy.deleteAccount}
-                onPress={() => setDeleteModalVisible(true)}
-              />
+              <View style={styles.linkActions}>
+                <SecondaryButton
+                  label={copy.resetPassword}
+                  onPress={() => router.push("/(auth)/reset-password" as Href)}
+                />
+                <SecondaryButton
+                  label={copy.privacyPolicy}
+                  onPress={() => router.push("/privacy" as Href)}
+                />
+                <SecondaryButton
+                  label={copy.support}
+                  onPress={() => router.push("/support" as Href)}
+                />
+                <SecondaryButton
+                  disabled={isExportingData}
+                  label={copy.exportData}
+                  onPress={handleExportData}
+                />
+              </View>
+              {deleteRequestMessage ? (
+                <AppText color="success" variant="body">
+                  {deleteRequestMessage}
+                </AppText>
+              ) : null}
+              {exportMessage ? (
+                <AppText color="success" variant="body">
+                  {exportMessage}
+                </AppText>
+              ) : null}
+              {privacyActionError ? (
+                <AppText color="danger" variant="body">
+                  {getUserFacingError(privacyActionError, profileLanguage, "account").message}
+                </AppText>
+              ) : null}
             </View>
-            {deleteRequestMessage ? (
-              <AppText color="success" variant="body">
-                {deleteRequestMessage}
-              </AppText>
-            ) : null}
-            {exportMessage ? (
-              <AppText color="success" variant="body">
-                {exportMessage}
-              </AppText>
-            ) : null}
-            {privacyActionError ? (
-              <AppText color="danger" variant="body">
-                {getUserFacingError(privacyActionError, profileLanguage, "account").message}
-              </AppText>
-            ) : null}
-          </View>
-        </Card>
+          </Card>
+        </SettingsSection>
 
         {userFacingAccountError ? (
           <AppText color="danger" variant="body">
@@ -313,16 +341,45 @@ export default function AccountScreen() {
           </AppText>
         ) : null}
 
-        <View style={styles.actions}>
-          <SecondaryButton disabled={isRefreshing || isSigningOut} label={copy.refresh} onPress={handleRefresh} />
-          <PrimaryButton
-            disabled={isRefreshing || isSigningOut}
-            label={copy.logOut}
-            loading={isSigningOut}
-            onPress={handleSignOut}
-            testID="account-logout-button"
-          />
-        </View>
+        <SettingsSection
+          description={copy.sessionDescription}
+          iconName="log-out"
+          title={copy.sessionTitle}
+        >
+          <View style={styles.actions}>
+            <SecondaryButton disabled={isRefreshing || isSigningOut} label={copy.refresh} onPress={handleRefresh} />
+            <PrimaryButton
+              disabled={isRefreshing || isSigningOut}
+              label={copy.logOut}
+              loading={isSigningOut}
+              onPress={handleSignOut}
+              testID="account-logout-button"
+            />
+          </View>
+        </SettingsSection>
+
+        <SettingsSection
+          description={copy.dangerDescription}
+          iconName="alert-triangle"
+          title={copy.dangerTitle}
+          tone="danger"
+        >
+          <Card tone="muted">
+            <View style={styles.connectionCard}>
+              <SettingsRow
+                iconName="trash-2"
+                label={copy.deleteAccount}
+                value={copy.deleteAccountDescription}
+                tone="danger"
+              />
+              <SecondaryButton
+                label={copy.deleteAccount}
+                onPress={() => setDeleteModalVisible(true)}
+              />
+            </View>
+          </Card>
+        </SettingsSection>
+
       </AppScreen.Body>
 
       <Modal
@@ -357,31 +414,106 @@ export default function AccountScreen() {
   );
 }
 
-function InfoRow({
+function AccountIdentityCard({
+  email,
+  language,
+  languageLabel,
+  status,
+  statusLabel,
+  statusValue
+}: {
+  email: string;
+  language: string;
+  languageLabel: string;
+  status: string;
+  statusLabel: string;
+  statusValue: string;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const initial = email.trim().charAt(0).toUpperCase() || "P";
+
+  return (
+    <Card elevated padding="lg" style={styles.heroCard}>
+      <View style={styles.identityTopline}>
+        <View style={styles.avatar}>
+          <AppText color="accentInk" variant="subtitle">
+            {initial}
+          </AppText>
+        </View>
+        <View style={styles.identityCopy}>
+          <AppText numberOfLines={1} variant="subtitle">
+            {email}
+          </AppText>
+          <AppText color="muted" variant="body">
+            {status}
+          </AppText>
+        </View>
+      </View>
+      <View style={styles.identityMeta}>
+        <SettingsRow iconName="globe" label={languageLabel} value={language} />
+        <SettingsRow iconName="check-circle" label={statusLabel} value={statusValue} />
+      </View>
+    </Card>
+  );
+}
+
+function SettingsSection({
+  children,
+  description,
+  iconName,
+  title,
+  tone = "accent"
+}: {
+  children: ReactNode;
+  description: string;
+  iconName: IconBadgeName;
+  title: string;
+  tone?: "accent" | "danger";
+}) {
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View style={styles.settingsSection}>
+      <View style={styles.settingsHeader}>
+        <IconBadge name={iconName} tone={tone} />
+        <View style={styles.settingsHeaderCopy}>
+          <AppText color={tone === "danger" ? "danger" : "muted"} variant="eyebrow">
+            {title}
+          </AppText>
+          <AppText color="muted" variant="caption">
+            {description}
+          </AppText>
+        </View>
+      </View>
+      <View style={styles.settingsBody}>{children}</View>
+    </View>
+  );
+}
+
+function SettingsRow({
+  iconName,
   label,
-  monospace = false,
-  selectable = false,
+  tone = "muted",
   value
 }: {
+  iconName: IconBadgeName;
   label: string;
-  monospace?: boolean;
-  selectable?: boolean;
+  tone?: "muted" | "danger";
   value: string;
 }) {
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={styles.row}>
-      <AppText color="muted" style={styles.rowLabel} variant="caption">
-        {label}
-      </AppText>
-      <AppText
-        selectable={selectable}
-        style={[styles.rowValue, monospace ? styles.monospace : null]}
-        variant="bodyStrong"
-      >
-        {value}
-      </AppText>
+    <View style={styles.settingsRow}>
+      <IconBadge name={iconName} size="sm" tone={tone} />
+      <View style={styles.settingsRowCopy}>
+        <AppText color={tone === "danger" ? "danger" : "muted"} variant="caption">
+          {label}
+        </AppText>
+        <AppText style={styles.rowValue} variant="bodyStrong">
+          {value}
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -397,18 +529,39 @@ function getAccountCopy(language: string | null) {
         description:
           "Your reading language, notifications, and privacy — all in one quiet place.",
         noActiveUser: "No active user",
+        accountStatus: "Status",
+        accountReady: "Ready",
+        accountSetupRequired: "Setup required",
         complete:
           "Your setup is complete. Today will show your edition when one is available.",
         finishOnboarding: "Finish onboarding to unlock your editions.",
         dailyDropLanguage: "Reading language",
+        contentTitle: "Content",
+        contentDescription:
+          "Modules, newsletter topics, article depth, mini-case topics and learning path.",
+        appTitle: "App",
+        appDescription: "Language, notifications and appearance.",
+        appearanceTitle: "Appearance",
+        appearanceSystem: "Follows your device setting",
+        accountTitle: "Account",
+        accountDescription: "Email, password access, privacy and data.",
+        emailLabel: "Email",
+        resetPassword: "Reset password",
+        sessionTitle: "Session",
+        sessionDescription: "Refresh your account or sign out to use another one.",
+        dangerTitle: "Danger zone",
+        dangerDescription: "Permanent account actions.",
         refresh: "Refresh",
         logOut: "Log out",
         privacyTitle: "Privacy and data",
         privacyDescription:
           "Review privacy information, request a data export, or ask for account deletion.",
         privacyPolicy: "Privacy policy",
+        support: "Support",
         exportData: "Export data",
         deleteAccount: "Delete account",
+        deleteAccountDescription:
+          "Deletes your account and saved app data after confirmation.",
         exportShareTitle: "PersoNewsAP data export",
         exportShared: "Data export opened.",
         exportShareFailed: "The data export could not be opened on this device.",
@@ -427,18 +580,39 @@ function getAccountCopy(language: string | null) {
         description:
           "Votre langue de lecture, vos notifications et votre confidentialité, réunies dans un même endroit calme.",
         noActiveUser: "Aucun utilisateur actif",
+        accountStatus: "État",
+        accountReady: "Prêt",
+        accountSetupRequired: "Configuration requise",
         complete:
           "Votre configuration est terminée. L'écran Aujourd'hui affichera votre édition dès qu'elle sera disponible.",
         finishOnboarding: "Terminez la configuration pour débloquer vos éditions.",
         dailyDropLanguage: "Langue de lecture",
+        contentTitle: "Contenu",
+        contentDescription:
+          "Modules, sujets newsletter, profondeur des articles, sujets de mini-cas et parcours.",
+        appTitle: "App",
+        appDescription: "Langue, notifications et apparence.",
+        appearanceTitle: "Apparence",
+        appearanceSystem: "Suit le réglage de votre appareil",
+        accountTitle: "Compte",
+        accountDescription: "Email, accès au mot de passe, confidentialité et données.",
+        emailLabel: "Email",
+        resetPassword: "Réinitialiser le mot de passe",
+        sessionTitle: "Session",
+        sessionDescription: "Actualisez votre compte ou déconnectez-vous pour en utiliser un autre.",
+        dangerTitle: "Zone sensible",
+        dangerDescription: "Actions permanentes sur le compte.",
         refresh: "Actualiser",
         logOut: "Se déconnecter",
         privacyTitle: "Confidentialité et données",
         privacyDescription:
           "Consulte les informations de confidentialité, demande un export de données ou une suppression de compte.",
         privacyPolicy: "Politique de confidentialité",
+        support: "Support",
         exportData: "Exporter les données",
         deleteAccount: "Supprimer le compte",
+        deleteAccountDescription:
+          "Supprime votre compte et les données enregistrées après confirmation.",
         exportShareTitle: "Export de données PersoNewsAP",
         exportShared: "Export de données ouvert.",
         exportShareFailed: "L'export de données ne peut pas être ouvert sur cet appareil.",
@@ -471,9 +645,8 @@ const createStyles = (c: ThemeColors) =>
     backPressed: {
       opacity: 0.5
     },
-    backGlyph: {
-      fontSize: 26,
-      lineHeight: 28
+    backIcon: {
+      color: c.muted
     },
     headerCopy: {
       gap: tokens.space.sm
@@ -481,8 +654,33 @@ const createStyles = (c: ThemeColors) =>
     heroCard: {
       gap: tokens.space.lg
     },
+    avatar: {
+      alignItems: "center",
+      backgroundColor: c.accentSoft,
+      borderColor: c.accent,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      height: 56,
+      justifyContent: "center",
+      width: 56
+    },
     connectionCard: {
-      gap: tokens.space.sm
+      gap: tokens.space.md
+    },
+    identityCopy: {
+      flex: 1,
+      gap: tokens.space.xs
+    },
+    identityMeta: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.md,
+      paddingTop: tokens.space.md
+    },
+    identityTopline: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
     },
     deleteModal: {
       gap: tokens.space.lg,
@@ -499,18 +697,34 @@ const createStyles = (c: ThemeColors) =>
       justifyContent: "center",
       padding: tokens.space.lg
     },
-    monospace: {
-      fontFamily: "Courier",
-      fontSize: 13,
-      lineHeight: 19
-    },
-    row: {
-      gap: tokens.space.xs
-    },
-    rowLabel: {
-      textTransform: "uppercase"
-    },
     rowValue: {
       flexShrink: 1
+    },
+    settingsBody: {
+      gap: tokens.space.md
+    },
+    settingsHeader: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    settingsHeaderCopy: {
+      flex: 1,
+      gap: tokens.space.xs
+    },
+    settingsRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    settingsRowCopy: {
+      flex: 1,
+      gap: tokens.space.xs
+    },
+    settingsSection: {
+      borderTopColor: c.border,
+      borderTopWidth: 1,
+      gap: tokens.space.md,
+      paddingTop: tokens.space.lg
     }
   });

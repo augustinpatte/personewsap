@@ -52,7 +52,13 @@ export function NewsletterModuleScreen() {
       <View style={styles.chrome}>
         <ModuleHeader
           eyebrow={formatDropDate(drop.drop_date, language)}
+          iconName="file-text"
           language={language}
+          metaItems={[
+            copy.common.editionRhythm,
+            copy.newsletter.articleCount(drop.items.newsletter.length),
+            copy.common.archiveAccess
+          ]}
           title={copy.newsletter.title}
         />
         <ViewSwitch
@@ -120,6 +126,7 @@ function NewsletterToday() {
           <>
             <TodayQuietState
               dropDate={drop.drop_date}
+              iconName="calendar"
               language={language}
               onRefresh={reload}
             />
@@ -272,6 +279,7 @@ function NewsletterArchive() {
         <EmptyState
           actionLabel={archive.loadingMore ? undefined : copy.common.seeEarlierEditions}
           description={copy.common.noneInLoadedBody}
+          iconName="archive"
           onActionPress={archive.loadingMore ? undefined : archive.loadMore}
           title={copy.common.noneInLoadedTitle}
         />
@@ -284,6 +292,7 @@ function NewsletterArchive() {
       <ModuleScroll>
         <EmptyState
           description={copy.newsletter.archiveEmptyBody}
+          iconName="archive"
           title={copy.newsletter.archiveEmptyTitle}
         />
       </ModuleScroll>

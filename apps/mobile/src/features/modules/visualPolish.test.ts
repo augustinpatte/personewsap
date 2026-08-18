@@ -28,6 +28,14 @@ const cases = read("MiniCasesModuleScreen.tsx");
 const path = read("PathModuleScreen.tsx");
 const archiveList = read("ItemArchiveList.tsx");
 const chrome = read("ModuleChrome.tsx");
+const emptyState = readFileSync(
+  join(modulesDir, "..", "..", "components", "EmptyState.tsx"),
+  "utf8"
+);
+const account = readFileSync(
+  join(modulesDir, "..", "..", "..", "app", "account.tsx"),
+  "utf8"
+);
 const tabs = readFileSync(
   join(modulesDir, "..", "..", "..", "app", "(tabs)", "_layout.tsx"),
   "utf8"
@@ -57,6 +65,21 @@ describe("tab bar", () => {
 });
 
 describe("each module has its own signature", () => {
+  it("carries the tab icon concept into each module header", () => {
+    expect(newsletter).toMatch(/iconName="file-text"/);
+    expect(cases).toMatch(/iconName="check-square"/);
+    expect(stories).toMatch(/iconName="briefcase"/);
+    expect(path).toMatch(/iconName="compass"/);
+    expect(chrome).toMatch(/IconBadge/);
+  });
+
+  it("adds useful header metadata without inventing data", () => {
+    expect(newsletter).toMatch(/copy\.newsletter\.articleCount/);
+    expect(cases).toMatch(/miniCase\.questions\?\.length/);
+    expect(stories).toMatch(/story\.story_date/);
+    expect(path).toMatch(/sessionsCompletedCount/);
+  });
+
   it("newsletter reads as a front page", () => {
     expect(newsletter).toMatch(/styles\.masthead/);
     expect(newsletter).toMatch(/EditorialRule/);
@@ -88,7 +111,7 @@ describe("each module has its own signature", () => {
     // the mechanics the screen refuses.
     const code = stripComments(path);
 
-    for (const forbidden of [/streak/i, /\bxp\b/i, /leaderboard/i, /dailyGoal/i, /badge/i]) {
+    for (const forbidden of [/streak/i, /\bxp\b/i, /leaderboard/i, /dailyGoal/i, /rewardBadge/i]) {
       expect(code).not.toMatch(forbidden);
     }
   });
@@ -132,6 +155,13 @@ describe("accessibility", () => {
     }
   });
 
+  it("gives empty states a non-emoji visual anchor", () => {
+    expect(emptyState).toMatch(/iconName/);
+    for (const source of [newsletter, path, archiveList]) {
+      expect(source).toMatch(/iconName=/);
+    }
+  });
+
   it("never fixes the height of a text container", () => {
     for (const source of [newsletter, stories, cases, path, archiveList]) {
       const fixedHeights = source.match(/height: (\d+)/g) ?? [];
@@ -154,6 +184,36 @@ describe("accessibility", () => {
 
     expect(reader).toMatch(/useReducedMotion/);
     expect(reader).toMatch(/if \(reduceMotion\)/);
+  });
+});
+
+describe("settings presentation", () => {
+  it("organizes account settings into product sections", () => {
+    for (const key of [
+      "contentTitle",
+      "appTitle",
+      "accountTitle",
+      "sessionTitle",
+      "dangerTitle"
+    ]) {
+      expect(account).toContain(key);
+    }
+
+    expect(account).toMatch(/SettingsSection/);
+    expect(account).toMatch(/IconBadge/);
+  });
+
+  it("keeps logout visible on the account screen", () => {
+    expect(account).toMatch(/testID="account-logout-button"/);
+    expect(account).toMatch(/copy\.sessionTitle/);
+    expect(account.indexOf("account-logout-button")).toBeLessThan(
+      account.indexOf("copy.dangerTitle")
+    );
+  });
+
+  it("does not hide delete account inside the session section", () => {
+    expect(account).toMatch(/copy\.dangerTitle/);
+    expect(account).toMatch(/copy\.deleteAccountDescription/);
   });
 });
 

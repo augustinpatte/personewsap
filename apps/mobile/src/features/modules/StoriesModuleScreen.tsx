@@ -18,6 +18,7 @@ import {
   ModuleError,
   ModuleHeader,
   ModuleLoading,
+  MetaLine,
   ModuleScroll,
   ViewSwitch
 } from "./ModuleChrome";
@@ -38,7 +39,13 @@ export function StoriesModuleScreen() {
       <View style={styles.chrome}>
         <ModuleHeader
           eyebrow={formatDropDate(drop.drop_date, language)}
+          iconName="briefcase"
           language={language}
+          metaItems={[
+            copy.common.editionRhythm,
+            copy.stories.headerMeta,
+            storyHeaderMeta(drop.items.business_story)
+          ]}
           title={copy.stories.title}
         />
         <ViewSwitch
@@ -76,7 +83,12 @@ function StoriesToday() {
   if (isEmptyDrop) {
     return (
       <ModuleScroll>
-        <TodayQuietState dropDate={drop.drop_date} language={language} onRefresh={reload} />
+        <TodayQuietState
+          dropDate={drop.drop_date}
+          iconName="briefcase"
+          language={language}
+          onRefresh={reload}
+        />
       </ModuleScroll>
     );
   }
@@ -123,6 +135,14 @@ function StoriesToday() {
             </View>
           </View>
 
+          <MetaLine
+            items={[
+              story.company_or_market,
+              story.story_date ? story.story_date.slice(0, 4) : null,
+              copy.stories.headerMeta
+            ]}
+          />
+
           <View style={styles.dossierRule} />
 
           <AppText variant="title">{story.title}</AppText>
@@ -140,6 +160,16 @@ function StoriesToday() {
       </Pressable>
     </ModuleScroll>
   );
+}
+
+function storyHeaderMeta(
+  story: ReturnType<typeof useDailyDrop>["drop"]["items"]["business_story"]
+) {
+  if (!story) {
+    return null;
+  }
+
+  return `${story.company_or_market} · ${story.story_date.slice(0, 4)}`;
 }
 
 function StoriesArchive() {

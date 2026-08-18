@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 
-import { AppText, SecondaryButton } from "../../components";
+import { AppText, IconBadge, SecondaryButton, type IconBadgeName } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles } from "../../design/theme";
 import type { Language } from "../../types/domain";
@@ -14,10 +14,12 @@ import { getModuleCopy } from "./moduleCopy";
  */
 export function TodayQuietState({
   dropDate,
+  iconName = "calendar",
   language,
   onRefresh
 }: {
   dropDate: string;
+  iconName?: IconBadgeName;
   language: Language;
   onRefresh: () => void;
 }) {
@@ -32,6 +34,7 @@ export function TodayQuietState({
 
   return (
     <View style={styles.container}>
+      <IconBadge name={iconName} tone="muted" />
       <AppText variant="subtitle">
         {editionDay ? copy.onItsWayTitle : copy.quietDayTitle}
       </AppText>

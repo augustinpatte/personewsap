@@ -7,6 +7,7 @@ import {
   AppText,
   Card,
   EmptyState,
+  IconBadge,
   PrimaryButton,
   SecondaryButton
 } from "../../components";
@@ -34,6 +35,7 @@ export function PathModuleScreen() {
   // deliberately carries no edition date, because the path does not advance
   // with the calendar.
   const { language } = useDailyDrop();
+  const learningPath = useLearningPath();
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
 
@@ -42,7 +44,19 @@ export function PathModuleScreen() {
       <View style={styles.chrome}>
         <ModuleHeader
           eyebrow={copy.path.eyebrow}
+          iconName="compass"
           language={language}
+          metaItems={[
+            copy.path.headerMeta,
+            learningPath.displayDomain
+              ? localizeLearningField(learningPath.displayDomain, language)
+              : null,
+            copy.path.sessionsCompletedCount(
+              learningPath.sessions.filter(
+                (session) => Boolean(session.completed_at) || session.status === "completed"
+              ).length
+            )
+          ]}
           title={copy.path.title}
         />
         <ViewSwitch
@@ -88,6 +102,7 @@ function PathCurrent() {
           <EmptyState
             actionLabel={copy.path.newPath}
             description={copy.path.completedBody}
+            iconName="check-circle"
             onActionPress={() => router.push("/(learning)/setup" as Href)}
             title={copy.path.completedTitle}
           />
@@ -276,6 +291,7 @@ function PathIntroCard({ onCreate }: { onCreate: () => void }) {
 
   return (
     <Card padding="lg" style={styles.sessionCard} tone="muted">
+      <IconBadge name="compass" tone="accent" />
       <AppText variant="eyebrow">{copy.path.title}</AppText>
       <AppText variant="title">{copy.path.startFirst}</AppText>
       <AppText color="muted" variant="read">
@@ -312,6 +328,7 @@ function PathHistory() {
       {completedSessions.length === 0 ? (
         <EmptyState
           description={copy.path.historyEmptyBody}
+          iconName="archive"
           title={copy.path.historyEmptyTitle}
         />
       ) : (

@@ -1,4 +1,5 @@
 import type { PropsWithChildren, ReactNode } from "react";
+import { Feather } from "@expo/vector-icons";
 import {
   Pressable,
   ScrollView,
@@ -9,12 +10,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppText } from "../../../components";
+import { AppText, IconBadge, type IconBadgeName } from "../../../components";
 import { tokens } from "../../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../../design/theme";
 
 type ReaderScaffoldProps = PropsWithChildren<{
   eyebrow?: string;
+  iconName?: IconBadgeName;
   onClose: () => void;
   closeLabel: string;
   footer?: ReactNode;
@@ -23,6 +25,7 @@ type ReaderScaffoldProps = PropsWithChildren<{
 
 export function ReaderScaffold({
   eyebrow,
+  iconName,
   onClose,
   closeLabel,
   footer,
@@ -41,14 +44,15 @@ export function ReaderScaffold({
           onPress={onClose}
           style={({ pressed }) => [styles.close, pressed ? styles.closePressed : null]}
         >
-          <AppText color="muted" style={styles.closeGlyph} variant="subtitle">
-            ←
-          </AppText>
+          <Feather name="arrow-left" size={24} style={styles.closeIcon} />
         </Pressable>
         {eyebrow ? (
-          <AppText color="muted" variant="eyebrow">
-            {eyebrow}
-          </AppText>
+          <View style={styles.readerIdentity}>
+            {iconName ? <IconBadge name={iconName} size="sm" tone="muted" /> : null}
+            <AppText color="muted" variant="eyebrow">
+              {eyebrow}
+            </AppText>
+          </View>
         ) : null}
         <View style={styles.topBarSpacer} />
       </View>
@@ -89,12 +93,16 @@ const createStyles = (c: ThemeColors) =>
   closePressed: {
     opacity: 0.5
   },
-  closeGlyph: {
-    fontSize: 26,
-    lineHeight: 28
+  closeIcon: {
+    color: c.muted
   },
   topBarSpacer: {
     width: 40
+  },
+  readerIdentity: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.space.sm
   },
   content: {
     paddingBottom: tokens.space.xxl,

@@ -32,6 +32,7 @@ export function NewsletterReader({ articleId }: { articleId: string }) {
               ? "Cet article n'est plus disponible."
               : "This article is no longer available."
           }
+          iconName="file-text"
           title={language === "fr" ? "Introuvable" : "Not found"}
         />
       </ReaderScaffold>
@@ -51,6 +52,7 @@ export function NewsletterReader({ articleId }: { articleId: string }) {
     <ReaderScaffold
       closeLabel={copy.close}
       eyebrow={copy.newsletterEyebrow}
+      iconName="file-text"
       footer={
         <PrimaryButton label={completed ? copy.back : copy.markRead} onPress={onFinish} />
       }

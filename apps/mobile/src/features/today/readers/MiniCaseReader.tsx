@@ -63,6 +63,7 @@ export function MiniCaseReader({ caseId }: { caseId: string }) {
               ? "Ce cas n'est plus disponible."
               : "This case is no longer available."
           }
+          iconName="check-square"
           title={language === "fr" ? "Introuvable" : "Not found"}
         />
       </ReaderScaffold>
@@ -127,6 +128,7 @@ function MiniCaseFlow({ challenge }: { challenge: MiniCaseChallenge }) {
         <ReaderScaffold
           closeLabel={copy.close}
           eyebrow={copy.caseEyebrow}
+          iconName="check-square"
           onClose={() => router.back()}
         >
           <CaseIntro challenge={challenge} copy={copy} language={language} />
@@ -293,6 +295,7 @@ function MiniCaseQuizFlow({
     <ReaderScaffold
       closeLabel={copy.close}
       eyebrow={copy.caseEyebrow}
+      iconName="check-square"
       footer={renderFooter()}
       onClose={() => router.back()}
     >
@@ -568,6 +571,7 @@ function MiniCaseReviewFlow({
     <ReaderScaffold
       closeLabel={copy.close}
       eyebrow={copy.caseEyebrow}
+      iconName="check-square"
       footer={<PrimaryButton label={copy.back} onPress={() => router.back()} />}
       onClose={() => router.back()}
     >
@@ -715,6 +719,7 @@ function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
     <ReaderScaffold
       closeLabel={copy.close}
       eyebrow={copy.caseEyebrow}
+      iconName="check-square"
       footer={renderFooter()}
       onClose={() => router.back()}
     >

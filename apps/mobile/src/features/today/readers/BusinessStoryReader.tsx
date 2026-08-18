@@ -27,6 +27,7 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
               ? "Cette histoire n'est plus disponible."
               : "This story is no longer available."
           }
+          iconName="briefcase"
           title={language === "fr" ? "Introuvable" : "Not found"}
         />
       </ReaderScaffold>
@@ -52,6 +53,7 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
     <ReaderScaffold
       closeLabel={copy.close}
       eyebrow={copy.storyEyebrow}
+      iconName="briefcase"
       footer={
         <PrimaryButton label={completed ? copy.back : copy.markRead} onPress={onFinish} />
       }

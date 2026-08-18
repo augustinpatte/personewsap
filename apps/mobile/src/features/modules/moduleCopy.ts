@@ -13,6 +13,8 @@ export function getModuleCopy(language: Language | null | undefined) {
         common: {
           accountLabel: "Account",
           accountHint: "Opens your account and preferences",
+          editionRhythm: "4 editions/week",
+          archiveAccess: "Finite archive",
           todayView: "Today",
           archiveView: "Archive",
           editionsView: "Editions",
@@ -43,7 +45,7 @@ export function getModuleCopy(language: Language | null | undefined) {
           minuteCount: (count: number) => `${count} min`,
           quietDayTitle: "No new edition today",
           quietDayBody:
-            "PersoNews publishes four considered editions a week — Monday, Wednesday, Friday and Sunday. Today is a quiet day by design.",
+            "PersoNews publishes four considered editions a week — Monday, Wednesday, Friday and Sunday. Your archive stays available, and your learning path can still be opened from Parcours.",
           nextEdition: (weekday: string) => `Next edition: ${weekday}.`,
           onItsWayTitle: "Today's edition is on its way",
           onItsWayBody:
@@ -54,6 +56,8 @@ export function getModuleCopy(language: Language | null | undefined) {
         newsletter: {
           title: "Newsletter",
           tab: "Newsletter",
+          articleCount: (count: number) =>
+            count === 1 ? "1 article" : `${count} articles`,
           lead: "Lead",
           alsoInBrief: "Also in the brief",
           readLead: "Read the lead",
@@ -68,6 +72,7 @@ export function getModuleCopy(language: Language | null | undefined) {
         stories: {
           title: "Business stories",
           tab: "Stories",
+          headerMeta: "Company decision",
           kicker: "Business story",
           readStory: "Read the story",
           searchPlaceholder: "Search by title or date",
@@ -80,6 +85,9 @@ export function getModuleCopy(language: Language | null | undefined) {
         cases: {
           title: "Mini cases",
           tab: "Mini cases",
+          headerMeta: "3-question decision",
+          questionCount: (count: number) =>
+            count === 1 ? "1 question" : `${count} questions`,
           kicker: "Mini case",
           decision: "Your call",
           decide: "Make the call",
@@ -97,6 +105,9 @@ export function getModuleCopy(language: Language | null | undefined) {
           // Stable header line: the path is self-paced, so it must not be
           // labelled with an edition date.
           eyebrow: "Personal path",
+          headerMeta: "Five-minute sessions",
+          sessionsCompletedCount: (count: number) =>
+            count === 1 ? "1 session completed" : `${count} sessions completed`,
           sessionsCompleted: "Sessions completed",
           nextSession: "Next session",
           startFirst: "Start your first session",
@@ -121,6 +132,8 @@ export function getModuleCopy(language: Language | null | undefined) {
         common: {
           accountLabel: "Compte",
           accountHint: "Ouvre votre compte et vos préférences",
+          editionRhythm: "4 éditions/semaine",
+          archiveAccess: "Archive finie",
           todayView: "Aujourd'hui",
           archiveView: "Archives",
           editionsView: "Éditions",
@@ -149,7 +162,7 @@ export function getModuleCopy(language: Language | null | undefined) {
           minuteCount: (count: number) => `${count} min`,
           quietDayTitle: "Aucune nouvelle édition aujourd'hui",
           quietDayBody:
-            "PersoNews publie quatre éditions soignées par semaine — lundi, mercredi, vendredi et dimanche. Aujourd'hui est une journée calme, par choix.",
+            "PersoNews publie quatre éditions soignées par semaine — lundi, mercredi, vendredi et dimanche. Vos archives restent disponibles, et votre parcours reste accessible depuis Parcours.",
           nextEdition: (weekday: string) => `Prochaine édition : ${weekday}.`,
           onItsWayTitle: "L'édition du jour arrive",
           onItsWayBody:
@@ -160,6 +173,8 @@ export function getModuleCopy(language: Language | null | undefined) {
         newsletter: {
           title: "Newsletter",
           tab: "Newsletter",
+          articleCount: (count: number) =>
+            count === 1 ? "1 article" : `${count} articles`,
           lead: "La une",
           alsoInBrief: "Aussi dans le brief",
           readLead: "Lire la une",
@@ -175,6 +190,7 @@ export function getModuleCopy(language: Language | null | undefined) {
         stories: {
           title: "Business stories",
           tab: "Stories",
+          headerMeta: "Décision d'entreprise",
           kicker: "Business story",
           readStory: "Lire l'histoire",
           searchPlaceholder: "Rechercher par titre ou date",
@@ -188,6 +204,9 @@ export function getModuleCopy(language: Language | null | undefined) {
         cases: {
           title: "Mini cas",
           tab: "Mini cas",
+          headerMeta: "Décision en 3 questions",
+          questionCount: (count: number) =>
+            count === 1 ? "1 question" : `${count} questions`,
           kicker: "Mini cas",
           decision: "À vous de décider",
           decide: "Décider",
@@ -204,6 +223,9 @@ export function getModuleCopy(language: Language | null | undefined) {
           title: "Parcours",
           tab: "Parcours",
           eyebrow: "Parcours personnel",
+          headerMeta: "Sessions de cinq minutes",
+          sessionsCompletedCount: (count: number) =>
+            count === 1 ? "1 session terminée" : `${count} sessions terminées`,
           sessionsCompleted: "Sessions terminées",
           nextSession: "Prochaine session",
           startFirst: "Commencer la première session",
