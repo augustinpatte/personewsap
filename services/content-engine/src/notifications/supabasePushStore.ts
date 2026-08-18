@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DailyDropSlot, Language } from "../domain.js";
 import type {
   NotificationCandidateDrop,
-  NotificationCandidateToken
+  NotificationCandidateToken,
+  ReceiptOutcome
 } from "./editionNotification.js";
 import type { DeliveryRecord, PushNotificationStore } from "./pushSender.js";
 
@@ -14,10 +15,10 @@ import type { DeliveryRecord, PushNotificationStore } from "./pushSender.js";
  * find who should be told, which no client is ever allowed to do. Nothing here
  * belongs in the mobile app, and the key must never reach it.
  *
- * The whole idempotency guarantee is the unique index on
- * (push_token_id, drop_date, notification_kind): reserveDeliveries inserts and
- * ignores conflicts, so replaying a run cannot create a second delivery for a
- * device that already has one.
+ * Idempotency is the unique index plus an atomic claim RPC. A row existing is
+ * not enough: only rows returned by claim_push_notification_deliveries may
+ * proceed to Expo, so two workers racing on the same token/date/kind cannot
+ * both continue after an ignored conflict.
  */
 
 const PUBLISHED_DROP_STATUSES = ["published"] as const;
@@ -82,12 +83,37 @@ export function createSupabasePushNotificationStore(
         ]);
       }
 
+      const { data: preferences, error: preferencesError } = await supabase
+        .from("user_preferences")
+        .select("user_id,newsletter_enabled,business_stories_enabled,mini_cases_enabled")
+        .in(
+          "user_id",
+          rows.map((row) => row.user_id)
+        );
+
+      if (preferencesError) {
+        throw new Error(
+          `Could not read user module preferences for ${dropDate}: ${preferencesError.message}`
+        );
+      }
+
+      const requiredSlotsByUserId = new Map<string, DailyDropSlot[]>();
+      for (const preference of (preferences ?? []) as Array<{
+        user_id: string;
+        newsletter_enabled: boolean | null;
+        business_stories_enabled: boolean | null;
+        mini_cases_enabled: boolean | null;
+      }>) {
+        requiredSlotsByUserId.set(preference.user_id, requiredEditionSlotsForPreference(preference));
+      }
+
       return rows.map<NotificationCandidateDrop>((row) => ({
         dailyDropId: row.id,
         userId: row.user_id,
         language: row.language,
         status: row.status,
-        slots: slotsByDropId.get(row.id) ?? []
+        slots: slotsByDropId.get(row.id) ?? [],
+        requiredSlots: requiredSlotsByUserId.get(row.user_id)
       }));
     },
 
@@ -144,7 +170,7 @@ export function createSupabasePushNotificationStore(
     async loadDeliveries({ dropDate, notificationKind }) {
       const { data, error } = await supabase
         .from("push_notification_deliveries")
-        .select("push_token_id,drop_date,notification_kind,status,attempt_count")
+        .select("push_token_id,drop_date,notification_kind,status,attempt_count,expo_ticket_id")
         .eq("drop_date", dropDate)
         .eq("notification_kind", notificationKind);
 
@@ -159,6 +185,7 @@ export function createSupabasePushNotificationStore(
           notification_kind: string;
           status: DeliveryRecord["status"];
           attempt_count: number;
+          expo_ticket_id: string | null;
         };
 
         return {
@@ -166,32 +193,35 @@ export function createSupabasePushNotificationStore(
           dropDate: delivery.drop_date,
           notificationKind: delivery.notification_kind,
           status: delivery.status,
-          attemptCount: delivery.attempt_count
+          attemptCount: delivery.attempt_count,
+          expoTicketId: delivery.expo_ticket_id
         };
       });
     },
 
-    async reserveDeliveries(rows) {
+    async claimDeliveries(rows) {
       if (rows.length === 0) {
-        return;
+        return new Set();
       }
 
-      // ignoreDuplicates: an existing row for this device and edition is the
-      // record that a previous run already handled it. Never overwritten.
-      const { error } = await supabase.from("push_notification_deliveries").upsert(
-        rows.map((row) => ({
+      const { data, error } = await supabase.rpc("claim_push_notification_deliveries", {
+        p_claim_id: crypto.randomUUID(),
+        p_claim_ttl_seconds: 900,
+        p_rows: rows.map((row) => ({
           push_token_id: row.pushTokenId,
           user_id: row.userId,
           drop_date: row.dropDate,
-          notification_kind: row.notificationKind,
-          status: "pending"
-        })),
-        { onConflict: "push_token_id,drop_date,notification_kind", ignoreDuplicates: true }
-      );
+          notification_kind: row.notificationKind
+        }))
+      });
 
       if (error) {
-        throw new Error(`Could not reserve notification deliveries: ${error.message}`);
+        throw new Error(`Could not claim notification deliveries: ${error.message}`);
       }
+
+      return new Set(
+        ((data ?? []) as Array<{ push_token_id: string }>).map((row) => row.push_token_id)
+      );
     },
 
     async recordDeliveryResult({
@@ -214,24 +244,24 @@ export function createSupabasePushNotificationStore(
       }
 
       const attemptCount = ((existing as { attempt_count?: number } | null)?.attempt_count ?? 0) + 1;
-      // Only "sent" and "permanent" are terminal. A retryable outcome stays
-      // pending so the next run picks it up again.
+      // An accepted ticket is not final delivery. It waits for receipt
+      // reconciliation; retryable send failures become retryable rows.
       const status =
-        outcome.kind === "sent"
-          ? "sent"
+        outcome.kind === "ticket_accepted"
+          ? "awaiting_receipt"
           : outcome.kind === "permanent" || outcome.kind === "token_invalid"
-            ? "failed"
-            : "pending";
+            ? "terminal_failure"
+            : "retryable_failure";
 
       const { error } = await supabase
         .from("push_notification_deliveries")
         .update({
           status,
-          expo_ticket_id: outcome.kind === "sent" ? outcome.expoTicketId : null,
+          expo_ticket_id: outcome.kind === "ticket_accepted" ? outcome.expoTicketId : null,
           attempt_count: attemptCount,
           last_attempt_at: attemptedAt,
-          sent_at: outcome.kind === "sent" ? attemptedAt : null,
-          error: outcome.kind === "sent" ? null : outcome.error
+          sent_at: null,
+          error: outcome.kind === "ticket_accepted" ? null : outcome.error
         })
         .eq("push_token_id", pushTokenId)
         .eq("drop_date", dropDate)
@@ -239,6 +269,59 @@ export function createSupabasePushNotificationStore(
 
       if (error) {
         throw new Error(`Could not record notification delivery: ${error.message}`);
+      }
+    },
+
+    async loadAwaitingReceipts(limit) {
+      const { data, error } = await supabase
+        .from("push_notification_deliveries")
+        .select("push_token_id,drop_date,notification_kind,status,attempt_count,expo_ticket_id")
+        .in("status", ["ticket_accepted", "awaiting_receipt"])
+        .not("expo_ticket_id", "is", null)
+        .order("last_attempt_at", { ascending: true, nullsFirst: true })
+        .limit(limit);
+
+      if (error) {
+        throw new Error(`Could not read awaiting push receipts: ${error.message}`);
+      }
+
+      return (data ?? []).map<DeliveryRecord>((row) => {
+        const delivery = row as {
+          push_token_id: string;
+          drop_date: string;
+          notification_kind: string;
+          status: DeliveryRecord["status"];
+          attempt_count: number;
+          expo_ticket_id: string | null;
+        };
+
+        return {
+          pushTokenId: delivery.push_token_id,
+          dropDate: delivery.drop_date,
+          notificationKind: delivery.notification_kind,
+          status: delivery.status,
+          attemptCount: delivery.attempt_count,
+          expoTicketId: delivery.expo_ticket_id
+        };
+      });
+    },
+
+    async recordReceiptResult({ pushTokenId, dropDate, notificationKind, outcome, checkedAt }) {
+      const status = receiptStatus(outcome);
+      const { error } = await supabase
+        .from("push_notification_deliveries")
+        .update({
+          status,
+          expo_receipt_checked_at: checkedAt,
+          sent_at: outcome.kind === "sent" ? checkedAt : null,
+          error: outcome.kind === "sent" ? null : outcome.error
+        })
+        .eq("push_token_id", pushTokenId)
+        .eq("drop_date", dropDate)
+        .eq("notification_kind", notificationKind);
+
+      if (error) {
+        throw new Error(`Could not record push receipt: ${error.message}`);
       }
     },
 
@@ -255,4 +338,26 @@ export function createSupabasePushNotificationStore(
       }
     }
   };
+}
+
+function requiredEditionSlotsForPreference(preference: {
+  newsletter_enabled: boolean | null;
+  business_stories_enabled: boolean | null;
+  mini_cases_enabled: boolean | null;
+}): DailyDropSlot[] {
+  return [
+    preference.newsletter_enabled === false ? null : "newsletter",
+    preference.business_stories_enabled === false ? null : "business_story",
+    preference.mini_cases_enabled === false ? null : "mini_case"
+  ].filter((slot): slot is DailyDropSlot => Boolean(slot));
+}
+
+function receiptStatus(outcome: ReceiptOutcome): DeliveryRecord["status"] {
+  if (outcome.kind === "sent") {
+    return "sent";
+  }
+  if (outcome.kind === "retryable") {
+    return "retryable_failure";
+  }
+  return "terminal_failure";
 }

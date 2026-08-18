@@ -35,6 +35,8 @@ type RegisterPushTokenResult =
   | { ok: true; token: string; registrationState: "granted" }
   | { ok: false; error: NormalizedSupabaseError; registrationState: Exclude<NotificationRegistrationState, "granted"> };
 
+export const EDITION_NOTIFICATION_CHANNEL_ID = "default";
+
 function getNotificationPreferenceCopy(language: Language | null | undefined) {
   return localized(
     {
@@ -50,7 +52,8 @@ function getNotificationPreferenceCopy(language: Language | null | undefined) {
         registerFailed: "Could not register this device for push reminders.",
         saveFailed: "Could not save notification preferences.",
         tokenStoreFailed: "Could not store this device for push reminders.",
-        tokenCleanupFailed: "Could not disable stored push reminders."
+        tokenCleanupFailed: "Could not disable stored push reminders.",
+        channelFailed: "Could not prepare notifications on this device."
       },
       fr: {
         missingConfig:
@@ -69,7 +72,8 @@ function getNotificationPreferenceCopy(language: Language | null | undefined) {
         registerFailed: "Impossible d'inscrire cet appareil aux rappels push.",
         saveFailed: "Impossible d'enregistrer les préférences de notification.",
         tokenStoreFailed: "Impossible d'enregistrer cet appareil pour les rappels push.",
-        tokenCleanupFailed: "Impossible de désactiver les rappels push enregistrés."
+        tokenCleanupFailed: "Impossible de désactiver les rappels push enregistrés.",
+        channelFailed: "Impossible de préparer les notifications sur cet appareil."
       }
     },
     language
@@ -176,7 +180,7 @@ export async function saveNotificationPreferences({
       };
     }
 
-    const disableResult = await disableStoredPushTokens(userId, language);
+    const disableResult = await disablePushNotificationsForUser(userId, language);
 
     return {
       ok: true,
@@ -222,6 +226,96 @@ export async function saveNotificationPreferences({
   return { ok: true, registrationState: "granted" };
 }
 
+export async function syncRefreshedPushToken({
+  expoPushToken,
+  language = null,
+  userId
+}: {
+  expoPushToken: string;
+  language?: Language | null;
+  userId: string;
+}): Promise<{ ok: true; stored: boolean } | { ok: false; error: NormalizedSupabaseError }> {
+  const preferences = await loadNotificationPreferences(userId, language);
+
+  if (!preferences.ok) {
+    return { ok: false, error: preferences.error };
+  }
+
+  if (!preferences.preferences.notificationsEnabled) {
+    return { ok: true, stored: false };
+  }
+
+  const stored = await storePushToken(userId, expoPushToken, language);
+
+  if (!stored.ok) {
+    return stored;
+  }
+
+  if (__DEV__) {
+    console.info("[Notifications]", {
+      event: "push_token_refreshed",
+      platform: normalizePlatform(Platform.OS),
+      tokenStored: true
+    });
+  }
+
+  return { ok: true, stored: true };
+}
+
+export async function registerCurrentDeviceForEnabledNotifications({
+  language = null,
+  userId
+}: {
+  language?: Language | null;
+  userId: string;
+}): Promise<
+  | { ok: true; registered: boolean; registrationState: NotificationRegistrationState }
+  | { ok: false; error: NormalizedSupabaseError; registrationState: NotificationRegistrationState }
+> {
+  const preferences = await loadNotificationPreferences(userId, language);
+
+  if (!preferences.ok) {
+    return {
+      ok: false,
+      error: preferences.error,
+      registrationState: "storage_not_ready"
+    };
+  }
+
+  if (!preferences.preferences.notificationsEnabled) {
+    return { ok: true, registered: false, registrationState: "not_requested" };
+  }
+
+  const registration = await registerForPushNotifications(language);
+
+  if (!registration.ok) {
+    return {
+      ok: false,
+      error: registration.error,
+      registrationState: registration.registrationState
+    };
+  }
+
+  const stored = await storePushToken(userId, registration.token, language);
+
+  if (!stored.ok) {
+    return {
+      ok: false,
+      error: stored.error,
+      registrationState: "storage_not_ready"
+    };
+  }
+
+  return { ok: true, registered: true, registrationState: "granted" };
+}
+
+export async function disablePushNotificationsForUser(
+  userId: string,
+  language: Language | null = null
+): Promise<{ ok: true } | { ok: false; error: NormalizedSupabaseError }> {
+  return disableStoredPushTokens(userId, language);
+}
+
 async function registerForPushNotifications(
   language: Language | null
 ): Promise<RegisterPushTokenResult> {
@@ -235,6 +329,16 @@ async function registerForPushNotifications(
         code: "push_platform_unsupported",
         message: copy.platformUnsupported
       }
+    };
+  }
+
+  try {
+    await ensureAndroidNotificationChannel();
+  } catch (error) {
+    return {
+      ok: false,
+      registrationState: "registration_failed",
+      error: normalizeSupabaseError(error, copy.channelFailed)
     };
   }
 
@@ -284,6 +388,15 @@ async function registerForPushNotifications(
   try {
     const token = await Notifications.getExpoPushTokenAsync({ projectId });
 
+    if (__DEV__) {
+      console.info("[Notifications]", {
+        event: "push_token_registered",
+        hasProjectId: true,
+        platform: normalizePlatform(Platform.OS),
+        tokenStored: false
+      });
+    }
+
     return {
       ok: true,
       registrationState: "granted",
@@ -296,6 +409,20 @@ async function registerForPushNotifications(
       error: normalizeSupabaseError(error, copy.registerFailed)
     };
   }
+}
+
+export async function ensureAndroidNotificationChannel(): Promise<void> {
+  if (Platform.OS !== "android") {
+    return;
+  }
+
+  await Notifications.setNotificationChannelAsync(EDITION_NOTIFICATION_CHANNEL_ID, {
+    name: "PersoNewsAP editions",
+    description: "One calm notification when a new edition is ready.",
+    importance: Notifications.AndroidImportance.LOW,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    showBadge: true
+  });
 }
 
 async function storePushToken(

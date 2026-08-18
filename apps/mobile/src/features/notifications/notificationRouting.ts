@@ -20,6 +20,11 @@ export type NotificationRoute = {
   dropDate: string | null;
 };
 
+export type NotificationNavigationTarget = {
+  pathname: typeof NEWSLETTER_ROUTE;
+  params: { drop_date?: string };
+};
+
 const DROP_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export function resolveNotificationRoute(data: unknown): NotificationRoute | null {
@@ -50,4 +55,13 @@ export function resolveNotificationRoute(data: unknown): NotificationRoute | nul
  */
 export function canFollowNotificationRoute(authStatus: string): boolean {
   return authStatus === "ready";
+}
+
+export function toNotificationNavigationTarget(
+  route: NotificationRoute
+): NotificationNavigationTarget {
+  return {
+    pathname: route.pathname,
+    params: route.dropDate ? { drop_date: route.dropDate } : {}
+  };
 }

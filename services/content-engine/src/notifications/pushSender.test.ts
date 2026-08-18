@@ -3,19 +3,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildEditionNotificationMessage,
   chunkForExpo,
+  classifyExpoPushReceipt,
   classifyExpoPushTicket,
   EDITION_NOTIFICATION_KIND,
   isCompleteEdition,
   resolveEditionNotificationRecipients,
   selectPendingRecipients,
+  type ExpoPushReceipt,
   type ExpoPushTicket,
   type NotificationCandidateDrop,
   type NotificationCandidateToken
 } from "./editionNotification.js";
 import {
+  reconcileExpoPushReceipts,
   sendEditionNotifications,
   type DeliveryRecord,
   type ExpoPushClient,
+  type ExpoPushReceiptClient,
   type PushNotificationStore
 } from "./pushSender.js";
 
@@ -62,7 +66,7 @@ function createStore(seed: {
 }) {
   const deliveries = new Map<string, DeliveryRecord>();
   const disabledTokens: string[] = [];
-  const reservations: string[][] = [];
+  const claims: string[][] = [];
 
   for (const delivery of seed.deliveries ?? []) {
     deliveries.set(`${delivery.pushTokenId}|${delivery.dropDate}|${delivery.notificationKind}`, {
@@ -78,14 +82,15 @@ function createStore(seed: {
       [...deliveries.values()].filter(
         (row) => row.dropDate === dropDate && row.notificationKind === notificationKind
       ),
-    reserveDeliveries: async (rows) => {
-      reservations.push(rows.map((row) => row.pushTokenId));
+    claimDeliveries: async (rows) => {
+      const claimed = new Set<string>();
+      claims.push(rows.map((row) => row.pushTokenId));
 
       for (const row of rows) {
         const key = `${row.pushTokenId}|${row.dropDate}|${row.notificationKind}`;
+        const existing = deliveries.get(key);
 
-        // ON CONFLICT DO NOTHING, exactly like the unique index.
-        if (deliveries.has(key)) {
+        if (existing && existing.status !== "pending" && existing.status !== "retryable_failure") {
           continue;
         }
 
@@ -93,10 +98,14 @@ function createStore(seed: {
           pushTokenId: row.pushTokenId,
           dropDate: row.dropDate,
           notificationKind: row.notificationKind,
-          status: "pending",
-          attemptCount: 0
+          status: "claimed",
+          attemptCount: existing?.attemptCount ?? 0,
+          expoTicketId: existing?.expoTicketId ?? null
         });
+        claimed.add(row.pushTokenId);
       }
+
+      return claimed;
     },
     recordDeliveryResult: async ({ pushTokenId, dropDate, notificationKind, outcome }) => {
       const key = `${pushTokenId}|${dropDate}|${notificationKind}`;
@@ -107,12 +116,35 @@ function createStore(seed: {
         dropDate,
         notificationKind,
         status:
+          outcome.kind === "ticket_accepted"
+            ? "awaiting_receipt"
+            : outcome.kind === "permanent" || outcome.kind === "token_invalid"
+              ? "terminal_failure"
+              : "retryable_failure",
+        attemptCount: (existing?.attemptCount ?? 0) + 1,
+        expoTicketId: outcome.kind === "ticket_accepted" ? outcome.expoTicketId : null
+      });
+    },
+    loadAwaitingReceipts: async (limit) =>
+      [...deliveries.values()]
+        .filter((row) => row.status === "awaiting_receipt" && Boolean(row.expoTicketId))
+        .slice(0, limit),
+    recordReceiptResult: async ({ pushTokenId, dropDate, notificationKind, outcome }) => {
+      const key = `${pushTokenId}|${dropDate}|${notificationKind}`;
+      const existing = deliveries.get(key);
+
+      deliveries.set(key, {
+        pushTokenId,
+        dropDate,
+        notificationKind,
+        status:
           outcome.kind === "sent"
             ? "sent"
-            : outcome.kind === "permanent" || outcome.kind === "token_invalid"
-              ? "failed"
-              : "pending",
-        attemptCount: (existing?.attemptCount ?? 0) + 1
+            : outcome.kind === "retryable"
+              ? "retryable_failure"
+              : "terminal_failure",
+        attemptCount: existing?.attemptCount ?? 0,
+        expoTicketId: existing?.expoTicketId ?? null
       });
     },
     disablePushToken: async (pushTokenId) => {
@@ -125,7 +157,7 @@ function createStore(seed: {
     }
   };
 
-  return { store, deliveries, disabledTokens, reservations };
+  return { store, deliveries, disabledTokens, claims };
 }
 
 function createClient(tickets: ExpoPushTicket[] | (() => never)): ExpoPushClient & {
@@ -147,6 +179,20 @@ function createClient(tickets: ExpoPushTicket[] | (() => never)): ExpoPushClient
   };
 }
 
+function createReceiptClient(
+  receipts: Record<string, ExpoPushReceipt>
+): ExpoPushReceiptClient & { ticketIds: string[][] } {
+  const ticketIds: string[][] = [];
+
+  return {
+    ticketIds,
+    getReceipts: async (ids) => {
+      ticketIds.push(ids);
+      return { receipts };
+    }
+  };
+}
+
 const okTickets = (count: number): ExpoPushTicket[] =>
   Array.from({ length: count }, (_, index) => ({ status: "ok", id: `ticket-${index}` }));
 
@@ -156,9 +202,9 @@ describe("message", () => {
     const en = buildEditionNotificationMessage("en", DROP_DATE);
 
     expect(fr.title).toBe("Votre édition est prête");
-    expect(fr.body).toBe("Newsletter, Business Story et Mini Case vous attendent.");
+    expect(fr.body).toBe("Votre nouvelle édition PersoNewsAP est disponible.");
     expect(en.title).toBe("Your edition is ready");
-    expect(en.body).toBe("Newsletter, Business Story and Mini Case are ready.");
+    expect(en.body).toBe("Your new PersoNewsAP edition is ready.");
     expect(fr.title).not.toBe(en.title);
 
     // No streak, no count, no urgency.
@@ -173,6 +219,14 @@ describe("eligibility", () => {
   it("requires every promised slot", () => {
     expect(isCompleteEdition(drop())).toBe(true);
     expect(isCompleteEdition(drop({ slots: ["newsletter", "business_story"] }))).toBe(false);
+    expect(
+      isCompleteEdition(
+        drop({
+          slots: ["newsletter", "business_story"],
+          requiredSlots: ["newsletter", "business_story"]
+        })
+      )
+    ).toBe(true);
     expect(isCompleteEdition(drop({ slots: [] }))).toBe(false);
   });
 
@@ -219,6 +273,25 @@ describe("eligibility", () => {
     expect(resolved.skipped[0].reason).toBe("no_enabled_token");
   });
 
+  it("allows a complete edition for the modules this reader enabled", () => {
+    const resolved = resolveEditionNotificationRecipients({
+      dropDate: DROP_DATE,
+      drops: [
+        drop({
+          slots: ["newsletter", "business_story"],
+          requiredSlots: ["newsletter", "business_story"]
+        })
+      ],
+      tokensByUserId: new Map([[FR_USER, [token()]]]),
+      notificationsEnabledUserIds: new Set([FR_USER])
+    });
+
+    expect(resolved.recipients).toHaveLength(1);
+    expect(resolved.recipients[0].message.body).toBe(
+      "Votre nouvelle édition PersoNewsAP est disponible."
+    );
+  });
+
   it("tells each of a reader's devices once", () => {
     const resolved = resolveEditionNotificationRecipients({
       dropDate: DROP_DATE,
@@ -256,9 +329,28 @@ describe("expo tickets", () => {
 
   it("keeps the ticket id of a successful send", () => {
     expect(classifyExpoPushTicket({ status: "ok", id: "ticket-9" })).toEqual({
-      kind: "sent",
+      kind: "ticket_accepted",
       expoTicketId: "ticket-9"
     });
+  });
+});
+
+describe("expo receipts", () => {
+  it.each([
+    ["DeviceNotRegistered", "token_invalid"],
+    ["MessageRateExceeded", "retryable"],
+    ["MessageTooBig", "permanent"],
+    ["MismatchSenderId", "permanent"],
+    ["InvalidCredentials", "permanent"],
+    ["SomethingNew", "retryable"]
+  ])("classifies %s as %s", (detail, kind) => {
+    expect(
+      classifyExpoPushReceipt({
+        status: "error",
+        message: detail,
+        details: { error: detail }
+      }).kind
+    ).toBe(kind);
   });
 });
 
@@ -279,7 +371,8 @@ describe("sending", () => {
       dropDate: DROP_DATE
     });
 
-    expect(result.sent).toBe(2);
+    expect(result.ticketAccepted).toBe(2);
+    expect(result.awaitingReceipt).toBe(2);
     const batch = client.messages[0] as Array<{ title: string; data: unknown }>;
     expect(batch.map((message) => message.title)).toEqual([
       "Votre édition est prête",
@@ -303,9 +396,9 @@ describe("sending", () => {
       dropDate: DROP_DATE
     });
 
-    expect(first.sent).toBe(2);
-    expect(second.sent).toBe(0);
-    expect(second.alreadySent).toBe(2);
+    expect(first.ticketAccepted).toBe(2);
+    expect(second.ticketAccepted).toBe(0);
+    expect(second.awaitingReceipt).toBe(2);
     // The decisive assertion: no request left for Expo at all.
     expect(secondClient.messages).toHaveLength(0);
   });
@@ -325,10 +418,10 @@ describe("sending", () => {
 
     expect(result.disabledTokens).toBe(1);
     expect(state.disabledTokens).toEqual(["token-1"]);
-    expect(result.sent).toBe(1);
+    expect(result.ticketAccepted).toBe(1);
     // Terminal: the next run must not try it again.
     expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
-      "failed"
+      "terminal_failure"
     );
   });
 
@@ -345,9 +438,9 @@ describe("sending", () => {
     });
 
     expect(failing.retryable).toBe(1);
-    expect(failing.sent).toBe(1);
+    expect(failing.ticketAccepted).toBe(1);
     expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
-      "pending"
+      "retryable_failure"
     );
 
     const retryClient = createClient(okTickets(1));
@@ -358,10 +451,10 @@ describe("sending", () => {
     });
 
     // Only the device that never received it is attempted again.
-    expect(retried.sent).toBe(1);
+    expect(retried.ticketAccepted).toBe(1);
     expect(retryClient.messages[0]).toHaveLength(1);
     expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
-      "sent"
+      "awaiting_receipt"
     );
   });
 
@@ -376,11 +469,11 @@ describe("sending", () => {
       dropDate: DROP_DATE
     });
 
-    expect(result.sent).toBe(0);
+    expect(result.ticketAccepted).toBe(0);
     expect(result.retryable).toBe(2);
     // The edition stays published; only the announcement is outstanding.
     expect(
-      [...state.deliveries.values()].every((delivery) => delivery.status === "pending")
+      [...state.deliveries.values()].every((delivery) => delivery.status === "retryable_failure")
     ).toBe(true);
   });
 
@@ -390,7 +483,7 @@ describe("sending", () => {
 
     const result = await sendEditionNotifications({ store, client, dropDate: DROP_DATE });
 
-    expect(result.sent).toBe(0);
+    expect(result.ticketAccepted).toBe(0);
     expect(client.messages).toHaveLength(0);
   });
 
@@ -404,7 +497,7 @@ describe("sending", () => {
 
     const result = await sendEditionNotifications({ store, client, dropDate: DROP_DATE });
 
-    expect(result.sent).toBe(0);
+    expect(result.ticketAccepted).toBe(0);
     expect(result.skipped[0].reason).toBe("incomplete_edition");
     expect(client.messages).toHaveLength(0);
   });
@@ -438,8 +531,120 @@ describe("batching", () => {
 
     const result = await sendEditionNotifications({ store, client, dropDate: DROP_DATE });
 
-    expect(result.sent).toBe(250);
+    expect(result.ticketAccepted).toBe(250);
     expect(client.messages.map((batch) => batch.length)).toEqual([100, 100, 50]);
+  });
+});
+
+describe("atomic claiming and receipts", () => {
+  it("lets only one worker send a claimed delivery", async () => {
+    const state = createStore({
+      drops: [drop()],
+      tokens: [token()],
+      notificationsEnabled: [FR_USER]
+    });
+    const firstClient = createClient(okTickets(1));
+    const secondClient = createClient(okTickets(1));
+
+    const [first, second] = await Promise.all([
+      sendEditionNotifications({ store: state.store, client: firstClient, dropDate: DROP_DATE }),
+      sendEditionNotifications({ store: state.store, client: secondClient, dropDate: DROP_DATE })
+    ]);
+
+    expect(first.ticketAccepted + second.ticketAccepted).toBe(1);
+    expect(firstClient.messages.length + secondClient.messages.length).toBe(1);
+    expect(state.claims).toHaveLength(2);
+  });
+
+  it("marks an ok receipt as final sent", async () => {
+    const state = createStore({
+      drops: [],
+      tokens: [token()],
+      notificationsEnabled: [],
+      deliveries: [
+        {
+          pushTokenId: "token-1",
+          dropDate: DROP_DATE,
+          notificationKind: EDITION_NOTIFICATION_KIND,
+          status: "awaiting_receipt",
+          attemptCount: 1,
+          expoTicketId: "ticket-1"
+        }
+      ]
+    });
+
+    const result = await reconcileExpoPushReceipts({
+      store: state.store,
+      client: createReceiptClient({ "ticket-1": { status: "ok" } })
+    });
+
+    expect(result.sent).toBe(1);
+    expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
+      "sent"
+    );
+  });
+
+  it("retires a token when the receipt says DeviceNotRegistered", async () => {
+    const state = createStore({
+      drops: [],
+      tokens: [token()],
+      notificationsEnabled: [],
+      deliveries: [
+        {
+          pushTokenId: "token-1",
+          dropDate: DROP_DATE,
+          notificationKind: EDITION_NOTIFICATION_KIND,
+          status: "awaiting_receipt",
+          attemptCount: 1,
+          expoTicketId: "ticket-1"
+        }
+      ]
+    });
+
+    const result = await reconcileExpoPushReceipts({
+      store: state.store,
+      client: createReceiptClient({
+        "ticket-1": {
+          status: "error",
+          message: "Device not registered",
+          details: { error: "DeviceNotRegistered" }
+        }
+      })
+    });
+
+    expect(result.disabledTokens).toBe(1);
+    expect(state.disabledTokens).toEqual(["token-1"]);
+    expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
+      "terminal_failure"
+    );
+  });
+
+  it("does not retry terminal receipt failures", async () => {
+    const state = createStore({
+      drops: [drop()],
+      tokens: [token()],
+      notificationsEnabled: [FR_USER],
+      deliveries: [
+        {
+          pushTokenId: "token-1",
+          dropDate: DROP_DATE,
+          notificationKind: EDITION_NOTIFICATION_KIND,
+          status: "terminal_failure",
+          attemptCount: 1,
+          expoTicketId: "ticket-1"
+        }
+      ]
+    });
+    const client = createClient(okTickets(1));
+
+    const result = await sendEditionNotifications({
+      store: state.store,
+      client,
+      dropDate: DROP_DATE
+    });
+
+    expect(result.ticketAccepted).toBe(0);
+    expect(client.messages).toHaveLength(0);
   });
 });
 

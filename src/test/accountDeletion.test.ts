@@ -120,6 +120,16 @@ describe("the cascade the function relies on", () => {
     expect(functionSource).toMatch(/from\("users"\)[\s\S]{0,80}\.delete\(\)/);
   });
 
+  it("deletes the linked legacy row before deleting the auth user", () => {
+    const legacyDeleteIndex = functionSource.indexOf('.from("users")');
+    const authDeleteIndex = functionSource.indexOf("deleteUser(user.id)");
+
+    expect(legacyDeleteIndex).toBeGreaterThan(-1);
+    expect(authDeleteIndex).toBeGreaterThan(-1);
+    expect(legacyDeleteIndex).toBeLessThan(authDeleteIndex);
+    expect(functionSource).toMatch(/legacy_delete_failed/);
+  });
+
   it("never deletes shared editorial content", () => {
     for (const shared of [
       "content_items",

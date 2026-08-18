@@ -158,6 +158,33 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
   const legacyUserId = (profile as { legacy_user_id: string | null } | null)?.legacy_user_id ?? null;
 
+  let legacyDeleted = false;
+
+  if (legacyUserId) {
+    const { error: legacyError } = await adminClient
+      .from("users")
+      .delete()
+      .eq("id", legacyUserId);
+
+    if (legacyError) {
+      // Abort before auth deletion. A success response must mean the account
+      // and the linked legacy personal-data row are both gone.
+      console.error("delete-account could not delete the legacy row", legacyError.message);
+
+      return jsonResponse(
+        {
+          ok: false,
+          error: "legacy_delete_failed",
+          message: "Your account was not deleted. Please try again."
+        },
+        500,
+        origin
+      );
+    } else {
+      legacyDeleted = true;
+    }
+  }
+
   // The whole deletion: auth.users cascades through public.profiles into every
   // table that owns this reader's data.
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
@@ -174,24 +201,6 @@ Deno.serve(async (request: Request): Promise<Response> => {
       500,
       origin
     );
-  }
-
-  let legacyDeleted = false;
-
-  if (legacyUserId) {
-    const { error: legacyError } = await adminClient
-      .from("users")
-      .delete()
-      .eq("id", legacyUserId);
-
-    if (legacyError) {
-      // The account itself is gone; the legacy subscriber row is not. Reported
-      // rather than hidden, so it can be cleaned up, but the caller is not told
-      // the deletion failed — because it did not.
-      console.error("delete-account left a legacy row behind", legacyError.message);
-    } else {
-      legacyDeleted = true;
-    }
   }
 
   return jsonResponse(

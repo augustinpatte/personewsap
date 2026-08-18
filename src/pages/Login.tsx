@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import BrandHeader from '@/components/BrandHeader';
+import { resolveSafeLoginRedirect } from '@/lib/safeRedirect';
 
 const Login = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -30,7 +32,7 @@ const Login = () => {
       return;
     }
 
-    navigate('/account');
+    navigate(resolveSafeLoginRedirect(searchParams.get('redirect')));
   };
 
   return (

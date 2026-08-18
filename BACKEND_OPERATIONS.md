@@ -80,6 +80,26 @@ npm run content:health -- --date "$(date +%F)" --limit 3
 
 6. Treat the run as complete only when `content:health` reports `status: "ok"` or a reviewed `status: "warning"` with an accepted reason.
 
+7. Send the calm edition notification only after the edition is published:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npm run content:push-notifications -- --date "$(date +%F)"
+```
+
+8. Reconcile Expo receipts later. A ticket accepted by Expo is not final device
+delivery:
+
+```sh
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npm run content:push-receipts -- --limit 100
+```
+
+Use `DRY_RUN=true npm run content:push-receipts` to verify the command path
+without fetching receipts or updating delivery rows.
+
 ## Stored Metrics
 
 Production-shaped `daily-job` and `daily-job-test` runs write one row to `public.job_runs`.
@@ -117,6 +137,32 @@ Stored in `job_runs.operator_summary`:
 - content item deduplication reuse count
 - rerun recommendation and recovery hints
 - mini-case generated topics, assignment fallback reasons, and selected-topic counts
+
+## Edition Notifications
+
+PersoNewsAP sends one notification per published edition, per enabled device,
+on the Monday/Wednesday/Friday/Sunday cadence. The body is intentionally neutral:
+
+- FR: `Votre nouvelle édition PersoNewsAP est disponible.`
+- EN: `Your new PersoNewsAP edition is ready.`
+
+Eligibility is user-specific. A user's edition is complete when the slots they
+enabled in `user_preferences` are present in `daily_drop_items`; a user who
+disabled Mini Cases can still receive a notification for Newsletter + Business
+Story.
+
+Delivery safety:
+
+- `push_notification_deliveries` is unique by `(push_token_id, drop_date, notification_kind)`.
+- `claim_push_notification_deliveries` atomically leases pending/retryable rows
+  before any worker sends to Expo.
+- Expired claims are retryable, so a crashed worker does not permanently block a device.
+- Expo push tickets move rows to `awaiting_receipt`.
+- `content:push-receipts` marks receipt `ok` as `sent`, `DeviceNotRegistered`
+  as terminal and disables the token, and leaves transient receipt failures
+  retryable.
+
+Notification failure must never block publication of the edition.
 
 ## Mini-Case Editorial Rotation
 

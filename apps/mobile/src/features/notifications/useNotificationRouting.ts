@@ -5,7 +5,8 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "../auth";
 import {
   canFollowNotificationRoute,
-  resolveNotificationRoute
+  resolveNotificationRoute,
+  toNotificationNavigationTarget
 } from "./notificationRouting";
 
 /**
@@ -40,7 +41,7 @@ export function useNotificationRouting(): void {
         return;
       }
 
-      router.push(route.pathname as Href);
+      router.push(toNotificationNavigationTarget(route) as unknown as Href);
     };
 
     // Cold start: the notification that launched the app.

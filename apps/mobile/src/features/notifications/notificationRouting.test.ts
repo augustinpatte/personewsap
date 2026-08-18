@@ -4,7 +4,8 @@ import {
   canFollowNotificationRoute,
   EDITION_READY_NOTIFICATION,
   NEWSLETTER_ROUTE,
-  resolveNotificationRoute
+  resolveNotificationRoute,
+  toNotificationNavigationTarget
 } from "./notificationRouting";
 
 /**
@@ -52,6 +53,29 @@ describe("canFollowNotificationRoute", () => {
     expect(canFollowNotificationRoute("loading")).toBe(false);
     expect(canFollowNotificationRoute("signedOut")).toBe(false);
     expect(canFollowNotificationRoute("needsOnboarding")).toBe(false);
+  });
+});
+
+describe("notification navigation targets", () => {
+  it("preserves a specific drop date for cold-start and warm-start taps", () => {
+    const route = resolveNotificationRoute({
+      type: EDITION_READY_NOTIFICATION,
+      drop_date: "2026-08-17"
+    });
+
+    expect(route && toNotificationNavigationTarget(route)).toEqual({
+      pathname: NEWSLETTER_ROUTE,
+      params: { drop_date: "2026-08-17" }
+    });
+  });
+
+  it("falls back cleanly to the Newsletter tab when no date is usable", () => {
+    const route = resolveNotificationRoute({ type: EDITION_READY_NOTIFICATION });
+
+    expect(route && toNotificationNavigationTarget(route)).toEqual({
+      pathname: NEWSLETTER_ROUTE,
+      params: {}
+    });
   });
 });
 

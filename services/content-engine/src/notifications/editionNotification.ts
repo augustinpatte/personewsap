@@ -38,6 +38,8 @@ export type NotificationCandidateDrop = {
   status: string;
   /** Slots actually linked to the drop. */
   slots: DailyDropSlot[];
+  /** Slots this user enabled. Missing keeps the legacy all-module rule. */
+  requiredSlots?: DailyDropSlot[];
 };
 
 export type NotificationCandidateToken = {
@@ -79,11 +81,11 @@ export function buildEditionNotificationMessage(
     language === "fr"
       ? {
           title: "Votre édition est prête",
-          body: "Newsletter, Business Story et Mini Case vous attendent."
+          body: "Votre nouvelle édition PersoNewsAP est disponible."
         }
       : {
           title: "Your edition is ready",
-          body: "Newsletter, Business Story and Mini Case are ready."
+          body: "Your new PersoNewsAP edition is ready."
         };
 
   return {
@@ -95,8 +97,9 @@ export function buildEditionNotificationMessage(
 /** True when the drop carries every slot the product promises in the message. */
 export function isCompleteEdition(drop: NotificationCandidateDrop): boolean {
   const slots = new Set(drop.slots);
+  const requiredSlots = drop.requiredSlots ?? REQUIRED_EDITION_SLOTS;
 
-  return REQUIRED_EDITION_SLOTS.every((slot) => slots.has(slot));
+  return requiredSlots.every((slot) => slots.has(slot));
 }
 
 /**
@@ -171,12 +174,26 @@ export type ExpoPushTicket =
     };
 
 export type DeliveryOutcome =
-  | { kind: "sent"; expoTicketId: string | null }
+  | { kind: "ticket_accepted"; expoTicketId: string | null }
   /** The token is gone for good: stop using it. */
   | { kind: "token_invalid"; error: string }
   /** Worth another run: rate limit, Expo outage, network. */
   | { kind: "retryable"; error: string }
   /** Malformed message or credential problem: retrying changes nothing. */
+  | { kind: "permanent"; error: string };
+
+export type ExpoPushReceipt =
+  | { status: "ok" }
+  | {
+      status: "error";
+      message?: string;
+      details?: { error?: string } | null;
+    };
+
+export type ReceiptOutcome =
+  | { kind: "sent" }
+  | { kind: "token_invalid"; error: string }
+  | { kind: "retryable"; error: string }
   | { kind: "permanent"; error: string };
 
 /**
@@ -189,7 +206,7 @@ export type DeliveryOutcome =
  */
 export function classifyExpoPushTicket(ticket: ExpoPushTicket): DeliveryOutcome {
   if (ticket.status === "ok") {
-    return { kind: "sent", expoTicketId: ticket.id ?? null };
+    return { kind: "ticket_accepted", expoTicketId: ticket.id ?? null };
   }
 
   const detail = ticket.details?.error ?? "";
@@ -205,6 +222,33 @@ export function classifyExpoPushTicket(ticket: ExpoPushTicket): DeliveryOutcome 
 
   // MessageTooBig, MismatchSenderId, InvalidCredentials: sending the same
   // message again produces the same answer.
+  if (
+    detail === "MessageTooBig" ||
+    detail === "MismatchSenderId" ||
+    detail === "InvalidCredentials"
+  ) {
+    return { kind: "permanent", error: message };
+  }
+
+  return { kind: "retryable", error: message };
+}
+
+export function classifyExpoPushReceipt(receipt: ExpoPushReceipt): ReceiptOutcome {
+  if (receipt.status === "ok") {
+    return { kind: "sent" };
+  }
+
+  const detail = receipt.details?.error ?? "";
+  const message = receipt.message ?? detail ?? "Expo push receipt error";
+
+  if (detail === "DeviceNotRegistered") {
+    return { kind: "token_invalid", error: message };
+  }
+
+  if (detail === "MessageRateExceeded") {
+    return { kind: "retryable", error: message };
+  }
+
   if (
     detail === "MessageTooBig" ||
     detail === "MismatchSenderId" ||
@@ -251,13 +295,16 @@ export function selectPendingRecipients(input: {
   recipients: EditionNotificationRecipient[];
   alreadySentTokenIds: Set<string>;
   permanentlyFailedTokenIds?: Set<string>;
+  awaitingReceiptTokenIds?: Set<string>;
 }): EditionNotificationRecipient[] {
   const blocked = input.permanentlyFailedTokenIds ?? new Set<string>();
+  const awaitingReceipt = input.awaitingReceiptTokenIds ?? new Set<string>();
 
   return input.recipients.filter(
     (recipient) =>
       !input.alreadySentTokenIds.has(recipient.pushTokenId) &&
-      !blocked.has(recipient.pushTokenId)
+      !blocked.has(recipient.pushTokenId) &&
+      !awaitingReceipt.has(recipient.pushTokenId)
   );
 }
 

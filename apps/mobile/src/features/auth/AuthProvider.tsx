@@ -24,6 +24,7 @@ import {
   supabaseConfigDiagnostics,
   type NormalizedSupabaseError
 } from "../../lib/supabase";
+import { disablePushNotificationsForUser } from "../notifications/pushNotificationPreferences";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import type { Language } from "../../types/domain";
 
@@ -417,6 +418,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const signOut = useCallback(async () => {
+    const signingOutUserId = session?.user.id ?? null;
+
+    if (signingOutUserId) {
+      const disableResult = await disablePushNotificationsForUser(
+        signingOutUserId,
+        profileLanguage
+      );
+
+      if (!disableResult.ok) {
+        logAuthDebug("logout_push_token_cleanup_failed", disableResult.error);
+      }
+    }
+
     const { error: signOutError } = await signOutFromSupabase();
 
     if (signOutError && !isAuthSessionError(signOutError)) {
@@ -435,7 +449,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     });
 
     return { error: null };
-  }, [applySession, profileLanguage]);
+  }, [applySession, profileLanguage, session?.user.id]);
 
   useEffect(() => {
     // refreshAuthState normalises every failure internally; the catch is the

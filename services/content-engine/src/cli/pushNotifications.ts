@@ -99,7 +99,9 @@ export async function runPushNotifications(
     note:
       result.retryable > 0
         ? "Some devices could not be reached. Re-run this command to retry them; already-notified devices are skipped."
-        : "Delivery complete."
+        : result.awaitingReceipt > 0
+          ? "Expo accepted push tickets. Run content:push-receipts later to confirm final delivery."
+          : "No push delivery work remains."
   };
 }
 

@@ -6,7 +6,7 @@ import { AppErrorBoundary } from "../src/components";
 import { ThemeProvider, useTheme } from "../src/design";
 import { AuthProvider, useAuth } from "../src/features/auth";
 import { LearningPathProvider } from "../src/features/learning";
-import { useNotificationRouting } from "../src/features/notifications";
+import { useNotificationRouting, usePushTokenRefresh } from "../src/features/notifications";
 import { DailyDropProvider } from "../src/features/today";
 import { trackAnalyticsEvent } from "../src/lib/analytics";
 
@@ -25,17 +25,19 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { profileLanguage } = useAuth();
+  const { profileLanguage, user } = useAuth();
   const { colors, isDark } = useTheme();
+  const accountScopeKey = user?.id ?? "signed-out";
   // A tapped "edition is ready" notification opens the Newsletter tab, from a
   // warm start or a cold one. Inside AuthProvider so it can wait for the
   // session rather than racing the auth redirect.
   useNotificationRouting();
+  usePushTokenRefresh();
 
   return (
     <AppErrorBoundary language={profileLanguage}>
-      <LearningPathProvider>
-        <DailyDropProvider>
+      <LearningPathProvider key={`learning-${accountScopeKey}`}>
+        <DailyDropProvider key={`daily-drop-${accountScopeKey}`}>
           <Stack
             screenOptions={{
               headerShown: false,

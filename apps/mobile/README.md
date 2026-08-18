@@ -37,11 +37,13 @@ Use public client environment variables only:
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_EAS_PROJECT_ID=
+EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT=
+EXPO_PUBLIC_SUPPORT_EMAIL=
 ```
 
 Do not put service role keys, Resend keys, generation secrets, or production-only credentials in this app.
 
-`EXPO_PUBLIC_EAS_PROJECT_ID` is optional for normal local development, but a real EAS project id is required before a physical device can register an Expo push token.
+`EXPO_PUBLIC_EAS_PROJECT_ID` is optional for normal local development, but a real EAS project id is required before a physical device can register an Expo push token. A production push proof must use a development build or TestFlight build, not Expo Go, with APNs/FCM credentials configured in the Expo/EAS project.
 
 ## Analytics
 
@@ -84,9 +86,16 @@ This app now covers the beta mobile shell:
 - Today, Library, and Account tabs
 - design tokens
 - Supabase client setup without server secrets
-- Account-only push reminder permission flow
+- Account/Settings push notification permission and preference flow
+- Account deletion, privacy, support, password reset, logout, and account switching
 
-Push notification readiness is token capture only. The app asks for notification permission from Account after signup/onboarding, stores Expo push tokens in `push_tokens` only when the RLS-protected table exists, and keeps working when permission is denied or a simulator cannot register. Content is published once daily globally. Actual push delivery still needs a backend sender job that reads enabled tokens, then sends through the Expo Push API with production APNs/FCM/EAS credentials.
+Push notification readiness:
+
+- Permission is requested from Account/Settings after signup/onboarding, at a user-controlled moment.
+- Android creates the default edition channel before token registration.
+- The app stores Expo push tokens in `push_tokens`, re-registers on token refresh, and disables the signed-in user's tokens on logout or when notifications are turned off.
+- Notification taps carry `drop_date` and route to the Newsletter edition view, falling back cleanly when no date is usable.
+- The backend sender reads enabled tokens and sends one calm edition notification only on edition days. Expo tickets are reconciled later through the receipt command.
 
 ## TestFlight Checklist
 
