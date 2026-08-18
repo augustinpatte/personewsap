@@ -1,3 +1,4 @@
+import { filterSupabaseContentItemIds, isSupabaseContentItemId } from "../../lib/contentItemId";
 import { clearMemoryCache } from "../../lib/memoryCache";
 import { getAuthSession, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import type { NormalizedSupabaseError } from "../../lib/supabase";
@@ -34,9 +35,14 @@ const persistedInteractionTypes = ["complete", "save", "feedback"] as const;
 export async function readContentInteractionSnapshot(
   contentItemIds: string[]
 ): Promise<ContentInteractionReadResult> {
-  if (contentItemIds.length === 0) {
+  // content_interactions.content_item_id is a UUID. Sample/demo items carry a
+  // text id and can have no interaction row, so they are dropped before the
+  // query rather than making Postgres reject the whole `in (…)` list.
+  const liveContentItemIds = filterSupabaseContentItemIds(contentItemIds);
+
+  if (liveContentItemIds.length === 0) {
     logContentInteractionProof("interaction_snapshot_empty", {
-      reason: "no_content_item_ids"
+      reason: contentItemIds.length === 0 ? "no_content_item_ids" : "no_live_content_item_ids"
     });
 
     return { ok: true, snapshot: createEmptyContentInteractionSnapshot() };
@@ -81,13 +87,13 @@ export async function readContentInteractionSnapshot(
       .from("content_interactions")
       .select(contentInteractionSelect)
       .eq("user_id", userId)
-      .in("content_item_id", [...new Set(contentItemIds)])
+      .in("content_item_id", [...new Set(liveContentItemIds)])
       .in("interaction_type", [...persistedInteractionTypes])
       .order("created_at", { ascending: true });
 
     if (error) {
       logContentInteractionProof("interaction_snapshot_failed", {
-        content_item_count: contentItemIds.length,
+        content_item_count: liveContentItemIds.length,
         reason: "supabase_error",
         user_id: userId ? redactIdentifier(userId) : null
       });
@@ -99,7 +105,7 @@ export async function readContentInteractionSnapshot(
     }
 
     logContentInteractionProof("interaction_snapshot_loaded", {
-      content_item_count: contentItemIds.length,
+      content_item_count: liveContentItemIds.length,
       interaction_count: data?.length ?? 0,
       user_id: redactIdentifier(userId)
     });
@@ -128,6 +134,27 @@ export async function writeContentInteraction({
   rating,
   message
 }: WriteContentInteractionParams): Promise<WriteContentInteractionResult> {
+  // Sample/demo content is device-local by definition: it has no row in
+  // public.content_items, and its text id cannot be written to a UUID column.
+  // Refused before any request, so a mock reading can never touch production.
+  if (!isSupabaseContentItemId(contentItemId)) {
+    logContentInteractionProof("interaction_write_skipped", {
+      content_item_id: redactIdentifier(contentItemId),
+      interaction_type: interactionType,
+      outcome: "local_only_content_item"
+    });
+
+    return {
+      ok: false,
+      error: {
+        code: "local_only_content_item",
+        message: "This reading is sample content and is not saved to your account.",
+        hint:
+          "Developer/Test info: only Supabase content items (UUID ids) are persisted."
+      }
+    };
+  }
+
   if (!supabase) {
     logContentInteractionProof("interaction_write_failed", {
       interaction_type: interactionType,

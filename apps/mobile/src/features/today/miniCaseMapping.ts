@@ -1,3 +1,4 @@
+import { isSupabaseContentItemId } from "../../lib/contentItemId";
 import type { MiniCaseResponseMap, MiniCaseResponseRecord } from "./miniCaseResponses";
 
 /**
@@ -82,7 +83,8 @@ export function formatAnswerMarkdown(record: MiniCaseResponseRecord): string {
 
 /**
  * Merge server and local results. A case present on both sides keeps the
- * server copy, so every device converges on the same answer.
+ * server copy, so every device converges on the same answer — including when
+ * this device holds a stale, different result for the same case.
  */
 export function mergeMiniCaseResponses(
   local: MiniCaseResponseMap,
@@ -94,3 +96,14 @@ export function mergeMiniCaseResponses(
   return { merged, localOnly };
 }
 
+/**
+ * The ids among `contentItemIds` that a sync may send to Supabase.
+ *
+ * mini_case_responses.content_item_id is a UUID; a sample/demo case has a text
+ * id and no server row is possible for it. Filtering here (rather than letting
+ * the write fail) is what keeps the archive free of a repeated 22P02 warning on
+ * every open.
+ */
+export function selectSyncableMiniCaseIds(contentItemIds: readonly string[]): string[] {
+  return contentItemIds.filter((contentItemId) => isSupabaseContentItemId(contentItemId));
+}

@@ -124,6 +124,9 @@ type LearningPathContextValue = LearningPathBundle & {
 
 const LearningPathContext = createContext<LearningPathContextValue | null>(null);
 
+const learningPathSelect =
+  "id, user_id, domain_id, objective_id, current_level, target_level, language, status, created_at, updated_at, archived_at, completed_at";
+
 type LearningPathState = LearningPathBundle & {
   status: "loading" | "ready" | "error";
   source: DataFetchSource;
@@ -204,24 +207,33 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
       }
 
       try {
-        await flushLearningOutbox({
-          userId: user.id,
-          onSynced: (session) => updateSessionLocally(session.id, session)
-        });
-
-        const healthResult = await supabase.rpc("learning_paths_healthcheck");
-        if (healthResult.error) {
-          throw healthResult.error;
-        }
-        if (!isLearningHealthcheckReady(healthResult.data)) {
-          throw {
-            code: "learning_schema_incomplete",
-            message: "Learning path schema is incomplete.",
-            details: JSON.stringify(healthResult.data)
-          };
+        // Draining the outbox is best effort and must not decide whether the
+        // path loads: offline, it simply stays queued for the next foreground.
+        try {
+          await flushLearningOutbox({
+            userId: user.id,
+            onSynced: (session) => updateSessionLocally(session.id, session)
+          });
+        } catch (flushError) {
+          if (__DEV__) {
+            console.info("[LearningPath] outbox flush deferred", flushError);
+          }
         }
 
-        const [domainResult, objectiveResult, preferencesResult, pathResult] = await Promise.all([
+        // One round trip for everything the boot needs: the schema check runs
+        // beside the reads instead of gating them, which is what turned a cold
+        // start into three serial waits on a slow connection. Only what the
+        // routing and the Parcours header need is fetched here — the
+        // curriculum catalog stays on-demand, loaded when a session is
+        // actually prepared.
+        const [
+          healthResult,
+          domainResult,
+          objectiveResult,
+          preferencesResult,
+          pathResult
+        ] = await Promise.all([
+          supabase.rpc("learning_paths_healthcheck"),
           supabase
             .from("learning_domains")
             .select("id, slug, label_fr, label_en, description_fr, description_en, position")
@@ -237,14 +249,22 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
             .maybeSingle(),
           supabase
             .from("user_learning_paths")
-            .select(
-              "id, user_id, domain_id, objective_id, current_level, target_level, language, status, created_at, updated_at, archived_at, completed_at"
-            )
+            .select(learningPathSelect)
             .eq("user_id", user.id)
             .in("status", ["active", "completed", "archived"])
             .order("created_at", { ascending: false })
         ]);
 
+        if (healthResult.error) {
+          throw healthResult.error;
+        }
+        if (!isLearningHealthcheckReady(healthResult.data)) {
+          throw {
+            code: "learning_schema_incomplete",
+            message: "Learning path schema is incomplete.",
+            details: JSON.stringify(healthResult.data)
+          };
+        }
         if (domainResult.error) {
           throw domainResult.error;
         }
@@ -328,12 +348,135 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let isMounted = true;
-    void load(() => isMounted);
+    // load() normalises every failure into state; the catch guarantees a boot
+    // with no network cannot surface as an unhandled rejection.
+    void load(() => isMounted).catch((error: unknown) => {
+      if (__DEV__) {
+        console.info("[LearningPath] initial load failed", error);
+      }
+    });
 
     return () => {
       isMounted = false;
     };
   }, [load]);
+
+  /**
+   * Materialise exactly one session for `path`, from the deterministic
+   * curriculum catalog. No LLM call: the step, its title and its prompt all
+   * come from content/learning-paths/v1 through the catalog mirror.
+   *
+   * Kept independent of the provider's loaded state so it can serve both the
+   * reader tapping "next session" and the moment a path is created — where the
+   * state does not know about the new path yet. The server owns idempotence:
+   * create_next_learning_session takes an advisory lock and returns the session
+   * already waiting instead of making a second one.
+   */
+  const prepareNextSessionForPath = useCallback(
+    async (input: {
+      path: LearningPath;
+      sessions: LearningSession[];
+    }): Promise<{
+      ok: boolean;
+      session: LearningSession | null;
+      pathCompleted: boolean;
+      error: NormalizedSupabaseError | null;
+    }> => {
+      const { path, sessions } = input;
+
+      if (!supabase || !user?.id) {
+        return {
+          ok: false,
+          session: null,
+          pathCompleted: false,
+          error: normalizeSupabaseError(
+            getSupabaseConfigError(),
+            "Your learning path is unavailable."
+          )
+        };
+      }
+
+      const catalog = await fetchLearningCatalogSteps(path.domain_id);
+
+      if (catalog.length === 0) {
+        return {
+          ok: false,
+          session: null,
+          pathCompleted: false,
+          error: normalizeSupabaseError(
+            { code: "learning_catalog_unavailable", message: "Curriculum unavailable." },
+            "Your next session could not be prepared."
+          )
+        };
+      }
+
+      const orderedSessions = [...sessions].sort(
+        (left, right) => left.session_number - right.session_number
+      );
+      const lastSession = orderedSessions[orderedSessions.length - 1] ?? null;
+      const feedback = lastSession
+        ? await fetchSessionFeedback(user.id, lastSession.id)
+        : null;
+      const adaptationMode = resolveLearningAdaptationMode(
+        feedback,
+        lastSession?.adaptation_mode === "reinforce"
+      );
+      const selection = pickNextLearningStep({
+        catalog,
+        domainId: path.domain_id,
+        objectiveId: path.objective_id,
+        currentLevel: path.current_level,
+        targetLevel: path.target_level,
+        usedStepKeys: countUsedStepKeys(orderedSessions),
+        adaptationMode,
+        lastStepKey: lastSession?.curriculum_step_key ?? null
+      });
+
+      // Every step up to the target level has been delivered: the path is done.
+      if (selection.status === "completed") {
+        await supabase
+          .from("user_learning_paths")
+          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .eq("id", path.id)
+          .eq("user_id", user.id)
+          .eq("status", "active");
+
+        return { ok: true, session: null, pathCompleted: true, error: null };
+      }
+
+      const prepared = prepareLearningSession({
+        step: selection.step,
+        // The session is authored in the path's current language; sessions
+        // already delivered keep the language they were written in.
+        language: path.language === "fr" ? "fr" : "en",
+        repetitionIndex: selection.repetitionIndex,
+        adaptationMode,
+        skippedStepKey: selection.skippedStepKey
+      });
+
+      const { data, error } = await supabase.rpc("create_next_learning_session", {
+        p_curriculum_step_key: prepared.curriculumStepKey,
+        p_skipped_step_key: prepared.skippedStepKey,
+        p_adaptation_mode: prepared.adaptationMode,
+        p_title_fr: prepared.titleFr,
+        p_title_en: prepared.titleEn,
+        p_summary_fr: prepared.summaryFr,
+        p_summary_en: prepared.summaryEn,
+        p_objectives_fr: prepared.objectivesFr,
+        p_objectives_en: prepared.objectivesEn,
+        p_prompt_text: prepared.promptText
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const session = data ? coerceSession(data as LearningSession) : null;
+
+      return { ok: Boolean(session), session, pathCompleted: false, error: null };
+    },
+    [user?.id]
+  );
 
   const startPath = useCallback<LearningPathContextValue["startPath"]>(
     async ({ currentLevel, domainId, objectiveId, targetLevel }) => {
@@ -366,10 +509,9 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           language: profileLanguage ?? undefined
         });
 
-        await load();
         const { data: verifiedPath, error: verifyError } = await supabase
           .from("user_learning_paths")
-          .select("id")
+          .select(learningPathSelect)
           .eq("id", data)
           .eq("user_id", user.id)
           .eq("status", "active")
@@ -385,6 +527,26 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
           };
         }
 
+        // Creating a path is already the reader's explicit decision, so the
+        // first session is prepared with it: they land on Parcours with
+        // "Session 1" and its title already there, not on an empty card. Only
+        // this one — every later session still waits for an explicit tap.
+        //
+        // Failing here is not a failed creation: the path exists, and the
+        // Parcours screen offers the same preparation again on its CTA.
+        try {
+          await prepareNextSessionForPath({ path: verifiedPath, sessions: [] });
+        } catch (firstSessionError) {
+          if (__DEV__) {
+            console.info(
+              "[LearningPath] first session deferred to the Parcours screen",
+              firstSessionError
+            );
+          }
+        }
+
+        await load();
+
         return { ok: true, error: null };
       } catch (error) {
         if (__DEV__) {
@@ -396,7 +558,7 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         };
       }
     },
-    [load, profileLanguage, user?.id]
+    [load, prepareNextSessionForPath, profileLanguage, user?.id]
   );
 
   const disableLearningPath = useCallback<LearningPathContextValue["disableLearningPath"]>(
@@ -463,90 +625,26 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
       setAdvancing(true);
 
       try {
-        const catalog = await fetchLearningCatalogSteps(path.domain_id);
-
-        if (catalog.length === 0) {
-          return {
-            ok: false,
-            session: null,
-            pathCompleted: false,
-            error: normalizeSupabaseError(
-              { code: "learning_catalog_unavailable", message: "Curriculum unavailable." },
-              "Your next session could not be prepared."
-            )
-          };
-        }
-
-        const orderedSessions = [...state.sessions].sort(
-          (left, right) => left.session_number - right.session_number
-        );
-        const lastSession = orderedSessions[orderedSessions.length - 1] ?? null;
-        const feedback = lastSession
-          ? await fetchSessionFeedback(user.id, lastSession.id)
-          : null;
-        const adaptationMode = resolveLearningAdaptationMode(
-          feedback,
-          lastSession?.adaptation_mode === "reinforce"
-        );
-        const selection = pickNextLearningStep({
-          catalog,
-          domainId: path.domain_id,
-          objectiveId: path.objective_id,
-          currentLevel: path.current_level,
-          targetLevel: path.target_level,
-          usedStepKeys: countUsedStepKeys(orderedSessions),
-          adaptationMode,
-          lastStepKey: lastSession?.curriculum_step_key ?? null
+        const result = await prepareNextSessionForPath({
+          path,
+          sessions: state.sessions
         });
 
-        // Every step up to the target level has been delivered: the path is done.
-        if (selection.status === "completed") {
-          await supabase
-            .from("user_learning_paths")
-            .update({ status: "completed", completed_at: new Date().toISOString() })
-            .eq("id", path.id)
-            .eq("user_id", user.id)
-            .eq("status", "active");
-          await load();
-
-          return { ok: true, session: null, pathCompleted: true, error: null };
+        if (!result.ok && result.error) {
+          return result;
         }
 
-        const prepared = prepareLearningSession({
-          step: selection.step,
-          // The session is authored in the path's current language; sessions
-          // already delivered keep the language they were written in.
-          language: path.language === "fr" ? "fr" : "en",
-          repetitionIndex: selection.repetitionIndex,
-          adaptationMode,
-          skippedStepKey: selection.skippedStepKey
-        });
-
-        const { data, error } = await supabase.rpc("create_next_learning_session", {
-          p_curriculum_step_key: prepared.curriculumStepKey,
-          p_skipped_step_key: prepared.skippedStepKey,
-          p_adaptation_mode: prepared.adaptationMode,
-          p_title_fr: prepared.titleFr,
-          p_title_en: prepared.titleEn,
-          p_summary_fr: prepared.summaryFr,
-          p_summary_en: prepared.summaryEn,
-          p_objectives_fr: prepared.objectivesFr,
-          p_objectives_en: prepared.objectivesEn,
-          p_prompt_text: prepared.promptText
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        const session = data ? coerceSession(data as LearningSession) : null;
         await load();
+
+        if (result.pathCompleted) {
+          return result;
+        }
 
         trackAnalyticsEvent("learning_session_started", {
           language: profileLanguage ?? undefined
         });
 
-        return { ok: Boolean(session), session, pathCompleted: false, error: null };
+        return result;
       } catch (error) {
         if (__DEV__) {
           console.warn("[LearningPath] advanceLearningPath failed", error);
@@ -563,7 +661,15 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         setAdvancing(false);
       }
     },
-    [load, profileLanguage, state.activePath, state.availableSession, state.sessions, user?.id]
+    [
+      load,
+      prepareNextSessionForPath,
+      profileLanguage,
+      state.activePath,
+      state.availableSession,
+      state.sessions,
+      user?.id
+    ]
   );
 
   const submitFeedback = useCallback<LearningPathContextValue["submitFeedback"]>(
@@ -786,6 +892,12 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         void flushLearningOutbox({
           userId: user?.id ?? null,
           onSynced: (session) => updateSessionLocally(session.id, session)
+        }).catch((error: unknown) => {
+          // Returning to the app with no network is expected: the queue keeps
+          // its events for the next attempt.
+          if (__DEV__) {
+            console.info("[LearningPath] outbox flush deferred", error);
+          }
         });
       }
     });

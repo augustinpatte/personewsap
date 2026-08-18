@@ -14,7 +14,6 @@ import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useLearningPath } from "../learning";
 import { localizeLearningField, localizeSessionTitle } from "../learning/learningTypes";
-import { formatDropDate } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
 import { getModuleCopy } from "./moduleCopy";
 import { ModuleHeader, ModuleLoading, ModuleScroll, ViewSwitch } from "./ModuleChrome";
@@ -31,7 +30,10 @@ import { ModuleHeader, ModuleLoading, ModuleScroll, ViewSwitch } from "./ModuleC
  */
 export function PathModuleScreen() {
   const [view, setView] = useState<"left" | "right">("left");
-  const { language, drop } = useDailyDrop();
+  // Only the reading language is taken from the edition context: the header
+  // deliberately carries no edition date, because the path does not advance
+  // with the calendar.
+  const { language } = useDailyDrop();
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
 
@@ -39,7 +41,7 @@ export function PathModuleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.chrome}>
         <ModuleHeader
-          eyebrow={formatDropDate(drop.drop_date, language)}
+          eyebrow={copy.path.eyebrow}
           language={language}
           title={copy.path.title}
         />
@@ -133,10 +135,14 @@ function PathCurrent() {
     openSession(result.session.id);
   };
 
+  // The first session is prepared with the path itself, so the reader arrives
+  // here with Session 1 already waiting: the CTA names it for what it is.
   const ctaLabel = pendingSession
     ? pendingSession.status === "opened" || pendingSession.status === "started"
       ? copy.path.resume
-      : copy.path.nextSession
+      : pendingSession.session_number <= 1
+        ? copy.path.startFirst
+        : copy.path.nextSession
     : isFirstSession
       ? copy.path.startFirst
       : copy.path.continuePath;

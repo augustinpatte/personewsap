@@ -1,7 +1,7 @@
 import type { Language } from "../domain.js";
 import { ContentRepository } from "../storage/contentRepository.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
-import { toDateOnly } from "../utils/date.js";
+import { getProductEditionDate } from "../scheduler/editionCadence.js";
 
 export type BusinessStoryMemoryOptions = {
   dropDate: string;
@@ -97,7 +97,7 @@ export function parseBusinessStoryMemoryOptions(args: string[]): BusinessStoryMe
   }
 
   return {
-    dropDate: flags.get("date") ?? toDateOnly(new Date()),
+    dropDate: flags.get("date") ?? getProductEditionDate(),
     language,
     limit
   };

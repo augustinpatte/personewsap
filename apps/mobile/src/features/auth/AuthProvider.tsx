@@ -438,7 +438,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [applySession, profileLanguage]);
 
   useEffect(() => {
-    void refreshAuthState();
+    // refreshAuthState normalises every failure internally; the catch is the
+    // last line of defence so a transient boot-time network error can never
+    // escape as an unhandled rejection.
+    void refreshAuthState().catch((error: unknown) => {
+      logAuthDebug("auth_refresh_failed", normalizeSupabaseError(error));
+    });
 
     if (!supabase) {
       return undefined;
@@ -447,7 +452,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void applySession(nextSession);
+      void applySession(nextSession).catch((error: unknown) => {
+        logAuthDebug("auth_state_change_failed", normalizeSupabaseError(error));
+      });
     });
 
     return () => {
@@ -481,10 +488,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     }
 
-    void Linking.getInitialURL().then(applyAuthUrl);
+    // Deep-link resolution is best effort: a cold start with no network can
+    // reject here, and a failed auth-link read must not become an unhandled
+    // rejection on top of the offline state the UI already shows.
+    void Linking.getInitialURL()
+      .then(applyAuthUrl)
+      .catch((error: unknown) => {
+        logAuthDebug("auth_url_read_failed", normalizeSupabaseError(error));
+      });
 
     const subscription = Linking.addEventListener("url", ({ url }) => {
-      void applyAuthUrl(url);
+      void applyAuthUrl(url).catch((error: unknown) => {
+        logAuthDebug("auth_url_apply_failed", normalizeSupabaseError(error));
+      });
     });
 
     return () => {

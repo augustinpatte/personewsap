@@ -8,7 +8,12 @@ import { AppText, EmptyState, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
-import { useArchive, selectNewsletterEditions, type NewsletterEditionSummary } from "../archive";
+import {
+  selectNewsletterEditions,
+  useArchive,
+  useArchiveData,
+  type NewsletterEditionSummary
+} from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
 import { shouldShowStoredLanguageChangeNotice } from "../preferences/languageChangeNotice";
 import {
@@ -221,14 +226,16 @@ function ReadStatus({
 
 function NewsletterArchive() {
   const styles = useThemedStyles(createStyles);
-  const archive = useArchive();
+  // Rendering the Editions view is what loads the archive; the app start does
+  // not need it.
+  const archive = useArchiveData();
   const copy = getModuleCopy(archive.language);
   const editions = useMemo(
     () => selectNewsletterEditions(archive.drops),
     [archive.drops]
   );
 
-  if (archive.status === "loading") {
+  if (archive.status !== "ready") {
     return <ModuleLoading label={copy.common.loading} />;
   }
 

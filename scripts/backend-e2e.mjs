@@ -294,10 +294,17 @@ function printSummary() {
   }
 }
 
+/**
+ * Today's editorial date in the single product timezone (Europe/Paris), the
+ * same value the app and the content engine resolve. It used to be the runner's
+ * local calendar date, which disagrees with the app for whoever runs this
+ * outside Paris.
+ */
 function todayDate() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
 }

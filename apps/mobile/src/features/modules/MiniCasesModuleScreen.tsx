@@ -7,7 +7,7 @@ import { AppText, Card } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
-import { selectArchiveItems, useArchive } from "../archive";
+import { selectArchiveItems, useArchiveData } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
 import {
   formatDropDate,
@@ -145,7 +145,8 @@ function MiniCaseToday() {
 function MiniCaseArchive() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const archive = useArchive();
+  // Rendering the Archive view is what loads the archive (see useArchiveData).
+  const archive = useArchiveData();
   const copy = getModuleCopy(archive.language);
   const [responses, setResponses] = useState<MiniCaseResponseMap>({});
   const cases = useMemo(
@@ -174,7 +175,9 @@ function MiniCaseArchive() {
         return;
       }
 
-      await writeLocalMiniCaseResponses(synced.merged);
+      // Server-sourced: a stale local result for a case the server already
+      // holds differently is replaced, not kept.
+      await writeLocalMiniCaseResponses(synced.merged, { origin: "server" });
 
       if (active) {
         setResponses(synced.merged);

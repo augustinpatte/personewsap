@@ -4,6 +4,9 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { tokens } from "../../design/tokens";
 import { useThemeColors } from "../../design/theme";
+import { isSupabaseContentItemId } from "../../lib/contentItemId";
+import type { DataFetchSource } from "../../lib/dataState";
+import type { NormalizedSupabaseError } from "../../lib/supabase";
 import { getReaderCopy } from "./contentCopy";
 import {
   readContentInteractionSnapshot,
@@ -20,6 +23,7 @@ import {
   type DailyDropContextValue
 } from "./DailyDropContext";
 import { fetchContentItemById } from "./dailyDropData";
+import { isLiveContentItem } from "./readerItemSource";
 import { ReaderScaffold } from "./readers";
 
 /**
@@ -54,6 +58,13 @@ export function ReaderItemProvider({
 type FetchState = {
   status: "loading" | "ready";
   item: DailyDropContentItem | null;
+  /**
+   * Where the item actually came from. Reported as fetched — a mock fallback
+   * stays "mock" — so screens can show an honest offline/error state and so no
+   * interaction is ever written for content that has no server row.
+   */
+  source: DataFetchSource;
+  error: NormalizedSupabaseError | null;
 };
 
 function FetchedReaderProvider({
@@ -67,13 +78,15 @@ function FetchedReaderProvider({
 }) {
   const [fetchState, setFetchState] = useState<FetchState>({
     status: "loading",
-    item: null
+    item: null,
+    source: "mock",
+    error: null
   });
   const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
     let active = true;
-    setFetchState({ status: "loading", item: null });
+    setFetchState({ status: "loading", item: null, source: "mock", error: null });
     setCompleted(false);
 
     void (async () => {
@@ -83,10 +96,15 @@ function FetchedReaderProvider({
         return;
       }
 
-      setFetchState({ status: "ready", item: result.data });
+      setFetchState({
+        status: "ready",
+        item: result.data,
+        source: result.source,
+        error: result.error
+      });
 
       // Carry completion across editions so a finished item opens in review mode.
-      if (result.data && (result.source === "supabase" || result.source === "cache")) {
+      if (result.data && isLiveContentItem(result.source, contentItemId)) {
         const snapshot = await readContentInteractionSnapshot([contentItemId]);
 
         if (active && snapshot.ok) {
@@ -104,13 +122,14 @@ function FetchedReaderProvider({
     const item = fetchState.item;
     const items = item ? [item] : [];
     const isItemComplete = (id: string) => id === contentItemId && completed;
+    const persistsCompletion = isLiveContentItem(fetchState.source, contentItemId);
 
     return {
       language,
       drop: buildSingleItemDrop(item, language),
       status: fetchState.status,
-      source: "supabase",
-      error: null,
+      source: fetchState.source,
+      error: fetchState.error,
       items,
       isEmptyDrop: items.length === 0,
       totalItemCount: items.length,
@@ -127,9 +146,21 @@ function FetchedReaderProvider({
           return;
         }
 
+        // Completion is always reflected in this session's UI; it is only
+        // persisted for a real Supabase/cache item with a UUID id. Sample
+        // content has no row in public.content_items, so writing it would be a
+        // guaranteed 22P02 against a production table.
         setCompleted(true);
 
+        if (!persistsCompletion) {
+          return;
+        }
+
         for (const toMark of toComplete) {
+          if (!isSupabaseContentItemId(toMark.id)) {
+            continue;
+          }
+
           await writeContentInteraction({
             contentItemId: toMark.id,
             interactionType: "complete"
@@ -138,7 +169,15 @@ function FetchedReaderProvider({
       },
       reload: () => {}
     };
-  }, [completed, contentItemId, fetchState.item, fetchState.status, language]);
+  }, [
+    completed,
+    contentItemId,
+    fetchState.error,
+    fetchState.item,
+    fetchState.source,
+    fetchState.status,
+    language
+  ]);
 
   if (fetchState.status === "loading") {
     return <ReaderLoading language={language} />;

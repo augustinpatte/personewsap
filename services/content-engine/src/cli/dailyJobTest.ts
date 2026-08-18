@@ -40,6 +40,7 @@ import {
 import { processArticles } from "../processing/pipeline.js";
 import { assembleDailyDropPayload, selectDailyDropItemsForUser } from "../scheduler/dailyDropBuilder.js";
 import {
+  getProductEditionDate,
   nextEditionDate,
   parseForcedEditionType,
   resolveEditionType,
@@ -53,7 +54,6 @@ import type { SourceConnector } from "../sources/types.js";
 import { ContentRepository } from "../storage/contentRepository.js";
 import { serializePersistenceError } from "../storage/persistenceError.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
-import { toDateOnly } from "../utils/date.js";
 import { sha256 } from "../utils/hash.js";
 import { redactIdentifier, redactLogIdentifiers } from "../utils/redactIdentifier.js";
 
@@ -514,7 +514,7 @@ export function parseDailyJobTestOptions(args: string[]): DailyJobTestOptions {
   const explicitNewsletterCount = readPositiveInteger(flags.get("newsletter-count"), "--newsletter-count");
 
   return {
-    dropDate: flags.get("date") ?? toDateOnly(new Date()),
+    dropDate: flags.get("date") ?? getProductEditionDate(),
     languages: parseLanguages(flags.get("languages") ?? flags.get("language") ?? process.env.LANGUAGES ?? DEFAULT_LANGUAGES),
     topics,
     // Complete master catalog: two newsletter articles per editorial topic, independent of
@@ -540,7 +540,7 @@ export function parseDailyJobOptions(args: string[]): DailyJobRunOptions {
 
   return {
     mode: "daily-job",
-    dropDate: flags.get("date") ?? toDateOnly(new Date()),
+    dropDate: flags.get("date") ?? getProductEditionDate(),
     languages: parseLanguages(flags.get("languages") ?? flags.get("language") ?? process.env.LANGUAGES ?? DEFAULT_LANGUAGES),
     topics,
     newsletterArticleCount,

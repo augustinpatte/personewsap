@@ -44,7 +44,7 @@ if (!supabaseUrl || !anonKey || !serviceRoleKey) {
 }
 
 const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-const dropDate = process.env.DROP_DATE || new Date().toISOString().slice(0, 10);
+const dropDate = process.env.DROP_DATE || productEditionDate();
 const stamp = Date.now();
 const createdUsers = [];
 
@@ -407,4 +407,18 @@ function printSummary() {
   if (failed > 0) {
     process.exitCode = 1;
   }
+}
+
+/**
+ * Today's editorial date in the single product timezone (Europe/Paris), the
+ * same value the app and the content engine resolve. Never UTC or the runner's
+ * local zone: those disagree with the app for an hour or two every night.
+ */
+function productEditionDate() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
 }

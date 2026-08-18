@@ -7,7 +7,7 @@ import { AppText, Card } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
-import { selectArchiveItems, useArchive } from "../archive";
+import { selectArchiveItems, useArchiveData } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
 import { estimateReadMinutes, formatDropDate } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
@@ -134,7 +134,8 @@ function StoriesToday() {
 function StoriesArchive() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const archive = useArchive();
+  // Rendering the Archive view is what loads the archive (see useArchiveData).
+  const archive = useArchiveData();
   const copy = getModuleCopy(archive.language);
   const stories = useMemo(
     () => selectArchiveItems(archive.drops, "business_story"),

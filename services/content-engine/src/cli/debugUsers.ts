@@ -1,7 +1,7 @@
 import { isLanguage, type Language } from "../domain.js";
 import { ContentRepository, type DailyJobUserDebugResult } from "../storage/contentRepository.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
-import { toDateOnly } from "../utils/date.js";
+import { getProductEditionDate } from "../scheduler/editionCadence.js";
 
 const DEFAULT_USER_LIMIT = 5;
 const MAX_USER_LIMIT = 25;
@@ -60,7 +60,7 @@ export function parseDebugUsersOptions(args: string[]): DebugUsersOptions {
   );
 
   return {
-    dropDate: flags.get("date") ?? toDateOnly(new Date()),
+    dropDate: flags.get("date") ?? getProductEditionDate(),
     languages,
     userLimit: parseUserLimit(flags.get("limit") ?? process.env.USER_LIMIT)
   };

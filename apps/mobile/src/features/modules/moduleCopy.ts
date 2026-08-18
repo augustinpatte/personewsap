@@ -32,6 +32,8 @@ export function getModuleCopy(language: Language | null | undefined) {
           searching: "Searching your archive…",
           searchOffline: "Offline — showing the editions already loaded.",
           loadEarlier: "Load earlier editions",
+          loadMoreResults: "Load more results",
+          searchPageFailed: "Could not load more results. Check your connection.",
           minuteCount: (count: number) => `${count} min`,
           quietDayTitle: "No new edition today",
           quietDayBody:
@@ -86,6 +88,9 @@ export function getModuleCopy(language: Language | null | undefined) {
         path: {
           title: "Learning path",
           tab: "Path",
+          // Stable header line: the path is self-paced, so it must not be
+          // labelled with an edition date.
+          eyebrow: "Personal path",
           sessionsCompleted: "Sessions completed",
           nextSession: "Next session",
           startFirst: "Start your first session",
@@ -129,6 +134,8 @@ export function getModuleCopy(language: Language | null | undefined) {
           searching: "Recherche dans vos archives…",
           searchOffline: "Hors ligne — seules les éditions déjà chargées sont affichées.",
           loadEarlier: "Afficher les éditions précédentes",
+          loadMoreResults: "Afficher plus de résultats",
+          searchPageFailed: "Impossible de charger plus de résultats. Vérifiez votre connexion.",
           minuteCount: (count: number) => `${count} min`,
           quietDayTitle: "Aucune nouvelle édition aujourd'hui",
           quietDayBody:
@@ -186,6 +193,7 @@ export function getModuleCopy(language: Language | null | undefined) {
         path: {
           title: "Parcours",
           tab: "Parcours",
+          eyebrow: "Parcours personnel",
           sessionsCompleted: "Sessions terminées",
           nextSession: "Prochaine session",
           startFirst: "Commencer la première session",

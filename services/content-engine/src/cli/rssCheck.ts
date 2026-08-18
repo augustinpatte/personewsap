@@ -2,7 +2,7 @@ import { LANGUAGES, TOPIC_IDS, type Language, type TopicId, isLanguage, isTopicI
 import { processArticles } from "../processing/pipeline.js";
 import { CURATED_SOURCE_COVERAGE, CURATED_SOURCES } from "../sources/curatedSources.js";
 import { RssFeedConnector, type RssFetchDiagnostics } from "../sources/rssFetcher.js";
-import { toDateOnly } from "../utils/date.js";
+import { getProductEditionDate } from "../scheduler/editionCadence.js";
 
 export type RssCheckOptions = {
   languages: Language[];
@@ -182,7 +182,7 @@ export function parseRssCheckOptions(args: string[]): RssCheckOptions {
   return {
     languages: parseLanguages(values.get("languages") ?? values.get("language") ?? LANGUAGES.join(",")),
     topics: parseTopics(values.get("topics") ?? values.get("topic") ?? TOPIC_IDS.join(",")),
-    since: values.get("since") ?? values.get("date") ?? toDateOnly(new Date()),
+    since: values.get("since") ?? values.get("date") ?? getProductEditionDate(),
     limitPerSource
   };
 }

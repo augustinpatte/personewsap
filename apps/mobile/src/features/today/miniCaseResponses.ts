@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { isSupabaseContentItemId } from "../../lib/contentItemId";
 import { getAuthSession } from "../../lib/supabase";
 import { pushMiniCaseResponse } from "./miniCaseSync";
 
@@ -43,6 +44,13 @@ export async function writeMiniCaseResponse(
 
   await writeLocalMiniCaseResponses({ [itemId]: record });
 
+  // Sample/demo content has no server side: mini_case_responses.content_item_id
+  // is a UUID, so a text mock id can only ever be rejected. The result stays on
+  // the device, and no request is made.
+  if (!isSupabaseContentItemId(itemId)) {
+    return;
+  }
+
   // The device copy is the offline cache; the server copy is what makes the
   // result follow the reader to another device. A failed push is not an error
   // here: the next sync finds the record local-only and retries it.
@@ -55,18 +63,32 @@ export async function writeMiniCaseResponse(
 }
 
 /**
- * Write records into the on-device cache without overwriting an existing one.
- * Used both by the reader (a freshly finished case) and by the server sync
- * (results recorded on another device).
+ * Write records into the on-device cache.
+ *
+ * Two callers, two rules:
+ *  - the reader recording a freshly finished case (`origin: "device"`, the
+ *    default) never overwrites an existing record, so reopening a completed
+ *    case can only ever review the original decisions;
+ *  - the server sync (`origin: "server"`) does overwrite, because Supabase is
+ *    the source of truth: a stale local result for a case the server already
+ *    holds differently must converge, not win.
  */
 export async function writeLocalMiniCaseResponses(
-  records: MiniCaseResponseMap
+  records: MiniCaseResponseMap,
+  options: { origin?: "device" | "server" } = {}
 ): Promise<MiniCaseResponseMap> {
   const map = await readAll();
+  const overwrite = options.origin === "server";
   let changed = false;
 
   for (const [itemId, record] of Object.entries(records)) {
-    if (map[itemId]) {
+    const existing = map[itemId];
+
+    if (existing && !overwrite) {
+      continue;
+    }
+
+    if (existing && sameMiniCaseResponse(existing, record)) {
       continue;
     }
 
@@ -147,4 +169,16 @@ function parseRecord(value: unknown): MiniCaseResponseRecord | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sameMiniCaseResponse(
+  left: MiniCaseResponseRecord,
+  right: MiniCaseResponseRecord
+): boolean {
+  return (
+    left.score === right.score &&
+    left.total === right.total &&
+    left.completedAt === right.completedAt &&
+    JSON.stringify(left.selections) === JSON.stringify(right.selections)
+  );
 }

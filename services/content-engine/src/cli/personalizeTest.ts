@@ -6,7 +6,7 @@ import {
 } from "../storage/contentRepository.js";
 import { serializePersistenceError } from "../storage/persistenceError.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
-import { toDateOnly } from "../utils/date.js";
+import { getProductEditionDate } from "../scheduler/editionCadence.js";
 import { redactLogIdentifiers } from "../utils/redactIdentifier.js";
 
 const DEFAULT_PERSONALIZE_LIMIT = 3;
@@ -213,7 +213,7 @@ export function parsePersonalizeTestOptions(args: string[]): PersonalizeTestOpti
   }
 
   return {
-    dropDate: readStringOption(args, "date") ?? toDateOnly(new Date()),
+    dropDate: readStringOption(args, "date") ?? getProductEditionDate(),
     limit,
     targetUserId,
     refresh: args.includes("--refresh") || process.env.REFRESH_EXISTING_DROP === "true"

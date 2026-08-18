@@ -392,18 +392,41 @@ export async function applySupabaseAuthUrl(url: string): Promise<AuthResult<Sess
   return { data: null, error: null };
 }
 
+/**
+ * Token auto-refresh follows the app's foreground state.
+ *
+ * Both calls hit the network, so both can reject when the device comes back
+ * with no connectivity — at cold start this is the normal case, not a bug. An
+ * unhandled rejection here surfaced as a red "TypeError: Network request
+ * failed" at launch even though auth recovered a second later, so the outcome
+ * is swallowed deliberately: supabase-js retries on its own schedule, and any
+ * genuinely broken session is reported by the calls that need it
+ * (getValidatedAuthSession and every data fetch).
+ */
 if (supabase) {
+  const client = supabase;
+
+  const setAutoRefresh = (enabled: boolean) => {
+    const task = enabled
+      ? client.auth.startAutoRefresh()
+      : client.auth.stopAutoRefresh();
+
+    void Promise.resolve(task).catch((error: unknown) => {
+      if (__DEV__) {
+        console.info(
+          "[Supabase auth] auto-refresh unavailable",
+          normalizeSupabaseError(error, "Auto-refresh could not run.").message
+        );
+      }
+    });
+  };
+
   if (AppState.currentState === "active") {
-    void supabase.auth.startAutoRefresh();
+    setAutoRefresh(true);
   }
 
   AppState.addEventListener("change", (state) => {
-    if (state === "active") {
-      void supabase.auth.startAutoRefresh();
-      return;
-    }
-
-    void supabase.auth.stopAutoRefresh();
+    setAutoRefresh(state === "active");
   });
 }
 

@@ -11,7 +11,7 @@ import {
 import { AppText, EmptyState, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
-import { useArchive, useArchiveSearch } from "../archive";
+import { useArchive, useArchiveSearch, type ArchiveSearchState } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
 import { formatDropDate } from "../today/contentCopy";
 import { getModuleCopy } from "./moduleCopy";
@@ -52,7 +52,7 @@ export function ItemArchiveList({
   const [query, setQuery] = useState("");
   const search = useArchiveSearch(query, items, contentType);
 
-  if (archive.status === "loading") {
+  if (archive.status !== "ready") {
     return <ModuleLoading label={copy.common.loading} />;
   }
 
@@ -80,9 +80,7 @@ export function ItemArchiveList({
           />
         )
       }
-      ListFooterComponent={
-        <ArchiveListFooter isSearchActive={search.isSearchActive} />
-      }
+      ListFooterComponent={<ArchiveListFooter search={search} />}
       ListHeaderComponent={
         <View style={styles.header}>
           <TextInput
@@ -123,16 +121,44 @@ export function ItemArchiveList({
 }
 
 /**
- * Deliberate end-of-list: while browsing, older editions load on an explicit
- * tap. Search results are already whole-history, so nothing to page there.
+ * Deliberate end-of-list, in both modes: nothing ever loads by scrolling. While
+ * browsing, older editions arrive on an explicit tap; while searching, further
+ * result pages do too. The control disappears once there is nothing left, so
+ * the end of the list is a real end.
  */
-function ArchiveListFooter({ isSearchActive }: { isSearchActive: boolean }) {
+function ArchiveListFooter({ search }: { search: ArchiveSearchState }) {
   const styles = useThemedStyles(createStyles);
   const colors = useThemeColors();
   const archive = useArchive();
   const copy = getModuleCopy(archive.language);
 
-  if (isSearchActive || !archive.hasMore) {
+  if (search.isSearchActive) {
+    if (!search.hasMore && !search.loadMoreError) {
+      return null;
+    }
+
+    return (
+      <View style={styles.footer}>
+        {search.loadMoreError ? (
+          <AppText color="muted" variant="caption">
+            {copy.common.searchPageFailed}
+          </AppText>
+        ) : null}
+        {search.loadingMore ? (
+          <ActivityIndicator color={colors.muted} />
+        ) : (
+          <SecondaryButton
+            label={
+              search.loadMoreError ? copy.common.retry : copy.common.loadMoreResults
+            }
+            onPress={search.loadMore}
+          />
+        )}
+      </View>
+    );
+  }
+
+  if (!archive.hasMore) {
     return null;
   }
 

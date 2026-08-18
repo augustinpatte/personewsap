@@ -26,7 +26,7 @@ import { SourceFetcher } from "../sources/sourceFetcher.js";
 import type { SourceConnector } from "../sources/types.js";
 import { ContentRepository } from "../storage/contentRepository.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
-import { toDateOnly } from "../utils/date.js";
+import { getProductEditionDate } from "../scheduler/editionCadence.js";
 
 /**
  * `bootstrap-catalog` CLI.
@@ -140,7 +140,7 @@ export function parseBootstrapCatalogOptions(args: string[]): BootstrapCatalogCl
     "MINI_CASE_COUNT_PER_TOPIC"
   );
   const liveRssOnly = flags.has("live-rss-only") || envFlag("LIVE_RSS_ONLY");
-  const dropDate = flags.get("date") ?? toDateOnly(new Date());
+  const dropDate = flags.get("date") ?? getProductEditionDate();
 
   return {
     dropDate,

@@ -9,6 +9,14 @@ import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
 import { allowMockContent } from "../../lib/mockPolicy";
 import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import { mockLibraryDrops } from "../../mocks";
+import {
+  ARCHIVE_SEARCH_PAGE_SIZE,
+  buildArchiveSearchKeysetFilter,
+  encodeArchiveSearchCursor,
+  takeArchiveSearchPage,
+  type ArchiveSearchCursor,
+  type ArchiveSearchPage
+} from "../archive/archiveSearchPaging";
 import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
 import type { ContentLanguage } from "../today";
@@ -52,6 +60,17 @@ const defaultLibraryDropLimit = 25;
 const libraryDropCacheTtlMs = 60_000;
 const liveDataProofMode = process.env.EXPO_PUBLIC_LIVE_DATA_PROOF_MODE === "true";
 const maxLibraryDropLimit = 50;
+const archiveSearchCacheTtlMs = 60_000;
+// A page is what the reader asked for; the ceiling only guards a caller passing
+// something unreasonable. It is not a result cap: further pages always follow.
+const maxArchiveSearchPageSize = 50;
+// Flat, de-duplicated view of the caller's own archive (see the
+// 20260818090000_archive_search_keyset migration). Reading it rather than
+// daily_drop_items is what makes drop_date and content_item_id top-level
+// columns, and therefore a real keyset possible.
+const archiveSearchView = "user_archive_search_items";
+const archiveSearchSelect =
+  "content_item_id,drop_id,drop_date,content_type,language,title,topic_id,source_count,metadata";
 const publishedContentStatus = "published";
 const contentInteractionSelect =
   "id,user_id,content_item_id,interaction_type,rating,message,created_at";
@@ -224,13 +243,21 @@ export async function fetchLibraryDrops(
 }
 
 /**
- * Search the user's whole archive for one content type, server-side.
+ * One page of a search over the reader's whole archive, server-side.
  *
- * Paging the archive means the client only holds a window of it, so a search
- * restricted to loaded pages would silently miss older items. This queries
- * Supabase directly (title match and/or drop_date period) so an item from any
- * point in the history is findable. RLS still scopes every row to the caller;
- * the explicit user_id filter keeps the query index-friendly.
+ * There is no result cap. The archive is paged, so filtering only the loaded
+ * pages would silently hide older matches; instead this queries Supabase
+ * directly (title match and/or drop_date period) over
+ * public.user_archive_search_items, and walks the results with a keyset cursor
+ * on (drop_date DESC, content_item_id DESC). A reader can therefore reach any
+ * match, however far back, by asking for further pages — the only limit is how
+ * many pages they choose to load.
+ *
+ * The view is scoped to the caller (RLS through security_invoker, plus its own
+ * auth.uid() predicate), and only ever exposes content items assigned to them
+ * through their own published drops. The explicit user_id filter is kept: it
+ * states the intent at the call site and keeps the query on
+ * idx_daily_drops_user_date.
  */
 export async function searchLibraryItems(
   userId: string | null | undefined,
@@ -240,57 +267,77 @@ export async function searchLibraryItems(
     from?: string | null;
     toExclusive?: string | null;
     language?: ContentLanguage;
-    limit?: number;
+    /** Where to resume; omit or null for the first page. */
+    cursor?: ArchiveSearchCursor | null;
+    pageSize?: number;
   }
-): Promise<DataFetchResult<LibraryItemSummary[]>> {
+): Promise<DataFetchResult<ArchiveSearchPage>> {
+  const emptyPage: ArchiveSearchPage = { items: [], nextCursor: null, hasMore: false };
+
   if (!userId || !supabase) {
-    return createMockFallbackResult<LibraryItemSummary[]>(
-      [],
+    return createMockFallbackResult<ArchiveSearchPage>(
+      emptyPage,
       userId ? "missing_supabase_config" : "missing_auth_session"
     );
   }
 
-  const limit = Math.min(Math.max(options.limit ?? 40, 1), 100);
+  const pageSize = Math.min(
+    Math.max(options.pageSize ?? ARCHIVE_SEARCH_PAGE_SIZE, 1),
+    maxArchiveSearchPageSize
+  );
   const text = options.text.trim();
+  const cursor = options.cursor ?? null;
 
   try {
+    const cacheKey = getArchiveSearchCacheKey(userId, options, pageSize);
+    const cachedPage = getCachedValue<ArchiveSearchPage>(cacheKey);
+
+    if (cachedPage) {
+      return createCachedResult(cachedPage);
+    }
+
     let query = supabase
-      .from("daily_drop_items")
-      .select(
-        `content_item_id,
-         daily_drops!inner(id,user_id,drop_date,language,status),
-         content_items!inner(id,title,content_type,status,topic_id,language,source_count,metadata)`
-      )
-      .eq("daily_drops.user_id", userId)
-      .in("daily_drops.status", [...archiveDropStatuses])
-      .eq("content_items.status", publishedContentStatus)
-      .eq("content_items.content_type", options.contentType);
+      .from(archiveSearchView)
+      .select(archiveSearchSelect)
+      .eq("user_id", userId)
+      .eq("content_type", options.contentType);
 
     if (options.language) {
-      query = query.eq("daily_drops.language", options.language);
+      // The view exposes the content item's own language, so a FR search can
+      // never surface an EN item (or the reverse) through a mixed edition.
+      query = query.eq("language", options.language);
     }
 
     if (text.length > 0) {
-      query = query.ilike("content_items.title", `%${escapeLikePattern(text)}%`);
+      query = query.ilike("title", `%${escapeLikePattern(text)}%`);
     }
 
     if (options.from) {
-      query = query.gte("daily_drops.drop_date", options.from);
+      query = query.gte("drop_date", options.from);
     }
 
     if (options.toExclusive) {
-      query = query.lt("daily_drops.drop_date", options.toExclusive);
+      query = query.lt("drop_date", options.toExclusive);
     }
 
+    const keysetFilter = buildArchiveSearchKeysetFilter(cursor);
+
+    if (keysetFilter) {
+      query = query.or(keysetFilter);
+    }
+
+    // One row more than the page: its presence is the exact `hasMore` answer,
+    // with no count over the whole history.
     const { data, error } = await query
-      .order("drop_date", { ascending: false, referencedTable: "daily_drops" })
-      .limit(limit);
+      .order("drop_date", { ascending: false })
+      .order("content_item_id", { ascending: false })
+      .limit(pageSize + 1);
 
     if (error) {
       const normalizedError = normalizeSupabaseError(error);
 
-      return createMockFallbackResult<LibraryItemSummary[]>(
-        [],
+      return createMockFallbackResult<ArchiveSearchPage>(
+        emptyPage,
         getFallbackReasonForError(normalizedError),
         normalizedError
       );
@@ -301,66 +348,98 @@ export async function searchLibraryItems(
     const interactions = await fetchLibraryInteractions(userId, contentItemIds);
     const completedItemIds = getInteractedContentItemIds(interactions, "complete");
     const savedItemIds = getInteractedContentItemIds(interactions, "save");
-    const seen = new Set<string>();
-    const items: LibraryItemSummary[] = [];
+    const summaries: LibraryItemSummary[] = [];
 
     for (const row of rows) {
-      const drop = firstRelated(row.daily_drops);
-      const contentItem = firstRelated(row.content_items);
-
-      if (!drop || !contentItem || seen.has(contentItem.id)) {
-        continue;
-      }
-
-      seen.add(contentItem.id);
-      const contentType = mapLibraryContentType(contentItem);
+      const contentType = mapLibraryContentType(row);
 
       if (!contentType) {
         continue;
       }
 
-      items.push({
-        id: contentItem.id,
+      summaries.push({
+        id: row.content_item_id,
         content_type: contentType,
-        drop_date: drop.drop_date,
-        drop_id: drop.id,
-        is_completed: completedItemIds.has(contentItem.id),
-        is_saved: savedItemIds.has(contentItem.id),
-        language: contentItem.language,
-        source_count: contentItem.source_count,
-        title: contentItem.title,
-        topic: readLibraryTopic(contentItem)
+        drop_date: row.drop_date,
+        drop_id: row.drop_id,
+        is_completed: completedItemIds.has(row.content_item_id),
+        is_saved: savedItemIds.has(row.content_item_id),
+        language: row.language,
+        source_count: row.source_count,
+        title: row.title,
+        topic: readLibraryTopic(row)
       });
     }
 
-    items.sort((left, right) => right.drop_date.localeCompare(left.drop_date));
+    const page = takeArchiveSearchPage(summaries, pageSize);
 
-    return createSupabaseResult(items);
+    setCachedValue(cacheKey, page, archiveSearchCacheTtlMs);
+
+    logLibraryDataProof("live_archive_search", {
+      content_type: options.contentType,
+      has_more: page.hasMore,
+      is_first_page: cursor === null,
+      result_count: page.items.length,
+      user_id: redactIdentifier(userId)
+    });
+
+    return createSupabaseResult(page);
   } catch (error) {
     const normalizedError = normalizeSupabaseError(error);
 
-    return createMockFallbackResult<LibraryItemSummary[]>(
-      [],
+    return createMockFallbackResult<ArchiveSearchPage>(
+      emptyPage,
       getFallbackReasonForError(normalizedError),
       normalizedError
     );
   }
 }
 
+/**
+ * One row of public.user_archive_search_items: already flat and already
+ * de-duplicated per content item, so no embedded-shape handling is needed.
+ */
 type ArchiveSearchRow = {
   content_item_id: string;
-  daily_drops: DailyDrop | DailyDrop[] | null;
-  content_items: ContentItem | ContentItem[] | null;
+  drop_id: string;
+  drop_date: string;
+  content_type: ContentItem["content_type"];
+  language: ContentItem["language"];
+  title: string;
+  topic_id: ContentItem["topic_id"];
+  source_count: number;
+  metadata: ContentItem["metadata"];
 };
 
-// PostgREST returns an embedded row as an object or a single-element array
-// depending on how it infers the relationship; accept both shapes.
-function firstRelated<T>(value: T | T[] | null): T | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return value ?? null;
+/**
+ * Cache key for one search page. It carries everything that changes the
+ * result — reader, language, content type, normalised text, both date bounds,
+ * page size and the cursor — so no two different searches can ever share an
+ * entry, and a re-tap of "load more" is free.
+ */
+function getArchiveSearchCacheKey(
+  userId: string,
+  options: {
+    contentType: string;
+    text: string;
+    from?: string | null;
+    toExclusive?: string | null;
+    language?: ContentLanguage;
+    cursor?: ArchiveSearchCursor | null;
+  },
+  pageSize: number
+): string {
+  return [
+    "archive-search",
+    userId,
+    options.language ?? "any",
+    options.contentType,
+    options.text.trim().toLowerCase(),
+    options.from ?? "",
+    options.toExclusive ?? "",
+    String(pageSize),
+    encodeArchiveSearchCursor(options.cursor ?? null)
+  ].join(":");
 }
 
 // `%` and `_` are wildcards in ILIKE; a user typing them must match literally.
@@ -537,7 +616,10 @@ function getTopicsForContentItems(contentItems: ContentItem[]): TopicId[] {
   return [...new Set(topics)];
 }
 
-function readTopicFromContentItem(contentItem: ContentItem): TopicId | null {
+/** Only the fields these helpers read, so a flat search row also fits. */
+type TopicBearingRow = Pick<ContentItem, "topic_id" | "metadata">;
+
+function readTopicFromContentItem(contentItem: TopicBearingRow): TopicId | null {
   if (isTopicId(contentItem.topic_id)) {
     return contentItem.topic_id;
   }
@@ -548,7 +630,7 @@ function readTopicFromContentItem(contentItem: ContentItem): TopicId | null {
   return isTopicId(metadataTopic) ? metadataTopic : null;
 }
 
-function readLibraryTopic(contentItem: ContentItem): LibraryItemSummary["topic"] {
+function readLibraryTopic(contentItem: TopicBearingRow): LibraryItemSummary["topic"] {
   const topic = readTopicFromContentItem(contentItem);
 
   if (topic) {
@@ -561,7 +643,7 @@ function readLibraryTopic(contentItem: ContentItem): LibraryItemSummary["topic"]
 }
 
 function mapLibraryContentType(
-  contentItem: ContentItem
+  contentItem: Pick<ContentItem, "content_type">
 ): LibraryItemSummary["content_type"] | null {
   if (contentItem.content_type === "concept") {
     return "key_concept";
@@ -616,7 +698,11 @@ function getFallbackReasonForError(error: ReturnType<typeof normalizeSupabaseErr
 }
 
 function logLibraryDataProof(
-  event: "live_library_drops" | "live_library_drops_cache_hit" | "mock_fallback",
+  event:
+    | "live_archive_search"
+    | "live_library_drops"
+    | "live_library_drops_cache_hit"
+    | "mock_fallback",
   details: Record<string, unknown>
 ): void {
   if (__DEV__) {

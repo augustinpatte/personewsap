@@ -12,7 +12,7 @@ import { SampleArticleConnector } from "../sources/sampleArticles.js";
 import { SourceFetcher } from "../sources/sourceFetcher.js";
 import { CURATED_SOURCES } from "../sources/curatedSources.js";
 import type { SourceConnector } from "../sources/types.js";
-import { toDateOnly } from "../utils/date.js";
+import { getProductEditionDate } from "../scheduler/editionCadence.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 
 export type DryRunOptions = {
@@ -135,7 +135,7 @@ export function parseDryRunOptions(args: string[]): DryRunOptions {
   }
 
   return {
-    dropDate: values.get("date") ?? toDateOnly(new Date()),
+    dropDate: values.get("date") ?? getProductEditionDate(),
     languages,
     topics,
     newsletterArticleCount,

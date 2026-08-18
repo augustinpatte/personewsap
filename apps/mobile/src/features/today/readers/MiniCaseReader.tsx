@@ -94,11 +94,16 @@ function MiniCaseFlow({ challenge }: { challenge: MiniCaseChallenge }) {
 
     void (async () => {
       const local = await readMiniCaseResponse(challenge.id);
-      // A case solved on another device has its answers only on the server.
+      // Supabase is the source of truth for a real case: this returns the
+      // server's answers when it has them (solved on another device, or before
+      // a reinstall), and falls back to the exact local record otherwise.
       const record = await readMiniCaseResponseAnywhere(challenge.id, local);
 
-      if (record && !local) {
-        await writeLocalMiniCaseResponses({ [challenge.id]: record });
+      if (record && record !== local) {
+        await writeLocalMiniCaseResponses(
+          { [challenge.id]: record },
+          { origin: "server" }
+        );
       }
 
       if (active) {

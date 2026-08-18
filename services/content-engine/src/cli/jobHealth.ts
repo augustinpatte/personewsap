@@ -1,6 +1,6 @@
 import { ContentRepository, type JobRunRow } from "../storage/contentRepository.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
-import { toDateOnly } from "../utils/date.js";
+import { getProductEditionDate } from "../scheduler/editionCadence.js";
 
 type JobHealthStatus = "ok" | "warning" | "critical";
 
@@ -139,7 +139,7 @@ export function parseJobHealthOptions(args: string[]): JobHealthOptions {
   }
 
   return {
-    runDate: flags.get("date") ?? toDateOnly(new Date()),
+    runDate: flags.get("date") ?? getProductEditionDate(),
     limit,
     strictWarnings: flags.has("strict"),
     staleMinutes: readIntegerFlag(flags, "stale-minutes", 90, 5, 1440)

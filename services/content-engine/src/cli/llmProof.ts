@@ -26,7 +26,7 @@ import { processArticles } from "../processing/pipeline.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { CURATED_SOURCE_COVERAGE, CURATED_SOURCES } from "../sources/curatedSources.js";
 import { RssFeedConnector, type RssFetchDiagnostics } from "../sources/rssFetcher.js";
-import { toDateOnly } from "../utils/date.js";
+import { getProductEditionDate } from "../scheduler/editionCadence.js";
 
 const DEFAULT_TOPICS = "business,finance";
 const DEFAULT_LIMIT_PER_SOURCE = 1;
@@ -297,7 +297,7 @@ export function parseLlmProofOptions(args: string[]): LlmProofOptions {
   const values = readFlags(args);
 
   return {
-    dropDate: values.get("date") ?? toDateOnly(new Date()),
+    dropDate: values.get("date") ?? getProductEditionDate(),
     languages: parseLanguages(values.get("languages") ?? values.get("language") ?? process.env.LANGUAGES ?? "en"),
     topics: parseTopics(values.get("topics") ?? values.get("topic") ?? DEFAULT_TOPICS),
     limitPerSource:
