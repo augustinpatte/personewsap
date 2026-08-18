@@ -10,11 +10,10 @@ import { shouldRedirectToLearningSetup } from "../../src/features/learning/learn
 import { localized } from "../../src/lib/i18n";
 
 /**
- * Product-oriented bottom navigation: the four content modules. Account lives
- * outside the tab bar, reached from the top-right entry on every module screen.
+ * Product-oriented bottom navigation: the four content modules plus Settings.
  *
- * One sober line icon per destination, so the four tabs are told apart at a
- * glance rather than by reading four short words.
+ * One sober line icon per destination, so the tabs are told apart at a glance
+ * rather than by reading five short words.
  *
  * Feather is used for its single-weight, thin geometry: it sits with the
  * editorial serif type instead of competing with it. Deliberately not emoji,
@@ -25,7 +24,8 @@ const TAB_ICONS = {
   newsletter: "file-text",
   cases: "check-square",
   stories: "briefcase",
-  path: "compass"
+  path: "compass",
+  settings: "sliders"
 } as const;
 
 function TabIcon({
@@ -61,13 +61,15 @@ export default function TabsLayout() {
         newsletter: "Newsletter",
         cases: "Mini cases",
         stories: "Stories",
-        path: "Path"
+        path: "Path",
+        settings: "Settings"
       },
       fr: {
         newsletter: "Newsletter",
         cases: "Mini cas",
         stories: "Stories",
-        path: "Parcours"
+        path: "Parcours",
+        settings: "Réglages"
       }
     },
     profileLanguage
@@ -109,18 +111,19 @@ export default function TabsLayout() {
           tabBarStyle: {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
-            height: 64 + bottomInset,
+            height: 68 + bottomInset,
             paddingBottom: bottomInset,
-            paddingTop: 10
+            paddingTop: 8
           },
           tabBarLabelStyle: {
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: "700",
-            letterSpacing: 0.2
+            letterSpacing: 0
           },
           tabBarItemStyle: {
             // Comfortably above the 44pt minimum target on every device.
-            paddingVertical: 4
+            minHeight: 44,
+            paddingVertical: 3
           }
         }}
       >
@@ -157,6 +160,15 @@ export default function TabsLayout() {
             title: copy.path,
             tabBarIcon: ({ color, focused }) => (
               <TabIcon color={color} focused={focused} name={TAB_ICONS.path} />
+            )
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: copy.settings,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon color={color} focused={focused} name={TAB_ICONS.settings} />
             )
           }}
         />

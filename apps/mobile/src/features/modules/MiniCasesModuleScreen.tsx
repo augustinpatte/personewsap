@@ -9,6 +9,7 @@ import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { selectArchiveItems, useArchiveData } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
+import { useModulePreferenceState } from "../preferences";
 import {
   formatDropDate,
   getDifficultyLabel,
@@ -29,6 +30,7 @@ import { getModuleCopy } from "./moduleCopy";
 import {
   ModuleError,
   ModuleHeader,
+  ModuleDisabledState,
   ModuleLoading,
   MetaLine,
   ModuleScroll,
@@ -43,8 +45,10 @@ function caseHref(id: string): Href {
 export function MiniCasesModuleScreen() {
   const [view, setView] = useState<"left" | "right">("left");
   const { language, drop } = useDailyDrop();
+  const modulePreference = useModulePreferenceState("mini_case");
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
+  const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -52,7 +56,6 @@ export function MiniCasesModuleScreen() {
         <ModuleHeader
           eyebrow={formatDropDate(drop.drop_date, language)}
           iconName="check-square"
-          language={language}
           metaItems={[
             copy.common.editionRhythm,
             copy.cases.headerMeta,
@@ -60,14 +63,24 @@ export function MiniCasesModuleScreen() {
           ]}
           title={copy.cases.title}
         />
-        <ViewSwitch
-          leftLabel={copy.common.todayView}
-          onChange={setView}
-          rightLabel={copy.common.archiveView}
-          value={view}
-        />
+        {disabled ? null : (
+          <ViewSwitch
+            leftLabel={copy.common.todayView}
+            onChange={setView}
+            rightLabel={copy.common.archiveView}
+            value={view}
+          />
+        )}
       </View>
-      {view === "left" ? <MiniCaseToday /> : <MiniCaseArchive />}
+      {disabled ? (
+        <ModuleScroll>
+          <ModuleDisabledState language={language} moduleId="mini_case" />
+        </ModuleScroll>
+      ) : view === "left" ? (
+        <MiniCaseToday />
+      ) : (
+        <MiniCaseArchive />
+      )}
     </SafeAreaView>
   );
 }

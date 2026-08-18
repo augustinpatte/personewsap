@@ -78,9 +78,9 @@ function getPrivacyCopy(language: string | null) {
           {
             title: "Your controls",
             lines: [
-              "You can change language, newsletter topics, mini-case topics, notifications and content preferences from Account.",
-              "You can export your account data as JSON from Account. The export reads only your own data, through authenticated row-level-secured queries.",
-              "You can delete your account from Account, or from the website without installing the app. Deletion is immediate and permanent, and signs you out.",
+              "You can change language, newsletter topics, mini-case topics, notifications and content preferences from Settings.",
+              "You can export your account data as JSON from Settings. The export reads only your own data, through authenticated row-level-secured queries.",
+              "You can delete your account from Settings, or from the website without installing the app. Deletion is immediate and permanent, and signs you out.",
               "Editorial content itself is shared by all readers and is not deleted; it simply stops being linked to you."
             ]
           }
@@ -115,9 +115,9 @@ function getPrivacyCopy(language: string | null) {
           {
             title: "Vos contrôles",
             lines: [
-              "Vous pouvez modifier la langue, les thèmes newsletter, les thèmes mini-cas, les notifications et vos préférences depuis Compte.",
-              "Vous pouvez exporter les données de votre compte en JSON depuis Compte. L'export ne lit que vos propres données, via des requêtes authentifiées protégées par RLS.",
-              "Vous pouvez supprimer votre compte depuis Compte, ou depuis le site sans installer l'application. La suppression est immédiate, définitive, et vous déconnecte.",
+              "Vous pouvez modifier la langue, les thèmes newsletter, les thèmes mini-cas, les notifications et vos préférences depuis Réglages.",
+              "Vous pouvez exporter les données de votre compte en JSON depuis Réglages. L'export ne lit que vos propres données, via des requêtes authentifiées protégées par RLS.",
+              "Vous pouvez supprimer votre compte depuis Réglages, ou depuis le site sans installer l'application. La suppression est immédiate, définitive, et vous déconnecte.",
               "Le contenu éditorial est partagé par tous les lecteurs et n'est pas supprimé ; il cesse simplement d'être associé à vous."
             ]
           }

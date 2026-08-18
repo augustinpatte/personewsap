@@ -9,6 +9,7 @@ import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { selectArchiveItems, useArchiveData } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
+import { useModulePreferenceState } from "../preferences";
 import { estimateReadMinutes, formatDropDate } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
 import { stripMarkdownInline } from "../today/readers/markdown";
@@ -16,6 +17,7 @@ import { ItemArchiveList } from "./ItemArchiveList";
 import { getModuleCopy } from "./moduleCopy";
 import {
   ModuleError,
+  ModuleDisabledState,
   ModuleHeader,
   ModuleLoading,
   MetaLine,
@@ -31,8 +33,10 @@ function storyHref(id: string): Href {
 export function StoriesModuleScreen() {
   const [view, setView] = useState<"left" | "right">("left");
   const { language, drop } = useDailyDrop();
+  const modulePreference = useModulePreferenceState("business_story");
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
+  const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -40,7 +44,6 @@ export function StoriesModuleScreen() {
         <ModuleHeader
           eyebrow={formatDropDate(drop.drop_date, language)}
           iconName="briefcase"
-          language={language}
           metaItems={[
             copy.common.editionRhythm,
             copy.stories.headerMeta,
@@ -48,14 +51,24 @@ export function StoriesModuleScreen() {
           ]}
           title={copy.stories.title}
         />
-        <ViewSwitch
-          leftLabel={copy.common.todayView}
-          onChange={setView}
-          rightLabel={copy.common.archiveView}
-          value={view}
-        />
+        {disabled ? null : (
+          <ViewSwitch
+            leftLabel={copy.common.todayView}
+            onChange={setView}
+            rightLabel={copy.common.archiveView}
+            value={view}
+          />
+        )}
       </View>
-      {view === "left" ? <StoriesToday /> : <StoriesArchive />}
+      {disabled ? (
+        <ModuleScroll>
+          <ModuleDisabledState language={language} moduleId="business_story" />
+        </ModuleScroll>
+      ) : view === "left" ? (
+        <StoriesToday />
+      ) : (
+        <StoriesArchive />
+      )}
     </SafeAreaView>
   );
 }

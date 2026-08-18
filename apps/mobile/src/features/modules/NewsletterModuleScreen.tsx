@@ -16,6 +16,7 @@ import {
   type NewsletterEditionSummary
 } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
+import { useModulePreferenceState } from "../preferences";
 import { shouldShowStoredLanguageChangeNotice } from "../preferences/languageChangeNotice";
 import {
   estimateReadMinutes,
@@ -29,6 +30,7 @@ import { getModuleCopy } from "./moduleCopy";
 import {
   EditorialRule,
   MetaLine,
+  ModuleDisabledState,
   ModuleError,
   ModuleHeader,
   ModuleLoading,
@@ -44,8 +46,10 @@ function readerHref(kind: "newsletter" | "concept", id: string): Href {
 export function NewsletterModuleScreen() {
   const [view, setView] = useState<"left" | "right">("left");
   const { language, drop } = useDailyDrop();
+  const modulePreference = useModulePreferenceState("newsletter");
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
+  const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -53,7 +57,6 @@ export function NewsletterModuleScreen() {
         <ModuleHeader
           eyebrow={formatDropDate(drop.drop_date, language)}
           iconName="file-text"
-          language={language}
           metaItems={[
             copy.common.editionRhythm,
             copy.newsletter.articleCount(drop.items.newsletter.length),
@@ -61,14 +64,24 @@ export function NewsletterModuleScreen() {
           ]}
           title={copy.newsletter.title}
         />
-        <ViewSwitch
-          leftLabel={copy.common.todayView}
-          onChange={setView}
-          rightLabel={copy.common.editionsView}
-          value={view}
-        />
+        {disabled ? null : (
+          <ViewSwitch
+            leftLabel={copy.common.todayView}
+            onChange={setView}
+            rightLabel={copy.common.editionsView}
+            value={view}
+          />
+        )}
       </View>
-      {view === "left" ? <NewsletterToday /> : <NewsletterArchive />}
+      {disabled ? (
+        <ModuleScroll>
+          <ModuleDisabledState language={language} moduleId="newsletter" />
+        </ModuleScroll>
+      ) : view === "left" ? (
+        <NewsletterToday />
+      ) : (
+        <NewsletterArchive />
+      )}
     </SafeAreaView>
   );
 }

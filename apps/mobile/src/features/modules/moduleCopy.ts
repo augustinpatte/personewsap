@@ -69,6 +69,26 @@ export function getModuleCopy(language: Language | null | undefined) {
             "Each edition you receive is kept by date, so you can return to any day's brief.",
           noModuleToday: "Today's edition has no newsletter — see the other tabs."
         },
+        disabled: {
+          newsletter: {
+            title: "Newsletter is disabled",
+            body:
+              "Your Newsletter tab stays here, but future editions will not include newsletter articles while this module is off.",
+            action: "Enable in Settings"
+          },
+          business_story: {
+            title: "Stories are disabled",
+            body:
+              "Your Stories tab stays here, but future editions will not include business stories while this module is off.",
+            action: "Enable in Settings"
+          },
+          mini_case: {
+            title: "Mini cases are disabled",
+            body:
+              "Your Mini cases tab stays here, but future editions will not include mini cases while this module is off.",
+            action: "Enable in Settings"
+          }
+        },
         stories: {
           title: "Business stories",
           tab: "Stories",
@@ -186,6 +206,26 @@ export function getModuleCopy(language: Language | null | undefined) {
             "Chaque édition reçue est conservée par date, pour revenir au brief d'un jour précis.",
           noModuleToday:
             "L'édition du jour ne contient pas de newsletter — voyez les autres onglets."
+        },
+        disabled: {
+          newsletter: {
+            title: "Newsletter désactivée",
+            body:
+              "L'onglet Newsletter reste ici, mais les prochaines éditions ne contiendront pas d'articles newsletter tant que ce module est désactivé.",
+            action: "Activer dans Réglages"
+          },
+          business_story: {
+            title: "Stories désactivées",
+            body:
+              "L'onglet Stories reste ici, mais les prochaines éditions ne contiendront pas de business stories tant que ce module est désactivé.",
+            action: "Activer dans Réglages"
+          },
+          mini_case: {
+            title: "Mini cas désactivés",
+            body:
+              "L'onglet Mini cas reste ici, mais les prochaines éditions ne contiendront pas de mini cas tant que ce module est désactivé.",
+            action: "Activer dans Réglages"
+          }
         },
         stories: {
           title: "Business stories",

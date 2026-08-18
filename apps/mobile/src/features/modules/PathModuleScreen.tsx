@@ -45,7 +45,6 @@ export function PathModuleScreen() {
         <ModuleHeader
           eyebrow={copy.path.eyebrow}
           iconName="compass"
-          language={language}
           metaItems={[
             copy.path.headerMeta,
             learningPath.displayDomain

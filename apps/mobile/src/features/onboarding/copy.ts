@@ -16,7 +16,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           title: "Pick your briefing language",
           description:
             "Choose the language for your editions. FR and EN are written as native editorial versions.",
-          selectedFooter: "You can change language later from Account.",
+          selectedFooter: "You can change language later from Settings.",
           emptyFooter: "Choose one language to continue.",
           backToLogin: "Back to login"
         },
@@ -73,7 +73,7 @@ export function getOnboardingCopy(language: Language | null | undefined) {
           title: "Choisis la langue de ton briefing",
           description:
             "Choisissez la langue de vos éditions. FR et EN sont écrits comme deux versions éditoriales natives.",
-          selectedFooter: "Tu pourras changer la langue plus tard dans Compte.",
+          selectedFooter: "Tu pourras changer la langue plus tard dans Réglages.",
           emptyFooter: "Choisis une langue pour continuer.",
           backToLogin: "Retour à la connexion"
         },

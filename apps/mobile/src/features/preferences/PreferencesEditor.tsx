@@ -43,6 +43,7 @@ type PreferencesEditorProps = {
   uiLanguage?: Language | null;
   onSaved?: () => Promise<void> | void;
   onLanguageChange?: (language: Language) => boolean | void | Promise<boolean | void>;
+  showLanguage?: boolean;
 };
 
 type PreferencesTab = "newsletter" | "mini_case";
@@ -52,7 +53,8 @@ export function PreferencesEditor({
   refreshKey,
   uiLanguage: preferredUiLanguage,
   onSaved,
-  onLanguageChange
+  onLanguageChange,
+  showLanguage = true
 }: PreferencesEditorProps) {
   const [draft, setDraft] = useState<EditablePreferences | null>(null);
   const [saved, setSaved] = useState<EditablePreferences | null>(null);
@@ -396,18 +398,20 @@ export function PreferencesEditor({
         {loading ? <ActivityIndicator color={colors.accent} size="small" /> : null}
       </View>
 
-      <PreferenceGroup title={copy.language}>
-        {languageOptions.map((option) => (
-          <SelectableCard
-            description={option.description}
-            disabled={languageSaving}
-            key={option.id}
-            label={option.label}
-            onPress={() => selectLanguage(option.id)}
-            selected={draft.language === option.id}
-          />
-        ))}
-      </PreferenceGroup>
+      {showLanguage ? (
+        <PreferenceGroup title={copy.language}>
+          {languageOptions.map((option) => (
+            <SelectableCard
+              description={option.description}
+              disabled={languageSaving}
+              key={option.id}
+              label={option.label}
+              onPress={() => selectLanguage(option.id)}
+              selected={draft.language === option.id}
+            />
+          ))}
+        </PreferenceGroup>
+      ) : null}
 
       <PreferenceGroup title={copy.modules}>
         <AppText color="muted" variant="caption">

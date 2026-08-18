@@ -32,7 +32,11 @@ const emptyState = readFileSync(
   join(modulesDir, "..", "..", "components", "EmptyState.tsx"),
   "utf8"
 );
-const account = readFileSync(
+const settings = readFileSync(
+  join(modulesDir, "..", "settings", "SettingsScreen.tsx"),
+  "utf8"
+);
+const accountCompatibilityRoute = readFileSync(
   join(modulesDir, "..", "..", "..", "app", "account.tsx"),
   "utf8"
 );
@@ -46,9 +50,26 @@ describe("tab bar", () => {
     expect(tabs).toMatch(/@expo\/vector-icons/);
     expect(tabs).toMatch(/Feather/);
 
-    for (const icon of ["file-text", "check-square", "briefcase", "compass"]) {
+    for (const icon of ["file-text", "check-square", "briefcase", "compass", "sliders"]) {
       expect(tabs).toContain(icon);
     }
+  });
+
+  it("keeps exactly the five launch tabs", () => {
+    expect(tabs.match(/<Tabs\.Screen/g)).toHaveLength(5);
+
+    for (const route of ["newsletter", "cases", "stories", "path", "settings"]) {
+      expect(tabs).toMatch(new RegExp(`name="${route}"`));
+    }
+
+    expect(tabs).not.toMatch(/name="account"/);
+    expect(tabs).toMatch(/settings: "Settings"/);
+    expect(tabs).toMatch(/settings: "Réglages"/);
+  });
+
+  it("keeps the legacy account route as a settings redirect only", () => {
+    expect(accountCompatibilityRoute).toMatch(/Redirect/);
+    expect(accountCompatibilityRoute).toMatch(/\/\(tabs\)\/settings/);
   });
 
   it("keeps the label beside the icon", () => {
@@ -71,6 +92,7 @@ describe("each module has its own signature", () => {
     expect(stories).toMatch(/iconName="briefcase"/);
     expect(path).toMatch(/iconName="compass"/);
     expect(chrome).toMatch(/IconBadge/);
+    expect(chrome).not.toMatch(/\/account/);
   });
 
   it("adds useful header metadata without inventing data", () => {
@@ -196,24 +218,24 @@ describe("settings presentation", () => {
       "sessionTitle",
       "dangerTitle"
     ]) {
-      expect(account).toContain(key);
+      expect(settings).toContain(key);
     }
 
-    expect(account).toMatch(/SettingsSection/);
-    expect(account).toMatch(/IconBadge/);
+    expect(settings).toMatch(/SettingsSection/);
+    expect(settings).toMatch(/IconBadge/);
   });
 
   it("keeps logout visible on the account screen", () => {
-    expect(account).toMatch(/testID="account-logout-button"/);
-    expect(account).toMatch(/copy\.sessionTitle/);
-    expect(account.indexOf("account-logout-button")).toBeLessThan(
-      account.indexOf("copy.dangerTitle")
+    expect(settings).toMatch(/testID="account-logout-button"/);
+    expect(settings).toMatch(/copy\.sessionTitle/);
+    expect(settings.indexOf("account-logout-button")).toBeLessThan(
+      settings.indexOf("copy.dangerTitle")
     );
   });
 
   it("does not hide delete account inside the session section", () => {
-    expect(account).toMatch(/copy\.dangerTitle/);
-    expect(account).toMatch(/copy\.deleteAccountDescription/);
+    expect(settings).toMatch(/copy\.dangerTitle/);
+    expect(settings).toMatch(/copy\.deleteAccountDescription/);
   });
 });
 

@@ -13,35 +13,28 @@ import type { PropsWithChildren } from "react";
 import { AppText, EmptyState, IconBadge, type IconBadgeName } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
-import { useAuth } from "../auth";
 import { getModuleCopy } from "./moduleCopy";
 import type { Language } from "../../types/domain";
+import type { OnboardingModuleId } from "../onboarding";
 
 /**
- * Shared chrome for the four module tabs: masthead with the discreet account
- * entry (top right), the Today | Archive view switch, and the common loading /
- * error surfaces. Account is no longer a bottom tab; this button is its single
- * always-visible entry point.
+ * Shared chrome for the four module tabs: masthead, the Today | Archive view
+ * switch, and the common loading / error surfaces. Settings is now a permanent
+ * tab, so module headers do not carry a second account shortcut.
  */
 
 export function ModuleHeader({
   eyebrow,
   iconName,
   title,
-  metaItems,
-  language
+  metaItems
 }: {
   eyebrow: string;
   iconName: IconBadgeName;
   title: string;
   metaItems?: Array<string | null | undefined>;
-  language: Language | null | undefined;
 }) {
   const styles = useThemedStyles(createStyles);
-  const router = useRouter();
-  const { user } = useAuth();
-  const copy = getModuleCopy(language).common;
-  const initial = user?.email?.trim().charAt(0).toUpperCase() ?? "•";
 
   return (
     <View style={styles.header}>
@@ -53,18 +46,6 @@ export function ModuleHeader({
         <AppText variant="title">{title}</AppText>
         {metaItems ? <MetaLine items={metaItems} /> : null}
       </View>
-      <Pressable
-        accessibilityHint={copy.accountHint}
-        accessibilityLabel={copy.accountLabel}
-        accessibilityRole="button"
-        hitSlop={8}
-        onPress={() => router.push("/account" as Href)}
-        style={({ pressed }) => [styles.accountButton, pressed ? styles.pressed : null]}
-      >
-        <AppText color="accentInk" variant="label">
-          {initial}
-        </AppText>
-      </Pressable>
     </View>
   );
 }
@@ -242,6 +223,27 @@ export function ModuleError({
   );
 }
 
+export function ModuleDisabledState({
+  language,
+  moduleId
+}: {
+  language: Language | null | undefined;
+  moduleId: Exclude<OnboardingModuleId, "learning_path">;
+}) {
+  const router = useRouter();
+  const copy = getModuleCopy(language).disabled[moduleId];
+
+  return (
+    <EmptyState
+      actionLabel={copy.action}
+      description={copy.body}
+      iconName="sliders"
+      onActionPress={() => router.push("/(tabs)/settings" as Href)}
+      title={copy.title}
+    />
+  );
+}
+
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     header: {
@@ -253,15 +255,6 @@ const createStyles = (c: ThemeColors) =>
     headerCopy: {
       flex: 1,
       gap: tokens.space.xs
-    },
-    accountButton: {
-      alignItems: "center",
-      borderColor: c.borderStrong,
-      borderRadius: tokens.radius.pill,
-      borderWidth: 1,
-      height: 38,
-      justifyContent: "center",
-      width: 38
     },
     pressed: {
       opacity: 0.6

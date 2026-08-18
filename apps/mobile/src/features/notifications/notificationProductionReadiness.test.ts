@@ -15,7 +15,10 @@ const rootLayoutSource = readFileSync(
   join(repoRoot, "apps", "mobile", "app", "_layout.tsx"),
   "utf8"
 );
-const accountSource = readFileSync(join(repoRoot, "apps", "mobile", "app", "account.tsx"), "utf8");
+const settingsSource = readFileSync(
+  join(repoRoot, "apps", "mobile", "src", "features", "settings", "SettingsScreen.tsx"),
+  "utf8"
+);
 const supportSource = readFileSync(join(repoRoot, "apps", "mobile", "app", "support.tsx"), "utf8");
 const tokenRefreshSource = readFileSync(
   join(repoRoot, "apps", "mobile", "src", "features", "notifications", "usePushTokenRefresh.ts"),
@@ -66,14 +69,14 @@ describe("logout and account switching hygiene", () => {
 
 describe("Apple-ready account copy", () => {
   it("keeps clear FR/EN entries for support, deletion and logout", () => {
-    for (const source of [accountSource, supportSource]) {
+    for (const source of [settingsSource, supportSource]) {
       expect(source).toMatch(/Support/);
     }
 
-    expect(accountSource).toMatch(/Delete account/);
-    expect(accountSource).toMatch(/Supprimer le compte/);
-    expect(accountSource).toMatch(/Log out/);
-    expect(accountSource).toMatch(/Se déconnecter/);
+    expect(settingsSource).toMatch(/Delete account/);
+    expect(settingsSource).toMatch(/Supprimer le compte/);
+    expect(settingsSource).toMatch(/Log out/);
+    expect(settingsSource).toMatch(/Se déconnecter/);
     expect(supportSource).toMatch(/Email support/);
     expect(supportSource).toMatch(/Contacter le support/);
   });
