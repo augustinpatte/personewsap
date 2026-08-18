@@ -24,7 +24,7 @@ export function parsePushReceiptsOptions(args: string[]): PushReceiptsOptions {
 
   return {
     dryRun: flags.has("dry-run") || process.env.DRY_RUN === "true",
-    limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 1000) : 100
+    limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 50_000) : 100
   };
 }
 

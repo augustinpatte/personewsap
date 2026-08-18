@@ -6,6 +6,10 @@ import {
   classifyExpoPushReceipt,
   classifyExpoPushTicket,
   EDITION_NOTIFICATION_KIND,
+  EXPO_PUSH_CHUNK_SIZE,
+  EXPO_PUSH_MESSAGES_PER_SECOND,
+  EXPO_RECEIPT_CHUNK_SIZE,
+  ExpoPushHttpError,
   isCompleteEdition,
   resolveEditionNotificationRecipients,
   selectPendingRecipients,
@@ -16,6 +20,7 @@ import {
 } from "./editionNotification.js";
 import {
   reconcileExpoPushReceipts,
+  createPushRateLimiter,
   sendEditionNotifications,
   type DeliveryRecord,
   type ExpoPushClient,
@@ -35,6 +40,7 @@ import {
 const FR_USER = "11111111-1111-4111-8111-111111111111";
 const EN_USER = "22222222-2222-4222-8222-222222222222";
 const DROP_DATE = "2026-08-17";
+const ATTEMPTED_AT = "2026-08-17T07:20:00.000Z";
 
 function drop(overrides: Partial<NotificationCandidateDrop> = {}): NotificationCandidateDrop {
   return {
@@ -100,7 +106,9 @@ function createStore(seed: {
           notificationKind: row.notificationKind,
           status: "claimed",
           attemptCount: existing?.attemptCount ?? 0,
-          expoTicketId: existing?.expoTicketId ?? null
+          expoTicketId: existing?.expoTicketId ?? null,
+          lastAttemptAt: existing?.lastAttemptAt ?? null,
+          receiptCheckedAt: existing?.receiptCheckedAt ?? null
         });
         claimed.add(row.pushTokenId);
       }
@@ -122,14 +130,21 @@ function createStore(seed: {
               ? "terminal_failure"
               : "retryable_failure",
         attemptCount: (existing?.attemptCount ?? 0) + 1,
-        expoTicketId: outcome.kind === "ticket_accepted" ? outcome.expoTicketId : null
+        expoTicketId: outcome.kind === "ticket_accepted" ? outcome.expoTicketId : null,
+        lastAttemptAt: ATTEMPTED_AT,
+        receiptCheckedAt: existing?.receiptCheckedAt ?? null
       });
     },
-    loadAwaitingReceipts: async (limit) =>
+    loadAwaitingReceipts: async ({ limit, checkedBefore }) =>
       [...deliveries.values()]
-        .filter((row) => row.status === "awaiting_receipt" && Boolean(row.expoTicketId))
+        .filter(
+          (row) =>
+            row.status === "awaiting_receipt" &&
+            Boolean(row.expoTicketId) &&
+            (!row.receiptCheckedAt || row.receiptCheckedAt < checkedBefore)
+        )
         .slice(0, limit),
-    recordReceiptResult: async ({ pushTokenId, dropDate, notificationKind, outcome }) => {
+    recordReceiptResult: async ({ pushTokenId, dropDate, notificationKind, outcome, checkedAt }) => {
       const key = `${pushTokenId}|${dropDate}|${notificationKind}`;
       const existing = deliveries.get(key);
 
@@ -141,10 +156,12 @@ function createStore(seed: {
           outcome.kind === "sent"
             ? "sent"
             : outcome.kind === "retryable"
-              ? "retryable_failure"
+              ? "awaiting_receipt"
               : "terminal_failure",
         attemptCount: existing?.attemptCount ?? 0,
-        expoTicketId: existing?.expoTicketId ?? null
+        expoTicketId: existing?.expoTicketId ?? null,
+        lastAttemptAt: existing?.lastAttemptAt ?? null,
+        receiptCheckedAt: checkedAt
       });
     },
     disablePushToken: async (pushTokenId) => {
@@ -175,6 +192,24 @@ function createClient(tickets: ExpoPushTicket[] | (() => never)): ExpoPushClient
       }
 
       return { tickets: tickets.slice(0, batch.length) };
+    }
+  };
+}
+
+function createSequentialClient(): ExpoPushClient & { messages: unknown[][] } {
+  const messages: unknown[][] = [];
+  let ticketIndex = 0;
+
+  return {
+    messages,
+    send: async (batch) => {
+      messages.push(batch);
+      const tickets = batch.map(() => ({
+        status: "ok" as const,
+        id: `ticket-${ticketIndex++}`
+      }));
+
+      return { tickets };
     }
   };
 }
@@ -534,6 +569,54 @@ describe("batching", () => {
     expect(result.ticketAccepted).toBe(250);
     expect(client.messages.map((batch) => batch.length)).toEqual([100, 100, 50]);
   });
+
+  it("sends 10,000 recipients without exceeding 500 messages per second", async () => {
+    const recipients = 10_000;
+    const drops = Array.from({ length: recipients }, (_, index) =>
+      drop({ dailyDropId: `drop-${index}`, userId: `user-${index}` })
+    );
+    const tokens = drops.map((entry, index) =>
+      token({
+        pushTokenId: `token-${index}`,
+        userId: entry.userId,
+        expoPushToken: `ExponentPushToken[${index}]`
+      })
+    );
+    const state = createStore({
+      drops,
+      tokens,
+      notificationsEnabled: drops.map((entry) => entry.userId)
+    });
+    const client = createSequentialClient();
+    let currentMs = 0;
+    const messagesBySecond = new Map<number, number>();
+    const rateLimiter = createPushRateLimiter({
+      messagesPerSecond: EXPO_PUSH_MESSAGES_PER_SECOND,
+      nowMs: () => currentMs,
+      sleep: async (ms) => {
+        currentMs += ms;
+      }
+    });
+
+    const result = await sendEditionNotifications({
+      store: state.store,
+      client: {
+        send: async (messages) => {
+          const second = Math.floor(currentMs / 1000);
+          messagesBySecond.set(second, (messagesBySecond.get(second) ?? 0) + messages.length);
+          return client.send(messages);
+        }
+      },
+      dropDate: DROP_DATE,
+      rateLimiter
+    });
+
+    expect(result.ticketAccepted).toBe(recipients);
+    expect(client.messages).toHaveLength(recipients / EXPO_PUSH_CHUNK_SIZE);
+    expect(Math.max(...messagesBySecond.values())).toBeLessThanOrEqual(
+      EXPO_PUSH_MESSAGES_PER_SECOND
+    );
+  });
 });
 
 describe("atomic claiming and receipts", () => {
@@ -568,14 +651,16 @@ describe("atomic claiming and receipts", () => {
           notificationKind: EDITION_NOTIFICATION_KIND,
           status: "awaiting_receipt",
           attemptCount: 1,
-          expoTicketId: "ticket-1"
+          expoTicketId: "ticket-1",
+          lastAttemptAt: ATTEMPTED_AT
         }
       ]
     });
 
     const result = await reconcileExpoPushReceipts({
       store: state.store,
-      client: createReceiptClient({ "ticket-1": { status: "ok" } })
+      client: createReceiptClient({ "ticket-1": { status: "ok" } }),
+      now: () => "2026-08-17T07:45:00.000Z"
     });
 
     expect(result.sent).toBe(1);
@@ -596,7 +681,8 @@ describe("atomic claiming and receipts", () => {
           notificationKind: EDITION_NOTIFICATION_KIND,
           status: "awaiting_receipt",
           attemptCount: 1,
-          expoTicketId: "ticket-1"
+          expoTicketId: "ticket-1",
+          lastAttemptAt: ATTEMPTED_AT
         }
       ]
     });
@@ -609,11 +695,135 @@ describe("atomic claiming and receipts", () => {
           message: "Device not registered",
           details: { error: "DeviceNotRegistered" }
         }
-      })
+      }),
+      now: () => "2026-08-17T07:45:00.000Z"
     });
 
     expect(result.disabledTokens).toBe(1);
     expect(state.disabledTokens).toEqual(["token-1"]);
+    expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
+      "terminal_failure"
+    );
+  });
+
+  it("keeps a missing receipt awaiting and later marks it sent without resending", async () => {
+    const state = createStore({
+      drops: [drop()],
+      tokens: [token()],
+      notificationsEnabled: [FR_USER],
+      deliveries: [
+        {
+          pushTokenId: "token-1",
+          dropDate: DROP_DATE,
+          notificationKind: EDITION_NOTIFICATION_KIND,
+          status: "awaiting_receipt",
+          attemptCount: 1,
+          expoTicketId: "ticket-1",
+          lastAttemptAt: ATTEMPTED_AT
+        }
+      ]
+    });
+
+    const missing = await reconcileExpoPushReceipts({
+      store: state.store,
+      client: createReceiptClient({}),
+      now: () => "2026-08-17T07:30:00.000Z"
+    });
+
+    expect(missing.retryable).toBe(1);
+    expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
+      "awaiting_receipt"
+    );
+
+    const sendClient = createClient(okTickets(1));
+    const resent = await sendEditionNotifications({
+      store: state.store,
+      client: sendClient,
+      dropDate: DROP_DATE
+    });
+
+    expect(resent.ticketAccepted).toBe(0);
+    expect(sendClient.messages).toHaveLength(0);
+
+    const later = await reconcileExpoPushReceipts({
+      store: state.store,
+      client: createReceiptClient({ "ticket-1": { status: "ok" } }),
+      now: () => "2026-08-17T07:45:00.000Z"
+    });
+
+    expect(later.sent).toBe(1);
+    expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
+      "sent"
+    );
+  });
+
+  it("drains 10,000 awaiting receipts without exceeding Expo receipt request size", async () => {
+    const deliveries = Array.from({ length: 10_000 }, (_, index): DeliveryRecord => ({
+      pushTokenId: `token-${index}`,
+      dropDate: DROP_DATE,
+      notificationKind: EDITION_NOTIFICATION_KIND,
+      status: "awaiting_receipt",
+      attemptCount: 1,
+      expoTicketId: `ticket-${index}`,
+      lastAttemptAt: ATTEMPTED_AT
+    }));
+    const state = createStore({
+      drops: [],
+      tokens: [],
+      notificationsEnabled: [],
+      deliveries
+    });
+    const client = createReceiptClient({});
+    client.getReceipts = async (ids) => {
+      client.ticketIds.push(ids);
+      return {
+        receipts: Object.fromEntries(ids.map((id) => [id, { status: "ok" as const }]))
+      };
+    };
+
+    const result = await reconcileExpoPushReceipts({
+      store: state.store,
+      client,
+      limit: 10_000,
+      now: () => "2026-08-17T07:45:00.000Z"
+    });
+
+    expect(result.checked).toBe(10_000);
+    expect(result.sent).toBe(10_000);
+    expect(client.ticketIds).toHaveLength(10);
+    expect(Math.max(...client.ticketIds.map((ids) => ids.length))).toBeLessThanOrEqual(
+      EXPO_RECEIPT_CHUNK_SIZE
+    );
+  });
+
+  it("expires unresolved receipts after Expo's retention window", async () => {
+    const state = createStore({
+      drops: [],
+      tokens: [token()],
+      notificationsEnabled: [],
+      deliveries: [
+        {
+          pushTokenId: "token-1",
+          dropDate: DROP_DATE,
+          notificationKind: EDITION_NOTIFICATION_KIND,
+          status: "awaiting_receipt",
+          attemptCount: 1,
+          expoTicketId: "ticket-1",
+          lastAttemptAt: "2026-08-16T07:20:00.000Z"
+        }
+      ]
+    });
+    const client = createReceiptClient({});
+
+    const result = await reconcileExpoPushReceipts({
+      store: state.store,
+      client,
+      now: () => "2026-08-17T07:20:01.000Z"
+    });
+
+    expect(result.expired).toBe(1);
+    expect(result.permanentFailures).toBe(1);
+    expect(client.ticketIds).toHaveLength(0);
     expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
       "terminal_failure"
     );
@@ -645,6 +855,142 @@ describe("atomic claiming and receipts", () => {
 
     expect(result.ticketAccepted).toBe(0);
     expect(client.messages).toHaveLength(0);
+  });
+});
+
+describe("transport retries", () => {
+  it.each([429, 503])("retries Expo HTTP %s with exponential backoff", async (status) => {
+    const state = createStore({
+      drops: [drop()],
+      tokens: [token()],
+      notificationsEnabled: [FR_USER]
+    });
+    const delays: number[] = [];
+    let attempts = 0;
+
+    const result = await sendEditionNotifications({
+      store: state.store,
+      client: {
+        send: async (messages) => {
+          attempts += 1;
+          if (attempts < 3) {
+            throw new ExpoPushHttpError(status, `Expo push request failed with status ${status}`);
+          }
+          return { tickets: okTickets(messages.length) };
+        }
+      },
+      dropDate: DROP_DATE,
+      retry: {
+        maxAttempts: 3,
+        baseDelayMs: 100,
+        maxDelayMs: 1000,
+        jitterRatio: 0,
+        sleep: async (ms) => {
+          delays.push(ms);
+        }
+      }
+    });
+
+    expect(result.ticketAccepted).toBe(1);
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([100, 200]);
+  });
+
+  it("marks retry exhaustion as retryable and lets the next run recover", async () => {
+    const state = createStore({
+      drops: [drop()],
+      tokens: [token()],
+      notificationsEnabled: [FR_USER]
+    });
+    let attempts = 0;
+
+    const failed = await sendEditionNotifications({
+      store: state.store,
+      client: {
+        send: async () => {
+          attempts += 1;
+          throw new ExpoPushHttpError(503, "Expo push request failed with status 503");
+        }
+      },
+      dropDate: DROP_DATE,
+      retry: {
+        maxAttempts: 2,
+        baseDelayMs: 1,
+        maxDelayMs: 1,
+        jitterRatio: 0,
+        sleep: async () => {}
+      }
+    });
+
+    expect(attempts).toBe(2);
+    expect(failed.retryable).toBe(1);
+
+    const recovered = await sendEditionNotifications({
+      store: state.store,
+      client: createClient(okTickets(1)),
+      dropDate: DROP_DATE
+    });
+
+    expect(recovered.ticketAccepted).toBe(1);
+  });
+
+  it("does not retry permanent HTTP request failures", async () => {
+    const state = createStore({
+      drops: [drop()],
+      tokens: [token()],
+      notificationsEnabled: [FR_USER]
+    });
+    let attempts = 0;
+
+    const result = await sendEditionNotifications({
+      store: state.store,
+      client: {
+        send: async () => {
+          attempts += 1;
+          throw new ExpoPushHttpError(400, "Expo push request failed with status 400");
+        }
+      },
+      dropDate: DROP_DATE,
+      retry: {
+        maxAttempts: 3,
+        baseDelayMs: 1,
+        jitterRatio: 0,
+        sleep: async () => {}
+      }
+    });
+
+    expect(attempts).toBe(1);
+    expect(result.permanentFailures).toBe(1);
+    expect(state.deliveries.get(`token-1|${DROP_DATE}|${EDITION_NOTIFICATION_KIND}`)?.status).toBe(
+      "terminal_failure"
+    );
+  });
+});
+
+describe("workflow schedules", () => {
+  it("uses Europe/Paris on edition, send retry and receipt schedules", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const files = [
+      ".github/workflows/content-daily-job.yml",
+      ".github/workflows/push-notification-retry.yml",
+      ".github/workflows/push-receipts.yml"
+    ];
+    const workflows = await Promise.all(
+      files.map((file) => readFile(file, "utf8"))
+    );
+
+    for (const workflow of workflows) {
+      expect(workflow).toContain('timezone: "Europe/Paris"');
+      expect(workflow).toContain("* * 1,3,5,0");
+    }
+
+    expect(workflows[0]).toContain('cron: "17 9 * * 1,3,5,0"');
+    expect(workflows[1]).toContain('cron: "32 9 * * 1,3,5,0"');
+    expect(workflows[1]).toContain('cron: "47 9 * * 1,3,5,0"');
+    expect(workflows[1]).toContain('cron: "17 10 * * 1,3,5,0"');
+    expect(workflows[2]).toContain('cron: "52 9 * * 1,3,5,0"');
+    expect(workflows[2]).toContain('cron: "52 10 * * 1,3,5,0"');
+    expect(workflows[2]).toContain('cron: "52 11 * * 1,3,5,0"');
   });
 });
 

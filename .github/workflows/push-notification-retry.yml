@@ -1,0 +1,49 @@
+name: PersoNewsAP Push Notification Retry
+
+# Retries only edition notification deliveries that were never accepted by Expo.
+# This is not a second reminder: rows that are awaiting a receipt, sent, or
+# terminal are skipped by the idempotent sender.
+
+on:
+  schedule:
+    - cron: "32 9 * * 1,3,5,0"
+      timezone: "Europe/Paris"
+    - cron: "47 9 * * 1,3,5,0"
+      timezone: "Europe/Paris"
+    - cron: "17 10 * * 1,3,5,0"
+      timezone: "Europe/Paris"
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: "Comma-separated languages"
+        required: false
+        default: "fr,en"
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LANGUAGES: ${{ github.event.inputs.languages || 'fr,en' }}
+      DRY_RUN: "false"
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build content engine
+        run: npm run content:build
+
+      - name: Retry unaccepted edition notifications
+        run: npm run content:push-notifications

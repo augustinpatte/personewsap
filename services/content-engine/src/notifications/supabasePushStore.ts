@@ -202,7 +202,7 @@ export function createSupabasePushNotificationStore(
       for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
         const { data, error } = await supabase
           .from("push_notification_deliveries")
-          .select("push_token_id,drop_date,notification_kind,status,attempt_count,expo_ticket_id")
+          .select("push_token_id,drop_date,notification_kind,status,attempt_count,expo_ticket_id,last_attempt_at,expo_receipt_checked_at")
           .eq("drop_date", dropDate)
           .eq("notification_kind", notificationKind)
           .order("push_token_id", { ascending: true })
@@ -220,13 +220,17 @@ export function createSupabasePushNotificationStore(
             status: DeliveryRecord["status"];
             attempt_count: number;
             expo_ticket_id: string | null;
+            last_attempt_at: string | null;
+            expo_receipt_checked_at: string | null;
           }>).map<DeliveryRecord>((delivery) => ({
             pushTokenId: delivery.push_token_id,
             dropDate: delivery.drop_date,
             notificationKind: delivery.notification_kind,
             status: delivery.status,
             attemptCount: delivery.attempt_count,
-            expoTicketId: delivery.expo_ticket_id
+            expoTicketId: delivery.expo_ticket_id,
+            lastAttemptAt: delivery.last_attempt_at,
+            receiptCheckedAt: delivery.expo_receipt_checked_at
           }))
         );
 
@@ -318,12 +322,13 @@ export function createSupabasePushNotificationStore(
       }
     },
 
-    async loadAwaitingReceipts(limit) {
+    async loadAwaitingReceipts({ limit, checkedBefore }) {
       const { data, error } = await supabase
         .from("push_notification_deliveries")
-        .select("push_token_id,drop_date,notification_kind,status,attempt_count,expo_ticket_id")
+        .select("push_token_id,drop_date,notification_kind,status,attempt_count,expo_ticket_id,last_attempt_at,expo_receipt_checked_at")
         .in("status", ["ticket_accepted", "awaiting_receipt"])
         .not("expo_ticket_id", "is", null)
+        .or(`expo_receipt_checked_at.is.null,expo_receipt_checked_at.lt.${checkedBefore}`)
         .order("last_attempt_at", { ascending: true, nullsFirst: true })
         .limit(limit);
 
@@ -339,6 +344,8 @@ export function createSupabasePushNotificationStore(
           status: DeliveryRecord["status"];
           attempt_count: number;
           expo_ticket_id: string | null;
+          last_attempt_at: string | null;
+          expo_receipt_checked_at: string | null;
         };
 
         return {
@@ -347,7 +354,9 @@ export function createSupabasePushNotificationStore(
           notificationKind: delivery.notification_kind,
           status: delivery.status,
           attemptCount: delivery.attempt_count,
-          expoTicketId: delivery.expo_ticket_id
+          expoTicketId: delivery.expo_ticket_id,
+          lastAttemptAt: delivery.last_attempt_at,
+          receiptCheckedAt: delivery.expo_receipt_checked_at
         };
       });
     },
@@ -403,7 +412,7 @@ function receiptStatus(outcome: ReceiptOutcome): DeliveryRecord["status"] {
     return "sent";
   }
   if (outcome.kind === "retryable") {
-    return "retryable_failure";
+    return "awaiting_receipt";
   }
   return "terminal_failure";
 }

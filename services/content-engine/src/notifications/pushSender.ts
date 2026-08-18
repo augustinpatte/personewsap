@@ -6,6 +6,11 @@ import {
   classifyExpoPushTicket,
   classifyExpoRequestFailure,
   EDITION_NOTIFICATION_KIND,
+  EXPO_PUSH_MESSAGES_PER_SECOND,
+  EXPO_RECEIPT_CHUNK_SIZE,
+  EXPO_RECEIPT_RETENTION_MS,
+  ExpoPushHttpError,
+  isRetryableExpoRequestFailure,
   resolveEditionNotificationRecipients,
   selectPendingRecipients,
   toExpoPushMessage,
@@ -52,6 +57,8 @@ export type DeliveryRecord = {
     | "failed";
   attemptCount: number;
   expoTicketId?: string | null;
+  lastAttemptAt?: string | null;
+  receiptCheckedAt?: string | null;
 };
 
 export type PushNotificationStore = {
@@ -82,7 +89,10 @@ export type PushNotificationStore = {
     outcome: DeliveryOutcome;
     attemptedAt: string;
   }) => Promise<void>;
-  loadAwaitingReceipts: (limit: number) => Promise<DeliveryRecord[]>;
+  loadAwaitingReceipts: (input: {
+    limit: number;
+    checkedBefore: string;
+  }) => Promise<DeliveryRecord[]>;
   recordReceiptResult: (input: {
     pushTokenId: string;
     dropDate: string;
@@ -127,6 +137,20 @@ export type ReconcilePushReceiptsResult = {
   retryable: number;
   permanentFailures: number;
   disabledTokens: number;
+  expired: number;
+};
+
+export type RetryOptions = {
+  maxAttempts?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  jitterRatio?: number;
+  sleep?: (ms: number) => Promise<void>;
+  random?: () => number;
+};
+
+export type PushRateLimiter = {
+  waitForCapacity: (messageCount: number) => Promise<void>;
 };
 
 export async function sendEditionNotifications(input: {
@@ -135,8 +159,13 @@ export async function sendEditionNotifications(input: {
   dropDate: string;
   languages?: Language[];
   now?: () => string;
+  rateLimiter?: PushRateLimiter;
+  retry?: RetryOptions;
 }): Promise<SendEditionNotificationsResult> {
   const now = input.now ?? (() => new Date().toISOString());
+  const rateLimiter =
+    input.rateLimiter ??
+    createPushRateLimiter({ messagesPerSecond: EXPO_PUSH_MESSAGES_PER_SECOND });
   const drops = await input.store.loadEditionDrops({
     dropDate: input.dropDate,
     languages: input.languages
@@ -239,7 +268,8 @@ export async function sendEditionNotifications(input: {
   }
 
   for (const chunk of chunkForExpo(claimed)) {
-    const outcomes = await sendChunk(input.client, chunk);
+    await rateLimiter.waitForCapacity(chunk.length);
+    const outcomes = await sendChunk(input.client, chunk, input.retry);
 
     for (const [index, outcome] of outcomes.entries()) {
       const recipient = chunk[index];
@@ -297,60 +327,98 @@ export async function reconcileExpoPushReceipts(input: {
   client: ExpoPushReceiptClient;
   limit?: number;
   now?: () => string;
+  retry?: RetryOptions;
+  receiptBatchSize?: number;
 }): Promise<ReconcilePushReceiptsResult> {
   const now = input.now ?? (() => new Date().toISOString());
-  const awaiting = (await input.store.loadAwaitingReceipts(input.limit ?? 100)).filter(
-    (row) => row.expoTicketId
+  const checkedBefore = now();
+  const limit = Math.max(0, input.limit ?? 100);
+  const receiptBatchSize = Math.min(
+    Math.max(1, input.receiptBatchSize ?? EXPO_RECEIPT_CHUNK_SIZE),
+    EXPO_RECEIPT_CHUNK_SIZE
   );
   const result: ReconcilePushReceiptsResult = {
-    checked: awaiting.length,
+    checked: 0,
     sent: 0,
     retryable: 0,
     permanentFailures: 0,
-    disabledTokens: 0
+    disabledTokens: 0,
+    expired: 0
   };
 
-  if (awaiting.length === 0) {
-    return result;
-  }
+  while (result.checked < limit) {
+    const awaiting = (await input.store.loadAwaitingReceipts({
+      limit: Math.min(receiptBatchSize, limit - result.checked),
+      checkedBefore
+    })).filter((row) => row.expoTicketId);
 
-  const ticketIds = awaiting
-    .map((row) => row.expoTicketId)
-    .filter((id): id is string => Boolean(id));
-  const receipts = await input.client.getReceipts(ticketIds);
-
-  for (const delivery of awaiting) {
-    const receipt = delivery.expoTicketId ? receipts.receipts[delivery.expoTicketId] : null;
-    const outcome = receipt
-      ? classifyExpoPushReceipt(receipt)
-      : ({ kind: "retryable", error: "Expo receipt was not available yet" } as const);
-
-    await input.store.recordReceiptResult({
-      pushTokenId: delivery.pushTokenId,
-      dropDate: delivery.dropDate,
-      notificationKind: delivery.notificationKind,
-      outcome,
-      checkedAt: now()
-    });
-
-    if (outcome.kind === "sent") {
-      result.sent += 1;
-      continue;
+    if (awaiting.length === 0) {
+      break;
     }
 
-    if (outcome.kind === "token_invalid") {
-      await input.store.disablePushToken(delivery.pushTokenId, outcome.error);
-      result.disabledTokens += 1;
+    const checkedAt = now();
+    const active = awaiting.filter((delivery) => !isReceiptExpired(delivery, checkedAt));
+    const expired = awaiting.filter((delivery) => isReceiptExpired(delivery, checkedAt));
+    const ticketIds = active
+      .map((row) => row.expoTicketId)
+      .filter((id): id is string => Boolean(id));
+    const receipts =
+      ticketIds.length > 0
+        ? await withRetry(() => input.client.getReceipts(ticketIds), input.retry)
+        : { receipts: {} };
+
+    for (const delivery of expired) {
+      await input.store.recordReceiptResult({
+        pushTokenId: delivery.pushTokenId,
+        dropDate: delivery.dropDate,
+        notificationKind: delivery.notificationKind,
+        outcome: {
+          kind: "permanent",
+          error: "Expo receipt expired after 24 hours without a final receipt"
+        },
+        checkedAt
+      });
+
+      result.checked += 1;
+      result.expired += 1;
       result.permanentFailures += 1;
-      continue;
     }
 
-    if (outcome.kind === "permanent") {
-      result.permanentFailures += 1;
-      continue;
-    }
+    for (const delivery of active) {
+      const receipt = delivery.expoTicketId ? receipts.receipts[delivery.expoTicketId] : null;
+      const outcome = receipt
+        ? classifyExpoPushReceipt(receipt)
+        : ({ kind: "retryable", error: "Expo receipt was not available yet" } as const);
 
-    result.retryable += 1;
+      await input.store.recordReceiptResult({
+        pushTokenId: delivery.pushTokenId,
+        dropDate: delivery.dropDate,
+        notificationKind: delivery.notificationKind,
+        outcome,
+        checkedAt
+      });
+
+      result.checked += 1;
+
+      if (outcome.kind === "sent") {
+        result.sent += 1;
+        continue;
+      }
+
+      if (outcome.kind === "token_invalid") {
+        await input.store.disablePushToken(delivery.pushTokenId, outcome.error);
+        result.disabledTokens += 1;
+        result.permanentFailures += 1;
+        continue;
+      }
+
+      if (outcome.kind === "permanent") {
+        result.permanentFailures += 1;
+        continue;
+      }
+
+      result.retryable += 1;
+    }
   }
 
   console.info("[content-engine] expo push receipt reconciliation", {
@@ -358,7 +426,8 @@ export async function reconcileExpoPushReceipts(input: {
     sent: result.sent,
     retryable: result.retryable,
     permanent_failures: result.permanentFailures,
-    disabled_tokens: result.disabledTokens
+    disabled_tokens: result.disabledTokens,
+    expired: result.expired
   });
 
   return result;
@@ -366,10 +435,11 @@ export async function reconcileExpoPushReceipts(input: {
 
 async function sendChunk(
   client: ExpoPushClient,
-  chunk: EditionNotificationRecipient[]
+  chunk: EditionNotificationRecipient[],
+  retry?: RetryOptions
 ): Promise<DeliveryOutcome[]> {
   try {
-    const response = await client.send(chunk.map(toExpoPushMessage));
+    const response = await withRetry(() => client.send(chunk.map(toExpoPushMessage)), retry);
 
     return chunk.map((_recipient, index) => {
       const ticket = response.tickets[index];
@@ -394,6 +464,92 @@ async function sendChunk(
   }
 }
 
+export function createPushRateLimiter(input: {
+  messagesPerSecond?: number;
+  nowMs?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+} = {}): PushRateLimiter {
+  const messagesPerSecond = Math.max(
+    1,
+    Math.trunc(input.messagesPerSecond ?? EXPO_PUSH_MESSAGES_PER_SECOND)
+  );
+  const nowMs = input.nowMs ?? (() => Date.now());
+  const sleep = input.sleep ?? ((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  let windowStart = nowMs();
+  let usedInWindow = 0;
+
+  return {
+    async waitForCapacity(messageCount) {
+      let remaining = Math.max(0, Math.trunc(messageCount));
+
+      while (remaining > 0) {
+        const current = nowMs();
+
+        if (current - windowStart >= 1000) {
+          windowStart = current;
+          usedInWindow = 0;
+        }
+
+        const capacity = messagesPerSecond - usedInWindow;
+
+        if (capacity <= 0) {
+          await sleep(Math.max(1, 1000 - (current - windowStart)));
+          continue;
+        }
+
+        const accepted = Math.min(capacity, remaining);
+        usedInWindow += accepted;
+        remaining -= accepted;
+      }
+    }
+  };
+}
+
+async function withRetry<T>(operation: () => Promise<T>, retry?: RetryOptions): Promise<T> {
+  const options = resolveRetryOptions(retry);
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt >= options.maxAttempts || !isRetryableExpoRequestFailure(error)) {
+        throw error;
+      }
+
+      await options.sleep(retryDelayMs(attempt, options));
+    }
+  }
+
+  throw lastError;
+}
+
+function resolveRetryOptions(retry: RetryOptions | undefined): Required<RetryOptions> {
+  return {
+    maxAttempts: Math.max(1, Math.trunc(retry?.maxAttempts ?? 3)),
+    baseDelayMs: Math.max(1, Math.trunc(retry?.baseDelayMs ?? 500)),
+    maxDelayMs: Math.max(1, Math.trunc(retry?.maxDelayMs ?? 5000)),
+    jitterRatio: Math.max(0, retry?.jitterRatio ?? 0.2),
+    sleep: retry?.sleep ?? ((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms))),
+    random: retry?.random ?? (() => Math.random())
+  };
+}
+
+function retryDelayMs(attempt: number, options: Required<RetryOptions>): number {
+  const base = Math.min(options.maxDelayMs, options.baseDelayMs * 2 ** (attempt - 1));
+  return Math.round(base * (1 + options.random() * options.jitterRatio));
+}
+
+function isReceiptExpired(delivery: DeliveryRecord, checkedAt: string): boolean {
+  if (!delivery.lastAttemptAt) {
+    return false;
+  }
+
+  return Date.parse(checkedAt) - Date.parse(delivery.lastAttemptAt) >= EXPO_RECEIPT_RETENTION_MS;
+}
+
 /** The real Expo Push client. No credential is needed for Expo push tokens. */
 export function createExpoPushClient(
   fetchImpl: typeof fetch = fetch
@@ -410,7 +566,10 @@ export function createExpoPushClient(
       });
 
       if (!response.ok) {
-        throw new Error(`Expo push request failed with status ${response.status}`);
+        throw new ExpoPushHttpError(
+          response.status,
+          `Expo push request failed with status ${response.status}`
+        );
       }
 
       const payload = (await response.json()) as { data?: ExpoPushTicket[] };
@@ -439,7 +598,10 @@ export function createExpoPushReceiptClient(
       });
 
       if (!response.ok) {
-        throw new Error(`Expo receipt request failed with status ${response.status}`);
+        throw new ExpoPushHttpError(
+          response.status,
+          `Expo receipt request failed with status ${response.status}`
+        );
       }
 
       const payload = (await response.json()) as {

@@ -260,16 +260,55 @@ export function classifyExpoPushReceipt(receipt: ExpoPushReceipt): ReceiptOutcom
   return { kind: "retryable", error: message };
 }
 
-/** A whole request failing (network, 5xx) is always worth another run. */
+/** A whole request failing can be transient or final depending on its status. */
 export function classifyExpoRequestFailure(error: unknown): DeliveryOutcome {
   const message =
     error instanceof Error ? error.message : typeof error === "string" ? error : "Expo push request failed";
+  const status =
+    error instanceof ExpoPushHttpError
+      ? error.status
+      : Number(message.match(/status\s+(\d{3})/)?.[1] ?? Number.NaN);
+
+  if (status >= 400 && status < 500 && status !== 429) {
+    return { kind: "permanent", error: message };
+  }
 
   return { kind: "retryable", error: message };
 }
 
 /** Expo accepts at most 100 messages per request. */
 export const EXPO_PUSH_CHUNK_SIZE = 100;
+/** Expo accepts at most 1,000 receipt ids per request. */
+export const EXPO_RECEIPT_CHUNK_SIZE = 1000;
+/** Expo clears receipts after 24 hours. */
+export const EXPO_RECEIPT_RETENTION_MS = 24 * 60 * 60 * 1000;
+/** Expo's project limit is 600/sec; PersoNewsAP deliberately stays below it. */
+export const EXPO_PUSH_MESSAGES_PER_SECOND = 500;
+
+export class ExpoPushHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "ExpoPushHttpError";
+  }
+}
+
+export function isRetryableExpoRequestFailure(error: unknown): boolean {
+  if (error instanceof ExpoPushHttpError) {
+    return error.status === 429 || error.status >= 500;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  const status = Number(message.match(/status\s+(\d{3})/)?.[1] ?? Number.NaN);
+
+  if (Number.isFinite(status)) {
+    return status === 429 || status >= 500;
+  }
+
+  return true;
+}
 
 export function chunkForExpo<T>(items: T[], size = EXPO_PUSH_CHUNK_SIZE): T[][] {
   const chunkSize = Math.max(1, Math.trunc(size));

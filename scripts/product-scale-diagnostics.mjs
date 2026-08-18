@@ -76,6 +76,31 @@ check("push notification backend batches large readership queries", () => {
   assertIncludes(store, "claim_push_notification_deliveries");
 });
 
+check("push delivery scale guards cover provider limits and retries", () => {
+  const sender = read("services/content-engine/src/notifications/pushSender.ts");
+  const tests = read("services/content-engine/src/notifications/pushSender.test.ts");
+
+  assertIncludes(sender, "EXPO_PUSH_MESSAGES_PER_SECOND");
+  assertIncludes(sender, "EXPO_RECEIPT_CHUNK_SIZE");
+  assertIncludes(sender, "createPushRateLimiter");
+  assertIncludes(sender, "withRetry");
+  assertIncludes(tests, "sends 10,000 recipients without exceeding 500 messages per second");
+  assertIncludes(tests, "drains 10,000 awaiting receipts without exceeding Expo receipt request size");
+});
+
+check("push workflows use Europe/Paris edition, retry and receipt schedules", () => {
+  const editionWorkflow = read(".github/workflows/content-daily-job.yml");
+  const retryWorkflow = read(".github/workflows/push-notification-retry.yml");
+  const receiptWorkflow = read(".github/workflows/push-receipts.yml");
+
+  assertIncludes(editionWorkflow, 'timezone: "Europe/Paris"');
+  assertIncludes(editionWorkflow, 'cron: "17 9 * * 1,3,5,0"');
+  assertIncludes(retryWorkflow, 'timezone: "Europe/Paris"');
+  assertIncludes(retryWorkflow, "content:push-notifications");
+  assertIncludes(receiptWorkflow, 'timezone: "Europe/Paris"');
+  assertIncludes(receiptWorkflow, "content:push-receipts");
+});
+
 check("production scale model fixture is present", () => {
   const fixture = read("src/test/productionScaleModel.test.ts");
 
