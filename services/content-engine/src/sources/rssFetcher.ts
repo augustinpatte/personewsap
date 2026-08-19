@@ -422,7 +422,11 @@ export class RssFeedConnector implements SourceConnector {
           credibility_tier: source.credibility_tier,
           url: resolvedUrl,
           title: item.title,
-          publisher: item.publisher ?? source.publisher,
+          // The curated catalogue is the authority on a publisher's name. A
+          // feed's own <title> is a channel label ("Flux RSS Daj", "FRB: Press
+          // Release - All Releases"), and it was reaching readers as the cited
+          // publisher in place of the checked name.
+          publisher: source.publisher || (item.publisher ?? source.publisher),
           published_at: item.publishedAt,
           retrieved_at: new Date().toISOString(),
           language: source.language as Language,

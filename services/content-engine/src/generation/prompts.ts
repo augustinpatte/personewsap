@@ -78,6 +78,7 @@ export const CONTENT_TYPE_PROMPTS = {
     "- Use the requested language exactly (one language per run). Do not produce both FR and EN in the same response, and do not add any text outside the JSON object.",
     "- daily/weekly_digest separation is handled by the engine cadence, not by this item. Render only the daily drop schema fields for the slot you are given.",
     "- Explain one sourced factual development in 120-220 words, but lead with the thesis instead of a school-style recap. Mobile-first: 220 words is a ceiling, not a target, and materially shorter than a Business Story.",
+    "- TITLE: name the concrete subject of the source — the company, institution, market, figure or mechanism it reports. A title that states only a general principle (\"Innovation needs a sponsor, not just applause\") is rejected: a reader must be able to tell from the title which event this is about.",
     "- Body must include: sharp thesis, concrete mechanism, specific implication, one observable signal, and a source/date line.",
     "- The mechanism should name what is changing: pricing, incentives, distribution, regulation, capacity, trust, demand, risk, or execution.",
     "- The implication should say who has more leverage, who loses options, what budget/timeline/default changes, or what decision gets harder.",

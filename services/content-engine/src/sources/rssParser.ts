@@ -104,8 +104,16 @@ function readFeedPublisher(xml: string): string | null {
   return readText(root, ["title", "publisher"]) ?? readAuthor(root);
 }
 
+/**
+ * The publisher of an item, and never its byline.
+ *
+ * `dc:creator` and `<author>` name the journalist, so reading them here filed
+ * SCOTUSblog under "Amy Howe" and IEEE Spectrum under "Alexander Brem" in the
+ * source footer. When an item carries no publisher of its own, the caller falls
+ * back to the curated source's publisher, which is the accurate attribution.
+ */
 function readItemPublisher(xml: string): string | null {
-  return readText(xml, ["source", "publisher", "creator"]) ?? readAuthor(xml);
+  return readText(xml, ["source", "publisher"]);
 }
 
 function readAuthor(xml: string): string | null {
@@ -319,7 +327,14 @@ function decodeXml(value: string): string {
     .replaceAll("&gt;", ">")
     .replaceAll("&quot;", "\"")
     .replaceAll("&apos;", "'")
-    .replaceAll("&#39;", "'");
+    .replaceAll("&nbsp;", " ")
+    // Numeric references, which several feeds use for accented characters.
+    // Left raw they reached the published source footer as "franceinfo-
+    // Sant&#xE9;".
+    .replace(/&#x([0-9a-f]{1,6});/gi, (_, hex: string) =>
+      String.fromCodePoint(Number.parseInt(hex, 16))
+    )
+    .replace(/&#(\d{1,7});/g, (_, code: string) => String.fromCodePoint(Number(code)));
 }
 
 function normalizePublishedAt(value: string | null): string | null {

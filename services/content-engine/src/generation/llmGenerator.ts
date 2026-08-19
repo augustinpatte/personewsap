@@ -46,6 +46,8 @@ import {
 } from "./types.js";
 import {
   BANNED_EDITORIAL_PHRASES,
+  buildSourceIndex,
+  validateGeneratedItem,
   readProductionContentStrict,
   validateDailyDropPayload,
   validateDailyDropQuality,
@@ -409,6 +411,10 @@ const GENERIC_EDITORIAL_REQUIREMENTS = [
   "Do not use school-report phrases such as 'This shift means', 'it is important', 'highlights the importance', 'critical in', or 'key in'.",
   "Ground factual claims in the supplied sources only.",
   "Do not invent URLs, dates, authors, institutions, numbers, or quotes.",
+  // The live proof produced "2026-08-26" from a source that said only "next
+  // week": a generic "do not invent dates" was not enough, because the model
+  // did not experience computing a date as inventing one.
+  "DATES: write a calendar date only when the supplied source material states that exact date. If a source gives relative timing (\"next week\", \"in the coming days\", \"later this month\", \"prochainement\", \"dans les prochains jours\"), keep the relative wording. Never convert relative timing into a precise date, never infer a deadline, release, hearing or meeting date, and never compute one from the publication date. Beyond dates the source states, the only date you may cite is the source's own publication/retrieval date, used as a citation.",
   "Make each item relevant to its topic; do not force a source into the wrong topic."
 ];
 
@@ -846,7 +852,61 @@ function validateSectionItems(
     items
   }, sources));
 
+  // Ungrounded figures and dates are caught here, per section, so the retry
+  // gets exact feedback and rewrites this item. Running the check only on the
+  // assembled payload meant an invented date failed the whole edition with no
+  // attempt left to fix it.
+  issues.push(...validateSectionQuality(items, request, sources));
+
   return issues;
+}
+
+/** Per-item claim grounding against the section's own source packet. */
+/**
+ * The full editorial quality bar, applied to one section while an attempt is
+ * still available.
+ *
+ * Every one of these rules used to run only on the assembled payload, so a
+ * single weak headline, an invented date, a duplicated MCQ option or a piece of
+ * personal-advice phrasing failed the entire edition with nothing left to fix
+ * it — and the model was never told. The bar itself is unchanged: the same
+ * strict checks run again on the finished payload. What changed is that a
+ * section now gets its own verdict, in time to act on it.
+ */
+function validateSectionQuality(
+  items: GeneratedContentItem[],
+  request: GenerationRequest,
+  sources: SourcePacket[]
+): ValidationIssue[] {
+  const sectionSources = request.articles.filter((article) =>
+    sources.some((source) => source.url === article.url)
+  );
+
+  if (sectionSources.length === 0) {
+    return [];
+  }
+
+  const quality = validateDailyDropQuality(
+    {
+      drop_date: request.dropDate,
+      language: request.language,
+      prompt_version: PROMPT_VERSION,
+      generator_version: LLM_GENERATOR_VERSION,
+      items
+    },
+    {
+      articles: sectionSources,
+      // The section bar is the run's own bar, never a stricter one: a routing or
+      // dry run must not be held to production strictness it never asked for.
+      productionStrict: request.productionStrict ?? readProductionContentStrict(),
+      rssOnly: sectionSources.every((article) => !isSampleUrl(article.url))
+    }
+  );
+
+  return [
+    ...quality.issues.filter((issue) => issue.severity === "error"),
+    ...items.flatMap((item, index) => validateGeneratedItem(item, `items.${index}`))
+  ].map((issue) => ({ path: issue.path, message: issue.message }));
 }
 
 function expectedSectionItemCount(section: DropSection, request: GenerationRequest): number {

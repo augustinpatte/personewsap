@@ -278,7 +278,9 @@ const CONCEPT_ANCHORS: Record<TopicId, string[]> = {
   ],
   engineering: [
     "system", "design", "failure", "reliability", "capacity", "maintenance", "deployment", "infrastructure",
-    "systeme", "conception", "panne", "fiabilite", "capacite", "maintenance", "deploiement"
+    "robotics", "robot", "manufacturing", "factory", "energy", "aerospace", "engineering",
+    "systeme", "conception", "panne", "fiabilite", "capacite", "maintenance", "deploiement",
+    "robotique", "robot", "usine", "energie", "aerospatial", "ingenierie", "industrie"
   ],
   sport_business: [
     "rights", "sponsorship", "league", "audience", "fans", "tickets", "media", "attendance", "broadcast",
@@ -286,7 +288,9 @@ const CONCEPT_ANCHORS: Record<TopicId, string[]> = {
   ],
   culture_media: [
     "attention", "audience", "subscriber", "platform", "licensing", "content", "media", "format", "loyalty",
-    "abonne", "plateforme", "licence", "contenu", "medias", "format", "fidelite"
+    "viewer", "viewers", "streaming", "monetize", "monetise", "cinema", "music", "publishing", "creator",
+    "abonne", "plateforme", "licence", "contenu", "medias", "format", "fidelite",
+    "spectateur", "audiences", "monetiser", "cinema", "musique", "edition", "createur", "diffusion"
   ]
 };
 
@@ -386,7 +390,7 @@ export function readProductionContentStrict(): boolean {
   return process.env.PRODUCTION_CONTENT_STRICT?.toLowerCase() === "true";
 }
 
-function validateGeneratedItem(item: GeneratedContentItem, path: string): ValidationIssue[] {
+export function validateGeneratedItem(item: GeneratedContentItem, path: string): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const fullText = normalizeForPhraseCheck(JSON.stringify(item));
 
@@ -405,11 +409,16 @@ function validateGeneratedItem(item: GeneratedContentItem, path: string): Valida
   }
 
   for (const pattern of HIGH_STAKES_ADVICE_PATTERNS) {
-    if (pattern.test(fullText)) {
+    const match = fullText.match(pattern);
+
+    if (match) {
       issues.push({
         path,
         code: "high_stakes_personal_advice",
-        message: "High-stakes personal medical, legal, or financial advice pattern detected.",
+        // Naming the wording is what lets a retry fix it. PersoNews analyses
+        // institutional decisions; it never addresses a reader's own care,
+        // case or portfolio, and the phrasing has to follow.
+        message: `High-stakes personal medical, legal, or financial advice pattern detected: "${match[0]}". Rewrite it as institutional analysis addressed to a decision-maker, not guidance addressed to the reader's own medical, legal or financial situation.`,
         severity: "error"
       });
     }
@@ -993,7 +1002,16 @@ function validateSourceFreshness(
   });
 }
 
-function validateUnsupportedSpecificClaims(
+/**
+ * Specific claims — figures, sums, durations and calendar dates — that the
+ * cited sources do not contain.
+ *
+ * Exported so the generator can run it inside the per-section retry loop. It
+ * used to run only on the assembled payload, at the very end, where there is no
+ * retry left: an invented date failed the whole edition instead of failing one
+ * item and being rewritten. See validateSectionClaimGrounding in llmGenerator.
+ */
+export function validateUnsupportedSpecificClaims(
   item: GeneratedContentItem,
   path: string,
   sourceByUrl: Map<string, RankedArticle>,
@@ -1021,7 +1039,7 @@ function validateUnsupportedSpecificClaims(
     qualityIssue({
       path,
       code: "unsupported_specific_claim",
-      message: `Specific claim(s) not found in cited source material: ${unsupported.slice(0, 4).join(", ")}.`,
+      message: `Specific claim(s) not found in cited source material: ${unsupported.slice(0, 4).join(", ")}. Remove them or replace them with wording the source actually supports; if the source gives only relative timing ("next week", "in the coming days"), keep that relative wording instead of naming a date.`,
       strict
     })
   ];
@@ -1607,12 +1625,180 @@ function validateBusinessStoryEditorialMemory(
   return issues;
 }
 
-function validateTitleReflectsTopic(
+/**
+ * Titles that say nothing about the case they head.
+ *
+ * A mini case is a scenario, so its title is allowed to be narrative rather
+ * than topic-labelled. What it may never be is interchangeable: these openings
+ * would fit any case at all.
+ */
+const GENERIC_SCENARIO_TITLE_PATTERNS = [
+  /^\W*(a|an|the)?\s*(difficult|tough|hard|big|important|critical|major)\s+(decision|choice|call|opportunity|moment|problem)\b/i,
+  /^\W*think\s+carefully/i,
+  /^\W*(what|which)\s+(would|will)\s+you\s+(do|choose)/i,
+  /^\W*your?\s+(big\s+)?(decision|choice|call)\W*$/i,
+  /^\W*une?\s+(decision|décision|choix)\s+(difficile|importante?|critique)/i,
+  /^\W*(reflechissez|réfléchissez|a\s+vous\s+de\s+choisir)/i,
+  /^\W*le\s+(grand|vrai)\s+(choix|dilemme)\W*$/i
+];
+
+/**
+ * Vocabulary every case shares. A title grounded only in these words is not
+ * grounded in *its* case, so they do not count towards its specificity.
+ */
+const GENERIC_CASE_TERMS = new Set([
+  "decision",
+  "decisions",
+  "difficult",
+  "choice",
+  "choices",
+  "opportunity",
+  "problem",
+  "problems",
+  "question",
+  "questions",
+  "challenge",
+  "challenges",
+  "strategy",
+  "careful",
+  "carefully",
+  "think",
+  "important",
+  "critical",
+  "situation",
+  "dilemma",
+  "scenario",
+  "decider",
+  "decision",
+  "choisir",
+  "difficile",
+  "opportunite",
+  "probleme",
+  "strategie",
+  "reflechir",
+  "importante",
+  "critique",
+  "dilemme"
+]);
+
+/**
+ * Mini-case titles are validated against their own scenario, not a topic word.
+ *
+ * The universal rule — the title must contain a topic anchor or share a keyword
+ * with a source headline — is right for a newsletter headline and wrong for a
+ * case. "Le marché accéléré à 140 000 €" and "Authorized Is Not Ready to Buy"
+ * are strong case titles that name no topic vocabulary at all, and forcing one
+ * in would produce "Compliance : le marché accéléré à 140 000 €".
+ *
+ * So the requirement changes shape rather than relaxing: the title must be
+ * demonstrably about THIS case. It must not be a generic opening, and it must
+ * share something specific — a distinctive word or a figure — with the
+ * scenario, its sources, or its topic vocabulary.
+ */
+function validateMiniCaseTitleGrounding(
+  item: Extract<GeneratedContentItem, { content_type: "mini_case" }>,
+  path: string,
+  sourceByUrl: Map<string, RankedArticle>,
+  strict: boolean
+): ValidationIssue[] {
+  const title = typeof item.title === "string" ? item.title.trim() : "";
+
+  if (title.length === 0) {
+    return [];
+  }
+
+  const reject = (message: string): ValidationIssue[] => [
+    qualityIssue({ path: `${path}.title`, code: "mini_case_title_ungrounded", message, strict })
+  ];
+
+  if (
+    GENERIC_SCENARIO_TITLE_PATTERNS.some((pattern) => pattern.test(title)) ||
+    GENERIC_TITLE_PATTERNS.some((pattern) => pattern.test(title))
+  ) {
+    return reject(
+      "Mini-case title is generic and would fit any case; name something specific to this scenario."
+    );
+  }
+
+  const record = item as unknown as Record<string, unknown>;
+  const scenarioText = [
+    record.context,
+    record.challenge,
+    record.question,
+    record.sample_answer,
+    record.final_takeaway,
+    record.core_takeaway,
+    item.body_md
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  const sourceText = knownSourcesForItem(item, sourceByUrl)
+    .map((source) => `${source.title} ${source.summary ?? ""}`)
+    .join(" ");
+  const groundingText = normalizeForPhraseCheck(`${scenarioText} ${sourceText}`);
+  const normalizedTitle = normalizeForTopicMatch(title);
+
+  // A distinctive word the case itself uses.
+  const groundingTerms = contentTerms(groundingText);
+  const distinctiveShared = contentTerms(normalizeForPhraseCheck(title)).filter(
+    (term) =>
+      !GENERIC_CASE_TERMS.has(normalizeForTopicMatch(term)) &&
+      groundingTerms.some((other) => sameRoot(term, other))
+  );
+
+  if (distinctiveShared.length > 0) {
+    return [];
+  }
+
+  // Or a figure the case states: "140 000 €" is as specific as a proper noun.
+  const titleNumbers = extractComparableNumbers(title);
+  const groundingNumbers = new Set(extractComparableNumbers(groundingText));
+
+  if (titleNumbers.some((value) => groundingNumbers.has(value))) {
+    return [];
+  }
+
+  // Or, still acceptable, explicit topic vocabulary.
+  const anchors = item.topic ? CONCEPT_ANCHORS[item.topic] ?? [] : [];
+
+  if (anchors.some((anchor) => normalizedTitle.includes(normalizeForTopicMatch(anchor)))) {
+    return [];
+  }
+
+  // The scenario's own vocabulary, so a retry has something concrete to use
+  // rather than being told only that the title is wrong.
+  const available = groundingTerms
+    .filter((term) => !GENERIC_CASE_TERMS.has(normalizeForTopicMatch(term)))
+    .slice(0, 6);
+
+  return reject(
+    `Mini-case title is not grounded in the case: it shares no specific term or figure with the scenario, its sources, or its topic.${
+      available.length
+        ? ` Rewrite it around something the case itself names — a term, an actor or a figure from the scenario (for example: ${available.join(", ")}).`
+        : " Rewrite it around a term, an actor or a figure the scenario itself names."
+    }`
+  );
+}
+
+/** Digits in a string, normalised so "140 000" and "140000" compare equal. */
+function extractComparableNumbers(value: string): string[] {
+  return (value.match(/\d[\d\u00A0\u202F.,\s]*\d|\d/g) ?? [])
+    .map((match) => match.replace(/[^\d]/g, ""))
+    .filter((digits) => digits.length >= 2);
+}
+
+export function validateTitleReflectsTopic(
   item: GeneratedContentItem,
   path: string,
   sourceByUrl: Map<string, RankedArticle>,
   strict: boolean
 ): ValidationIssue[] {
+  // A mini case is a scenario, not a headline: it gets its own rule. Every
+  // other content type keeps the strict topic/source requirement unchanged.
+  if (item.content_type === "mini_case") {
+    return validateMiniCaseTitleGrounding(item, path, sourceByUrl, strict);
+  }
+
   if (!item.topic || typeof item.title !== "string") {
     return [];
   }
@@ -1621,20 +1807,35 @@ function validateTitleReflectsTopic(
   const anchors = CONCEPT_ANCHORS[item.topic] ?? [];
   const titleHasTopicAnchor = anchors.some((anchor) => normalizedTitle.includes(normalizeForTopicMatch(anchor)));
   const titleLooksGeneric = GENERIC_TITLE_PATTERNS.some((pattern) => pattern.test(item.title));
-  const sourceTitleText = knownSourcesForItem(item, sourceByUrl).map((source) => source.title).join(" ");
-  const titleOverlapsSource = keywordOverlap(normalizedTitle, normalizeForPhraseCheck(sourceTitleText)) >= 1;
+  // "Supplied source material" means the packet the item was given — headline
+  // and summary — not the headline alone. Comparing against titles only
+  // rejected accurate headlines drawn from a source's own summary, which is a
+  // gap in the check rather than a title worth rejecting.
+  const sourceText = knownSourcesForItem(item, sourceByUrl)
+    .map((source) => `${source.title} ${source.summary ?? ""}`)
+    .join(" ");
+  const titleOverlapsSource = keywordOverlap(normalizedTitle, normalizeForPhraseCheck(sourceText)) >= 1;
 
   if (titleHasTopicAnchor || titleOverlapsSource) {
     return [];
   }
+
+  // A retry can only fix this if it is told what to reach for, so the message
+  // carries the vocabulary the packet actually offers.
+  const suggestions = knownSourcesForItem(item, sourceByUrl)
+    .flatMap((source) => contentTerms(source.title))
+    .slice(0, 5);
+  const remedy = suggestions.length
+    ? ` Rewrite it around the concrete subject of the source — name the company, institution, market or figure it reports (for example: ${suggestions.join(", ")}).`
+    : " Rewrite it around the concrete subject of the source: the company, institution, market or figure it reports.";
 
   return [
     qualityIssue({
       path: `${path}.title`,
       code: "title_topic_mismatch",
       message: titleLooksGeneric
-        ? "Title is generic and does not reflect the item topic or supplied source."
-        : "Title should reflect the item topic or supplied source material.",
+        ? `Title is generic and does not reflect the item topic or supplied source.${remedy}`
+        : `Title should reflect the item topic or supplied source material.${remedy}`,
       strict
     })
   ];
@@ -1674,6 +1875,16 @@ function validateRepeatedTemplatePhrases(payload: DailyDropPayload, strict: bool
   });
 
   return issues;
+}
+
+/**
+ * The source index every per-item check expects: keyed by normalized URL.
+ *
+ * Building it by raw URL silently produced an empty packet for every item, so
+ * section-level grounding checks passed by having nothing to compare against.
+ */
+export function buildSourceIndex(articles: readonly RankedArticle[]): Map<string, RankedArticle> {
+  return new Map(articles.map((article) => [normalizeUrlKey(article.url), article]));
 }
 
 function knownSourcesForItem(item: GeneratedContentItem, sourceByUrl: Map<string, RankedArticle>): RankedArticle[] {
@@ -1753,6 +1964,7 @@ function summarizeQualityChecks(issues: ValidationIssue[]): ContentQualityDiagno
     "body_too_short",
     "generic_filler",
     "title_topic_mismatch",
+    "mini_case_title_ungrounded",
     "high_stakes_personal_advice",
     "language_mixed",
     "language_french_missing_accents",
@@ -1828,8 +2040,29 @@ function keywordOverlap(left: string, right: string): number {
     return 0;
   }
 
-  const rightTerms = new Set(contentTerms(right));
-  return contentTerms(left).filter((term) => rightTerms.has(term)).length;
+  const rightTerms = contentTerms(right);
+  return contentTerms(left).filter((term) => rightTerms.some((other) => sameRoot(term, other))).length;
+}
+
+/**
+ * Two terms share a root: exact match, or one is a prefix of the other.
+ *
+ * Exact string equality read "innovation"/"innovations" and "leader"/
+ * "leadership" as unrelated words, so a headline lifted straight out of its
+ * source ("Gaining Leadership Backing for Your Innovations" ->  "Innovation
+ * stalls when no leader owns it") counted as zero evidence. That is a missing
+ * stemmer, not a title worth rejecting. The prefix must be a real word of its
+ * own (contentTerms already floors it at five characters) and the suffix stays
+ * short, so this matches inflections and derivations without letting unrelated
+ * terms collide.
+ */
+function sameRoot(left: string, right: string): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  const [shorter, longer] = left.length <= right.length ? [left, right] : [right, left];
+  return longer.length - shorter.length <= 4 && longer.startsWith(shorter);
 }
 
 function contentTerms(value: string): string[] {

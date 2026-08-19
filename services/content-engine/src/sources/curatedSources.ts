@@ -653,7 +653,7 @@ const CURATED_SOURCE_DEFINITIONS: CuratedSourceDefinition[] = [
     id: "economie-gouv-actualites",
     topic: "finance",
     language: "fr",
-    publisher: "Ministere de l'Economie et des Finances",
+    publisher: "Ministère de l'Économie et des Finances",
     url: "https://www.economie.gouv.fr/tous-les-fils-d-infos",
     rssUrl: "https://www.economie.gouv.fr/rss/toutesactualites",
     credibility_score: 0.92,

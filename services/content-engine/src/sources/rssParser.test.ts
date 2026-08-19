@@ -60,3 +60,28 @@ describe("parseXmlFeed title hardening", () => {
     expect(items[1].url).toBe("https://example.test/b");
   });
 });
+
+describe("publisher attribution in the source footer", () => {
+  it("does not present a byline as the publisher", () => {
+    const feed = `<?xml version="1.0"?><rss><channel><title>SCOTUSblog</title>
+      <item>
+        <title>Florida Republicans bring a Census challenge</title>
+        <link>https://www.scotusblog.com/2026/08/census/</link>
+        <pubDate>Tue, 19 Aug 2026 08:00:00 GMT</pubDate>
+        <dc:creator>Amy Howe</dc:creator>
+      </item></channel></rss>`;
+
+    expect(parseXmlFeed(feed)[0].publisher).toBe("SCOTUSblog");
+  });
+
+  it("decodes numeric character references in a publisher name", () => {
+    const feed = `<?xml version="1.0"?><rss><channel><title>franceinfo - Sant&#xE9;</title>
+      <item>
+        <title>Une enquête sur des publications</title>
+        <link>https://www.franceinfo.fr/sante/etude.html</link>
+        <pubDate>Tue, 19 Aug 2026 08:00:00 GMT</pubDate>
+      </item></channel></rss>`;
+
+    expect(parseXmlFeed(feed)[0].publisher).toBe("franceinfo - Santé");
+  });
+});
