@@ -89,9 +89,12 @@ function sanitizeGeneratedItem(
   );
   const sanitizedTopic = topic ?? primarySource.topic;
   const sanitizedSourceUrls = sanitizeSourceUrls(originalSourceUrls, primarySource, allowedUrls, canonicalUrlByNormalizedUrl);
-  const firstSourceUrl = sanitizedSourceUrls[0] ?? primarySource.url;
-  const firstSource = sourceByUrl.get(firstSourceUrl) ?? primarySource;
-  const bodyMd = sanitizeBody(item.body_md, firstSource);
+  const citedSources = (sanitizedSourceUrls.length > 0 ? sanitizedSourceUrls : [primarySource.url])
+    .map((url) => sourceByUrl.get(url))
+    .filter((source): source is SanitizerSource => Boolean(source));
+  // Every cited source, not just the first: the footer must account for the
+  // whole packet the item actually drew on.
+  const bodyMd = sanitizeBody(item.body_md, citedSources.length > 0 ? citedSources : [primarySource]);
   const sanitizedItem = {
     ...item,
     topic: sanitizedTopic,
@@ -155,19 +158,57 @@ function sanitizeSourceUrls(
   return validUrls.length > 0 ? validUrls : [primarySource.url];
 }
 
-function sanitizeBody(bodyMd: unknown, source: SanitizerSource): string {
-  const body = typeof bodyMd === "string" ? bodyMd.trim() : "";
-  const sourceDate = source.published_at?.slice(0, 10) ?? null;
-  const retrievedDate = source.retrieved_at.slice(0, 10);
-  const requiredDate = sourceDate ?? retrievedDate;
-  const needsUrl = !bodyIncludesUrl(body, source.url);
-  const needsDate = !requiredDate || !body.includes(requiredDate) || !DATE_PATTERN.test(body);
+/**
+ * Matches a trailing attribution block the model wrote itself, in either
+ * language, so it can be replaced rather than appended to.
+ *
+ * Anchored to the end of the body: a "Sources :" line mid-article is prose, the
+ * one that closes the piece is the footer.
+ */
+const MODEL_SOURCE_FOOTER_PATTERN =
+  /\n+\s*(?:\*\*)?(?:sources?|source)\s*(?:\*\*)?\s*[:：][\s\S]*$/i;
 
-  if (!needsUrl && !needsDate) {
-    return body;
+/**
+ * Replace whatever attribution the model produced with one built from real
+ * source metadata.
+ *
+ * The proof showed the model closing articles with "Sources : Reuters (date),
+ * Financial Times (date)" when the packet contained a single France24 item. No
+ * prompt wording fully removes that risk, so the footer is not trusted at all:
+ * it is stripped and rebuilt from the SanitizerSource records behind the
+ * item's allowed source_urls. A publisher that is not in the packet has nothing
+ * to be rebuilt from, so it cannot survive.
+ */
+function sanitizeBody(bodyMd: unknown, sources: SanitizerSource[]): string {
+  const body = typeof bodyMd === "string" ? bodyMd.trim() : "";
+  const withoutModelFooter = body.replace(MODEL_SOURCE_FOOTER_PATTERN, "").trim();
+  const footer = canonicalSourceFooter(sources);
+
+  return [withoutModelFooter, footer].filter(Boolean).join("\n\n");
+}
+
+/**
+ * The canonical footer: publisher, published date when known, retrieved date
+ * and the exact URL, for every source the item actually used.
+ */
+export function canonicalSourceFooter(sources: SanitizerSource[]): string {
+  if (sources.length === 0) {
+    return "";
   }
 
-  return [body, sourceLine(source)].filter(Boolean).join("\n\n");
+  const seen = new Set<string>();
+  const lines: string[] = [];
+
+  for (const source of sources) {
+    if (seen.has(source.url)) {
+      continue;
+    }
+
+    seen.add(source.url);
+    lines.push(sourceLine(source));
+  }
+
+  return lines.join("\n");
 }
 
 function sourceLine(source: SanitizerSource): string {

@@ -54,11 +54,24 @@ export type LlmCallMetric = {
   estimated_cost_usd: number | null;
 };
 
-const DEFAULT_NEWSLETTER_MODEL = "gpt-5-mini-2025-08-07";
-const DEFAULT_NEWSLETTER_FALLBACK_MODEL = "gpt-5.4-mini-2026-03-17";
-const DEFAULT_MINI_CASE_MODEL = "gpt-5.4-mini-2026-03-17";
-const DEFAULT_MINI_CASE_FALLBACK_MODEL = "gpt-5.4-2026-03-05";
-const DEFAULT_BUSINESS_STORY_FALLBACK_MODEL = "gpt-5.4-2026-03-05";
+/**
+ * Production model routing.
+ *
+ * terra is the workhorse for the two high-volume sections; sol is reserved for
+ * the Business Story, which is the longest and most reasoning-dependent piece,
+ * and each section falls back to the other so a single model's outage cannot
+ * take an edition down. luna is the cheap classifier used by the source
+ * relevance gate — it never writes content.
+ */
+const DEFAULT_NEWSLETTER_MODEL = "gpt-5.6-terra";
+const DEFAULT_NEWSLETTER_FALLBACK_MODEL = "gpt-5.6-sol";
+const DEFAULT_MINI_CASE_MODEL = "gpt-5.6-terra";
+const DEFAULT_MINI_CASE_FALLBACK_MODEL = "gpt-5.6-sol";
+const DEFAULT_BUSINESS_STORY_MODEL = "gpt-5.6-sol";
+const DEFAULT_BUSINESS_STORY_FALLBACK_MODEL = "gpt-5.6-terra";
+/** Structured classification only (source relevance). Never writes content. */
+export const DEFAULT_CLASSIFIER_MODEL = "gpt-5.6-luna";
+export const DEFAULT_CLASSIFIER_REASONING_EFFORT = "none";
 const DETERMINISTIC_LEARNING_MODEL = "deterministic-learning-v1";
 
 type Pricing = {
@@ -70,7 +83,20 @@ type Pricing = {
   cacheReadInput?: number;
 };
 
+/**
+ * Per-million-token prices.
+ *
+ * IMPORTANT: the three gpt-5.6-* entries are UNVERIFIED PLACEHOLDERS. They were
+ * added so cost reporting has a shape to fill, not because these rates were
+ * confirmed against a published price list. Their only reliable property is the
+ * ordering (luna < terra < sol). Set MODEL_PRICING_JSON with the real numbers
+ * before treating any reported cost as accurate — see resolvePricingTable.
+ */
 const PRICING_USD_PER_MILLION: Record<string, Pricing> = {
+  // Placeholder rates - confirm against the official price list.
+  "gpt-5.6-luna": { input: 0.1, cachedInput: 0.01, output: 0.4 },
+  "gpt-5.6-terra": { input: 0.25, cachedInput: 0.025, output: 2 },
+  "gpt-5.6-sol": { input: 1.25, cachedInput: 0.125, output: 10 },
   "gpt-5-mini-2025-08-07": { input: 0.25, cachedInput: 0.025, output: 2 },
   "gpt-5-mini": { input: 0.25, cachedInput: 0.025, output: 2 },
   "gpt-5.4-mini-2026-03-17": { input: 0.75, cachedInput: 0.075, output: 4.5 },
@@ -86,6 +112,8 @@ const PRICING_USD_PER_MILLION: Record<string, Pricing> = {
 
 export function resolveContentModelRouting(env: NodeJS.ProcessEnv = process.env): ContentModelRouting {
   const legacyOpenAiModel = trimToNull(env.OPENAI_MODEL);
+  const businessStoryProvider = parseProvider(env.BUSINESS_STORY_PROVIDER, "openai");
+
   return {
     newsletter_article: {
       provider: "openai",
@@ -102,11 +130,20 @@ export function resolveContentModelRouting(env: NodeJS.ProcessEnv = process.env)
       fallbackModel: trimToNull(env.MINI_CASE_FALLBACK_MODEL) ?? DEFAULT_MINI_CASE_FALLBACK_MODEL
     },
     business_story: {
-      provider: parseProvider(env.BUSINESS_STORY_PROVIDER, "anthropic"),
-      model: trimToNull(env.BUSINESS_STORY_MODEL) ?? DEFAULT_ANTHROPIC_MODEL,
-      reasoningEffort: null,
+      provider: businessStoryProvider,
+      // An operator who switches the provider to Anthropic without naming a
+      // model gets Anthropic's default, not an OpenAI model name it cannot serve.
+      model:
+        trimToNull(env.BUSINESS_STORY_MODEL) ??
+        (businessStoryProvider === "anthropic" ? DEFAULT_ANTHROPIC_MODEL : DEFAULT_BUSINESS_STORY_MODEL),
+      reasoningEffort: trimToNull(env.BUSINESS_STORY_REASONING_EFFORT) ?? "low",
       fallbackProvider: parseProvider(env.BUSINESS_STORY_FALLBACK_PROVIDER, "openai"),
-      fallbackModel: trimToNull(env.BUSINESS_STORY_FALLBACK_MODEL) ?? legacyOpenAiModel ?? DEFAULT_BUSINESS_STORY_FALLBACK_MODEL
+      // legacyOpenAiModel is kept in the chain: OPENAI_MODEL compatibility was
+      // documented behaviour and removing it would silently change deployments.
+      fallbackModel:
+        trimToNull(env.BUSINESS_STORY_FALLBACK_MODEL) ??
+        legacyOpenAiModel ??
+        DEFAULT_BUSINESS_STORY_FALLBACK_MODEL
     },
     learning_path: {
       provider: "deterministic",
@@ -165,8 +202,47 @@ export function toSafeModelRoutingSummary(routing: ContentModelRouting = resolve
   };
 }
 
+/**
+ * Pricing with an operator override, so the real rates can be supplied without
+ * a code change:
+ *   MODEL_PRICING_JSON='{"gpt-5.6-terra":{"input":0.3,"cachedInput":0.03,"output":2.4}}'
+ */
+export function resolvePricingTable(
+  env: NodeJS.ProcessEnv = process.env
+): Record<string, Pricing> {
+  const raw = trimToNull(env.MODEL_PRICING_JSON);
+
+  if (!raw) {
+    return PRICING_USD_PER_MILLION;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, Pricing>;
+    return { ...PRICING_USD_PER_MILLION, ...parsed };
+  } catch {
+    // A malformed override must not break generation; the built-in table is
+    // used and the cost is simply reported from it.
+    return PRICING_USD_PER_MILLION;
+  }
+}
+
+/** True when a model's cost is computed from a real, operator-supplied rate. */
+export function hasVerifiedPricing(model: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = trimToNull(env.MODEL_PRICING_JSON);
+
+  if (!raw) {
+    return !model.startsWith("gpt-5.6-");
+  }
+
+  try {
+    return Object.prototype.hasOwnProperty.call(JSON.parse(raw), model);
+  } catch {
+    return false;
+  }
+}
+
 export function estimateCallCostUsd(model: string, usage: LlmUsage): number | null {
-  const pricing = PRICING_USD_PER_MILLION[model];
+  const pricing = resolvePricingTable()[model];
   if (!pricing || usage.inputTokens === null || usage.outputTokens === null) {
     return null;
   }

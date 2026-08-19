@@ -1,4 +1,11 @@
-export type LlmFailureReason = "timeout" | "validation_error" | "api_error" | "empty_output" | "malformed_json";
+export type LlmFailureReason =
+  | "timeout"
+  | "validation_error"
+  | "api_error"
+  | "empty_output"
+  | "malformed_json"
+  /** No source of the requested topic survived relevance filtering. */
+  | "insufficient_source_material";
 
 export type SerializedLlmFailure = {
   reason: LlmFailureReason;

@@ -12,9 +12,7 @@ import { LlmContentGenerator } from "../generation/llmGenerator.js";
 import { classifyLlmFailure, serializeLlmFailure, LlmGenerationError, type LlmFailureReason } from "../generation/llmErrors.js";
 import {
   DEFAULT_OPENAI_ENDPOINT,
-  DEFAULT_OPENAI_MODEL,
-  DEFAULT_OPENAI_REQUEST_TIMEOUT_MS,
-  OpenAiJsonProvider
+  DEFAULT_OPENAI_REQUEST_TIMEOUT_MS
 } from "../generation/openAiProvider.js";
 import {
   validateDailyDropPayload,
@@ -26,6 +24,16 @@ import { processArticles } from "../processing/pipeline.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { CURATED_SOURCE_COVERAGE, CURATED_SOURCES } from "../sources/curatedSources.js";
 import { RssFeedConnector, type RssFetchDiagnostics } from "../sources/rssFetcher.js";
+import {
+  createRoutedProviderFactory,
+  hasVerifiedPricing,
+  resolveContentModelRouting,
+  toSafeModelRoutingSummary,
+  type ContentModelRoute,
+  type ContentModelRouting,
+  type EditorialSection,
+  type LlmCallMetric
+} from "../generation/modelRouting.js";
 import { getProductEditionDate } from "../scheduler/editionCadence.js";
 
 const DEFAULT_TOPICS = "business,finance";
@@ -41,6 +49,12 @@ export type LlmProofOptions = {
   sourceArticleLimit: number;
   maxAttempts: number;
   maxOutputTokens: number;
+  /**
+   * Diagnostic escape hatch: pin every section to one model instead of using
+   * production routing. Off by default — a proof that does not exercise the
+   * routed providers proves nothing about production.
+   */
+  overrideModel: string | null;
 };
 
 export type LlmProofOutput = {
@@ -51,16 +65,30 @@ export type LlmProofOutput = {
   useLlm: true;
   rssOnly: true;
   llmConfig: {
-    provider: "openai";
-    model: string;
-    fallback_model: string | null;
+    /** How the proof chose models: production routing, or a pinned override. */
+    routing_mode: "production_routing" | "single_model_override";
+    routing: Record<string, unknown>;
+    override_model: string | null;
     endpoint_host: string;
     request_timeout_ms: number;
     max_attempts: number;
     max_output_tokens: number;
     api_key_configured: boolean;
     api_key_logged: false;
-    token_usage_available: false;
+    pricing_verified: boolean;
+  };
+  /** Every model call the proof actually made, with usage and cost. */
+  llmCalls: LlmCallMetric[];
+  llmCallTotals: {
+    calls: number;
+    input_tokens: number;
+    output_tokens: number;
+    cached_input_tokens: number;
+    reasoning_output_tokens: number;
+    estimated_cost_usd: number | null;
+    /** False while gpt-5.6 pricing is still the built-in placeholder. */
+    cost_is_verified: boolean;
+    models_used: string[];
   };
   sourceConfig: {
     limit_per_source: number;
@@ -109,16 +137,45 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
     source_article_limit: options.sourceArticleLimit,
     max_attempts: options.maxAttempts,
     max_output_tokens: options.maxOutputTokens,
-    model: readOpenAiModel(),
-    fallback_model: readOpenAiFallbackModel(),
+    routing_mode: options.overrideModel ? "single_model_override" : "production_routing",
+    routing: toSafeModelRoutingSummary(
+      options.overrideModel
+        ? pinRoutingToModel(resolveContentModelRouting(), options.overrideModel)
+        : resolveContentModelRouting()
+    ),
     request_timeout_ms: readRequestTimeoutMs(),
     strict_llm_proof: isStrictLlmProof(),
     api_key_configured: Boolean(process.env.OPENAI_API_KEY)
   });
 
+  // Production routing by default: this is the whole point of the proof. The
+  // previous implementation constructed one OpenAiJsonProvider directly, so it
+  // silently exercised whatever OPENAI_MODEL happened to be — and reported a
+  // model production never uses.
+  const routing = options.overrideModel
+    ? pinRoutingToModel(resolveContentModelRouting(), options.overrideModel)
+    : resolveContentModelRouting();
+  const llmCalls: LlmCallMetric[] = [];
   const generator = new LlmContentGenerator({
-    provider: new OpenAiJsonProvider({
-      disableFallback: true
+    providerForSection: createRoutedProviderFactory({
+      routing,
+      onCallMetric: (metric) => {
+        llmCalls.push(metric);
+        logProgress("LLM call completed", {
+          provider: metric.provider,
+          model: metric.model,
+          section: metric.content_type,
+          language: metric.language,
+          topic: metric.topic,
+          attempt: metric.attempt,
+          fallback: metric.fallback,
+          input_tokens: metric.input_tokens,
+          output_tokens: metric.output_tokens,
+          cached_input_tokens: metric.cached_input_tokens,
+          reasoning_output_tokens: metric.reasoning_output_tokens,
+          estimated_cost_usd: metric.estimated_cost_usd
+        });
+      }
     }),
     maxAttempts: options.maxAttempts,
     maxOutputTokens: options.maxOutputTokens,
@@ -279,7 +336,9 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
     liveRss: true,
     useLlm: true,
     rssOnly: true,
-    llmConfig: readSafeLlmConfig(options),
+    llmConfig: readSafeLlmConfig(options, routing),
+    llmCalls,
+    llmCallTotals: summarizeLlmCalls(llmCalls),
     sourceConfig: {
       limit_per_source: options.limitPerSource,
       source_article_limit: options.sourceArticleLimit,
@@ -309,6 +368,9 @@ export function parseLlmProofOptions(args: string[]): LlmProofOptions {
     maxAttempts:
       readPositiveInteger(values.get("max-attempts") ?? process.env.LLM_PROOF_MAX_ATTEMPTS, "max-attempts") ??
       DEFAULT_MAX_ATTEMPTS,
+    // Diagnostic only: `--model x` pins every section to x. Without it the
+    // proof runs production routing, which is the default on purpose.
+    overrideModel: values.get("model")?.trim() || process.env.LLM_PROOF_MODEL?.trim() || null,
     maxOutputTokens:
       readPositiveInteger(values.get("max-output-tokens") ?? process.env.LLM_PROOF_MAX_OUTPUT_TOKENS, "max-output-tokens") ??
       DEFAULT_MAX_OUTPUT_TOKENS
@@ -370,27 +432,85 @@ function isSampleUrl(value: string): boolean {
   }
 }
 
-function readSafeLlmConfig(options: LlmProofOptions): LlmProofOutput["llmConfig"] {
+function readSafeLlmConfig(
+  options: LlmProofOptions,
+  routing: ContentModelRouting
+): LlmProofOutput["llmConfig"] {
+  const models = routedModels(routing);
+
   return {
-    provider: "openai",
-    model: readOpenAiModel(),
-    fallback_model: readOpenAiFallbackModel(),
+    routing_mode: options.overrideModel ? "single_model_override" : "production_routing",
+    routing: toSafeModelRoutingSummary(routing),
+    override_model: options.overrideModel,
     endpoint_host: readEndpointHost(),
     request_timeout_ms: readRequestTimeoutMs(),
     max_attempts: options.maxAttempts,
     max_output_tokens: options.maxOutputTokens,
     api_key_configured: Boolean(process.env.OPENAI_API_KEY),
     api_key_logged: false,
-    token_usage_available: false
+    pricing_verified: models.every((model) => hasVerifiedPricing(model))
   };
 }
 
-function readOpenAiModel(): string {
-  return process.env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
+/** Every model the current routing can reach, primary and fallback. */
+function routedModels(routing: ContentModelRouting): string[] {
+  const sections: EditorialSection[] = ["newsletter_article", "mini_case", "business_story"];
+
+  return [
+    ...new Set(
+      sections.flatMap((section) =>
+        [routing[section].model, routing[section].fallbackModel].filter(
+          (model): model is string => Boolean(model)
+        )
+      )
+    )
+  ];
 }
 
-function readOpenAiFallbackModel(): string | null {
-  return process.env.OPENAI_FALLBACK_MODEL?.trim() || null;
+/** Pins every routed section to one model, for a single-model diagnostic run. */
+function pinRoutingToModel(routing: ContentModelRouting, model: string): ContentModelRouting {
+  const pin = (route: ContentModelRoute): ContentModelRoute => ({
+    ...route,
+    provider: "openai",
+    model,
+    fallbackProvider: "openai",
+    fallbackModel: model
+  });
+
+  return {
+    ...routing,
+    newsletter_article: pin(routing.newsletter_article),
+    mini_case: pin(routing.mini_case),
+    business_story: pin(routing.business_story)
+  };
+}
+
+/** Adds up what the proof actually spent, per model. */
+function summarizeLlmCalls(calls: LlmCallMetric[]): LlmProofOutput["llmCallTotals"] {
+  const models = [...new Set(calls.map((call) => call.model))];
+  const costs = calls.map((call) => call.estimated_cost_usd);
+  const anyCostMissing = costs.some((cost) => cost === null);
+
+  return {
+    calls: calls.length,
+    input_tokens: sumMetric(calls, "input_tokens"),
+    output_tokens: sumMetric(calls, "output_tokens"),
+    cached_input_tokens: sumMetric(calls, "cached_input_tokens"),
+    reasoning_output_tokens: sumMetric(calls, "reasoning_output_tokens"),
+    estimated_cost_usd: anyCostMissing
+      ? null
+      : Number(costs.reduce<number>((total, cost) => total + (cost ?? 0), 0).toFixed(6)),
+    // Placeholder gpt-5.6 rates must never be reported as a confirmed cost.
+    cost_is_verified: models.length > 0 && models.every((model) => hasVerifiedPricing(model)),
+    models_used: models
+  };
+}
+
+function sumMetric(calls: LlmCallMetric[], key: keyof LlmCallMetric): number {
+  return calls.reduce((total, call) => {
+    const value = call[key];
+    return total + (typeof value === "number" ? value : 0);
+  }, 0);
 }
 
 function readEndpointHost(): string {

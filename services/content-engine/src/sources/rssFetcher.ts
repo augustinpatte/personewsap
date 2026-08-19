@@ -2,8 +2,28 @@ import { TOPIC_IDS, type Language, type RawArticle, type TopicId } from "../doma
 import { parseXmlFeed } from "./rssParser.js";
 import type { CuratedSource, SourceArticleMetadata, SourceConnector, SourceFetchRequest } from "./types.js";
 import { sourceLog, sourceWarning } from "./sourceLogger.js";
+import {
+  classifyFetchFailure,
+  computeRetryDelayMs,
+  createHttpStatusError,
+  delay,
+  mapWithConcurrency
+} from "./fetchPool.js";
 
-const DEFAULT_RSS_TIMEOUT_MS = 8_000;
+/**
+ * 20s, not 8s. The English run has 44 eligible feeds and several publishers
+ * answer in 8-12s under load; an 8s ceiling turned slow-but-healthy feeds into
+ * hard failures.
+ */
+const DEFAULT_RSS_TIMEOUT_MS = 20_000;
+/**
+ * At most this many feeds in flight. The English 0/44 was caused by starting
+ * all of them at once: the timeout budget was spent queueing rather than
+ * downloading. Six keeps the batch fast without starving any single request.
+ */
+const DEFAULT_RSS_FETCH_CONCURRENCY = 6;
+/** One retry, and only for failures that a second attempt can plausibly fix. */
+const MAX_RSS_FETCH_ATTEMPTS = 2;
 const DEFAULT_RSS_LIMIT_PER_SOURCE = 5;
 const DEFAULT_RSS_MAX_AGE_DAYS = 21;
 const FR_RECENCY_LADDER_DAYS = [0, 1, 2] as const;
@@ -93,6 +113,8 @@ export class RssFeedConnector implements SourceConnector {
     private readonly options: {
       timeoutMs?: number;
       limitPerSource?: number;
+      /** Maximum feeds in flight. Defaults to RSS_FETCH_CONCURRENCY, then 6. */
+      concurrency?: number;
     } = {}
   ) {}
 
@@ -119,13 +141,29 @@ export class RssFeedConnector implements SourceConnector {
       });
     }
 
-    const batches = await Promise.allSettled(selected.map((source) => this.fetchSource(source, limitPerSource)));
+    const concurrency = this.resolveConcurrency();
+
+    sourceLog("rss_fetch_concurrency", {
+      concurrency,
+      source_count: selected.length,
+      timeout_ms: this.resolveTimeoutMs(),
+      max_attempts: MAX_RSS_FETCH_ATTEMPTS
+    });
+
+    // Bounded pool rather than Promise.allSettled over every source: see
+    // fetchPool.ts for why unbounded fan-out produced 44 simultaneous timeouts.
+    const batches = await mapWithConcurrency(selected, concurrency, (source) =>
+      this.fetchSourceWithRetry(source, limitPerSource)
+    );
     const failures = batches
       .map((batch, index) => ({
         batch,
         source: selected[index]
       }))
-      .filter((entry): entry is { batch: PromiseRejectedResult; source: CuratedSource } => entry.batch.status === "rejected");
+      .filter(
+        (entry): entry is { batch: { status: "rejected"; reason: unknown }; source: CuratedSource } =>
+          entry.batch.status === "rejected"
+      );
 
     for (const failure of failures) {
       sourceWarning("rss_source_failed", {
@@ -208,6 +246,48 @@ export class RssFeedConnector implements SourceConnector {
     return this.lastDiagnostics;
   }
 
+  /**
+   * One source, with a single retry for transient failures.
+   *
+   * The retry exists because the common failure here is a momentary one — a
+   * publisher rate-limiting a burst, a 503 during their deploy, a connection
+   * reset. A 404 or a 403 is a statement about the feed and is never retried:
+   * doing so would spend the batch's time budget on an answer that will not
+   * change.
+   */
+  private async fetchSourceWithRetry(source: CuratedSource, limit: number): Promise<RawArticle[]> {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_RSS_FETCH_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.fetchSource(source, limit);
+      } catch (error) {
+        lastError = error;
+        const failure = classifyFetchFailure(error);
+        const canRetry = failure.kind === "transient" && attempt < MAX_RSS_FETCH_ATTEMPTS;
+
+        sourceWarning("rss_source_attempt_failed", {
+          source_id: source.id,
+          publisher: source.publisher,
+          attempt,
+          max_attempts: MAX_RSS_FETCH_ATTEMPTS,
+          failure_kind: failure.kind,
+          failure_code: failure.code,
+          will_retry: canRetry,
+          error: error instanceof Error ? error.message : String(error)
+        });
+
+        if (!canRetry) {
+          throw error;
+        }
+
+        await delay(computeRetryDelayMs(attempt));
+      }
+    }
+
+    throw lastError;
+  }
+
   private async fetchSource(source: CuratedSource, limit: number): Promise<RawArticle[]> {
     if (!source.rssUrl) {
       return [];
@@ -274,7 +354,10 @@ export class RssFeedConnector implements SourceConnector {
         kept_count: 0,
         skipped_count: 0
       });
-      throw new Error(`RSS fetch failed for ${source.id}: ${response.status}`);
+      throw createHttpStatusError(
+        `RSS fetch failed for ${source.id}: ${response.status}`,
+        response.status
+      );
     }
 
     const xml = await response.text();
@@ -478,6 +561,16 @@ export class RssFeedConnector implements SourceConnector {
       DEFAULT_RSS_LIMIT_PER_SOURCE;
 
     return Math.max(1, Math.min(limit, 25));
+  }
+
+  private resolveConcurrency(): number {
+    const envConcurrency = Number(process.env.RSS_FETCH_CONCURRENCY);
+    const concurrency =
+      this.options.concurrency ??
+      (Number.isInteger(envConcurrency) && envConcurrency > 0 ? envConcurrency : undefined) ??
+      DEFAULT_RSS_FETCH_CONCURRENCY;
+
+    return Math.max(1, Math.min(concurrency, 24));
   }
 
   private resolveTimeoutMs(): number {

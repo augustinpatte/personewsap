@@ -80,7 +80,7 @@ Si une de ces formules ou toute formule générique du même type apparaît dans
 
 4. **So what ?** : conclusion spécifique à l'article, en 1–2 phrases. Le label "**So what ?**" en gras. La conclusion doit expliquer précisément pourquoi CET événement-là compte pour CES acteurs-là — pas une morale générique sur "la valeur" ou "les plateformes".
 
-5. **Sources** : indiquées à la fin de l'article sous la forme `Sources : Reuters (date), Financial Times (date), [Institution] (date)`. 2 à 3 sources minimum par article. Les URLs complètes doivent figurer dans le champ `sources` du JSON. Interdire "source spécialisée sectorielle" comme libellé de source — toujours nommer la source réelle.
+5. **Sources** : utiliser EXCLUSIVEMENT le matériel source fourni dans le paquet de sources. Une seule source solide est acceptable quand c'est la seule source vérifiée disponible ; plusieurs sources indépendantes sont préférables lorsqu'elles sont réellement fournies. Ne jamais nommer ni citer une source qui n'est pas dans le paquet fourni. Les URLs retenues doivent figurer dans le champ `sources` du JSON et provenir uniquement de `allowed_source_urls`. Le pied de page « Sources : … » final est reconstruit par le backend à partir des métadonnées réelles — ne pas l'inventer.
 
 6. **Termes anglais** dans la partie française : les mettre entre "guillemets".
 
@@ -165,10 +165,10 @@ Interdit :
 
 ## SOURCES — RÈGLES GÉNÉRALES
 
-- Utiliser des sources spécialisées par catégorie (voir ci-dessus). Ne jamais utiliser Reuters comme source unique.
-- Sources autorisées en support général : Reuters, AFP, AP, BBC, Bloomberg, Financial Times, Wall Street Journal, The Economist, banques centrales, FMI, OCDE, instituts statistiques, régulateurs, communiqués officiels, résultats d'entreprises
-- Chaque article : 2 à 3 sources minimum, datées, indiquées clairement
-- Interdit d'inventer une source ou de citer sans date
+- **RÈGLE ABSOLUE : le paquet de sources fourni est la seule matière autorisée.** Les listes de "sources prioritaires" par catégorie ci-dessus décrivent le type de source que la sélection amont privilégie ; elles ne sont PAS une autorisation d'invoquer ces médias. Si Reuters ou le Financial Times ne sont pas dans le paquet, ils ne doivent apparaître nulle part.
+- Une seule source solide suffit quand c'est la seule source vérifiée fournie. Ne jamais compléter un article avec une source non fournie pour atteindre un quota.
+- Plusieurs sources indépendantes sont préférables — uniquement si elles sont réellement présentes dans le paquet.
+- Interdit d'inventer une source, une URL, un nom de média, une institution, un chiffre, une citation ou une date absente du matériel fourni.
 - Diversifier les pays et les sources pour avoir différentes perspectives
 - **RÈGLE DE DATE UNIQUE (STRICTE) : quand plusieurs sources couvrent le même événement avec des dates légèrement différentes, toujours retenir UNE SEULE date — la plus récente parmi les sources citées. Écrire "le 24 avril", jamais "le 23 ou 24 avril", jamais "entre le 23 et le 24 avril". Une date double ou floue dans un article est une erreur de rédaction.**
 
@@ -201,7 +201,7 @@ Structure JSON exacte :
       "subject_id": "S1",
       "article_number": 1,
       "title": "🏆 Titre de l'article sans astérisques",
-      "content": "Phrase d'accroche percutante.\n\nParagraphe 1 (max 4 lignes, pas de retour à la ligne interne). **Chiffre clé** ou **fait important** en gras.\n\nParagraphe 2 (max 4 lignes). Suite du développement factuel.\n\nParagraphe 3. Contexte et conséquences factuelles.\n\n**So what ?** Conclusion en 1–2 phrases sur l'enjeu réel et la suite observable.\n\nSources : Reuters (date), L'Équipe (date), ATP Tour (date)",
+      "content": "Phrase d'accroche percutante.\n\nParagraphe 1 (max 4 lignes, pas de retour à la ligne interne). **Chiffre clé** ou **fait important** en gras.\n\nParagraphe 2 (max 4 lignes). Suite du développement factuel.\n\nParagraphe 3. Contexte et conséquences factuelles.\n\n**So what ?** Conclusion en 1–2 phrases sur l'enjeu réel et la suite observable.\n\nSources : [reconstruit par le backend a partir des sources fournies]",
       "sources": [
         "https://url-source-1.com",
         "https://url-source-2.com"
@@ -224,7 +224,7 @@ Structure JSON exacte :
 
 ## PROCESSUS DE TRAVAIL (OBLIGATOIRE)
 
-1. **Rechercher les sources** en priorité par catégorie (sources spécialisées listées ci-dessus), pas uniquement Reuters
+1. **Utiliser le paquet de sources fourni** — ne pas chercher ni invoquer d'autres médias
 2. **Vérifier que les infos sont bien datées J ou J-1** avant de rédiger
 3. **Rédiger uniquement les articles demandés par le moteur** (normalement 2 articles pour un sujet et une langue)
 4. **Respecter strictement la langue demandée** (`fr` ou `en`) sans produire l'autre langue dans la même réponse
@@ -237,7 +237,7 @@ Quand la consigne est lancée :
 - Ne pas demander confirmation
 - Ne pas commenter le temps que ça prend
 - Ne pas proposer de version réduite
-- Chercher réellement les sources, prendre le temps nécessaire
+- S'appuyer réellement sur le matériel fourni, prendre le temps nécessaire
 - Livrer uniquement le fichier JSON final, prêt à publier
 
 ---
@@ -255,7 +255,7 @@ Quand la consigne est lancée :
 | Titres | Emoji + texte, sans `**` autour |
 | Gras | Infos clés + "So what ?" (label uniquement) |
 | Termes anglais en FR | "entre guillemets" |
-| Sources | 2–3 par article, datées, spécialisées par thème |
+| Sources | uniquement celles du paquet fourni ; une seule suffit si c'est la seule vérifiée |
 | Format de sortie | JSON uniquement |
 | Politique US | INTERDIT |
 | Conflits/guerres | INTERDIT |

@@ -116,18 +116,64 @@ export class LlmContentGenerator implements ContentGenerator {
     // case), so a failed mini-case topic never forces successful newsletter or
     // business-story generations to be repeated.
     const items: GeneratedContentItem[] = [];
+    // A topic with no source of its own is skipped, not faked and not fatal:
+    // one starved topic must not take the other seven down with it. The skip is
+    // recorded so the run reports exactly what was missing.
+    const skippedForMissingSources: Array<{ section: DropSection; topic: string }> = [];
+
+    const generateTopic = async (
+      section: DropSection,
+      topic: SectionTopic,
+      label: string
+    ): Promise<void> => {
+      try {
+        items.push(...(await this.generateSectionWithRetries(section, request, sources, topic)));
+      } catch (error) {
+        const failure = toLlmGenerationError(error);
+
+        if (failure.reason !== "insufficient_source_material") {
+          throw failure;
+        }
+
+        skippedForMissingSources.push({ section, topic: label });
+        this.reportProgress("LLM section skipped for missing sources", {
+          language: request.language,
+          section,
+          topic: label,
+          reason: failure.reason
+        });
+      }
+    };
+
     for (const section of requestedSections(request)) {
       if (section === "newsletter_article") {
         for (const newsletterTopic of request.newsletterTopics) {
-          items.push(...(await this.generateSectionWithRetries(section, request, sources, { newsletterTopic })));
+          await generateTopic(section, { newsletterTopic }, newsletterTopic);
         }
       } else if (section === "mini_case") {
         for (const miniCaseTopic of miniCaseGenerationTopics(request)) {
-          items.push(...(await this.generateSectionWithRetries(section, request, sources, { miniCaseTopic })));
+          await generateTopic(section, { miniCaseTopic }, miniCaseTopic ?? section);
         }
       } else {
-        items.push(...(await this.generateSectionWithRetries(section, request, sources)));
+        await generateTopic(section, {}, section);
       }
+    }
+
+    // Everything was starved: that is a genuine failure, not a thin edition.
+    if (items.length === 0 && skippedForMissingSources.length > 0) {
+      throw new LlmGenerationError(
+        "insufficient_source_material",
+        `No section had relevant source material: ${skippedForMissingSources
+          .map((entry) => `${entry.section}/${entry.topic}`)
+          .join(", ")}.`
+      );
+    }
+
+    if (skippedForMissingSources.length > 0) {
+      this.reportProgress("LLM sections skipped for missing sources", {
+        language: request.language,
+        skipped: skippedForMissingSources
+      });
     }
 
     const payload = assembleDailyDropPayload(
@@ -197,6 +243,13 @@ export class LlmContentGenerator implements ContentGenerator {
         });
       } catch (error) {
         lastError = toLlmGenerationError(error);
+
+        // Missing sources is a fact about the input, not a flaky call: another
+        // attempt would ask the same model the same impossible question.
+        if (lastError.reason === "insufficient_source_material") {
+          throw lastError;
+        }
+
         feedback = lastError.message;
         this.reportProgress("LLM section attempt failed", {
           language: request.language,
@@ -240,6 +293,27 @@ export class LlmContentGenerator implements ContentGenerator {
     topic: SectionTopic = {}
   ): Promise<GeneratedContentItem[]> {
     const scopedSources = scopeSourcesForSectionTopic(section, request, allSources, topic);
+
+    // No article is better than a misleading one: with no source of its own,
+    // this section is not generated from unrelated material and is not handed
+    // to the model to invent an angle for.
+    if (scopedSources.length === 0 && allSources.length > 0) {
+      const scopeLabel = topic.newsletterTopic ?? topic.miniCaseTopic ?? section;
+
+      this.reportProgress("LLM section skipped: insufficient source material", {
+        language: request.language,
+        section,
+        newsletter_topic: topic.newsletterTopic ?? null,
+        mini_case_topic: topic.miniCaseTopic ?? null,
+        available_source_count: allSources.length,
+        scoped_source_count: 0
+      });
+
+      throw new LlmGenerationError(
+        "insufficient_source_material",
+        `No relevant source material for ${section} (${scopeLabel}). Refusing to generate from unrelated sources.`
+      );
+    }
 
     this.reportProgress("LLM section started", {
       language: request.language,
@@ -606,14 +680,26 @@ function scopeSourcesForSection(
   return scopeSourcesByTopics(allSources, sectionSourceTopics(section, request));
 }
 
+/**
+ * Sources a section is allowed to work from.
+ *
+ * This used to fall back to `allSources` when a topic had no matching source,
+ * which is how a topic-scoped call could receive completely unrelated material
+ * and be asked to write about it anyway. That is the mechanism behind "no
+ * source for tech_ai, so here is a crime story instead".
+ *
+ * The pool is now exactly the topic's own sources. An empty pool is a real
+ * answer — there is nothing to write about — and the caller turns it into an
+ * explicit insufficient_source_material failure rather than filling the slot
+ * with something misleading.
+ */
 function scopeSourcesByTopics(allSources: SourcePacket[], topics: TopicId[] | null): SourcePacket[] {
   if (!topics || topics.length === 0) {
     return allSources;
   }
 
   const allowed = new Set(topics);
-  const scoped = allSources.filter((source) => allowed.has(source.topic));
-  return scoped.length > 0 ? scoped : allSources;
+  return allSources.filter((source) => allowed.has(source.topic));
 }
 
 function sectionSourceTopics(section: DropSection, request: GenerationRequest): TopicId[] | null {

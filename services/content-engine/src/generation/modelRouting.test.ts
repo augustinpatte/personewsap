@@ -11,7 +11,14 @@ import {
 import { LlmContentGenerator } from "./llmGenerator.js";
 import { LlmGenerationError } from "./llmErrors.js";
 import type { LlmJsonRequest, LlmProvider } from "./llmProvider.js";
-import { createRoutedProviderFactory, resolveContentModelRouting, type SectionProviderContext } from "./modelRouting.js";
+import {
+  createRoutedProviderFactory,
+  DEFAULT_CLASSIFIER_MODEL,
+  estimateCallCostUsd,
+  hasVerifiedPricing,
+  resolveContentModelRouting,
+  type SectionProviderContext
+} from "./modelRouting.js";
 import { StructuredContentGenerator } from "./structuredGenerator.js";
 
 function rankedArticle(topic: TopicId, language: Language = "en"): RankedArticle {
@@ -41,23 +48,26 @@ describe("content model routing", () => {
 
     expect(routing.newsletter_article).toMatchObject({
       provider: "openai",
-      model: "gpt-5-mini-2025-08-07",
+      model: "gpt-5.6-terra",
       reasoningEffort: "none",
       fallbackProvider: "openai",
-      fallbackModel: "gpt-5.4-mini-2026-03-17"
+      fallbackModel: "gpt-5.6-sol"
     });
     expect(routing.mini_case).toMatchObject({
       provider: "openai",
-      model: "gpt-5.4-mini-2026-03-17",
+      model: "gpt-5.6-terra",
       reasoningEffort: "low",
       fallbackProvider: "openai",
-      fallbackModel: "gpt-5.4-2026-03-05"
+      fallbackModel: "gpt-5.6-sol"
     });
+    // The Business Story is the longest, most reasoning-dependent piece, so it
+    // starts on the stronger model and falls back to the workhorse.
     expect(routing.business_story).toMatchObject({
-      provider: "anthropic",
-      model: "claude-sonnet-4-6",
+      provider: "openai",
+      model: "gpt-5.6-sol",
+      reasoningEffort: "low",
       fallbackProvider: "openai",
-      fallbackModel: "gpt-5.4-2026-03-05"
+      fallbackModel: "gpt-5.6-terra"
     });
     expect(routing.learning_path).toMatchObject({
       provider: "deterministic",
@@ -73,18 +83,19 @@ describe("content model routing", () => {
 
     expect(routing.newsletter_article.model).toBe("legacy-model");
     expect(routing.mini_case.model).toBe("legacy-model");
+    // Anthropic remains reachable through an explicit override.
     expect(routing.business_story.model).toBe("claude-sonnet-4-6");
     expect(routing.business_story.fallbackModel).toBe("legacy-model");
   });
 
-  it("uses Anthropic first for Business Story and OpenAI only on the fallback attempt", () => {
-    const previousAnthropicKey = process.env.ANTHROPIC_API_KEY;
+  it("keeps every routed section on OpenAI by default, including the fallback attempt", () => {
     const previousOpenAiKey = process.env.OPENAI_API_KEY;
-    process.env.ANTHROPIC_API_KEY = "anthropic-test-key";
     process.env.OPENAI_API_KEY = "openai-test-key";
 
     try {
-      const factory = createRoutedProviderFactory();
+      const factory = createRoutedProviderFactory({
+        routing: resolveContentModelRouting({} as NodeJS.ProcessEnv)
+      });
       const first = factory({
         section: "business_story",
         language: "en",
@@ -98,12 +109,38 @@ describe("content model routing", () => {
         maxAttempts: 3
       });
 
-      expect(first.name).toBe("anthropic");
+      expect(first.name).toBe("openai");
       expect(fallback.name).toBe("openai");
     } finally {
-      restoreEnv("ANTHROPIC_API_KEY", previousAnthropicKey);
       restoreEnv("OPENAI_API_KEY", previousOpenAiKey);
     }
+  });
+
+  it("prices every routed model so cost reporting is never blank", () => {
+    const routing = resolveContentModelRouting({} as NodeJS.ProcessEnv);
+    const usage = { inputTokens: 1_000, outputTokens: 1_000, cachedInputTokens: null };
+    const models = [
+      routing.newsletter_article.model,
+      routing.newsletter_article.fallbackModel,
+      routing.mini_case.model,
+      routing.business_story.model,
+      DEFAULT_CLASSIFIER_MODEL
+    ].filter((model): model is string => Boolean(model));
+
+    for (const model of models) {
+      expect(estimateCallCostUsd(model, usage)).not.toBeNull();
+    }
+  });
+
+  it("reports gpt-5.6 pricing as unverified until real rates are supplied", () => {
+    // The built-in gpt-5.6 rates are placeholders; this is what stops a report
+    // from presenting them as a confirmed cost.
+    expect(hasVerifiedPricing("gpt-5.6-terra", {} as NodeJS.ProcessEnv)).toBe(false);
+    expect(
+      hasVerifiedPricing("gpt-5.6-terra", {
+        MODEL_PRICING_JSON: '{"gpt-5.6-terra":{"input":1,"cachedInput":0.1,"output":4}}'
+      } as NodeJS.ProcessEnv)
+    ).toBe(true);
   });
 
   it("generates the normal editorial catalog with exactly 30 logical calls for two languages", async () => {
