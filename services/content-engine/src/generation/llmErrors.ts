@@ -17,10 +17,18 @@ export class LlmGenerationError extends Error {
   readonly reason: LlmFailureReason;
   readonly model: string | null;
 
-  constructor(reason: LlmFailureReason, message: string, options: { model?: string | null } = {}) {
+  /** The payload that failed validation, when there was one. Diagnostics only. */
+  readonly payload?: unknown;
+
+  constructor(
+    reason: LlmFailureReason,
+    message: string,
+    options: { model?: string | null; payload?: unknown } = {}
+  ) {
     super(message);
     this.name = "LlmGenerationError";
     this.reason = reason;
+    this.payload = options.payload;
     this.model = options.model ?? null;
   }
 }

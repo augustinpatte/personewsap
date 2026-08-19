@@ -102,7 +102,17 @@ export type RawArticle = {
   language: Language;
   summary?: string;
   body?: string;
+  /** The feed's configured category. Provenance only — never an authority. */
   sourceTopic?: TopicId;
+  /**
+   * The editorial topic decided by the source relevance gate.
+   *
+   * Set once, after classification, and authoritative from that point on:
+   * ranking, source packets, generation scoping, grounding and validation all
+   * read this. Keeping it separate from `sourceTopic` is what stops the feed's
+   * category from quietly re-entering the pipeline as a decision.
+   */
+  canonicalTopic?: TopicId | null;
   credibility_score?: number;
 };
 

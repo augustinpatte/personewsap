@@ -241,7 +241,19 @@ export function hasVerifiedPricing(model: string, env: NodeJS.ProcessEnv = proce
   }
 }
 
+/**
+ * Estimated cost of one call, or null when we do not actually know the rate.
+ *
+ * The gpt-5.6 entries in the built-in table are placeholders, so reporting a
+ * dollar figure from them would be presenting a guess as an API cost. Unless
+ * MODEL_PRICING_JSON supplies a real rate for the model, this returns null and
+ * callers report token usage only.
+ */
 export function estimateCallCostUsd(model: string, usage: LlmUsage): number | null {
+  if (!hasVerifiedPricing(model)) {
+    return null;
+  }
+
   const pricing = resolvePricingTable()[model];
   if (!pricing || usage.inputTokens === null || usage.outputTokens === null) {
     return null;

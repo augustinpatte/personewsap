@@ -42,7 +42,11 @@ import {
   type PricingConfig,
   type RssMetricDiagnostics
 } from "../ops/jobMetrics.js";
-import { processArticles } from "../processing/pipeline.js";
+import { processArticlesWithRelevanceGate } from "../processing/pipeline.js";
+import {
+  createLunaRelevanceClassifier,
+  type RelevanceClassifier
+} from "../processing/relevanceClassifier.js";
 import {
   assembleDailyDropPayload,
   selectDailyDropItemsForUser,
@@ -264,6 +268,12 @@ export type DailyJobDependencies = {
   sourceConnectors?: SourceConnector[];
   generator?: ContentGenerator;
   repository?: ContentRepository;
+  /**
+   * Semantic source relevance classifier. Defaults to gpt-5.6-luna on an LLM
+   * run; injectable so a test can supply a stand-in instead of reaching the
+   * network.
+   */
+  relevanceClassifier?: RelevanceClassifier | null;
 };
 
 export async function runDailyJobTest(options: DailyJobTestOptions): Promise<DailyJobTestOutput> {
@@ -330,6 +340,12 @@ export async function runDailyJob(
 
   const sourceFetcher = dependencies.sourceFetcher ?? new SourceFetcher(sourcePolicy.connectors);
   const generator = dependencies.generator ?? createGenerator(options.useLlm, options.logPrefix, llmCallMetrics);
+  const relevanceClassifier =
+    dependencies.relevanceClassifier !== undefined
+      ? dependencies.relevanceClassifier
+      : options.useLlm
+        ? createLunaRelevanceClassifier()
+        : null;
   const repository = options.dryRun
     ? undefined
     : dependencies.repository ?? new ContentRepository(
@@ -366,6 +382,7 @@ export async function runDailyJob(
           repository,
           sourceFetcher,
           sourceConnectors: dependencies.sourceConnectors ?? sourcePolicy.connectors,
+          relevanceClassifier,
           runId,
           testRunId
         })
@@ -597,8 +614,20 @@ async function runDailyJobLanguage(input: {
   sourceConnectors: SourceConnector[];
   testRunId: string;
   llmCallMetrics: LlmCallMetric[];
+  relevanceClassifier: RelevanceClassifier | null;
 }): Promise<DailyJobLanguageResult> {
-  const { generator, language, options, pricing, repository, runId, sourceFetcher, sourceConnectors, testRunId } = input;
+  const {
+    generator,
+    language,
+    options,
+    pricing,
+    relevanceClassifier,
+    repository,
+    runId,
+    sourceFetcher,
+    sourceConnectors,
+    testRunId
+  } = input;
 
   logProgress("language started", {
     run_id: runId,
@@ -649,7 +678,28 @@ async function runDailyJobLanguage(input: {
       language,
       candidate_articles: rawArticles.length
     },
-    async () => processArticles(rawArticles).filter((article) => article.language === language),
+    async () => {
+      // Production source gating: deterministic first, then one batched
+      // gpt-5.6-luna call for the ambiguous remainder. A classifier failure
+      // drops those candidates rather than publishing them.
+      const processed = await processArticlesWithRelevanceGate({
+        articles: rawArticles,
+        classifier: relevanceClassifier,
+        // A deterministic run has no semantic stage to fail; a run with a
+        // classifier keeps the strict rule that undecided sources stay out.
+        onAmbiguous: relevanceClassifier ? "reject" : "keep",
+        onProgress: (message, details) =>
+          console.info(`[${options.logPrefix}] relevance`, { message, ...details })
+      });
+
+      console.info(`[${options.logPrefix}] relevance_gate`, {
+        run_id: runId,
+        language,
+        ...processed.relevanceGate
+      });
+
+      return processed.articles.filter((article) => article.language === language);
+    },
     { logPrefix: options.logPrefix }
   );
 

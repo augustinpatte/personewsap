@@ -46,6 +46,13 @@ export function topicKeywordHits(article: ArticleCandidate, topic: TopicId): str
  * separate question, answered by the relevance gate before generation.
  */
 export function categorizeArticle(article: ArticleCandidate): TopicId {
+  // The relevance gate already decided this article's editorial topic. Nothing
+  // downstream may revisit it: one canonical decision flows through ranking,
+  // source packets, generation and validation.
+  if (article.canonicalTopic) {
+    return article.canonicalTopic;
+  }
+
   const decision = evaluateTopicRelevance(article);
 
   if (decision.status === "accepted") {

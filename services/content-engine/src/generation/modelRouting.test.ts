@@ -116,19 +116,38 @@ describe("content model routing", () => {
     }
   });
 
-  it("prices every routed model so cost reporting is never blank", () => {
+  it("reports no dollar cost while the rate is a placeholder", () => {
+    // Reporting a number from a made-up rate would present a guess as an API
+    // cost. Token usage is always reported; dollars only when they are real.
     const routing = resolveContentModelRouting({} as NodeJS.ProcessEnv);
     const usage = { inputTokens: 1_000, outputTokens: 1_000, cachedInputTokens: null };
     const models = [
       routing.newsletter_article.model,
-      routing.newsletter_article.fallbackModel,
       routing.mini_case.model,
       routing.business_story.model,
       DEFAULT_CLASSIFIER_MODEL
     ].filter((model): model is string => Boolean(model));
 
     for (const model of models) {
-      expect(estimateCallCostUsd(model, usage)).not.toBeNull();
+      expect(estimateCallCostUsd(model, usage)).toBeNull();
+    }
+  });
+
+  it("prices a model once the operator supplies a real rate", () => {
+    const previous = process.env.MODEL_PRICING_JSON;
+    process.env.MODEL_PRICING_JSON =
+      '{"gpt-5.6-terra":{"input":1,"cachedInput":0.1,"output":4}}';
+
+    try {
+      const cost = estimateCallCostUsd("gpt-5.6-terra", {
+        inputTokens: 1_000_000,
+        outputTokens: 1_000_000,
+        cachedInputTokens: null
+      });
+
+      expect(cost).toBe(5);
+    } finally {
+      restoreEnv("MODEL_PRICING_JSON", previous);
     }
   });
 

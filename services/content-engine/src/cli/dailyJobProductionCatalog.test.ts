@@ -49,7 +49,12 @@ describe("production runDailyJob catalog reuse", () => {
       repository: repository as never,
       generator,
       sourceFetcher: { fetch: async () => articles("en") },
-      sourceConnectors: []
+      sourceConnectors: [],
+      // This suite exercises catalog reuse, not the semantic source gate: its
+      // fixtures are synthetic strings with no editorial evidence. Injecting no
+      // classifier keeps the deterministic gate only, instead of reaching the
+      // network for a decision this test does not care about.
+      relevanceClassifier: null
     });
 
     expect(output.status).toBe("completed");
@@ -81,7 +86,12 @@ describe("production runDailyJob catalog reuse", () => {
       repository: repository as never,
       generator: new StructuredContentGenerator(),
       sourceFetcher: { fetch: async () => articles("en") },
-      sourceConnectors: []
+      sourceConnectors: [],
+      // This suite exercises catalog reuse, not the semantic source gate: its
+      // fixtures are synthetic strings with no editorial evidence. Injecting no
+      // classifier keeps the deterministic gate only, instead of reaching the
+      // network for a decision this test does not care about.
+      relevanceClassifier: null
     });
 
     expect(repository.storeCalls[0].items.some((item) => item.content_type === "business_story")).toBe(true);
@@ -101,7 +111,12 @@ describe("production runDailyJob catalog reuse", () => {
       repository: repository as never,
       generator: new StructuredContentGenerator(),
       sourceFetcher: { fetch: async () => articles("en") },
-      sourceConnectors: []
+      sourceConnectors: [],
+      // This suite exercises catalog reuse, not the semantic source gate: its
+      // fixtures are synthetic strings with no editorial evidence. Injecting no
+      // classifier keeps the deterministic gate only, instead of reaching the
+      // network for a decision this test does not care about.
+      relevanceClassifier: null
     });
 
     const miniCases = repository.storeCalls[0].items.filter((item) => item.content_type === "mini_case");
@@ -123,7 +138,12 @@ describe("production runDailyJob catalog reuse", () => {
       repository: repository as never,
       generator: new StructuredContentGenerator(),
       sourceFetcher: { fetch: async () => articles("en") },
-      sourceConnectors: []
+      sourceConnectors: [],
+      // This suite exercises catalog reuse, not the semantic source gate: its
+      // fixtures are synthetic strings with no editorial evidence. Injecting no
+      // classifier keeps the deterministic gate only, instead of reaching the
+      // network for a decision this test does not care about.
+      relevanceClassifier: null
     });
 
     expect(repository.storeCalls[0].items.some((item) => item.content_type === "business_story")).toBe(false);
@@ -144,7 +164,12 @@ describe("production runDailyJob catalog reuse", () => {
       repository: repository as never,
       generator: new StructuredContentGenerator(),
       sourceFetcher: { fetch: async () => articles("en") },
-      sourceConnectors: []
+      sourceConnectors: [],
+      // This suite exercises catalog reuse, not the semantic source gate: its
+      // fixtures are synthetic strings with no editorial evidence. Injecting no
+      // classifier keeps the deterministic gate only, instead of reaching the
+      // network for a decision this test does not care about.
+      relevanceClassifier: null
     });
 
     expect(repository.assignments[0]).toMatchObject({

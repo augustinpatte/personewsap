@@ -203,7 +203,23 @@ export class LlmContentGenerator implements ContentGenerator {
     ];
 
     if (issues.length > 0) {
-      throw new LlmGenerationError("validation_error", `LLM generated catalog failed final validation: ${formatIssues(issues)}`);
+      // Name the offending items, not just their indexes: a failed run is
+      // otherwise impossible to diagnose without re-generating it.
+      const offenders = [...new Set(issues.map((issue) => issue.path.split(".")[1]))]
+        .map((index) => payload.items[Number(index)])
+        .filter((item): item is GeneratedContentItem => Boolean(item))
+        .map((item) => `${item.content_type}/${item.topic ?? "none"}: "${item.title}"`)
+        .join(" | ");
+
+      throw new LlmGenerationError(
+        "validation_error",
+        `LLM generated catalog failed final validation: ${formatIssues(issues)}${
+          offenders ? ` -- offending items: ${offenders}` : ""
+        }`,
+        // Carry the rejected payload so a failed run can be inspected without
+        // paying to regenerate it.
+        { payload }
+      );
     }
 
     return payload;
@@ -342,7 +358,12 @@ export class LlmContentGenerator implements ContentGenerator {
       schemaName: `personewsap_${section}`
     });
 
-    const items = normalizeSectionItems(raw, section);
+    const items = applyCanonicalSectionTopic(
+      normalizeSectionItems(raw, section),
+      section,
+      topic,
+      scopedSources
+    );
 
     this.reportProgress("LLM section completed", {
       language: request.language,
@@ -711,6 +732,55 @@ function sectionSourceTopics(section: DropSection, request: GenerationRequest): 
     case "mini_case":
       return Array.from(new Set((request.miniCaseProductTopics ?? []).flatMap(miniCaseTopicToContentTopics)));
   }
+}
+
+/**
+ * The engine owns the topic, not the model.
+ *
+ * A topic-scoped call already knows what it is writing about: the section was
+ * selected for that topic, and its source packet contains only that topic's
+ * sources. Letting the model also emit a `topic` field meant it could
+ * reinterpret the section — writing a law item inside the tech_ai call — which
+ * then failed validation as a title/topic or source-topic mismatch. The engine's
+ * decision is simply imposed.
+ *
+ * For an unscoped section (business story), the topic is pinned to a topic that
+ * is actually present in its own source packet, so the item can never claim a
+ * topic none of its cited sources support.
+ */
+export function applyCanonicalSectionTopic(
+  items: GeneratedContentItem[],
+  section: DropSection,
+  topic: SectionTopic,
+  scopedSources: Array<{ topic: TopicId; url?: string }>
+): GeneratedContentItem[] {
+  const scopedTopic =
+    section === "newsletter_article" ? topic.newsletterTopic ?? null : null;
+  const packetTopics = new Set(scopedSources.map((source) => source.topic));
+
+  return items.map((item) => {
+    if (scopedTopic) {
+      return { ...item, topic: scopedTopic } as GeneratedContentItem;
+    }
+
+    // Unscoped section: the topic must be one the item's OWN cited sources
+    // support. Checking the whole packet was not enough — a mini case scoped to
+    // several content topics could claim "medicine" while citing only a tech_ai
+    // source, which is exactly the source_topic_mismatch seen live.
+    const citedUrls = new Set(Array.isArray(item.source_urls) ? item.source_urls : []);
+    const citedTopics = scopedSources
+      .filter((source) => citedUrls.has((source as { url?: string }).url ?? ""))
+      .map((source) => source.topic);
+    const supportingTopics = citedTopics.length > 0 ? citedTopics : [...packetTopics];
+
+    if (item.topic && supportingTopics.includes(item.topic)) {
+      return item;
+    }
+
+    const fallbackTopic = supportingTopics[0] ?? item.topic ?? null;
+
+    return { ...item, topic: fallbackTopic } as GeneratedContentItem;
+  });
 }
 
 function normalizeSectionItems(payload: unknown, section: DropSection): GeneratedContentItem[] {

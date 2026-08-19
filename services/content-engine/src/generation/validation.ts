@@ -236,18 +236,35 @@ const FRENCH_MISSING_ACCENT_PHRASES = [
   /\ba\s+(vous|retenir|suivre|tester|jour|garder|prouver)\b/i
 ];
 
+/**
+ * Words that identify a topic in a title or concept text.
+ *
+ * These lists are vocabulary, not policy: an item is rejected when its title
+ * names none of its topic's core terms and shares no keyword with its sources.
+ * The live proof rejected "À 4,1 %, le coût de la dette redevient une
+ * contrainte budgétaire" as not-finance, because the French list had no word
+ * for debt, budget or deficit. That is a gap in the vocabulary, not a title
+ * that deserved rejecting, so the missing core terms are added below. Nothing
+ * here loosens what the validator asks for.
+ */
 const CONCEPT_ANCHORS: Record<TopicId, string[]> = {
   business: [
     "customer", "pricing", "price", "revenue", "margin", "retention", "distribution", "demand", "churn",
-    "client", "prix", "revenu", "marge", "demande", "fidelisation", "retention"
+    "cost", "profit", "growth", "acquisition", "merger", "strategy", "competition",
+    "client", "prix", "revenu", "marge", "demande", "fidelisation", "retention",
+    "cout", "benefice", "croissance", "rachat", "fusion", "strategie", "concurrence", "chiffre"
   ],
   finance: [
     "rate", "risk", "asset", "credit", "loan", "funding", "yield", "market", "capital", "default",
-    "taux", "risque", "actif", "pret", "financement", "rendement", "marche", "capital", "defaut"
+    "debt", "budget", "deficit", "inflation", "bank", "bond", "borrowing", "spending", "tax",
+    "taux", "risque", "actif", "pret", "financement", "rendement", "marche", "capital", "defaut",
+    "dette", "budget", "deficit", "inflation", "banque", "obligation", "emprunt", "depense", "impot", "fiscal"
   ],
   tech_ai: [
     "ai", "model", "data", "compute", "chip", "platform", "software", "security", "automation",
-    "ia", "modele", "donnees", "calcul", "puce", "plateforme", "logiciel", "securite", "automatisation"
+    "cloud", "algorithm", "semiconductor", "cyber", "network", "digital",
+    "ia", "modele", "donnees", "calcul", "puce", "plateforme", "logiciel", "securite", "automatisation",
+    "cloud", "algorithme", "numerique", "reseau", "cyber", "intelligence"
   ],
   law: [
     "rule", "regulation", "legal", "court", "compliance", "enforcement", "privacy", "rights", "law",
@@ -255,7 +272,9 @@ const CONCEPT_ANCHORS: Record<TopicId, string[]> = {
   ],
   medicine: [
     "clinical", "patient", "trial", "treatment", "health", "safety", "endpoint", "care", "medical",
-    "clinique", "patient", "essai", "traitement", "sante", "securite", "soin", "medical"
+    "drug", "vaccine", "hospital", "therapy", "disease", "pharma",
+    "clinique", "patient", "essai", "traitement", "sante", "securite", "soin", "medical",
+    "medicament", "vaccin", "hopital", "therapie", "maladie", "pharmaceutique"
   ],
   engineering: [
     "system", "design", "failure", "reliability", "capacity", "maintenance", "deployment", "infrastructure",
@@ -1251,6 +1270,14 @@ function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content
       issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options`, code: "mini_case_mcq_correct_count_invalid", message: "Each MCQ question needs exactly one correct answer so score can be computed from 0/3 to 3/3.", strict }));
     }
 
+    issues.push(
+      ...validateMiniCaseOptionDistinctness(
+        question.options,
+        `${path}.questions.${questionIndex}`,
+        strict
+      )
+    );
+
     question.options.forEach((option, optionIndex) => {
       const feedback = typeof option.feedback === "string" ? option.feedback.trim() : "";
       if (!option.text || feedback.length === 0) {
@@ -1267,6 +1294,112 @@ function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content
   issues.push(...validateMiniCaseProductFields(item, path, strict));
 
   return issues;
+}
+
+/**
+ * Four genuinely different answers.
+ *
+ * A real defect shipped as `A: 23%  B: 30%  C: 23%  D: 23%` — three identical
+ * options, so the question was unanswerable and the score meaningless. Option
+ * text is compared normalised (case, accents, punctuation and spacing removed),
+ * and numeric options are additionally compared on the numbers they contain, so
+ * "23%" and "23 %" cannot both survive.
+ */
+export function validateMiniCaseOptionDistinctness(
+  options: Array<{ text?: string; is_correct?: boolean }>,
+  path: string,
+  strict: boolean
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const seenText = new Map<string, number>();
+  const seenNumbers = new Map<string, number>();
+
+  options.forEach((option, optionIndex) => {
+    const text = typeof option.text === "string" ? option.text : "";
+    const normalized = normalizeOptionText(text);
+
+    if (normalized.length === 0) {
+      return;
+    }
+
+    const duplicateIndex = seenText.get(normalized);
+
+    if (duplicateIndex !== undefined) {
+      issues.push(qualityIssue({
+        path: `${path}.options.${optionIndex}.text`,
+        code: "mini_case_mcq_duplicate_option",
+        message: `Answer options must be distinct; option ${optionIndex + 1} repeats option ${duplicateIndex + 1}.`,
+        strict
+      }));
+    } else {
+      seenText.set(normalized, optionIndex);
+    }
+
+    const numeric = normalizeOptionNumbers(text);
+
+    if (!numeric) {
+      return;
+    }
+
+    const numericDuplicate = seenNumbers.get(numeric);
+
+    if (numericDuplicate !== undefined && numericDuplicate !== optionIndex) {
+      issues.push(qualityIssue({
+        path: `${path}.options.${optionIndex}.text`,
+        code: "mini_case_mcq_indistinguishable_numeric_option",
+        message: `Numeric answer options must be distinguishable; option ${optionIndex + 1} states the same value as option ${numericDuplicate + 1}.`,
+        strict
+      }));
+    } else if (numericDuplicate === undefined) {
+      seenNumbers.set(numeric, optionIndex);
+    }
+  });
+
+  // The correct answer must not also appear as a distractor: the reader would
+  // be right and wrong at once.
+  const correctIndex = options.findIndex((option) => option.is_correct === true);
+
+  if (correctIndex >= 0) {
+    const correctText = normalizeOptionText(
+      typeof options[correctIndex].text === "string" ? (options[correctIndex].text as string) : ""
+    );
+
+    options.forEach((option, optionIndex) => {
+      if (optionIndex === correctIndex || option.is_correct === true || !correctText) {
+        return;
+      }
+
+      if (normalizeOptionText(typeof option.text === "string" ? option.text : "") === correctText) {
+        issues.push(qualityIssue({
+          path: `${path}.options.${optionIndex}.text`,
+          code: "mini_case_mcq_correct_option_duplicated",
+          message: "The correct answer must not be repeated as a distractor.",
+          strict
+        }));
+      }
+    });
+  }
+
+  return issues;
+}
+
+function normalizeOptionText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+/** The numbers an option states, e.g. "23 %" and "23%" both become "23". */
+function normalizeOptionNumbers(text: string): string | null {
+  const numbers = text.match(/-?\d+(?:[.,]\d+)?/g);
+
+  if (!numbers || numbers.length === 0) {
+    return null;
+  }
+
+  return numbers.map((value) => value.replace(",", ".")).join("|");
 }
 
 const MINI_CASE_COGNITIVE_LOAD_VALUES = new Set(["low", "medium", "high"]);

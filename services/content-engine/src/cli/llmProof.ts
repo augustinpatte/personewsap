@@ -20,7 +20,12 @@ import {
   type ContentQualityDiagnostics,
   type ValidationIssue
 } from "../generation/validation.js";
-import { processArticles } from "../processing/pipeline.js";
+import { processArticlesWithRelevanceGate } from "../processing/pipeline.js";
+import {
+  createLunaRelevanceClassifier,
+  emptyRelevanceGateDiagnostics,
+  type RelevanceGateDiagnostics
+} from "../processing/relevanceClassifier.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
 import { CURATED_SOURCE_COVERAGE, CURATED_SOURCES } from "../sources/curatedSources.js";
 import { RssFeedConnector, type RssFetchDiagnostics } from "../sources/rssFetcher.js";
@@ -55,6 +60,8 @@ export type LlmProofOptions = {
    * routed providers proves nothing about production.
    */
   overrideModel: string | null;
+  /** Diagnostic only: run the deterministic gate without the Luna stage. */
+  disableRelevanceClassifier: boolean;
 };
 
 export type LlmProofOutput = {
@@ -106,6 +113,8 @@ export type LlmProofOutput = {
     source_articles_sent_to_llm: number;
     generated_items: number;
     rss: RssFetchDiagnostics;
+    /** What the source relevance gate decided, including the Luna stage. */
+    relevance_gate: RelevanceGateDiagnostics;
     validation: {
       status: "passed" | "failed";
       issues: ValidationIssue[];
@@ -123,6 +132,8 @@ export type LlmProofOutput = {
     }>;
   }>;
   drops: DailyDropPayload[];
+  /** Generated but rejected, so a failed proof stays inspectable. */
+  rejectedDrops: Array<{ language: Language; payload: DailyDropPayload }>;
 };
 
 export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOutput> {
@@ -156,6 +167,10 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
     ? pinRoutingToModel(resolveContentModelRouting(), options.overrideModel)
     : resolveContentModelRouting();
   const llmCalls: LlmCallMetric[] = [];
+  // One classifier for the whole proof: ambiguous candidates only, batched.
+  const classifier = options.disableRelevanceClassifier
+    ? null
+    : createLunaRelevanceClassifier();
   const generator = new LlmContentGenerator({
     providerForSection: createRoutedProviderFactory({
       routing,
@@ -183,11 +198,17 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
   });
   const languages: LlmProofOutput["languages"] = [];
   const drops: DailyDropPayload[] = [];
+  /** Payloads that were generated but rejected by validation, kept for review. */
+  const rejectedDrops: Array<{ language: Language; payload: DailyDropPayload }> = [];
 
   for (const language of options.languages) {
     const rssConnector = new RssFeedConnector(CURATED_SOURCES);
     let rawArticles: Awaited<ReturnType<RssFeedConnector["fetchArticles"]>> = [];
-    let rankedArticles: ReturnType<typeof processArticles> = [];
+    let rankedArticles: Awaited<
+      ReturnType<typeof processArticlesWithRelevanceGate>
+    >["articles"] = [];
+    let relevanceGate: RelevanceGateDiagnostics = emptyRelevanceGateDiagnostics();
+    let generatedPayload: DailyDropPayload | null = null;
 
     try {
       logProgress("RSS-only source fetch started", {
@@ -205,7 +226,18 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
 
       assertNoSampleUrls(rawArticles.map((article) => article.url), "source articles");
 
-      rankedArticles = processArticles(rawArticles)
+      // Real production path: deterministic gate, then one batched Luna call
+      // for whatever is genuinely ambiguous, then ranking.
+      const processed = await processArticlesWithRelevanceGate({
+        articles: rawArticles,
+        classifier,
+        onProgress: logProgress
+      });
+
+      relevanceGate = processed.relevanceGate;
+      logProgress("relevance gate completed", { language, ...processed.relevanceGate });
+
+      rankedArticles = processed.articles
         .filter((article) => article.language === language)
         .slice(0, options.sourceArticleLimit);
 
@@ -216,6 +248,24 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
         );
       }
 
+      const coveredTopics = options.topics.filter((topic) =>
+        rankedArticles.some((article) => article.topic === topic)
+      );
+
+      if (coveredTopics.length === 0) {
+        throw new LlmGenerationError(
+          "insufficient_source_material",
+          `No requested topic has relevant ${language} source material after the relevance gate.`
+        );
+      }
+
+      logProgress("newsletter topics covered by sources", {
+        language,
+        requested: options.topics,
+        covered: coveredTopics,
+        dropped: options.topics.filter((topic) => !coveredTopics.includes(topic))
+      });
+
       logProgress("LLM proof generation started", {
         language,
         fetched_articles: rawArticles.length,
@@ -224,17 +274,21 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
       });
 
       const payload = assembleDailyDropPayload(
-        await generator.generateDailyDrop({
+        (generatedPayload = await generator.generateDailyDrop({
           dropDate: options.dropDate,
           language,
           articles: rankedArticles,
-          newsletterTopics: options.topics,
-          newsletterArticleCount: options.topics.length,
+          // Only topics that actually have source material after the relevance
+          // gate. Asking for a topic whose sources were all rejected is an
+          // impossible request: the section is skipped and the edition then
+          // fails a composition count it could never have met.
+          newsletterTopics: coveredTopics,
+          newsletterArticleCount: coveredTopics.length,
           // Lean proof: one article per topic instead of the production catalog's
           // NEWSLETTER_ITEMS_PER_TOPIC, keeping the proof cheap and fast.
           newsletterItemsPerTopic: 1,
           productionStrict: true
-        })
+        }))
       );
 
       const quality = validateDailyDropQuality(payload, {
@@ -267,6 +321,7 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
         source_articles_sent_to_llm: rankedArticles.length,
         generated_items: payload.items.length,
         rss: rssConnector.getLastDiagnostics(),
+        relevance_gate: relevanceGate,
         validation: {
           status: "passed",
           issues: []
@@ -286,6 +341,19 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
       drops.push(payload);
     } catch (error) {
       const failure = serializeLlmFailure(error);
+
+      // A rejected payload is exactly what needs inspecting: keep it rather
+      // than discarding the only evidence of what the model actually wrote.
+      const failedPayload =
+        generatedPayload ??
+        (error instanceof LlmGenerationError && error.payload
+          ? (error.payload as DailyDropPayload)
+          : null);
+
+      if (failedPayload) {
+        rejectedDrops.push({ language, payload: failedPayload });
+      }
+
       logProgress("LLM proof language failed", {
         language,
         failure,
@@ -300,6 +368,7 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
         source_articles_sent_to_llm: rankedArticles.length,
         generated_items: 0,
         rss: rssConnector.getLastDiagnostics(),
+        relevance_gate: relevanceGate,
         validation: {
           status: "failed",
           issues: []
@@ -348,7 +417,8 @@ export async function runLlmProof(options: LlmProofOptions): Promise<LlmProofOut
     },
     sourceCoverage: CURATED_SOURCE_COVERAGE,
     languages,
-    drops
+    drops,
+    rejectedDrops
   };
 }
 
@@ -371,6 +441,7 @@ export function parseLlmProofOptions(args: string[]): LlmProofOptions {
     // Diagnostic only: `--model x` pins every section to x. Without it the
     // proof runs production routing, which is the default on purpose.
     overrideModel: values.get("model")?.trim() || process.env.LLM_PROOF_MODEL?.trim() || null,
+    disableRelevanceClassifier: values.has("no-relevance-classifier"),
     maxOutputTokens:
       readPositiveInteger(values.get("max-output-tokens") ?? process.env.LLM_PROOF_MAX_OUTPUT_TOKENS, "max-output-tokens") ??
       DEFAULT_MAX_OUTPUT_TOKENS
