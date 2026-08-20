@@ -15,6 +15,7 @@ function makeItem(overrides: Partial<LibraryItemSummary>): LibraryItemSummary {
     id: "item-1",
     drop_id: "drop-1",
     drop_date: "2026-08-14",
+    hide_display_date: false,
     content_type: "newsletter_article",
     language: "en",
     title: "Untitled",
@@ -34,6 +35,7 @@ function makeDrop(
   return {
     drop_id: dropId,
     drop_date: dropDate,
+    hide_display_date: false,
     language: "en",
     title: "Daily drop",
     item_count: items.length,
@@ -53,6 +55,7 @@ describe("selectNewsletterEditions", () => {
           id: "s1",
           drop_id: "d1",
           drop_date: "2026-08-10",
+          hide_display_date: false,
           content_type: "business_story"
         })
       ]),
@@ -61,6 +64,7 @@ describe("selectNewsletterEditions", () => {
           id: "a2",
           drop_id: "d2",
           drop_date: "2026-08-14",
+          hide_display_date: false,
           is_completed: true
         }),
         makeItem({ id: "a3", drop_id: "d2", drop_date: "2026-08-14" })
@@ -100,6 +104,7 @@ describe("selectNewsletterEditions", () => {
           id: "c1",
           drop_id: "d1",
           drop_date: "2026-08-10",
+          hide_display_date: false,
           content_type: "key_concept"
         })
       ])
@@ -117,6 +122,7 @@ describe("selectArchiveItems", () => {
         makeItem({
           id: "s1",
           drop_date: "2026-08-10",
+          hide_display_date: false,
           content_type: "business_story",
           title: "Old story"
         })
@@ -125,6 +131,7 @@ describe("selectArchiveItems", () => {
         makeItem({
           id: "s2",
           drop_date: "2026-08-14",
+          hide_display_date: false,
           content_type: "business_story",
           title: "New story"
         }),

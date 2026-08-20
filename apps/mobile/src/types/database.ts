@@ -395,6 +395,8 @@ export type Database = {
           drop_date: string;
           language: Language;
           status: DailyDropStatus;
+          /** Display-only: render this edition without its calendar date. */
+          hide_display_date: boolean;
           generated_at: string;
           published_at: string | null;
           created_at: string;
@@ -406,6 +408,7 @@ export type Database = {
           drop_date: string;
           language: Language;
           status?: DailyDropStatus;
+          hide_display_date?: boolean;
           generated_at?: string;
           published_at?: string | null;
           created_at?: string;
@@ -417,6 +420,7 @@ export type Database = {
           drop_date?: string;
           language?: Language;
           status?: DailyDropStatus;
+          hide_display_date?: boolean;
           generated_at?: string;
           published_at?: string | null;
           created_at?: string;

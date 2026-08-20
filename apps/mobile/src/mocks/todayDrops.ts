@@ -64,6 +64,7 @@ export const mockTodayDailyDrops = [
   {
     id: "drop-2026-04-26-en",
     drop_date: "2026-04-26",
+    hide_display_date: false,
     language: "en",
     title: "Today's briefing",
     prompt_version: "daily_drop_mock_v1",
@@ -304,6 +305,7 @@ export const mockTodayDailyDrops = [
   {
     id: "drop-2026-04-26-fr",
     drop_date: "2026-04-26",
+    hide_display_date: false,
     language: "fr",
     title: "Brief du jour",
     prompt_version: "daily_drop_mock_v1",

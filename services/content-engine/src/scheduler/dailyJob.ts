@@ -48,6 +48,9 @@ export class DailyContentJob {
         dropDate: options.dropDate,
         languages: options.languages,
         topics,
+        // Automated production runs always publish dated editions. Only the
+        // manual --prelaunch seeding path hides a date.
+        prelaunch: false,
         newsletterArticleCount: options.newsletterArticleCount ?? topics.length * NEWSLETTER_ITEMS_PER_TOPIC,
         liveRss: envFlag("LIVE_RSS"),
         liveRssOnly: envFlag("LIVE_RSS_ONLY"),

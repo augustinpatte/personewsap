@@ -59,7 +59,7 @@ const contentItemSelect =
 const contentItemSourceSelect = "content_item_id,source_id,claim,source_order,created_at";
 const dailyDropItemSelect = "daily_drop_id,content_item_id,slot,position,created_at";
 const dailyDropSelect =
-  "id,user_id,drop_date,language,status,generated_at,published_at,created_at,updated_at";
+  "id,user_id,drop_date,language,status,hide_display_date,generated_at,published_at,created_at,updated_at";
 const sourceSelect =
   "id,url,title,publisher,author,published_at,retrieved_at,language,credibility_score,content_hash,created_at,updated_at";
 
@@ -542,6 +542,9 @@ function assembleTodayDrop(
   return {
     id: drop.id,
     drop_date: drop.drop_date,
+    // Rows written before the column existed read as false: a normal dated
+    // edition stays dated.
+    hide_display_date: drop.hide_display_date === true,
     language: drop.language,
     title: drop.language === "fr" ? "Brief du jour" : "Today's briefing",
     prompt_version: readFirstContentMetadataString(
@@ -705,6 +708,7 @@ export function buildEmptyTodayDrop(
   return {
     id: `no-edition:${dropDate}:${language}`,
     drop_date: dropDate,
+    hide_display_date: false,
     language,
     title: language === "fr" ? "Aucune édition" : "No edition",
     prompt_version: "no_edition",

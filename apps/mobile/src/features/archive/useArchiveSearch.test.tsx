@@ -74,6 +74,7 @@ function item(index: number, title = `Story ${index}`): LibraryItemSummary {
     id: uuid(index),
     content_type: "business_story",
     drop_date: "2026-08-17",
+    hide_display_date: false,
     drop_id: uuid(900000 + index),
     is_completed: false,
     is_saved: false,

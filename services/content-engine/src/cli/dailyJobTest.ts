@@ -161,6 +161,13 @@ export type DailyJobRunOptions = {
   logPrefix: string;
   productionConfirmed: boolean;
   strictAllLanguages: boolean;
+  /**
+   * Display-only: mark the editions this run creates so the app renders them
+   * without a calendar date. Set by --prelaunch for the handful of editions
+   * seeded before launch; automated production runs leave it false and keep
+   * showing dates exactly as today.
+   */
+  prelaunch: boolean;
   runId?: string;
 };
 
@@ -282,6 +289,8 @@ export async function runDailyJobTest(options: DailyJobTestOptions): Promise<Dai
     mode: "daily-job-test",
     dryRun: false,
     testMode: true,
+    // A test run creates ordinary dated editions.
+    prelaunch: false,
     logPrefix: "daily-job-test",
     productionConfirmed: false,
     strictAllLanguages: false
@@ -335,7 +344,8 @@ export async function runDailyJob(
     user_limit: options.userLimit ?? "all",
     newsletter_articles: options.newsletterArticleCount,
     content_status: options.contentStatus,
-    dry_run: options.dryRun
+    dry_run: options.dryRun,
+    prelaunch: options.prelaunch
   }, options.logPrefix);
 
   const sourceFetcher = dependencies.sourceFetcher ?? new SourceFetcher(sourcePolicy.connectors);
@@ -599,6 +609,9 @@ export function parseDailyJobOptions(args: string[]): DailyJobRunOptions {
     logPrefix: "daily-job",
     productionConfirmed: envFlag("PRODUCTION_DAILY_JOB"),
     strictAllLanguages: envFlag("STRICT_ALL_LANGUAGES"),
+    // Never defaulted on, and never inferred from the date: an undated edition
+    // is one somebody explicitly asked to be undated.
+    prelaunch: flags.has("prelaunch") || flags.has("hide-display-date"),
     runId: process.env.RUN_ID || flags.get("run-id")
   };
 }
@@ -918,7 +931,8 @@ async function runDailyJobLanguage(input: {
               language,
               userLimit: options.userLimit,
               logPrefix: options.logPrefix,
-              useLlm: options.useLlm
+              useLlm: options.useLlm,
+              hideDisplayDate: options.prelaunch
             }),
           { maxAttempts: 1, logPrefix: options.logPrefix }
         )
@@ -1006,6 +1020,7 @@ async function assignStoredDropToUsers(input: {
   userLimit: number | null;
   logPrefix: string;
   useLlm: boolean;
+  hideDisplayDate: boolean;
 }): Promise<{
   usersConsidered: number;
   usersAssigned: number;
@@ -1205,7 +1220,8 @@ async function assignStoredDropToUsers(input: {
       dropDate: input.dropDate,
       language: input.language,
       status: "published",
-      itemIds
+      itemIds,
+      hideDisplayDate: input.hideDisplayDate
     });
 
     usersAssigned += 1;

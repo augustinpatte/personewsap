@@ -14,6 +14,12 @@ export function getModuleCopy(language: Language | null | undefined) {
           accountLabel: "Account",
           accountHint: "Opens your account and preferences",
           editionRhythm: "4 editions/week",
+          // Stands in for the date on an edition seeded before launch, which is
+          // shown without one. Follows the same rule as the learning path's
+          // stable eyebrow: a neutral label, never a blank line. It deliberately
+          // avoids the retired "daily briefing" vocabulary guarded by
+          // releaseCopy.test.ts.
+          undatedEdition: "Edition",
           archiveAccess: "Finite archive",
           todayView: "Today",
           archiveView: "Archive",
@@ -153,6 +159,7 @@ export function getModuleCopy(language: Language | null | undefined) {
           accountLabel: "Compte",
           accountHint: "Ouvre votre compte et vos préférences",
           editionRhythm: "4 éditions/semaine",
+          undatedEdition: "Édition",
           archiveAccess: "Archive finie",
           todayView: "Aujourd'hui",
           archiveView: "Archives",

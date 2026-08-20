@@ -10,7 +10,7 @@ import { trackAnalyticsEvent } from "../../lib/analytics";
 import { selectArchiveItems, useArchiveData } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
 import { useModulePreferenceState } from "../preferences";
-import { estimateReadMinutes, formatDropDate } from "../today/contentCopy";
+import { editionDisplayDate, estimateReadMinutes } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
 import { stripMarkdownInline } from "../today/readers/markdown";
 import { ItemArchiveList } from "./ItemArchiveList";
@@ -42,7 +42,7 @@ export function StoriesModuleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.chrome}>
         <ModuleHeader
-          eyebrow={formatDropDate(drop.drop_date, language)}
+          eyebrow={editionDisplayDate(drop, language) ?? copy.common.undatedEdition}
           iconName="briefcase"
           metaItems={[
             copy.common.editionRhythm,

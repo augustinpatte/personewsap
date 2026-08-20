@@ -20,6 +20,12 @@ import type { LibraryDropSummary, LibraryItemSummary } from "../library/libraryT
 export type NewsletterEditionSummary = {
   drop_id: string;
   drop_date: string;
+  /**
+   * Display-only: render this edition without its calendar date. Ordering below
+   * and `editionType` still read drop_date — hiding the date never means an
+   * undated edition.
+   */
+  hideDisplayDate: boolean;
   editionType: EditionType | null;
   topics: TopicId[];
   /** Newsletter articles in the edition, in archive order. */
@@ -72,6 +78,8 @@ export function selectNewsletterEditions(
       return {
         drop_id: drop.drop_id,
         drop_date: drop.drop_date,
+        hideDisplayDate: drop.hide_display_date === true,
+        // Still derived from the real drop_date, hidden display or not.
         editionType: resolveEditionType(drop.drop_date),
         topics: drop.topics,
         articles,

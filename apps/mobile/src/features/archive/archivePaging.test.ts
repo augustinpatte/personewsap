@@ -9,6 +9,7 @@ function drop(dropId: string, dropDate: string): LibraryDropSummary {
   return {
     drop_id: dropId,
     drop_date: dropDate,
+    hide_display_date: false,
     language: "en",
     title: "Daily drop",
     item_count: 1,

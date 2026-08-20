@@ -212,6 +212,7 @@ function buildSingleItemDrop(
   return {
     id: item ? `reader:${item.id}` : "reader:empty",
     drop_date: "",
+    hide_display_date: false,
     language,
     title: "",
     prompt_version: "reader",

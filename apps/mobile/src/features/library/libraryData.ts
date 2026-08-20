@@ -70,7 +70,7 @@ const maxArchiveSearchPageSize = 50;
 // columns, and therefore a real keyset possible.
 const archiveSearchView = "user_archive_search_items";
 const archiveSearchSelect =
-  "content_item_id,drop_id,drop_date,content_type,language,title,topic_id,source_count,metadata";
+  "content_item_id,drop_id,drop_date,content_type,language,title,topic_id,source_count,metadata,hide_display_date";
 const publishedContentStatus = "published";
 const contentInteractionSelect =
   "id,user_id,content_item_id,interaction_type,rating,message,created_at";
@@ -78,7 +78,7 @@ const contentItemSelect =
   "id,content_type,topic_id,language,title,summary,body_md,difficulty,estimated_read_seconds,publication_date,version,status,generation_run_id,source_count,metadata,created_at,updated_at";
 const dailyDropItemSelect = "daily_drop_id,content_item_id,slot,position,created_at";
 const dailyDropSelect =
-  "id,user_id,drop_date,language,status,generated_at,published_at,created_at,updated_at";
+  "id,user_id,drop_date,language,status,hide_display_date,generated_at,published_at,created_at,updated_at";
 const slotOrder = {
   newsletter: 0,
   business_story: 1,
@@ -361,6 +361,7 @@ export async function searchLibraryItems(
         id: row.content_item_id,
         content_type: contentType,
         drop_date: row.drop_date,
+        hide_display_date: row.hide_display_date === true,
         drop_id: row.drop_id,
         is_completed: completedItemIds.has(row.content_item_id),
         is_saved: savedItemIds.has(row.content_item_id),
@@ -409,6 +410,8 @@ type ArchiveSearchRow = {
   topic_id: ContentItem["topic_id"];
   source_count: number;
   metadata: ContentItem["metadata"];
+  /** The edition's display rule, carried by the view. */
+  hide_display_date: boolean | null;
 };
 
 /**
@@ -482,6 +485,9 @@ async function buildLibraryDropSummaries(
     return {
       completed_item_count: countMatchingContentItems(contentItems, completedItemIds),
       drop_date: drop.drop_date,
+      // A row written before the column existed reads as false, so existing
+      // editions keep showing their date.
+      hide_display_date: drop.hide_display_date === true,
       drop_id: drop.id,
       items: mapLibraryItems(drop, contentItems, completedItemIds, savedItemIds),
       item_count: contentItems.length,
@@ -511,6 +517,7 @@ function mapLibraryItems(
         id: contentItem.id,
         content_type: contentType,
         drop_date: drop.drop_date,
+        hide_display_date: drop.hide_display_date === true,
         drop_id: drop.id,
         is_completed: completedItemIds.has(contentItem.id),
         is_saved: savedItemIds.has(contentItem.id),

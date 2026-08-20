@@ -60,6 +60,26 @@ export function formatDropDate(date: string, language: ContentLanguage) {
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
+/**
+ * The edition's date as the reader should see it, or null when the edition is
+ * marked to be shown without one.
+ *
+ * Only the display is affected. Callers that sort, rank, resolve a cadence or
+ * detect a weekly digest read `drop_date` directly and are untouched by this.
+ * Returning null rather than an empty string is deliberate: a caller has to
+ * decide what stands in its place, so no separator or blank line is left behind.
+ */
+export function editionDisplayDate(
+  edition: { drop_date: string; hide_display_date?: boolean },
+  language: ContentLanguage
+): string | null {
+  if (edition.hide_display_date === true) {
+    return null;
+  }
+
+  return formatDropDate(edition.drop_date, language);
+}
+
 export function splitParagraphs(markdown: string) {
   return markdown
     .split(/\n{2,}/)

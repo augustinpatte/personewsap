@@ -11,7 +11,7 @@ import { selectArchiveItems, useArchiveData } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
 import { useModulePreferenceState } from "../preferences";
 import {
-  formatDropDate,
+  editionDisplayDate,
   getDifficultyLabel,
   getTopicLabel
 } from "../today/contentCopy";
@@ -54,7 +54,7 @@ export function MiniCasesModuleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.chrome}>
         <ModuleHeader
-          eyebrow={formatDropDate(drop.drop_date, language)}
+          eyebrow={editionDisplayDate(drop, language) ?? copy.common.undatedEdition}
           iconName="check-square"
           metaItems={[
             copy.common.editionRhythm,

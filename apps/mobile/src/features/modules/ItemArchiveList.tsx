@@ -18,7 +18,7 @@ import {
   type ArchiveSearchState
 } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
-import { formatDropDate } from "../today/contentCopy";
+import { editionDisplayDate } from "../today/contentCopy";
 import { getModuleCopy } from "./moduleCopy";
 import { ModuleError, ModuleLoading, ModuleScroll } from "./ModuleChrome";
 
@@ -233,7 +233,9 @@ function ArchiveRow({
           the headline. */}
       <View style={styles.rowHead}>
         <AppText color="muted" variant="eyebrow">
-          {formatDropDate(item.drop_date, language)}
+          {/* The rail keeps its line either way, so an undated edition leaves
+              no empty slot above the headline. */}
+          {editionDisplayDate(item, language) ?? copy.common.undatedEdition}
         </AppText>
         <AppText color="mutedSoft" variant="label">
           →

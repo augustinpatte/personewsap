@@ -121,6 +121,11 @@ export type DailyDropContentItem =
 export type TodayDailyDrop = {
   id: string;
   drop_date: string;
+  /**
+   * Display-only: hide this edition's calendar date. Prelaunch seeded editions
+   * set it; everything internal still runs on drop_date.
+   */
+  hide_display_date: boolean;
   language: ContentLanguage;
   title: string;
   prompt_version: string;

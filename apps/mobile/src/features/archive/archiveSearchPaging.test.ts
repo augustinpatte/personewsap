@@ -32,6 +32,7 @@ function item(index: number, dropDate: string): LibraryItemSummary {
     id: uuid(index),
     content_type: "business_story",
     drop_date: dropDate,
+    hide_display_date: false,
     drop_id: uuid(900000 + index),
     is_completed: false,
     is_saved: false,

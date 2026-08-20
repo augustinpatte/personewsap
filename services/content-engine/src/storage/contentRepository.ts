@@ -1819,6 +1819,7 @@ export class ContentRepository {
     language: Language;
     status: DailyDropStatus;
     itemIds: DailyDropItemInput[];
+    hideDisplayDate?: boolean;
   }): Promise<string> {
     return (await this.createDailyDropForUserWithResult(input)).dailyDropId;
   }
@@ -1829,6 +1830,7 @@ export class ContentRepository {
     language: Language;
     status: DailyDropStatus;
     itemIds: DailyDropItemInput[];
+    hideDisplayDate?: boolean;
   }): Promise<DailyDropWriteResult> {
     const existingDrop = await this.listDailyDropsForUsersOnDate({
       userIds: [input.userId],
@@ -1838,7 +1840,8 @@ export class ContentRepository {
       userId: input.userId,
       dropDate: input.dropDate,
       language: input.language,
-      status: input.status
+      status: input.status,
+      hideDisplayDate: input.hideDisplayDate
     });
     const replaceResult = await this.replaceDailyDropItems(dailyDropId, input.itemIds);
 
@@ -2144,6 +2147,12 @@ export class ContentRepository {
     dropDate: string;
     language: Language;
     status: DailyDropStatus;
+    /**
+     * Display-only: hide this edition's calendar date in the app. Prelaunch
+     * seeded editions set it; automated production runs never do. The row keeps
+     * its real drop_date either way.
+     */
+    hideDisplayDate?: boolean;
   }): Promise<string> {
     const publishedAt = input.status === "published" ? new Date().toISOString() : null;
     const { data, error } = await this.supabase
@@ -2154,6 +2163,7 @@ export class ContentRepository {
           drop_date: input.dropDate,
           language: input.language,
           status: input.status,
+          hide_display_date: input.hideDisplayDate === true,
           published_at: publishedAt,
           updated_at: new Date().toISOString()
         },

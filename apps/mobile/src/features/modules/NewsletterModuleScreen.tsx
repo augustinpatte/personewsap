@@ -20,7 +20,7 @@ import { useModulePreferenceState } from "../preferences";
 import { shouldShowStoredLanguageChangeNotice } from "../preferences/languageChangeNotice";
 import {
   estimateReadMinutes,
-  formatDropDate,
+  editionDisplayDate,
   getTopicLabel
 } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
@@ -55,7 +55,7 @@ export function NewsletterModuleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.chrome}>
         <ModuleHeader
-          eyebrow={formatDropDate(drop.drop_date, language)}
+          eyebrow={editionDisplayDate(drop, language) ?? copy.common.undatedEdition}
           iconName="file-text"
           metaItems={[
             copy.common.editionRhythm,
@@ -168,7 +168,7 @@ function NewsletterToday() {
       <View style={styles.masthead}>
         <MetaLine
           items={[
-            formatDropDate(drop.drop_date, language),
+            editionDisplayDate(drop, language),
             copy.newsletter.progress(readCount, articles.length)
           ]}
         />
@@ -360,7 +360,10 @@ function EditionGroup({ edition }: { edition: NewsletterEditionSummary }) {
       <View style={styles.editionHeader}>
         <View style={styles.kicker}>
           <AppText color="muted" variant="eyebrow">
-            {formatDropDate(edition.drop_date, language)}
+            {editionDisplayDate(
+              { drop_date: edition.drop_date, hide_display_date: edition.hideDisplayDate },
+              language
+            ) ?? copy.common.undatedEdition}
           </AppText>
           {edition.editionType === "weekly_digest" ? (
             <AppText color="gold" variant="eyebrow">
