@@ -15,6 +15,25 @@ import { buildCanonicalCatalogPool } from "./canonicalSourcePool.js";
 import { indexExistingVersions, referenceItemFromRecord, versionKey } from "./catalogResume.js";
 import { resolveCatalogSourceArticles } from "./catalogSourceResolution.js";
 import {
+  assertPlanIntegrity,
+  assertPlanShape,
+  CATALOG_REPAIR_PLAN_VERSION,
+  fingerprintCatalogVersion,
+  hashPlannedEntry,
+  stableHash,
+  type CatalogRepairPlan,
+  type PlannedCatalogEntry,
+  type PlannedCatalogVersion
+} from "./catalogRepairPlan.js";
+import { validateCatalogLanguagePair } from "./catalogPairing.js";
+import { validateEntryTitle } from "./bootstrapCatalog.js";
+import {
+  readProductionContentStrict,
+  validateDailyDropPayload,
+  validateDailyDropQuality
+} from "../generation/validation.js";
+import { toSafeModelRoutingSummary } from "../generation/modelRouting.js";
+import {
   allocateBusinessStorySourcePackets,
   isSameSourceEvent,
   type BusinessStorySourcePacket
@@ -44,6 +63,16 @@ import {
  * generated and passed through every validator BEFORE anything existing is
  * touched. A repair that cannot produce a valid pair leaves the catalog exactly
  * as it found it.
+ *
+ * And both are split in two commands, because an editorial repair is reviewed by
+ * a human between them:
+ *
+ *   PREPARE generates once, validates, and writes the candidate to a plan file.
+ *   APPLY reads that plan and writes exactly what is in it.
+ *
+ * Apply takes no generator and no source fetcher in its dependencies at all. It
+ * cannot regenerate a candidate, because it has nothing to regenerate with —
+ * which is the only way to guarantee that what was approved is what is written.
  */
 
 export type CatalogRepairMode = "rework" | "replace";
@@ -55,8 +84,6 @@ export type CatalogRepairOptions = {
   dropDate: string;
   languages: Language[];
   contentStatus: "draft" | "review" | "published";
-  /** Writes are opt-in and additionally gated on CONFIRM_CATALOG_REPAIR=true. */
-  persist: boolean;
   useLlm: boolean;
   productionStrict?: boolean;
   catalogRecencyDays?: number;
@@ -82,9 +109,10 @@ export type CatalogRepairOutcome = {
 };
 
 export type CatalogRepairReport = {
-  mode: "catalog-repair";
+  mode: "catalog-repair-prepare" | "catalog-repair-apply";
   runId: string;
   repairMode: CatalogRepairMode;
+  repairId: string;
   persisted: boolean;
   dryRun: boolean;
   confirmation: "CONFIRM_CATALOG_REPAIR=true" | null;
@@ -99,10 +127,34 @@ export type CatalogRepairReport = {
   untouchedVersions: number;
 };
 
-export async function runCatalogRepair(
+export type CatalogRepairPrepareResult = {
+  report: CatalogRepairReport;
+  /** Null when nothing could be prepared: there is no plan worth writing. */
+  plan: CatalogRepairPlan | null;
+};
+
+/**
+ * Everything apply is allowed to touch.
+ *
+ * No generator. No `loadArticles`. This is not an oversight and must not be
+ * "fixed": it is what makes "apply performs zero LLM calls and zero RSS fetches"
+ * a property of the type rather than a promise in a comment.
+ */
+export type CatalogRepairApplyDependencies = {
+  repository: ContentRepository;
+  onProgress?: (message: string, details: Record<string, unknown>) => void;
+};
+
+/**
+ * PHASE 1. Generate and validate the candidates, write nothing.
+ *
+ * Returns the plan alongside the report. The caller persists the plan to disk;
+ * a human reads it; `applyCatalogRepairPlan` writes exactly it.
+ */
+export async function prepareCatalogRepair(
   options: CatalogRepairOptions,
   dependencies: CatalogRepairDependencies
-): Promise<CatalogRepairReport> {
+): Promise<CatalogRepairPrepareResult> {
   assertRepairOptions(options);
 
   const { repository } = dependencies;
@@ -123,9 +175,11 @@ export async function runCatalogRepair(
   // the run is already telling somewhere else.
   const seenIdentities = new Set<string>();
   const outcomes: CatalogRepairOutcome[] = [];
+  const planned: PlannedCatalogEntry[] = [];
+  const repairId = `${options.mode}-${options.dropDate}-${Date.now().toString(36)}`;
 
   for (const entryId of options.entryIds) {
-    const outcome = await repairOneEntry({
+    const result = await prepareOneEntry({
       entryId,
       options,
       dependencies,
@@ -138,38 +192,67 @@ export async function runCatalogRepair(
       seenIdentities
     });
 
-    outcomes.push(outcome);
-    dependencies.onProgress?.("catalog repair entry", {
-      entry_id: outcome.entryId,
-      mode: outcome.mode,
-      status: outcome.status,
-      reason: outcome.reason
+    outcomes.push(result.outcome);
+
+    if (result.planned) {
+      planned.push(result.planned);
+    }
+
+    dependencies.onProgress?.("catalog repair candidate", {
+      entry_id: result.outcome.entryId,
+      mode: result.outcome.mode,
+      status: result.outcome.status,
+      reason: result.outcome.reason
     });
   }
 
-  const touched = new Set(
-    outcomes.filter((outcome) => outcome.status === "repaired").flatMap((outcome) => outcome.contentItemIds)
-  );
-
-  return {
-    mode: "catalog-repair",
+  const report: CatalogRepairReport = {
+    mode: "catalog-repair-prepare",
     runId: options.runId,
     repairMode: options.mode,
-    persisted: options.persist,
-    dryRun: !options.persist,
-    confirmation: options.persist ? "CONFIRM_CATALOG_REPAIR=true" : null,
+    repairId,
+    // Prepare never writes. That is the whole point of the phase.
+    persisted: false,
+    dryRun: true,
+    confirmation: null,
     requestedEntryIds: options.entryIds,
     outcomes,
     counts: {
-      repaired: outcomes.filter((outcome) => outcome.status === "repaired").length,
+      repaired: 0,
       planned: outcomes.filter((outcome) => outcome.status === "planned").length,
       refused: outcomes.filter((outcome) => outcome.status === "refused").length
     },
-    untouchedVersions: allVersions.filter((version) => !touched.has(version.contentItemId)).length
+    untouchedVersions: allVersions.length
+  };
+
+  if (planned.length === 0) {
+    return { report, plan: null };
+  }
+
+  return {
+    report,
+    plan: {
+      planVersion: CATALOG_REPAIR_PLAN_VERSION,
+      repairId,
+      createdAt: new Date().toISOString(),
+      runId: options.runId,
+      mode: options.mode,
+      dropDate: options.dropDate,
+      languages: options.languages,
+      contentStatus: options.contentStatus,
+      generator: {
+        useLlm: options.useLlm,
+        generatorLabel: options.useLlm ? "llm" : "deterministic",
+        // Provider and model identifiers only. `toSafeModelRoutingSummary` is
+        // the existing secret-free view; no key ever reaches the plan file.
+        modelRouting: options.useLlm ? toSafeModelRoutingSummary() : {}
+      },
+      entries: planned
+    }
   };
 }
 
-async function repairOneEntry(input: {
+async function prepareOneEntry(input: {
   entryId: string;
   options: CatalogRepairOptions;
   dependencies: CatalogRepairDependencies;
@@ -180,20 +263,25 @@ async function repairOneEntry(input: {
   articlesByLanguage: Map<Language, RankedArticle[]>;
   canonicalArticles: RankedArticle[];
   seenIdentities: Set<string>;
-}): Promise<CatalogRepairOutcome> {
+}): Promise<{ outcome: CatalogRepairOutcome; planned?: PlannedCatalogEntry }> {
   const { dependencies, entryId, options } = input;
   const languages = [input.referenceLanguage, ...input.counterpartLanguages];
   const records = languages.map((language) => input.existing.get(versionKey(entryId, language)));
 
-  const refuse = (reason: string, contentItemIds: string[] = []): CatalogRepairOutcome => ({
-    entryId,
-    mode: options.mode,
-    status: "refused",
-    reason,
-    contentItemIds,
-    previousSourceUrls: [],
-    newSourceUrls: [],
-    newTitles: {}
+  const refuse = (
+    reason: string,
+    contentItemIds: string[] = []
+  ): { outcome: CatalogRepairOutcome } => ({
+    outcome: {
+      entryId,
+      mode: options.mode,
+      status: "refused",
+      reason,
+      contentItemIds,
+      previousSourceUrls: [],
+      newSourceUrls: [],
+      newTitles: {}
+    }
   });
 
   if (records.some((record) => !record)) {
@@ -340,41 +428,348 @@ async function repairOneEntry(input: {
     candidateVersions.map((version) => [version.language, version.item.title])
   );
 
-  if (!options.persist) {
-    return {
+  // Fingerprint each row as it stands NOW. Apply compares against these and
+  // refuses if anything moved in between.
+  const plannedVersions: PlannedCatalogVersion[] = [];
+
+  for (const candidate of candidateVersions) {
+    const record = versions.find((entry) => entry.language === candidate.language);
+
+    if (!record) {
+      return refuse(`${entryId} has no stored ${candidate.language} version to replace.`, contentItemIds);
+    }
+
+    const linked = await dependencies.repository.listSourceArticlesForContentItem({
+      contentItemId: record.contentItemId,
+      topic: record.topic ?? defaultTopicFor(contentType, miniCaseTopic)
+    });
+
+    plannedVersions.push({
+      language: candidate.language,
+      contentItemId: record.contentItemId,
+      item: candidate.item,
+      itemHash: stableHash(candidate.item),
+      originalRowHash: fingerprintCatalogVersion(record, linked.map((article) => article.url)),
+      originalTitle: record.title,
+      originalSourceUrls: linked.map((article) => article.url)
+    });
+  }
+
+  const plannedWithoutHash: Omit<PlannedCatalogEntry, "entryHash"> = {
+    entryId,
+    mode: options.mode,
+    contentType,
+    miniCaseTopic,
+    index,
+    versions: plannedVersions,
+    approvedSources: approvedArticles,
+    approvedSourcesHash: stableHash(approvedArticles),
+    sourceUrls: newSourceUrls,
+    previousSourceUrls,
+    sourceDecision:
+      options.mode === "rework"
+        ? "Reworked on the event the original run linked. The source was deliberately not changed: novelty is not a reason to move an entry off a sound event."
+        : `Replaced: the previous event (${previousSourceUrls.join(", ") || "none recorded"}) was excluded by event identity, as was every event already carried by another entry of this run.`,
+    validation: {
+      itemValidation: "passed",
+      pairValidation: "passed",
+      checkedAt: new Date().toISOString()
+    }
+  };
+
+  return {
+    outcome: {
       entryId,
       mode: options.mode,
       status: "planned",
-      reason: `A complete ${languages.join("/")} pair was generated and passed every validator. Nothing was written: this is a dry run.`,
+      reason: `A complete ${languages.join("/")} pair was generated and passed every validator. Nothing was written: it is recorded in the plan for review.`,
       contentItemIds,
       previousSourceUrls,
       newSourceUrls,
+      newTitles
+    },
+    planned: { ...plannedWithoutHash, entryHash: hashPlannedEntry(plannedWithoutHash) }
+  };
+}
+
+/**
+ * PHASE 2. Write exactly the candidates recorded in the plan.
+ *
+ * Nothing here generates. `CatalogRepairApplyDependencies` carries a repository
+ * and nothing else, so there is no generator to call and no feed to fetch: the
+ * guarantee is structural, not a matter of discipline.
+ *
+ * The order is: check the file, check the database still matches what the file
+ * was prepared against, re-run the deterministic validators over the frozen
+ * candidate, and only then write.
+ */
+export async function applyCatalogRepairPlan(
+  plan: CatalogRepairPlan,
+  options: {
+    persist: boolean;
+    /** Apply only these entries. Empty means every entry in the plan. */
+    onlyEntryIds?: string[];
+  },
+  dependencies: CatalogRepairApplyDependencies
+): Promise<CatalogRepairReport> {
+  assertPlanShape(plan);
+  assertPlanIntegrity(plan);
+
+  const { repository } = dependencies;
+  repository.assertPersistenceAvailable();
+
+  const selected = options.onlyEntryIds?.length
+    ? plan.entries.filter((entry) => options.onlyEntryIds?.includes(entry.entryId))
+    : plan.entries;
+
+  // Naming an entry the plan does not hold is reported as exactly that, before
+  // the emptier "selected nothing": never silently skip what was asked for.
+  const missing = (options.onlyEntryIds ?? []).filter(
+    (entryId) => !plan.entries.some((entry) => entry.entryId === entryId)
+  );
+
+  if (missing.length > 0) {
+    throw new Error(
+      `catalog-repair apply was asked for entries the plan does not contain: ${missing.join(", ")}. The plan holds: ${plan.entries.map((entry) => entry.entryId).join(", ")}.`
+    );
+  }
+
+  if (selected.length === 0) {
+    throw new Error(
+      `catalog-repair apply selected no entries. The plan holds: ${plan.entries.map((entry) => entry.entryId).join(", ")}.`
+    );
+  }
+
+  const allVersions = await repository.listCatalogEntryVersions({ runId: plan.runId });
+  const existing = indexExistingVersions(allVersions);
+  const outcomes: CatalogRepairOutcome[] = [];
+
+  for (const entry of selected) {
+    const outcome = await applyOneEntry({ entry, plan, options, repository, existing });
+
+    outcomes.push(outcome);
+    dependencies.onProgress?.("catalog repair applied", {
+      entry_id: outcome.entryId,
+      mode: outcome.mode,
+      status: outcome.status,
+      reason: outcome.reason
+    });
+  }
+
+  const touched = new Set(
+    outcomes.filter((outcome) => outcome.status === "repaired").flatMap((outcome) => outcome.contentItemIds)
+  );
+
+  return {
+    mode: "catalog-repair-apply",
+    runId: plan.runId,
+    repairMode: plan.mode,
+    repairId: plan.repairId,
+    persisted: options.persist,
+    dryRun: !options.persist,
+    confirmation: options.persist ? "CONFIRM_CATALOG_REPAIR=true" : null,
+    requestedEntryIds: selected.map((entry) => entry.entryId),
+    outcomes,
+    counts: {
+      repaired: outcomes.filter((outcome) => outcome.status === "repaired").length,
+      planned: outcomes.filter((outcome) => outcome.status === "planned").length,
+      refused: outcomes.filter((outcome) => outcome.status === "refused").length
+    },
+    untouchedVersions: allVersions.filter((version) => !touched.has(version.contentItemId)).length
+  };
+}
+
+async function applyOneEntry(input: {
+  entry: PlannedCatalogEntry;
+  plan: CatalogRepairPlan;
+  options: { persist: boolean };
+  repository: ContentRepository;
+  existing: Map<string, CatalogEntryVersionRecord>;
+}): Promise<CatalogRepairOutcome> {
+  const { entry, plan, repository } = input;
+  const contentItemIds = entry.versions.map((version) => version.contentItemId);
+
+  const refuse = (reason: string): CatalogRepairOutcome => ({
+    entryId: entry.entryId,
+    mode: entry.mode,
+    status: "refused",
+    reason,
+    contentItemIds,
+    previousSourceUrls: entry.previousSourceUrls,
+    newSourceUrls: entry.sourceUrls,
+    newTitles: {}
+  });
+
+  const newTitles = Object.fromEntries(
+    entry.versions.map((version) => [version.language, version.item.title])
+  );
+
+  // The database must still be where the plan left it.
+  const currentRecords: CatalogEntryVersionRecord[] = [];
+
+  for (const version of entry.versions) {
+    const record = input.existing.get(versionKey(entry.entryId, version.language));
+
+    if (!record) {
+      return refuse(
+        `${entry.entryId} no longer has a stored ${version.language} version under run ${plan.runId}. The plan is stale.`
+      );
+    }
+
+    if (record.contentItemId !== version.contentItemId) {
+      return refuse(
+        `${entry.entryId} (${version.language}) is now content item ${record.contentItemId}, not ${version.contentItemId}. The plan is stale.`
+      );
+    }
+
+    if (record.status !== "review") {
+      return refuse(
+        `${entry.entryId} (${version.language}) is now status ${record.status}. Repair only ever touches content still in review.`
+      );
+    }
+
+    const linked = await repository.listSourceArticlesForContentItem({
+      contentItemId: record.contentItemId,
+      topic: record.topic ?? defaultTopicFor(entry.contentType, entry.miniCaseTopic)
+    });
+    const fingerprint = fingerprintCatalogVersion(record, linked.map((article) => article.url));
+
+    if (fingerprint !== version.originalRowHash) {
+      return refuse(
+        `${entry.entryId} (${version.language}) has changed since the plan was prepared. Applying would silently discard whatever happened in between. Re-run prepare and review again.`
+      );
+    }
+
+    currentRecords.push(record);
+  }
+
+  const assigned = await repository.listAssignedContentItemIds(contentItemIds);
+
+  if (assigned.length > 0) {
+    return refuse(
+      `${entry.entryId} is now attached to a daily drop (${assigned.length} version(s)). A reader has been given it since the plan was prepared.`
+    );
+  }
+
+  // Re-validate the frozen candidate. Deterministic only: same structural,
+  // grounding and pair checks prepare ran, against the plan's own approved
+  // source set, so the closure question is asked identically on both sides.
+  const issues = validateFrozenCandidate(entry, plan);
+
+  if (issues.length > 0) {
+    return refuse(`${entry.entryId} failed re-validation at apply: ${issues.join(" | ")}`);
+  }
+
+  if (!input.options.persist) {
+    return {
+      entryId: entry.entryId,
+      mode: entry.mode,
+      status: "planned",
+      reason: `The plan matches the database and the candidate re-validated. Nothing was written: --persist and CONFIRM_CATALOG_REPAIR=true were not both given.`,
+      contentItemIds,
+      previousSourceUrls: entry.previousSourceUrls,
+      newSourceUrls: entry.sourceUrls,
       newTitles
     };
   }
 
   await writePairOrRestore({
-    entryId,
-    options,
-    repository: dependencies.repository,
-    versions,
-    candidateVersions,
-    approvedArticles,
-    contentType,
-    miniCaseTopic,
-    index
+    entryId: entry.entryId,
+    options: {
+      runId: plan.runId,
+      entryIds: [entry.entryId],
+      mode: entry.mode,
+      dropDate: plan.dropDate,
+      languages: plan.languages,
+      contentStatus: plan.contentStatus,
+      useLlm: plan.generator?.useLlm ?? false
+    },
+    repository,
+    versions: currentRecords,
+    candidateVersions: entry.versions.map((version) => ({
+      language: version.language,
+      item: version.item
+    })),
+    approvedArticles: entry.approvedSources,
+    contentType: entry.contentType,
+    miniCaseTopic: entry.miniCaseTopic,
+    index: entry.index
   });
 
   return {
-    entryId,
-    mode: options.mode,
+    entryId: entry.entryId,
+    mode: entry.mode,
     status: "repaired",
-    reason: `Both ${languages.join("/")} versions were replaced in place, keeping their content item ids.`,
+    reason: `Both versions were replaced in place from the reviewed plan, keeping their content item ids.`,
     contentItemIds,
-    previousSourceUrls,
-    newSourceUrls,
+    previousSourceUrls: entry.previousSourceUrls,
+    newSourceUrls: entry.sourceUrls,
     newTitles
   };
+}
+
+/**
+ * The deterministic half of validation, re-run at apply.
+ *
+ * Nothing here calls a model or a feed. It re-asks the structural, grounding and
+ * pair questions of the frozen candidate — most importantly whether every cited
+ * URL still resolves inside the plan's own approved set, which is what stops a
+ * URL hand-added to a plan from ever being written.
+ */
+function validateFrozenCandidate(entry: PlannedCatalogEntry, plan: CatalogRepairPlan): string[] {
+  const issues: string[] = [];
+  const strict = readProductionContentStrict();
+
+  for (const version of entry.versions) {
+    issues.push(
+      ...validateEntryTitle(version.item, version.language, entry.entryId).map(
+        (issue) => `${issue.path}: ${issue.message}`
+      )
+    );
+
+    const payload = {
+      drop_date: plan.dropDate,
+      language: version.language,
+      prompt_version: "catalog_repair",
+      generator_version: "catalog_repair",
+      items: [version.item]
+    };
+
+    issues.push(
+      ...validateDailyDropPayload(payload).map((issue) => `${issue.path}: ${issue.message}`)
+    );
+    issues.push(
+      ...validateDailyDropQuality(payload, {
+        articles: entry.approvedSources,
+        productionStrict: strict,
+        miniCaseProductTopics: entry.miniCaseTopic ? [entry.miniCaseTopic] : undefined
+      })
+        .issues.filter((issue) => issue.severity === "error")
+        .map((issue) => `${issue.path}: ${issue.message}`)
+    );
+
+    // The closed set. A URL added to the plan by hand has no approved article
+    // behind it and is refused here, whatever the hashes say.
+    const resolved = resolveCatalogSourceArticles(version.item, entry.approvedSources);
+
+    if (resolved.unresolved.length > 0) {
+      issues.push(
+        `${entry.entryId}.${version.language}.source_urls: cited source URL(s) outside the plan's approved material: ${resolved.unresolved.join(", ")}`
+      );
+    }
+  }
+
+  if (entry.versions.length >= 2) {
+    issues.push(
+      ...validateCatalogLanguagePair(
+        { language: entry.versions[0].language, item: entry.versions[0].item },
+        { language: entry.versions[1].language, item: entry.versions[1].item },
+        entry.entryId
+      ).map((issue) => `${issue.path}: ${issue.message}`)
+    );
+  }
+
+  return issues;
 }
 
 /**

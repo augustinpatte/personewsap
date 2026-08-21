@@ -6,6 +6,7 @@ import {
   type DataFetchResult
 } from "../../lib/dataState";
 import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
+import { orderMiniCaseQuestionOptions } from "./miniCaseOptionOrder";
 import { allowMockContent } from "../../lib/mockPolicy";
 import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import {
@@ -845,7 +846,16 @@ function readMiniCaseQuestions(
     .map((entry, index) => parseMiniCaseQuestion(entry, index))
     .filter((question): question is MiniCaseQuestion => question !== null);
 
-  return questions.length > 0 ? questions : undefined;
+  if (questions.length === 0) {
+    return undefined;
+  }
+
+  // Presentation order is decided here, on the way to the reader, rather than in
+  // the row. Cases written before the engine ordered its own output — the whole
+  // launch catalog — are served with the same deterministic order as new ones,
+  // and no stored content has to be rewritten to get it. Option ids are
+  // untouched, so stored answers still resolve.
+  return orderMiniCaseQuestionOptions(questions, metadata);
 }
 
 // Accepts both the mobile/mock shape (prompt, options[].label/outcome/feedback)

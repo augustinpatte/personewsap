@@ -1,5 +1,4 @@
 import type { DailyDropPayload, GeneratedContentItem, MiniCaseChallenge } from "../domain.js";
-import { sha256 } from "../utils/hash.js";
 
 /**
  * Where the correct answer sits among the four options.
@@ -39,17 +38,48 @@ import { sha256 } from "../utils/hash.js";
  * so it works for daily production content exactly as it does for the catalog.
  */
 export function miniCaseOptionOrderSeed(item: MiniCaseChallenge): string {
-  const sources = [...new Set((item.source_urls ?? []).map((url) => url.trim()).filter(Boolean))].sort();
+  return miniCaseOptionOrderSeedFrom(item);
+}
+
+/**
+ * The same seed, built from loose fields.
+ *
+ * The mobile app holds a persisted case as `content_items.metadata`, not as a
+ * `MiniCaseChallenge`, and has to reach the identical seed from it. Keeping one
+ * function for both shapes is what stops the two sides drifting apart.
+ */
+export function miniCaseOptionOrderSeedFrom(fields: {
+  product_topic?: unknown;
+  scenario_type?: unknown;
+  decision_type?: unknown;
+  concept_tested?: unknown;
+  question_pattern?: unknown;
+  correct_answer_pattern?: unknown;
+  source_urls?: unknown;
+}): string {
+  const urls = Array.isArray(fields.source_urls) ? fields.source_urls : [];
+  const sources = [
+    ...new Set(
+      urls
+        .filter((url): url is string => typeof url === "string")
+        .map((url) => url.trim())
+        .filter(Boolean)
+    )
+  ].sort();
 
   return [
-    item.product_topic ?? "",
-    item.scenario_type ?? "",
-    item.decision_type ?? "",
-    item.concept_tested ?? "",
-    item.question_pattern ?? "",
-    item.correct_answer_pattern ?? "",
+    readSeedField(fields.product_topic),
+    readSeedField(fields.scenario_type),
+    readSeedField(fields.decision_type),
+    readSeedField(fields.concept_tested),
+    readSeedField(fields.question_pattern),
+    readSeedField(fields.correct_answer_pattern),
     sources.join(",")
   ].join("|");
+}
+
+function readSeedField(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
 /**
@@ -111,5 +141,39 @@ export function correctAnswerPositions(item: GeneratedContentItem): number[] {
 }
 
 function optionSortKey(questionSeed: string, optionId: string): string {
-  return sha256(`${questionSeed}::${optionId}`);
+  return optionOrderHash(`${questionSeed}::${optionId}`);
+}
+
+/**
+ * The ordering hash.
+ *
+ * Deliberately not `sha256`: the mobile app has to compute the SAME order when
+ * it serves a case persisted before this ordering existed, and it has no
+ * node:crypto. This is FNV-1a run twice with different offsets — arithmetic that
+ * behaves identically in every JavaScript runtime, using `Math.imul` and `>>> 0`
+ * so the 32-bit wraparound is explicit rather than left to float precision.
+ *
+ * It is not a security primitive and does not need to be. It decides which of
+ * four options is shown first.
+ *
+ * MIRRORED IN `apps/mobile/src/features/today/miniCaseOptionOrder.ts`. The two
+ * implementations must agree exactly; both suites pin the same vector so a
+ * divergence fails a test rather than silently showing two different orders.
+ */
+export function optionOrderHash(value: string): string {
+  const first = fnv1a(value, 0x811c9dc5);
+  const second = fnv1a(value, 0x9e3779b1);
+
+  return `${first.toString(16).padStart(8, "0")}${second.toString(16).padStart(8, "0")}`;
+}
+
+function fnv1a(value: string, seed: number): number {
+  let hash = seed >>> 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+
+  return hash >>> 0;
 }

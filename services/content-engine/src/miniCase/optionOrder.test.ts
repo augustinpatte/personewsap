@@ -4,6 +4,7 @@ import type { Language, MiniCaseChallenge } from "../domain.js";
 import {
   correctAnswerPositions,
   miniCaseOptionOrderSeed,
+  optionOrderHash,
   orderMiniCaseOptions
 } from "./optionOrder.js";
 
@@ -231,5 +232,29 @@ describe("nothing a reader's answer depends on moves", () => {
     expect(ordered.questions.map((question) => question.role)).toEqual(
       original.questions.map((question) => question.role)
     );
+  });
+});
+
+/**
+ * The mobile app re-derives this same order when it serves a case persisted
+ * before the engine ordered its own output — the whole launch catalog. It has no
+ * node:crypto, so the hash is plain 32-bit arithmetic mirrored in
+ * `apps/mobile/src/features/today/miniCaseOptionOrder.ts`.
+ *
+ * Both suites pin the same vector and the same result. If either side drifts,
+ * one of them fails here instead of the app quietly showing a different order
+ * than the one on record.
+ */
+describe("the ordering agrees with the mobile delivery path", () => {
+  const SHARED_HASH_VECTOR = "finance_economy|pricing_decision|choose_metric|margin#0::B";
+
+  it("hashes the shared vector to the value the mobile suite pins", () => {
+    expect(optionOrderHash(SHARED_HASH_VECTOR)).toBe("02803eb0a76976dc");
+  });
+
+  it("produces a stable 16-character key", () => {
+    expect(optionOrderHash("anything")).toMatch(/^[0-9a-f]{16}$/);
+    expect(optionOrderHash("anything")).toBe(optionOrderHash("anything"));
+    expect(optionOrderHash("anything")).not.toBe(optionOrderHash("anything else"));
   });
 });

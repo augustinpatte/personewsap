@@ -4,7 +4,11 @@ import type { GeneratedContentItem, Language, MiniCaseTopicId, RankedArticle, To
 import { StructuredContentGenerator } from "../generation/structuredGenerator.js";
 import type { ContentGenerator, GenerationRequest } from "../generation/types.js";
 import type { CatalogEntryVersionRecord } from "../storage/contentRepository.js";
-import { runCatalogRepair, type CatalogRepairOptions } from "./catalogRepair.js";
+import {
+  applyCatalogRepairPlan,
+  prepareCatalogRepair,
+  type CatalogRepairOptions
+} from "./catalogRepair.js";
 
 /**
  * Repairing a finished catalog without rebuilding it.
@@ -157,7 +161,6 @@ function options(overrides: Partial<CatalogRepairOptions> = {}): CatalogRepairOp
     dropDate: DROP_DATE,
     languages: ["fr", "en"],
     contentStatus: "review",
-    persist: true,
     useLlm: false,
     productionStrict: false,
     ...overrides
@@ -236,6 +239,27 @@ function recordingGenerator(): { generator: ContentGenerator; calls: GenerationR
   };
 }
 
+/**
+ * Both phases, as an operator runs them.
+ *
+ * Prepare generates the candidate and writes a plan; apply persists exactly that
+ * plan. Driving the tests through both is what proves the round trip: what is
+ * asserted about the writes is what came out of the reviewed plan, not out of a
+ * second generation.
+ */
+async function prepareAndApply(
+  repairOptions: CatalogRepairOptions,
+  deps: ReturnType<typeof dependencies>
+) {
+  const { report, plan } = await prepareCatalogRepair(repairOptions, deps);
+
+  if (!plan) {
+    return report;
+  }
+
+  return applyCatalogRepairPlan(plan, { persist: true }, { repository: deps.repository });
+}
+
 function dependencies(stub: ReturnType<typeof repositoryStub>, generator?: ContentGenerator) {
   return {
     generator: generator ?? new StructuredContentGenerator(),
@@ -247,7 +271,7 @@ function dependencies(stub: ReturnType<typeof repositoryStub>, generator?: Conte
 describe("a repair touches only the pairs it was given", () => {
   it("rewrites the named pair and nothing else", async () => {
     const stub = repositoryStub({ existing: inventory() });
-    const report = await runCatalogRepair(options(), dependencies(stub));
+    const report = await prepareAndApply(options(), dependencies(stub));
 
     expect(report.counts.repaired).toBe(1);
     expect(report.outcomes[0].status).toBe("repaired");
@@ -264,7 +288,7 @@ describe("a repair touches only the pairs it was given", () => {
     const stub = repositoryStub({ existing: inventory() });
     const { generator, calls } = recordingGenerator();
 
-    await runCatalogRepair(options(), dependencies(stub, generator));
+    await prepareAndApply(options(), dependencies(stub, generator));
 
     const keepIds = [`content-${KEEP_ENTRY}-fr`, `content-${KEEP_ENTRY}-en`];
 
@@ -279,7 +303,7 @@ describe("a repair touches only the pairs it was given", () => {
     const existing = inventory();
     const stub = repositoryStub({ existing });
 
-    const report = await runCatalogRepair(options(), dependencies(stub));
+    const report = await prepareAndApply(options(), dependencies(stub));
 
     // Content items are replaced in place: no row is created and none removed.
     expect(existing).toHaveLength(6);
@@ -299,7 +323,7 @@ describe("rework keeps the event, replace discards it", () => {
     const stub = repositoryStub({ existing: inventory() });
     const { generator, calls } = recordingGenerator();
 
-    const report = await runCatalogRepair(options(), dependencies(stub, generator));
+    const report = await prepareAndApply(options(), dependencies(stub, generator));
 
     expect(stub.sourceReads).toContain(`content-${REWORK_ENTRY}-fr`);
     expect(calls[0].articles.map((entry) => entry.url)).toEqual(["https://fr.test/ai/original"]);
@@ -311,7 +335,7 @@ describe("rework keeps the event, replace discards it", () => {
   it("moves a replace onto a different event entirely", async () => {
     const stub = repositoryStub({ existing: inventory() });
 
-    const report = await runCatalogRepair(
+    const report = await prepareAndApply(
       options({ entryIds: [REPLACE_ENTRY], mode: "replace" }),
       dependencies(stub)
     );
@@ -324,7 +348,7 @@ describe("rework keeps the event, replace discards it", () => {
   it("does not take a replacement event another entry is already using", async () => {
     const stub = repositoryStub({ existing: inventory() });
 
-    const report = await runCatalogRepair(
+    const report = await prepareAndApply(
       options({ entryIds: [REPLACE_ENTRY], mode: "replace" }),
       dependencies(stub)
     );
@@ -336,7 +360,7 @@ describe("rework keeps the event, replace discards it", () => {
   it("refuses a replace when no other event is available", async () => {
     const stub = repositoryStub({ existing: inventory() });
 
-    const report = await runCatalogRepair(
+    const report = await prepareAndApply(
       options({ entryIds: [REPLACE_ENTRY], mode: "replace" }),
       {
         generator: new StructuredContentGenerator(),
@@ -364,7 +388,7 @@ describe("rework keeps the event, replace discards it", () => {
   it("keeps both halves of the repaired pair on one factual event", async () => {
     const stub = repositoryStub({ existing: inventory() });
 
-    await runCatalogRepair(options({ entryIds: [REPLACE_ENTRY], mode: "replace" }), dependencies(stub));
+    await prepareAndApply(options({ entryIds: [REPLACE_ENTRY], mode: "replace" }), dependencies(stub));
 
     expect(stub.writes).toHaveLength(2);
     expect(stub.writes[0].sourceUrls).toEqual(stub.writes[1].sourceUrls);
@@ -378,7 +402,7 @@ describe("a repair refuses anything it should not rewrite", () => {
     });
     const { generator, calls } = recordingGenerator();
 
-    const report = await runCatalogRepair(options(), dependencies(stub, generator));
+    const report = await prepareAndApply(options(), dependencies(stub, generator));
 
     expect(report.outcomes[0].status).toBe("refused");
     expect(report.outcomes[0].reason).toContain("still in review");
@@ -394,7 +418,7 @@ describe("a repair refuses anything it should not rewrite", () => {
     });
     const { generator, calls } = recordingGenerator();
 
-    const report = await runCatalogRepair(options(), dependencies(stub, generator));
+    const report = await prepareAndApply(options(), dependencies(stub, generator));
 
     expect(report.outcomes[0].status).toBe("refused");
     expect(report.outcomes[0].reason).toContain("attached to a daily drop");
@@ -405,7 +429,7 @@ describe("a repair refuses anything it should not rewrite", () => {
   it("refuses an entry that does not exist under this run", async () => {
     const stub = repositoryStub({ existing: inventory() });
 
-    const report = await runCatalogRepair(
+    const report = await prepareAndApply(
       options({ entryIds: [`${RUN_ID}-mini-case-ai-05`] }),
       dependencies(stub)
     );
@@ -418,17 +442,17 @@ describe("a repair refuses anything it should not rewrite", () => {
     const stub = repositoryStub({ existing: inventory() });
 
     await expect(
-      runCatalogRepair(options({ entryIds: ["some-other-run-mini-case-ai-02"] }), dependencies(stub))
+      prepareCatalogRepair(options({ entryIds: ["some-other-run-mini-case-ai-02"] }), dependencies(stub))
     ).rejects.toThrow(/must belong to run/);
   });
 });
 
 describe("the existing pair survives until the new one is proven", () => {
-  it("writes nothing in a dry run, but proves the pair would validate", async () => {
+  it("writes nothing at prepare, but proves the pair would validate", async () => {
     const stub = repositoryStub({ existing: inventory() });
     const { generator, calls } = recordingGenerator();
 
-    const report = await runCatalogRepair(options({ persist: false }), dependencies(stub, generator));
+    const { report } = await prepareCatalogRepair(options(), dependencies(stub, generator));
 
     expect(report.dryRun).toBe(true);
     expect(report.confirmation).toBeNull();
@@ -449,7 +473,7 @@ describe("the existing pair survives until the new one is proven", () => {
       }
     } as ContentGenerator;
 
-    const report = await runCatalogRepair(options(), dependencies(stub, brokenGenerator));
+    const report = await prepareAndApply(options(), dependencies(stub, brokenGenerator));
 
     expect(report.outcomes[0].status).toBe("refused");
     expect(report.outcomes[0].reason).toContain("refused before anything was changed");
@@ -462,7 +486,7 @@ describe("the existing pair survives until the new one is proven", () => {
       failOnContentItemId: `content-${REWORK_ENTRY}-en`
     });
 
-    await expect(runCatalogRepair(options(), dependencies(stub))).rejects.toThrow(
+    await expect(prepareAndApply(options(), dependencies(stub))).rejects.toThrow(
       /1 earlier version\(s\) were restored/
     );
 
@@ -479,7 +503,7 @@ describe("a repaired version keeps its slot and drops its stale keys", () => {
   it("carries the run, entry, index and topic across unchanged", async () => {
     const stub = repositoryStub({ existing: inventory() });
 
-    await runCatalogRepair(options(), dependencies(stub));
+    await prepareAndApply(options(), dependencies(stub));
 
     for (const write of stub.writes) {
       expect(write.metadata).toMatchObject({
@@ -497,7 +521,7 @@ describe("a repaired version keeps its slot and drops its stale keys", () => {
   it("drops the dedup key computed from the content it no longer holds", async () => {
     const stub = repositoryStub({ existing: inventory() });
 
-    await runCatalogRepair(options(), dependencies(stub));
+    await prepareAndApply(options(), dependencies(stub));
 
     for (const write of stub.writes) {
       expect(write.metadata.dedup_key).toBeUndefined();
@@ -507,7 +531,7 @@ describe("a repaired version keeps its slot and drops its stale keys", () => {
   it("clears stale mini-case editorial memory for the repaired versions", async () => {
     const stub = repositoryStub({ existing: inventory() });
 
-    await runCatalogRepair(options(), dependencies(stub));
+    await prepareAndApply(options(), dependencies(stub));
 
     // Handled inside replaceCatalogVersionContent, which the stub records
     // through its own delete hook when the real repository runs it.
