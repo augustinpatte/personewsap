@@ -531,13 +531,45 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
 
   // THE approved source universe for this entry, from here to the last write.
   //
-  // A resumed reference was written against a pool this run no longer holds, so
-  // its own sources are looked up across the whole canonical pool; a freshly
-  // generated one is held to the packet it was given. Either way there is now
-  // exactly one set, and generation, validation and persistence all read it.
-  const approvedArticles = persistedReference ? input.canonicalArticles : referenceArticles;
+  // Where it comes from depends on which reference we have, and the difference
+  // matters. A freshly generated reference is held to the packet it was just
+  // given. A resumed one was grounded and persisted days ago, so its approved
+  // material is the sources the previous run LINKED to it — read back from
+  // `content_item_sources`, not looked for in today's RSS window.
+  //
+  // Asking the current canonical pool instead is what stranded the last missing
+  // version: a feed only offers its most recent items, so a perfectly valid
+  // source that is still in `sources` and still linked to the French item had
+  // simply aged out of the window, and its English half was refused for citing
+  // "material outside the approved set" it had been built from all along.
+  let approvedArticles: RankedArticle[];
 
-  referenceItem = canonicalizeItemSourceUrls(referenceItem, approvedArticles);
+  if (persistedReference) {
+    const persisted = await persistedSourceArticles(input, persistedReference);
+
+    if (persisted.length === 0) {
+      return reject("no_source_material", [
+        `The persisted ${input.referenceLanguage} version of ${input.entryId} has no source linked through content_item_sources, so there is no approved material to pair its counterpart to.`
+      ]);
+    }
+
+    // The link is the approval. A URL sitting in the item's generated metadata
+    // with no row behind it was never approved by anything, and is refused here
+    // exactly as an invented URL would be.
+    const linked = new Set(persisted.map((article) => article.url));
+    const unlinked = referenceItem.source_urls.filter((url) => !linked.has(url));
+
+    if (unlinked.length > 0) {
+      return reject("validation_failed", [
+        `${input.entryId}.${input.referenceLanguage}.source_urls: cited source URL(s) not linked to the persisted content item through content_item_sources: ${unlinked.join(", ")}.`
+      ]);
+    }
+
+    approvedArticles = persisted;
+  } else {
+    approvedArticles = referenceArticles;
+    referenceItem = canonicalizeItemSourceUrls(referenceItem, approvedArticles);
+  }
 
   const referenceSources = resolveCatalogSourceArticles(referenceItem, approvedArticles);
 
@@ -941,6 +973,34 @@ export function rotateSourceWindow(
   const used = rotated.filter((article) => usedSourceUrls.has(article.url));
 
   return [...unused, ...used, ...rest];
+}
+
+/**
+ * The approved sources of an already-persisted reference version.
+ *
+ * Read from the database relation the previous run wrote, then enriched from
+ * today's canonical pool WHERE THE SAME DOCUMENT IS STILL THERE. Enrichment is
+ * restricted to an exact URL match, so it can add back the summary and body a
+ * `sources` row never stored without ever changing which document a source is.
+ * An article that has aged out of the feed keeps its reconstructed form, which
+ * carries everything validation and persistence need.
+ */
+async function persistedSourceArticles(
+  input: BuildEntryInput,
+  record: CatalogEntryVersionRecord
+): Promise<RankedArticle[]> {
+  if (!input.repository) {
+    return [];
+  }
+
+  const persisted = await input.repository.listSourceArticlesForContentItem({
+    contentItemId: record.contentItemId,
+    topic: record.topic ?? newsletterTopicsForEntry(input)[0]
+  });
+
+  const canonicalByUrl = new Map(input.canonicalArticles.map((article) => [article.url, article]));
+
+  return persisted.map((article) => canonicalByUrl.get(article.url) ?? article);
 }
 
 /**

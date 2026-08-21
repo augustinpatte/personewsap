@@ -1,3 +1,5 @@
+import type { TopicId } from "../domain.js";
+import { normalizeUrl } from "../utils/hash.js";
 import type {
   BusinessStory,
   DailyDropPayload,
@@ -57,6 +59,60 @@ export function sourceMetadataFromArticle(article: RankedArticle): SourceMetadat
     content_hash: article.content_hash,
     credibility_score: article.credibility_score ?? 0.6
   };
+}
+
+/** One `sources` row as it comes back from the database. */
+export type PersistedSourceRow = {
+  url: string;
+  title: string | null;
+  publisher: string | null;
+  author: string | null;
+  published_at: string | null;
+  retrieved_at: string;
+  language: string | null;
+  credibility_score: number | null;
+  content_hash: string | null;
+};
+
+/**
+ * Rebuild a `RankedArticle` from the source row the pipeline already persisted.
+ *
+ * The inverse of `mapArticlesToSourceUpserts`, field for field, so a row written
+ * from an article and read back yields the same article. What `sources` does not
+ * store is reconstructed rather than guessed: the canonical URL is derived from
+ * the URL itself, the topic comes from the content item the source is attached
+ * to, and the ranking fields are marked for what they are — this article was
+ * ranked by a run that has since finished, and is being trusted because it was
+ * persisted, not because it was ranked again today.
+ *
+ * `summary` and `body` are deliberately absent. They were never stored, and
+ * inventing them would put text in a prompt that no source ever said.
+ */
+export function mapSourceRowToRankedArticle(row: PersistedSourceRow, topic: TopicId): RankedArticle {
+  return {
+    url: row.url,
+    title: row.title ?? "",
+    publisher: row.publisher ?? "",
+    author: row.author,
+    published_at: row.published_at,
+    retrieved_at: row.retrieved_at,
+    language: row.language === "fr" || row.language === "en" ? row.language : "en",
+    sourceTopic: topic,
+    credibility_score: row.credibility_score ?? undefined,
+    content_hash: row.content_hash ?? row.url,
+    normalized_url: safeNormalizeUrl(row.url),
+    topic,
+    importance_score: 0,
+    rank_reasons: ["persisted_catalog_source"]
+  };
+}
+
+function safeNormalizeUrl(url: string): string {
+  try {
+    return normalizeUrl(url);
+  } catch {
+    return url;
+  }
 }
 
 export function mapArticlesToSourceUpserts(articles: RankedArticle[]): SourceUpsertRow[] {

@@ -49,8 +49,10 @@ import {
   mapArticlesToSourceUpserts,
   mapContentItemSourceInserts,
   mapGeneratedItemToContentInsert,
+  mapSourceRowToRankedArticle,
   type ContentItemInsert,
-  type ContentItemSourceInsert
+  type ContentItemSourceInsert,
+  type PersistedSourceRow
 } from "./mappers.js";
 import { throwPersistenceError } from "./persistenceError.js";
 import { withPersistenceRetry } from "./persistenceRetry.js";
@@ -101,6 +103,8 @@ export type CatalogEntryVersionRecord = {
   contentItemId: string;
   contentType: "business_story" | "mini_case";
   language: Language;
+  /** The stored editorial topic, used to type this version's persisted sources. */
+  topic: TopicId | null;
   title: string;
   summary: string | null;
   bodyMd: string | null;
@@ -1183,13 +1187,14 @@ export class ContentRepository {
       body_md: string | null;
       difficulty: string | null;
       status: string;
+      topic_id: string | null;
       metadata: Record<string, unknown> | null;
     }> = [];
 
     for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
       const { data, error } = await this.supabase
         .from("content_items")
-        .select("id,content_type,language,title,summary,body_md,difficulty,status,metadata")
+        .select("id,content_type,language,title,summary,body_md,difficulty,status,topic_id,metadata")
         .in("content_type", ["business_story", "mini_case"])
         .eq("metadata->>scheduler_mode", "bootstrap-catalog")
         .eq("metadata->>bootstrap_run_id", input.runId)
@@ -1231,10 +1236,68 @@ export class ContentRepository {
           // A column, not metadata, and the language-pair validator compares it.
           difficulty: row.difficulty,
           status: row.status,
+          topic: row.topic_id && isTopicId(row.topic_id) ? row.topic_id : null,
           metadata
         }
       ];
     });
+  }
+
+  /**
+   * The source articles a persisted content item is actually linked to.
+   *
+   * Read through `content_item_sources`, so the answer is the relation the
+   * previous run wrote — not the item's own `metadata.source_urls`, which is
+   * generated text and proves nothing about what was approved.
+   *
+   * This is what makes a half-written pair resumable. The reference version was
+   * grounded, validated and persisted days ago; its source is in `sources` and
+   * linked to it. Requiring that same article to still surface in today's RSS
+   * window would strand the entry forever, because a feed only ever offers its
+   * most recent items. The catalog window moves; a persisted link does not.
+   */
+  async listSourceArticlesForContentItem(input: {
+    contentItemId: string;
+    topic: TopicId;
+  }): Promise<RankedArticle[]> {
+    const { data, error } = await this.supabase
+      .from("content_item_sources")
+      .select(
+        "source_order,sources(url,title,publisher,author,published_at,retrieved_at,language,credibility_score,content_hash)"
+      )
+      .eq("content_item_id", input.contentItemId)
+      .order("source_order", { ascending: true });
+
+    if (error) {
+      throwPersistenceError({
+        table: "content_item_sources",
+        action: "select persisted source articles for content item",
+        error
+      });
+    }
+
+    const rows = (data ?? []) as Array<{
+      source_order: number;
+      sources: PersistedSourceRow | PersistedSourceRow[] | null;
+    }>;
+
+    const articles: RankedArticle[] = [];
+    const seen = new Set<string>();
+
+    for (const row of rows) {
+      // PostgREST returns an embedded row as an object or a single-element
+      // array depending on how it infers the relationship. Both mean one source.
+      const source = Array.isArray(row.sources) ? row.sources[0] : row.sources;
+
+      if (!source?.url || seen.has(source.url)) {
+        continue;
+      }
+
+      seen.add(source.url);
+      articles.push(mapSourceRowToRankedArticle(source, input.topic));
+    }
+
+    return articles;
   }
 
   async publishReviewedCatalogItems(input: { runId: string }): Promise<{ published: number }> {

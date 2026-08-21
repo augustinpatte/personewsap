@@ -67,6 +67,7 @@ export function referenceItemFromRecord(
     ...itemFields,
     content_type: record.contentType,
     language: record.language,
+    topic: record.topic,
     title: record.title,
     summary: record.summary ?? undefined,
     body_md: record.bodyMd ?? "",

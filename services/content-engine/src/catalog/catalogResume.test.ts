@@ -114,6 +114,7 @@ function persistedVersion(input: {
     bodyMd: "Stored body.",
     difficulty: "intro",
     status: "review",
+    topic: "business",
     // Shaped like a row this engine actually writes: mappers.ts stores every
     // structural mini-case field in metadata, which is what lets a resumed
     // counterpart be paired to the stored version instead of to a new case.
@@ -163,6 +164,12 @@ function repositoryStub(existing: CatalogEntryVersionRecord[]) {
       listCatalogEntryVersions: vi.fn(async () => existing),
       listBusinessStoryMemoryContext: async () => ({ recentStories: [] }),
       listMiniCaseMemoryContext: async () => ({ recentOverall: [] }),
+      // What content_item_sources -> sources answers for a stored version: the
+      // source the previous run linked to it, whether or not today's feed still
+      // carries it.
+      listSourceArticlesForContentItem: async () => [
+        { ...rankedArticle("business", "fr", 1), url: "https://sources.test/fr/business/1" }
+      ],
       storeDailyPayload: async (input: {
         payload: { language: Language };
         metadata?: Record<string, unknown>;
