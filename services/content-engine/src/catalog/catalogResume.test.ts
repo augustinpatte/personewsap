@@ -40,8 +40,20 @@ function rankedArticle(topic: TopicId, language: Language, index: number): Ranke
     published_at: `${DROP_DATE}T08:00:00.000Z`,
     retrieved_at: `${DROP_DATE}T09:00:00.000Z`,
     language,
-    summary: `A concrete ${topic} development number ${index} a reader can reuse.`,
-    body: `Body about ${topic} ${index}.`,
+    // Written like real source material, not like a placeholder: the Business
+    // Story allocator refuses a packet that carries no business mechanism, and a
+    // fixture standing for "a rich day of business news" has to contain what
+    // such a day contains — a mechanism and a number. Written in the article's
+    // own language, because an item built from it is checked for being 100% in
+    // its language.
+    summary:
+      language === "fr"
+        ? `Un développement ${topic} concret numéro ${index} : l'opérateur a revu ses tarifs après une hausse des coûts unitaires.`
+        : `A concrete ${topic} development number ${index}: the operator reset its pricing after unit costs moved.`,
+    body:
+      language === "fr"
+        ? `Contexte ${topic} ${index}. Le contrat porte sur 12 millions d'euros de capacité, et la marge dépend du nombre de clients qui acceptent le nouveau tarif.`
+        : `Context on ${topic} ${index}. The contract covers 12 million euros of capacity, and the margin depends on how many customers accept the new tariff.`,
     sourceTopic: topic,
     credibility_score: 0.9,
     content_hash: `hash-${language}-${topic}-${index}`,

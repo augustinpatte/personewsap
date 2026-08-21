@@ -1,4 +1,5 @@
 import type { GeneratedContentItem, Language } from "../domain.js";
+import { orderMiniCaseOptions } from "../miniCase/optionOrder.js";
 import type { CatalogEntryVersionRecord } from "../storage/contentRepository.js";
 
 /**
@@ -63,7 +64,7 @@ export function referenceItemFromRecord(
 
   const { source_urls: _ignored, ...itemFields } = metadata;
 
-  return {
+  const item = {
     ...itemFields,
     content_type: record.contentType,
     language: record.language,
@@ -74,4 +75,11 @@ export function referenceItemFromRecord(
     difficulty: record.difficulty ?? undefined,
     source_urls: sourceUrls
   } as unknown as GeneratedContentItem;
+
+  // Normalized to today's presentation contract before it is used as a pairing
+  // reference. A version stored before option ordering existed still carries the
+  // model's own A/B/C/D, and its counterpart would be refused for disagreeing
+  // with it. The ordering is deterministic and idempotent, so a version stored
+  // after it is unchanged — and the stored row itself is never rewritten here.
+  return item.content_type === "mini_case" ? orderMiniCaseOptions(item) : item;
 }

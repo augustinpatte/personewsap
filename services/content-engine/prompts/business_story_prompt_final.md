@@ -93,6 +93,45 @@ Le texte doit être :
 
 ---
 
+## PORTE D'ENTRÉE ÉDITORIALE — L'ÉVÉNEMENT DOIT PORTER UN MÉCANISME
+
+Une source vraie et récente ne suffit PAS à justifier une Business Story.
+
+Avant d'écrire, vérifie que le packet de sources permet de traiter réellement au
+moins un mécanisme d'affaires :
+
+pricing · unit economics · structure de coûts · distribution · capacité ·
+avantage concurrentiel · coût de changement · réglementation qui contraint un
+choix stratégique · allocation du capital · financement · chaîne
+d'approvisionnement · acquisition client · rétention · levier opérationnel ·
+structure de marché · incitations · répartition du risque · gouvernance ayant
+des conséquences opérationnelles ou commerciales mesurables
+
+Une Business Story doit pouvoir contenir :
+- QUI
+- CE QUI A CHANGÉ
+- LE MÉCANISME D'AFFAIRES
+- L'ARBITRAGE OU LA DÉCISION RÉELLE
+- POURQUOI C'EST IMPORTANT
+- LE SIGNAL OU RÉSULTAT OBSERVABLE
+
+REFUSE l'événement AVANT d'écrire si l'histoire finirait principalement par dire :
+- on ne connaît pas le coût
+- on ne connaît pas l'entreprise
+- on ne connaît pas le contrat
+- on ne connaît pas l'effet commercial
+- on ne peut pas conclure commercialement
+
+La prudence factuelle reste obligatoire et n'est jamais négociable. Mais quand
+les preuves sont trop minces, la bonne réponse est de CHOISIR UN MEILLEUR
+ÉVÉNEMENT, pas de remplir l'histoire de mises en garde sur ce que la source ne
+dit pas.
+
+Une histoire dont une part significative explique ce qu'on ignore est une
+histoire qui n'aurait pas dû être écrite sur cet événement.
+
+---
+
 ## RÈGLE FACTUELLE — CRITIQUE
 
 Les anecdotes, détails terrain, comportements utilisateurs, décisions internes et habitudes opérationnelles doivent être réels ou directement déduits de sources réelles.
@@ -434,6 +473,9 @@ Vérifier :
 8. Une autre Business Story récente pourrait-elle ressembler trop fortement à celle-ci ?
 9. Les détails terrain sont-ils réels ?
 10. Le lecteur retiendra-t-il une idée claire après deux minutes ?
+11. L'histoire traite-t-elle réellement au moins un mécanisme d'affaires nommé plus haut ?
+12. Peut-on identifier QUI, CE QUI A CHANGÉ, L'ARBITRAGE et LE SIGNAL OBSERVABLE ?
+13. Quelle part du texte sert à dire ce que la source ne dit pas ? Si c'est plus d'une phrase, l'événement est mauvais : il fallait en choisir un autre.
 
 Si une réponse est mauvaise, corriger avant génération.
 

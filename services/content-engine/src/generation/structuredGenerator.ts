@@ -3,6 +3,7 @@ import {
   MINI_CASE_TOPIC_IDS,
   miniCaseTopicToContentTopics
 } from "../domain.js";
+import { orderMiniCaseOptionsInPayload } from "../miniCase/optionOrder.js";
 import type {
   BusinessStory,
   DailyDropPayload,
@@ -266,11 +267,15 @@ function buildMiniCaseQuestions(
         `Which framework should you use first to test ${conceptTested}?`,
         `Quel cadre utiliser d'abord pour tester ${conceptTested} ?`
       ),
+      // Each wrong answer is a mistake a competent junior would defend in a
+      // meeting: a framework that is incomplete, applied in the wrong order, or
+      // anchored on one constraint. Nothing here is dismissible on sight, so the
+      // question cannot be answered by elimination.
       options: [
-        correctOption(language, "A", languageLine(language, "Separate the sourced fact, decision owner, and next signal.", "Séparer le fait source, le responsable de la décision et le prochain signal.")),
-        wrongOption(language, "B", languageLine(language, "Turn the update into an immediate recommendation.", "Transformer l'actualité en recommandation immédiate.")),
-        wrongOption(language, "C", languageLine(language, "Pick the loudest interpretation of the headline.", "Choisir l'interprétation la plus bruyante du titre.")),
-        wrongOption(language, "D", languageLine(language, "Wait for the story to disappear before acting.", "Attendre que le sujet disparaisse avant d'agir."))
+        correctOption(language, "A", languageLine(language, "Separate the sourced fact, the decision owner, and the next signal.", "Séparer le fait source, le responsable de la décision et le prochain signal.")),
+        wrongOption(language, "B", languageLine(language, "Start from the decision owner's stated objective and work backwards.", "Partir de l'objectif annoncé du responsable et raisonner à rebours.")),
+        wrongOption(language, "C", languageLine(language, "Benchmark the update against the closest comparable case first.", "Comparer d'abord l'actualité au cas comparable le plus proche.")),
+        wrongOption(language, "D", languageLine(language, "Size the worst-case downside first and treat the rest as secondary.", "Chiffrer d'abord le pire scénario et traiter le reste comme secondaire."))
       ]
     },
     {
@@ -279,9 +284,9 @@ function buildMiniCaseQuestions(
       question: languageLine(language, "Which signal best tests the practical impact?", "Quel signal teste le mieux l'impact pratique ?"),
       options: [
         correctOption(language, "A", watchSignalText),
-        wrongOption(language, "B", languageLine(language, "A louder headline with the same facts.", "Un titre plus bruyant avec les mêmes faits.")),
-        wrongOption(language, "C", languageLine(language, "The number of times the story is shared.", "Le nombre de partages de l'actualité.")),
-        wrongOption(language, "D", languageLine(language, "A competitor's unrelated announcement.", "L'annonce sans rapport d'un concurrent."))
+        wrongOption(language, "B", languageLine(language, "The share price move on the day the announcement was published.", "Le mouvement du cours le jour de la publication de l'annonce.")),
+        wrongOption(language, "C", languageLine(language, "The largest figure quoted anywhere in the announcement itself.", "Le chiffre le plus élevé cité dans l'annonce elle-même.")),
+        wrongOption(language, "D", languageLine(language, "Whether a competitor has announced something comparable since.", "Le fait qu'un concurrent ait annoncé depuis quelque chose de comparable."))
       ]
     },
     {
@@ -289,10 +294,10 @@ function buildMiniCaseQuestions(
       role: "conclusion_decision",
       question: languageLine(language, "What is the strongest conclusion?", "Quelle est la conclusion la plus solide ?"),
       options: [
-        correctOption(language, "A", languageLine(language, "Wait for the named signal before escalating the decision.", "Attendre le signal nommé avant d'escalader la décision.")),
-        wrongOption(language, "B", languageLine(language, "Assume the source proves every downstream consequence.", "Supposer que la source prouve toutes les conséquences.")),
-        wrongOption(language, "C", languageLine(language, "Reverse the whole plan on one data point.", "Inverser tout le plan sur un seul élément.")),
-        wrongOption(language, "D", languageLine(language, "Ignore the update because it is uncomfortable.", "Ignorer l'actualité parce qu'elle dérange."))
+        correctOption(language, "A", languageLine(language, "Wait for the named signal before escalating the decision further.", "Attendre le signal nommé avant d'escalader davantage la décision.")),
+        wrongOption(language, "B", languageLine(language, "Read the announcement as confirmation of the plan already agreed.", "Lire l'annonce comme la confirmation du plan déjà validé.")),
+        wrongOption(language, "C", languageLine(language, "Move now while the terms on the table are still favourable.", "Agir maintenant tant que les conditions proposées restent favorables.")),
+        wrongOption(language, "D", languageLine(language, "Escalate only if the downside exceeds the budget already committed.", "N'escalader que si le risque dépasse le budget déjà engagé."))
       ]
     }
   ];
@@ -445,13 +450,15 @@ export class StructuredContentGenerator implements ContentGenerator {
       items.push(...this.generateMiniCases(request));
     }
 
-    return {
+    // Same presentation ordering the LLM path gets through
+    // `assembleDailyDropPayload`, so deterministic content behaves identically.
+    return orderMiniCaseOptionsInPayload({
       drop_date: request.dropDate,
       language: request.language,
       prompt_version: PROMPT_VERSION,
       generator_version: GENERATOR_VERSION,
       items
-    };
+    });
   }
 
   // Generates the complete newsletter catalog: one article per editorial topic,

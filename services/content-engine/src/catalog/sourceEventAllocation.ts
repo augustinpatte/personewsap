@@ -1,7 +1,15 @@
 import type { RankedArticle, TopicId } from "../domain.js";
+import { assessBusinessStorySourceRichness } from "./businessStoryRichness.js";
 
 /**
- * Deterministic allocation of one distinct editorial event per Business Story.
+ * Deterministic allocation of one distinct editorial event per catalog entry.
+ *
+ * Used by both content types, because both had the same disease. Business
+ * Stories got ten copies of one broad packet; Mini Cases got a rotated window
+ * over the whole topic pool, which let one Stock Market batch spend two of its
+ * five cases on US debt and two more on Shein, and one Law batch build three
+ * cases on a single heat-pump procurement rule — while unused events sat in the
+ * pool.
  *
  * A Business Story *is* its source event. The previous design handed every one
  * of the ten generation calls the same broad, mostly-overlapping packet and
@@ -50,6 +58,8 @@ export function allocateBusinessStorySourcePackets(input: {
   articles: readonly RankedArticle[];
   topics: readonly TopicId[];
   count?: number;
+  /** Off for Mini Case batches, which do not need a business mechanism. */
+  requireBusinessMechanism?: boolean;
 }): BusinessStorySourcePacket[] {
   const allowed = new Set(input.topics);
   const eligible: RankedArticle[] = [];
@@ -107,15 +117,59 @@ export function allocateBusinessStorySourcePackets(input: {
     );
 
     const supporting = [...sameEvent, ...related].slice(0, MAX_SUPPORTING_SOURCES);
+    const articles = [candidate, ...supporting];
+
+    // A Business Story needs a business mechanism, not just a true and recent
+    // event. Judged on the whole packet, so a thin announcement paired with a
+    // source that supplies the economics still qualifies — which is the reason
+    // supporting sources exist. Mini Case batches skip this: a case tests a
+    // decision, and a source that cannot carry a story can still frame one.
+    if (input.requireBusinessMechanism !== false) {
+      const richness = assessBusinessStorySourceRichness({ articles });
+
+      if (!richness.sufficient) {
+        continue;
+      }
+    }
 
     packets.push({
       primary: candidate,
       supporting,
-      articles: [candidate, ...supporting]
+      articles
     });
   }
 
   return packets;
+}
+
+/**
+ * One packet per Mini Case in a topic batch.
+ *
+ * The difference from a Business Story is that reuse is legitimate here: a
+ * single rich source can support several genuinely different scenarios, and a
+ * thin topic should still produce its five cases. So events are handed out one
+ * per case while distinct ones remain, and only then does the allocator come
+ * back round.
+ *
+ * What it will not do is reuse an event while an unused one is still available,
+ * which is the whole of the observed problem.
+ */
+export function allocateMiniCaseSourcePackets(input: {
+  articles: readonly RankedArticle[];
+  topics: readonly TopicId[];
+  count: number;
+}): BusinessStorySourcePacket[] {
+  const available = allocateBusinessStorySourcePackets({
+    articles: input.articles,
+    topics: input.topics,
+    requireBusinessMechanism: false
+  });
+
+  if (available.length === 0 || input.count <= 0) {
+    return [];
+  }
+
+  return Array.from({ length: input.count }, (_, index) => available[index % available.length]);
 }
 
 /** Distinct primary events per topic, for the report when capacity is short. */
@@ -134,6 +188,17 @@ export function countBusinessStoryEventsByTopic(input: {
   }
 
   return byTopic;
+}
+
+/**
+ * Whether two approved articles report the same editorial event.
+ *
+ * Exported because exclusion has to work at event level, not URL level: the
+ * French and English reports of one story are two URLs and one event, and a
+ * "replacement" that swapped one for the other would change nothing.
+ */
+export function isSameSourceEvent(left: RankedArticle, right: RankedArticle): boolean {
+  return isSameEvent(left, right);
 }
 
 /** Event identity for deduplication: the canonical URL of the document. */

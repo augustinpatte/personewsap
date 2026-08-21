@@ -5,8 +5,9 @@ import { StructuredContentGenerator } from "../generation/structuredGenerator.js
 import type { ContentGenerator, GenerationRequest } from "../generation/types.js";
 import {
   allocateBusinessStorySourcePackets,
+  allocateMiniCaseSourcePackets,
   countBusinessStoryEventsByTopic
-} from "./businessStoryAllocation.js";
+} from "./sourceEventAllocation.js";
 import {
   DEFAULT_BUSINESS_STORY_COUNT,
   DEFAULT_MINI_CASE_COUNT_PER_TOPIC,
@@ -412,5 +413,115 @@ describe("the second-line guards stay in place", () => {
     // Two entries, two languages each, written as they were accepted.
     expect(writes).toHaveLength(4);
     expect(new Set(writes.map((write) => write.entryId)).size).toBe(2);
+  });
+});
+
+/**
+ * Mini Case batches had the same disease, and the audit found it in three
+ * topics at once: Stock Market spent two of its five cases on US debt and two
+ * more on Shein; Law built three cases on one heat-pump procurement rule; AI
+ * came back twice to the same deepfake story. In every one of them the pool
+ * still held events nobody had used.
+ *
+ * Reuse stays legitimate here — one rich source can carry several genuinely
+ * different scenarios, and a thin topic must still produce five cases. What is
+ * not legitimate is reusing an event while an unused one is sitting there.
+ */
+describe("a Mini Case batch spends its distinct events first", () => {
+  const stockMarketPool = (): RankedArticle[] => [
+    article({ url: "https://en.test/us-debt-1", language: "en", topic: "finance", title: "US debt ceiling standoff returns" }),
+    article({ url: "https://en.test/us-debt-2", language: "en", topic: "finance", title: "US debt ceiling standoff returns" }),
+    article({ url: "https://en.test/shein-1", language: "en", topic: "business", title: "Shein files for a London listing" }),
+    article({ url: "https://en.test/shein-2", language: "en", topic: "business", title: "Shein files for a London listing" }),
+    article({ url: "https://en.test/rates", language: "en", topic: "finance", title: "Central bank holds rates steady" }),
+    article({ url: "https://en.test/buyback", language: "en", topic: "finance", title: "Insurer announces a buyback programme" }),
+    article({ url: "https://en.test/index", language: "en", topic: "finance", title: "Index provider reweights emerging markets" })
+  ];
+
+  it("does not spend two cases on US debt and two on Shein", () => {
+    const packets = allocateMiniCaseSourcePackets({
+      articles: stockMarketPool(),
+      topics: ["business", "finance"],
+      count: 5
+    });
+
+    expect(packets).toHaveLength(5);
+
+    const primaries = packets.map((packet) => packet.primary.url);
+    expect(new Set(primaries).size).toBe(5);
+
+    // The syndicated second copies never become a primary of their own.
+    expect(primaries).not.toContain("https://en.test/us-debt-2");
+    expect(primaries).not.toContain("https://en.test/shein-2");
+  });
+
+  it("does not build three Law cases on one procurement rule", () => {
+    const packets = allocateMiniCaseSourcePackets({
+      articles: [
+        article({ url: "https://en.test/heat-pump-1", language: "en", topic: "law", title: "New procurement rule covers heat pumps" }),
+        article({ url: "https://en.test/heat-pump-2", language: "en", topic: "law", title: "New procurement rule covers heat pumps" }),
+        article({ url: "https://en.test/heat-pump-3", language: "en", topic: "law", title: "New procurement rule covers heat pumps" }),
+        article({ url: "https://en.test/merger", language: "en", topic: "law", title: "Regulator clears an adhesives merger" }),
+        article({ url: "https://en.test/dpa", language: "en", topic: "law", title: "Data authority fines a retailer" }),
+        article({ url: "https://en.test/labour", language: "en", topic: "law", title: "Court narrows a subcontracting exemption" })
+      ],
+      topics: ["law"],
+      count: 5
+    });
+
+    const primaries = packets.map((packet) => packet.primary.url);
+
+    // Four distinct events for five cases. The first four are all different —
+    // the three heat-pump copies count as one event, not three — and only the
+    // fifth comes back round, which is reuse after exhaustion rather than
+    // instead of it.
+    expect(new Set(primaries.slice(0, 4)).size).toBe(4);
+    expect(primaries.slice(0, 4).filter((url) => url.includes("heat-pump"))).toHaveLength(1);
+    expect(primaries[4]).toBe(primaries[0]);
+  });
+
+  it("does not come back to the same deepfake story while AI events remain", () => {
+    const packets = allocateMiniCaseSourcePackets({
+      articles: [
+        article({ url: "https://en.test/deepfake-a", language: "en", topic: "tech_ai", title: "Deepfake scam hits a payments firm" }),
+        article({ url: "https://en.test/deepfake-b", language: "en", topic: "tech_ai", title: "Deepfake scam hits a payments firm" }),
+        article({ url: "https://en.test/inference", language: "en", topic: "tech_ai", title: "Inference costs fall for open models" }),
+        article({ url: "https://en.test/datacentre", language: "en", topic: "tech_ai", title: "Operator delays a datacentre build" })
+      ],
+      topics: ["tech_ai"],
+      count: 3
+    });
+
+    expect(packets.map((packet) => packet.primary.url)).toEqual([
+      "https://en.test/deepfake-a",
+      "https://en.test/inference",
+      "https://en.test/datacentre"
+    ]);
+  });
+
+  it("comes back round only once the distinct events genuinely run out", () => {
+    const packets = allocateMiniCaseSourcePackets({
+      articles: [
+        article({ url: "https://en.test/only-1", language: "en", topic: "tech_ai", title: "A single AI capacity decision" }),
+        article({ url: "https://en.test/only-2", language: "en", topic: "tech_ai", title: "A separate AI pricing decision" })
+      ],
+      topics: ["tech_ai"],
+      count: 5
+    });
+
+    // Two events, five cases: both are used before either repeats, and the
+    // batch is still delivered rather than refused.
+    expect(packets).toHaveLength(5);
+    expect(packets.slice(0, 2).map((packet) => packet.primary.url)).toEqual([
+      "https://en.test/only-1",
+      "https://en.test/only-2"
+    ]);
+    expect(packets[2].primary.url).toBe("https://en.test/only-1");
+  });
+
+  it("returns nothing when the topic has no material, leaving the fallback in charge", () => {
+    expect(
+      allocateMiniCaseSourcePackets({ articles: richPool(5), topics: ["medicine"], count: 5 })
+    ).toEqual([]);
   });
 });

@@ -26,6 +26,11 @@ import {
   isMiniCaseQuestionPattern,
   isMiniCaseScenarioType
 } from "../miniCase/taxonomy.js";
+import { validateMiniCaseDistractorQuality } from "../miniCase/distractorQuality.js";
+import {
+  miniCaseSemanticText,
+  validateMiniCaseTaxonomyCompatibility
+} from "../miniCase/taxonomyCompatibility.js";
 
 export type ValidationIssue = {
   path: string;
@@ -1251,6 +1256,25 @@ function validateMiniCaseUxAndRotation(
     issues.push(qualityIssue({ path: `${path}.correct_answer_pattern`, code: "invalid_mini_case_answer_pattern", message: "Mini-case correct_answer_pattern is missing or unsupported.", strict: true }));
   }
 
+  // Structurally valid taxonomy is not the same as taxonomy that describes this
+  // case. Always blocking, like the enum checks above, so a retry can fix it
+  // rather than the catalog shipping an AI case filed as a clinical trial.
+  if (productTopic && isApprovedMiniCaseProductTopic(productTopic)) {
+    for (const issue of validateMiniCaseTaxonomyCompatibility({
+      productTopic,
+      scenarioType,
+      conceptTested,
+      caseText: miniCaseSemanticText(item)
+    })) {
+      issues.push(qualityIssue({
+        path: `${path}.${issue.field}`,
+        code: "mini_case_taxonomy_incoherent",
+        message: issue.message,
+        strict: true
+      }));
+    }
+  }
+
   issues.push(...validateMiniCaseQuestions(item, path, strict));
   issues.push(...validateMiniCaseConclusion(item, path, strict));
   issues.push(...validateMiniCaseCooldowns(item, path, dropDate, options.miniCaseMemory ?? [], strict));
@@ -1295,6 +1319,21 @@ function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content
         strict
       )
     );
+
+    // A question answerable by elimination teaches nothing. Blocking so the
+    // generator retries with better distractors rather than shipping a question
+    // a reader can solve without reading the case.
+    for (const issue of validateMiniCaseDistractorQuality(question.options, miniCaseSemanticText(item))) {
+      issues.push(qualityIssue({
+        path:
+          issue.optionIndex >= 0
+            ? `${path}.questions.${questionIndex}.options.${issue.optionIndex}.text`
+            : `${path}.questions.${questionIndex}.options`,
+        code: issue.code,
+        message: issue.message,
+        strict: true
+      }));
+    }
 
     question.options.forEach((option, optionIndex) => {
       const feedback = typeof option.feedback === "string" ? option.feedback.trim() : "";

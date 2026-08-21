@@ -134,3 +134,50 @@ describe("scoring", () => {
     expect(scoreMiniCaseSelections(questions, {})).toBe(0);
   });
 });
+
+/**
+ * The content engine now decides the presentation order of a case's options
+ * from a hash, so the correct answer stops living at B and D. That reorders the
+ * array the app receives, including for cases a reader already answered.
+ *
+ * Nothing here may depend on position. Grading resolves a stored selection by
+ * option id, and feedback is attached to the option object, so both survive the
+ * array being handed over in any order.
+ */
+describe("answers survive the options arriving in a different order", () => {
+  const questions: MiniCaseQuestion[] = [question, { ...question, id: "q2" }];
+  const reordered: MiniCaseQuestion[] = questions.map((entry) => ({
+    ...entry,
+    options: [...entry.options].reverse()
+  }));
+
+  it("scores a stored answer the same whatever order the options arrive in", () => {
+    const stored = { q1: "b", q2: "a" };
+
+    expect(scoreMiniCaseSelections(reordered, stored)).toBe(
+      scoreMiniCaseSelections(questions, stored)
+    );
+    expect(scoreMiniCaseSelections(reordered, stored)).toBe(1);
+  });
+
+  it("keeps the correct option correct after a reorder", () => {
+    expect(findBestOption(reordered[0])?.id).toBe("b");
+  });
+
+  it("keeps each option's feedback attached to that option", () => {
+    const first = reordered[0];
+    const picked = first.options.find((option) => option.id === "b");
+
+    expect(picked).toBeDefined();
+    expect(
+      resolveOptionFeedback({
+        challenge,
+        question: first,
+        option: picked!,
+        selectedId: "b",
+        answered: true,
+        copy
+      })?.tone
+    ).toBe("correct");
+  });
+});

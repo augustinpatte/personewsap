@@ -62,7 +62,8 @@
     "smoke:content:dry-run": "npm run content:dry-run",
     "test": "vitest run",
     "test:watch": "vitest",
-    "learning:catalog:build": "node scripts/learning-paths-build.mjs"
+    "learning:catalog:build": "node scripts/learning-paths-build.mjs",
+    "content:catalog-repair": "npm --prefix services/content-engine run catalog-repair --"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -1,4 +1,5 @@
 import { MAX_NEWSLETTER_ARTICLES_PER_TOPIC, miniCaseTopicToContentTopics } from "../domain.js";
+import { orderMiniCaseOptionsInPayload } from "../miniCase/optionOrder.js";
 import type {
   DailyDropPayload,
   DailyDropSlot,
@@ -69,10 +70,14 @@ export type MiniCaseSelectionDiagnostic = {
 };
 
 export function assembleDailyDropPayload(payload: DailyDropPayload): DailyDropPayload {
-  return {
+  // Presentation order is settled here, once, for every path that assembles a
+  // payload. Mini-case options are ordered from a hash rather than left in the
+  // order the model produced them, because a model's idea of "randomize A/B/C/D"
+  // is a bias the catalog only reveals once it is finished.
+  return orderMiniCaseOptionsInPayload({
     ...payload,
     items: [...payload.items].sort(compareGeneratedItemsForAssignment)
-  };
+  });
 }
 
 export function selectDailyDropItemsForUser(

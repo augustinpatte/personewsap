@@ -33,8 +33,9 @@ import type { ContentRepository } from "../storage/contentRepository.js";
 import { alignCounterpartEditorialIdentity, validateCatalogLanguagePair } from "./catalogPairing.js";
 import {
   allocateBusinessStorySourcePackets,
+  allocateMiniCaseSourcePackets,
   type BusinessStorySourcePacket
-} from "./businessStoryAllocation.js";
+} from "./sourceEventAllocation.js";
 import {
   canonicalizeItemSourceUrls,
   resolveCatalogSourceArticles
@@ -266,10 +267,32 @@ export async function runBootstrapCatalog(
     count: options.businessStoryCount
   });
 
+  // The same allocation for Mini Cases, one batch per topic. A topic with five
+  // distinct events spends one on each case instead of building two cases on the
+  // same story while a fourth event goes unused.
+  const miniCasePacketsByTopic = new Map<MiniCaseTopicId, BusinessStorySourcePacket[]>();
+
+  for (const miniCaseTopic of options.miniCaseTopics) {
+    miniCasePacketsByTopic.set(
+      miniCaseTopic,
+      allocateMiniCaseSourcePackets({
+        articles: canonicalPool.articles,
+        topics: miniCaseTopicToContentTopics(miniCaseTopic),
+        count: options.miniCaseCountPerTopic
+      })
+    );
+  }
+
   dependencies.onProgress?.("catalog source allocation ready", {
     canonical_articles: canonicalPool.articles.length,
     business_story_packets: businessStoryPackets.length,
     requested_business_stories: options.businessStoryCount,
+    mini_case_distinct_events_by_topic: Object.fromEntries(
+      [...miniCasePacketsByTopic].map(([topic, packets]) => [
+        topic,
+        new Set(packets.map((packet) => packet.primary.url)).size
+      ])
+    ),
     catalog_window_days: catalogWindowDays
   });
 
@@ -370,7 +393,7 @@ export async function runBootstrapCatalog(
         existingVersions,
         skipped,
         usedSourceUrls: sourceBatchFor(usedSourceUrlsByBatch, "mini_case", miniCaseTopic),
-        businessStoryPacket: undefined
+        businessStoryPacket: miniCasePacketsByTopic.get(miniCaseTopic)?.[index]
       });
 
       if (outcome.kind === "rejected") {
@@ -400,7 +423,15 @@ export async function runBootstrapCatalog(
   return buildOutput({ options, referenceLanguage, entries, rejected, skipped });
 }
 
-type BuildEntryInput = {
+/**
+ * Everything one catalog entry needs to be built and validated.
+ *
+ * Exported so the targeted repair can reuse this exact path. A repair that
+ * generated its pair through a second, parallel implementation would drift from
+ * the one the catalog was built with, and the two would disagree about what a
+ * valid entry is precisely when it matters most.
+ */
+export type BuildEntryInput = {
   entryId: string;
   contentType: "business_story" | "mini_case";
   miniCaseTopic: MiniCaseTopicId | null;
@@ -422,21 +453,28 @@ type BuildEntryInput = {
   /** Sources already used by earlier entries of this topic batch. */
   usedSourceUrls: Set<string>;
   /**
-   * The distinct primary event allocated to this Business Story, with any
-   * approved coverage of the same event. Undefined for a Mini Case, which may
-   * legitimately build several scenarios on one source and therefore still
-   * selects from the topic-scoped pool.
+   * The distinct primary event allocated to this entry, with any approved
+   * coverage of the same event. Undefined only when the pool holds nothing in
+   * this entry's topics, where the entry falls back to the rotated pool rather
+   * than being refused for want of an allocation.
    */
   businessStoryPacket: BusinessStorySourcePacket | undefined;
 };
 
-type BuildEntryOutcome =
+export type BuildEntryOutcome =
   | { kind: "entry"; entry: CatalogEntry }
   | { kind: "rejected"; rejection: RejectedCatalogEntry }
   /** Nothing to do: every language of this entry is already persisted. */
   | { kind: "skipped" };
 
-async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
+/**
+ * Generate, pair and validate one entry.
+ *
+ * Persists only when `input.repository` is set. Passing it undefined yields a
+ * fully validated pair and no writes at all, which is how the repair builds a
+ * candidate before deciding whether the existing pair may be replaced.
+ */
+export async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
   const reject = (reason: RejectedCatalogEntry["reason"], details: string[]): BuildEntryOutcome => ({
     kind: "rejected",
     rejection: {
@@ -476,9 +514,8 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
   // language's slice of it: an English event is as eligible as a French one for
   // an entry whose first version happens to be written in French.
   //
-  // A Business Story gets the one event allocated to it. A Mini Case still gets
-  // the topic-scoped pool, because several distinct cases can legitimately be
-  // built on one source.
+  // Both content types get the one event allocated to them. The rotated pool is
+  // only the fallback for a topic the canonical pool cannot cover at all.
   const referenceArticles = input.businessStoryPacket
     ? input.businessStoryPacket.articles
     : rotateSourceWindow(

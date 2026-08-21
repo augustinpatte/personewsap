@@ -2,7 +2,7 @@ import type { Language, RankedArticle, TopicId } from "../domain.js";
 import {
   allocateBusinessStorySourcePackets,
   countBusinessStoryEventsByTopic
-} from "./businessStoryAllocation.js";
+} from "./sourceEventAllocation.js";
 
 /**
  * One source pool for the whole catalog, across every requested language.

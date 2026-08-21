@@ -181,10 +181,63 @@ Chaque mauvaise réponse doit représenter une erreur fréquente réelle :
 
 Le lecteur doit pouvoir se tromper honnêtement.
 
-Interdit :
-- réponses absurdes
-- réponses évidemment fausses
-- options qui font deviner la bonne réponse
+### CONTRAT STRICT DE QUALITÉ DES DISTRACTEURS
+
+Chaque QCM contient exactement :
+- 1 bonne réponse
+- 3 mauvaises réponses plausibles
+
+Chaque mauvaise réponse doit incarner une erreur de raisonnement crédible,
+c'est-à-dire un choix qu'un professionnel junior compétent pourrait réellement
+défendre en réunion. Par exemple :
+- optimiser la mauvaise métrique
+- agir avant d'avoir assez de preuves
+- surpondérer une seule contrainte
+- ignorer un effet de second ordre
+- choisir une action localement rationnelle qui échoue globalement
+- confondre corrélation et mécanisme causal
+- protéger le risque de baisse en sacrifiant l'objectif réel
+- appliquer un cadre incomplet mais professionnellement plausible
+
+INTERDIT — un distracteur ne doit jamais être :
+- absurde, humoristique ou fantaisiste
+- une métrique manifestement hors sujet
+- un décompte d'articles de presse ou de citations média, sauf si l'attention
+  médiatique est réellement la variable de décision
+- une date de création d'entreprise ou de lancement de fonds, sauf si
+  l'ancienneté est réellement la variable de décision
+- la notoriété ou la visibilité publique, quand elle est sans rapport avec la
+  décision
+- un choix qu'aucun employé junior compétent n'envisagerait
+- trois mauvaises réponses visiblement faibles autour d'une seule réponse
+  sophistiquée
+
+Les quatre options doivent :
+- sonner professionnellement plausibles
+- avoir un niveau de précision comparable
+- avoir une longueur à peu près comparable quand c'est possible
+- appartenir au même espace de décision sémantique
+
+La bonne réponse ne doit PAS systématiquement :
+- être la plus longue
+- contenir plus de vocabulaire technique
+- mentionner toutes les contraintes du cas
+- paraître nettement plus prudente ou plus professionnelle que les autres
+
+TEST À APPLIQUER AVANT DE VALIDER UN QCM :
+si un lecteur qui n'a pas lu le contexte peut désigner la bonne réponse
+simplement parce que c'est « la seule qui a l'air sérieuse », le QCM est raté.
+Il faut alors renforcer les trois distracteurs, pas affaiblir la bonne réponse.
+
+L'objectif est d'exiger un raisonnement, pas une reconnaissance de forme.
+
+### POSITION DE LA BONNE RÉPONSE
+
+N'essaie pas de répartir toi-même les bonnes réponses entre A, B, C et D.
+L'ordre d'affichage des options est réattribué de façon déterministe par le
+moteur après génération. Écris les options dans l'ordre qui te paraît naturel et
+marque simplement `is_correct: true` sur la bonne. Ne fais jamais référence à une
+lettre d'option dans un texte, un feedback ou une explication.
 
 ---
 
@@ -549,6 +602,37 @@ Structure exacte :
 
 ---
 
+## TAXONOMIE — JUSTIFICATION SÉMANTIQUE OBLIGATOIRE
+
+`scenario_type`, `decision_type` et `concept_tested` ne sont pas des étiquettes
+à choisir dans une liste : ils doivent décrire le mécanisme que le cas contient
+réellement.
+
+Règle : si le texte du cas ne parle jamais du mécanisme nommé par la taxonomie,
+la taxonomie est fausse — même si la valeur figure dans l'énumération autorisée.
+
+Exemples de combinaisons INTERDITES :
+- un cas d'opérations IA ou de cybersécurité étiqueté
+  `scenario_type: clinical_trial_decision` ou `concept_tested: trial_endpoint`,
+  alors que le cas ne parle ni d'essai clinique, ni de cohorte, ni de critère
+  d'évaluation
+- un cas d'ingénierie ou de logistique sans aucune donnée personnelle étiqueté
+  `concept_tested: privacy_compliance`
+- un cas dont la vraie question est la demande du marché ou une introduction en
+  bourse étiqueté avec un concept purement réglementaire
+  (`regulatory_risk`, `privacy_compliance`) alors qu'aucun régulateur, aucune
+  règle et aucune sanction n'interviennent dans la décision
+
+Les combinaisons transverses restent parfaitement autorisées quand le mécanisme
+est réellement présent : un cas IA qui porte sur des essais cliniques peut
+utiliser `trial_endpoint`, à condition que le cas parle vraiment d'essais,
+de cohortes et de critères d'évaluation.
+
+En cas de doute, choisis la taxonomie qui décrit la décision que le cas demande
+réellement au lecteur de prendre.
+
+---
+
 ## CONTRÔLE FINAL AVANT GÉNÉRATION
 
 Vérifier :
@@ -569,6 +653,10 @@ Vérifier :
 15. Le cas évite-t-il tout conseil juridique, médical ou financier personnalisé ?
 16. `one_line_summary` est-il assez clair pour éviter une répétition future ?
 17. `aha_moment` donne-t-il une idée vraiment mémorisable ?
+18. Un lecteur qui n'a pas lu le contexte serait-il incapable de désigner la bonne réponse ?
+19. Les trois distracteurs sont-ils tous défendables par un junior compétent ?
+20. La bonne réponse évite-t-elle d'être la plus longue et la plus technique des quatre ?
+21. `scenario_type` et `concept_tested` décrivent-ils un mécanisme réellement présent dans le texte du cas ?
 
 Si une réponse est mauvaise, corriger avant génération.
 

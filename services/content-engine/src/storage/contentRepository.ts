@@ -1300,6 +1300,170 @@ export class ContentRepository {
     return articles;
   }
 
+  /**
+   * Which of these content items a reader has already been given.
+   *
+   * A catalog item still in review should be attached to nothing. If it is, the
+   * repair refuses it: rewriting an item under a reader who has already read it,
+   * and possibly already answered it, is not a repair.
+   */
+  async listAssignedContentItemIds(contentItemIds: string[]): Promise<string[]> {
+    if (contentItemIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from("daily_drop_items")
+      .select("content_item_id")
+      .in("content_item_id", contentItemIds);
+
+    if (error) {
+      throwPersistenceError({
+        table: "daily_drop_items",
+        action: "select daily drop assignments for catalog repair",
+        error
+      });
+    }
+
+    return [...new Set(((data ?? []) as Array<{ content_item_id: string }>).map((row) => row.content_item_id))];
+  }
+
+  /**
+   * Replace one catalog version's editorial content IN PLACE.
+   *
+   * The content item id is preserved rather than the row being deleted and
+   * rewritten. Everything that points at a catalog item — daily_drop_items,
+   * mini_case_responses, content_interactions, the archive, the editorial
+   * memory keyed on content_item_id — keeps pointing at something real, and no
+   * foreign key has to be broken and remade. A repair that swapped ids would
+   * have to fix all of that or leave it dangling.
+   *
+   * Source links are rebuilt, not merged: the new content cites the new packet,
+   * and a link to a source it no longer mentions would be a lie about grounding.
+   */
+  async replaceCatalogVersionContent(input: {
+    contentItemId: string;
+    item: GeneratedContentItem;
+    articles: RankedArticle[];
+    dropDate: string;
+    contentStatus: "draft" | "review" | "published";
+    metadata: Record<string, unknown>;
+  }): Promise<void> {
+    assertDailyPayloadSourcesArePersistable({
+      payload: {
+        drop_date: input.dropDate,
+        language: input.item.language,
+        prompt_version: "catalog_repair",
+        generator_version: "catalog_repair",
+        items: [input.item]
+      },
+      articles: input.articles
+    });
+
+    const sourceIdsByUrl = await this.upsertSources(input.articles);
+    const insert = mapGeneratedItemToContentInsert(
+      input.item,
+      input.dropDate,
+      input.contentStatus,
+      null,
+      input.metadata
+    );
+
+    const { error: updateError } = await this.supabase
+      .from("content_items")
+      .update({
+        topic_id: insert.topic_id,
+        title: insert.title,
+        summary: insert.summary,
+        body_md: insert.body_md,
+        difficulty: insert.difficulty,
+        estimated_read_seconds: insert.estimated_read_seconds,
+        source_count: insert.source_count,
+        status: insert.status,
+        metadata: insert.metadata,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", input.contentItemId);
+
+    if (updateError) {
+      throwPersistenceError({
+        table: "content_items",
+        action: "replace catalog version content",
+        error: updateError
+      });
+    }
+
+    const { error: unlinkError } = await this.supabase
+      .from("content_item_sources")
+      .delete()
+      .eq("content_item_id", input.contentItemId);
+
+    if (unlinkError) {
+      throwPersistenceError({
+        table: "content_item_sources",
+        action: "clear catalog version source links",
+        error: unlinkError
+      });
+    }
+
+    await this.insertContentItemSources(
+      mapContentItemSourceInserts({
+        contentItemId: input.contentItemId,
+        sourceUrls: input.item.source_urls,
+        sourceIdsByUrl
+      })
+    );
+
+    // Editorial memory must follow the content, or the next run is steered away
+    // from an entry the catalog no longer contains and towards one it now does.
+    if (input.item.content_type === "business_story") {
+      await this.upsertBusinessStoryHistory(
+        buildBusinessStoryEditorialMemory({
+          item: input.item,
+          contentItemId: input.contentItemId,
+          publishedDate: input.dropDate
+        })
+      );
+    }
+
+    if (input.item.content_type === "mini_case") {
+      await this.deleteMiniCaseHistoryForContentItem(input.contentItemId);
+
+      const memory = miniCaseMemoryFromItem({
+        item: input.item,
+        contentItemId: input.contentItemId,
+        publishedDate: input.dropDate
+      });
+
+      if (memory) {
+        await this.upsertMiniCaseHistory(memory);
+      }
+    }
+  }
+
+  /**
+   * Drop a mini case's editorial memory row.
+   *
+   * `mini_case_history` is keyed on the slug, which is derived from the title. A
+   * replaced case has a new title and therefore a new slug, so upserting alone
+   * would leave the old row behind — still claiming this content item covered a
+   * scenario it no longer covers, and still feeding the cooldown.
+   */
+  async deleteMiniCaseHistoryForContentItem(contentItemId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("mini_case_history")
+      .delete()
+      .eq("content_item_id", contentItemId);
+
+    if (error) {
+      throwPersistenceError({
+        table: "mini_case_history",
+        action: "delete stale mini-case editorial memory",
+        error
+      });
+    }
+  }
+
   async publishReviewedCatalogItems(input: { runId: string }): Promise<{ published: number }> {
     const items = await this.listCatalogReportItems({ runId: input.runId, limit: null });
 
