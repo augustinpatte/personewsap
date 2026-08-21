@@ -1,4 +1,8 @@
 import type { Language, RankedArticle, TopicId } from "../domain.js";
+import {
+  allocateBusinessStorySourcePackets,
+  countBusinessStoryEventsByTopic
+} from "./businessStoryAllocation.js";
 
 /**
  * One source pool for the whole catalog, across every requested language.
@@ -119,34 +123,20 @@ export function assessBusinessStoryCapacity(input: {
   topics: TopicId[];
   requested: number;
 }): BusinessStoryCapacity {
-  const allowed = new Set(input.topics);
-  const byTopic: Record<string, number> = {};
-  const events = new Set<string>();
-
-  for (const topic of input.topics) {
-    byTopic[topic] = 0;
-  }
-
-  for (const article of input.articles) {
-    if (!allowed.has(article.topic)) {
-      continue;
-    }
-
-    const key = eventKey(article);
-
-    if (events.has(key)) {
-      continue;
-    }
-
-    events.add(key);
-    byTopic[article.topic] = (byTopic[article.topic] ?? 0) + 1;
-  }
+  // Counted by the allocator itself, not by a parallel rule that agrees with it
+  // by coincidence. A preflight that promises ten packets the allocator cannot
+  // then produce is worse than no preflight: it spends the run's budget before
+  // failing.
+  const availablePackets = allocateBusinessStorySourcePackets({
+    articles: input.articles,
+    topics: input.topics
+  }).length;
 
   return {
     requested: input.requested,
-    availablePackets: events.size,
-    sufficient: events.size >= input.requested,
-    byTopic
+    availablePackets,
+    sufficient: availablePackets >= input.requested,
+    byTopic: countBusinessStoryEventsByTopic({ articles: input.articles, topics: input.topics })
   };
 }
 

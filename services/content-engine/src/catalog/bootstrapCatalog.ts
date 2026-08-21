@@ -30,7 +30,15 @@ import {
   type MiniCaseEditorialMemoryRecord
 } from "../miniCase/editorialMemory.js";
 import type { ContentRepository } from "../storage/contentRepository.js";
-import { validateCatalogLanguagePair } from "./catalogPairing.js";
+import { alignCounterpartEditorialIdentity, validateCatalogLanguagePair } from "./catalogPairing.js";
+import {
+  allocateBusinessStorySourcePackets,
+  type BusinessStorySourcePacket
+} from "./businessStoryAllocation.js";
+import {
+  canonicalizeItemSourceUrls,
+  resolveCatalogSourceArticles
+} from "./catalogSourceResolution.js";
 import {
   assessBusinessStoryCapacity,
   buildCanonicalCatalogPool,
@@ -107,6 +115,14 @@ export type BootstrapCatalogDependencies = {
   loadArticles: (language: Language, recencyDays?: number) => Promise<RankedArticle[]>;
   /** Omitted in dry-run. Required for persist mode. */
   repository?: ContentRepository;
+  /**
+   * Progress sink for events an aborted run would otherwise take with it.
+   *
+   * `rejected[]` is only returned when the run completes. A run that dies on the
+   * last entry loses the record of why the first thirty were refused, which is
+   * exactly how ten Business Stories disappeared without a trace.
+   */
+  onProgress?: (message: string, details: Record<string, unknown>) => void;
 };
 
 export type CatalogEntryVersion = {
@@ -241,6 +257,22 @@ export async function runBootstrapCatalog(
     });
   }
 
+  // The preflight's promise, made concrete. Ten viable events counted becomes
+  // ten packets allocated, each built on a different primary event, before any
+  // model is asked to write anything.
+  const businessStoryPackets = allocateBusinessStorySourcePackets({
+    articles: canonicalPool.articles,
+    topics: BUSINESS_STORY_SOURCE_TOPICS,
+    count: options.businessStoryCount
+  });
+
+  dependencies.onProgress?.("catalog source allocation ready", {
+    canonical_articles: canonicalPool.articles.length,
+    business_story_packets: businessStoryPackets.length,
+    requested_business_stories: options.businessStoryCount,
+    catalog_window_days: catalogWindowDays
+  });
+
   // Editorial memory accumulates across the whole batch so entry N+1 sees every
   // entry already produced in this run. When persisting, existing production
   // memory is loaded first so the bootstrap does not repeat published content.
@@ -289,11 +321,13 @@ export async function runBootstrapCatalog(
       seenIdentities,
       existingVersions,
       skipped,
-      usedSourceUrls: sourceBatchFor(usedSourceUrlsByBatch, "business_story", null)
+      usedSourceUrls: sourceBatchFor(usedSourceUrlsByBatch, "business_story", null),
+      businessStoryPacket: businessStoryPackets[index]
     });
 
     if (outcome.kind === "rejected") {
       rejected.push(outcome.rejection);
+      reportRejection(dependencies, outcome.rejection);
       continue;
     }
 
@@ -335,11 +369,13 @@ export async function runBootstrapCatalog(
         seenIdentities,
         existingVersions,
         skipped,
-        usedSourceUrls: sourceBatchFor(usedSourceUrlsByBatch, "mini_case", miniCaseTopic)
+        usedSourceUrls: sourceBatchFor(usedSourceUrlsByBatch, "mini_case", miniCaseTopic),
+        businessStoryPacket: undefined
       });
 
       if (outcome.kind === "rejected") {
         rejected.push(outcome.rejection);
+        reportRejection(dependencies, outcome.rejection);
         continue;
       }
 
@@ -385,6 +421,13 @@ type BuildEntryInput = {
   skipped: SkippedCatalogVersion[];
   /** Sources already used by earlier entries of this topic batch. */
   usedSourceUrls: Set<string>;
+  /**
+   * The distinct primary event allocated to this Business Story, with any
+   * approved coverage of the same event. Undefined for a Mini Case, which may
+   * legitimately build several scenarios on one source and therefore still
+   * selects from the topic-scoped pool.
+   */
+  businessStoryPacket: BusinessStorySourcePacket | undefined;
 };
 
 type BuildEntryOutcome =
@@ -432,7 +475,18 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
   // The factual basis comes from the canonical pool, not from the reference
   // language's slice of it: an English event is as eligible as a French one for
   // an entry whose first version happens to be written in French.
-  const referenceArticles = input.canonicalArticles;
+  //
+  // A Business Story gets the one event allocated to it. A Mini Case still gets
+  // the topic-scoped pool, because several distinct cases can legitimately be
+  // built on one source.
+  const referenceArticles = input.businessStoryPacket
+    ? input.businessStoryPacket.articles
+    : rotateSourceWindow(
+        input.canonicalArticles,
+        newsletterTopicsForEntry(input),
+        input.index,
+        input.usedSourceUrls
+      );
   const persistedReference = input.existingVersions.get(
     versionKey(input.entryId, input.referenceLanguage)
   );
@@ -466,18 +520,39 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
       referenceItem = await generateOne({
         input,
         language: input.referenceLanguage,
-        articles: rotateSourceWindow(
-          referenceArticles,
-          newsletterTopicsForEntry(input),
-          input.index,
-          input.usedSourceUrls
-        ),
+        articles: referenceArticles,
         crossLanguageSources: true,
         languagePair: undefined
       });
     } catch (error) {
       return reject("generation_failed", [errorMessage(error)]);
     }
+  }
+
+  // THE approved source universe for this entry, from here to the last write.
+  //
+  // A resumed reference was written against a pool this run no longer holds, so
+  // its own sources are looked up across the whole canonical pool; a freshly
+  // generated one is held to the packet it was given. Either way there is now
+  // exactly one set, and generation, validation and persistence all read it.
+  const approvedArticles = persistedReference ? input.canonicalArticles : referenceArticles;
+
+  referenceItem = canonicalizeItemSourceUrls(referenceItem, approvedArticles);
+
+  const referenceSources = resolveCatalogSourceArticles(referenceItem, approvedArticles);
+
+  if (referenceSources.unresolved.length > 0) {
+    // The item cites something it was never given. Not fetched, not looked up,
+    // not invented metadata for — refused.
+    return reject("validation_failed", [
+      `${input.entryId}.${input.referenceLanguage}.source_urls: cited source URL(s) outside the approved material for this entry: ${referenceSources.unresolved.join(", ")}.`
+    ]);
+  }
+
+  if (referenceSources.articles.length === 0) {
+    return reject("no_source_material", [
+      `The ${input.referenceLanguage} version of ${input.entryId} cites no source the entry was given.`
+    ]);
   }
 
   const identities = editorialIdentities(referenceItem, input.miniCaseTopic);
@@ -509,29 +584,38 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
       continue;
     }
 
-    // The counterpart is pinned to the sources the reference cited, whichever
-    // language those sources are written in. On a resume the reference may be
-    // the rehydrated persisted version, so its sources are looked up across the
-    // whole pool rather than only the reference language's slice.
-    const counterpartArticles = dedupeArticles([
-      ...sourceArticlesFor(referenceItem, [
-        ...referenceArticles,
-        ...(input.articlesByLanguage.get(language) ?? [])
-      ]),
-      ...(input.articlesByLanguage.get(language) ?? [])
-    ]);
-
+    // The counterpart is pinned to exactly the sources the reference cited,
+    // whichever language those sources are written in. It is not shown the rest
+    // of the pool: a counterpart offered a hundred other articles is a
+    // counterpart that can wander onto a different story.
     let counterpartItem: GeneratedContentItem;
     try {
       counterpartItem = await generateOne({
         input,
         language,
-        articles: counterpartArticles,
+        articles: referenceSources.articles,
+        crossLanguageSources: true,
         languagePair: { referenceLanguage: input.referenceLanguage, referenceItems: [referenceItem] }
       });
     } catch (error) {
       return reject("generation_failed", [`${language}: ${errorMessage(error)}`]);
     }
+
+    counterpartItem = canonicalizeItemSourceUrls(counterpartItem, approvedArticles);
+
+    const counterpartSources = resolveCatalogSourceArticles(counterpartItem, approvedArticles);
+
+    if (counterpartSources.unresolved.length > 0) {
+      return reject("validation_failed", [
+        `${input.entryId}.${language}.source_urls: cited source URL(s) outside the approved material for this entry: ${counterpartSources.unresolved.join(", ")}.`
+      ]);
+    }
+
+    // One entry has one editorial identity, however many languages it is written
+    // in. Inherited rather than re-derived, so a natively written English
+    // counterpart cannot drift from its French reference on a prose identity
+    // field and lose the whole entry to a parity mismatch.
+    counterpartItem = alignCounterpartEditorialIdentity(referenceItem, counterpartItem);
 
     const pairIssues = validateCatalogLanguagePair(
       { language: input.referenceLanguage, item: referenceItem },
@@ -550,7 +634,7 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
     .filter((version) => !version.alreadyStored)
     .flatMap(({ language, item }) => [
       ...validateEntryTitle(item, language, input.entryId),
-      ...validateEntryItem(item, input, language)
+      ...validateEntryItem(item, input, language, approvedArticles)
     ]);
   if (validationIssues.length > 0) {
     return reject("validation_failed", formatIssues(validationIssues));
@@ -580,7 +664,7 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
     }
 
     const stored = input.repository
-      ? await persistVersion({ input, language, item })
+      ? await persistVersion({ input, language, item, approvedArticles })
       : { contentItemId: null, reusedExistingContentItem: false };
 
     persistedVersions.push({
@@ -694,7 +778,8 @@ export function validateEntryTitle(
 function validateEntryItem(
   item: GeneratedContentItem,
   input: BuildEntryInput,
-  language: Language
+  language: Language,
+  approvedArticles: RankedArticle[]
 ): ValidationIssue[] {
   const payload = {
     drop_date: input.options.dropDate,
@@ -703,13 +788,11 @@ function validateEntryItem(
     generator_version: "bootstrap_catalog",
     items: [item]
   };
-  const articles = dedupeArticles([
-    ...(input.articlesByLanguage.get(language) ?? []),
-    ...(input.articlesByLanguage.get(input.referenceLanguage) ?? [])
-  ]);
-
+  // The same approved set the entry generated from. Assembling a narrower one
+  // here meant a French version grounded in an English source was validated
+  // against French-only material and rejected for citing an approved source.
   const quality = validateDailyDropQuality(payload, {
-    articles,
+    articles: approvedArticles,
     productionStrict: input.options.productionStrict ?? readProductionContentStrict(),
     miniCaseProductTopics: input.miniCaseTopic ? [input.miniCaseTopic] : undefined
   });
@@ -727,6 +810,7 @@ async function persistVersion(args: {
   input: BuildEntryInput;
   language: Language;
   item: GeneratedContentItem;
+  approvedArticles: RankedArticle[];
 }): Promise<{ contentItemId: string | null; reusedExistingContentItem: boolean }> {
   const { input, language, item } = args;
   const repository = input.repository;
@@ -734,10 +818,23 @@ async function persistVersion(args: {
     return { contentItemId: null, reusedExistingContentItem: false };
   }
 
-  const articles = dedupeArticles([
-    ...(input.articlesByLanguage.get(language) ?? []),
-    ...(input.articlesByLanguage.get(input.referenceLanguage) ?? [])
-  ]);
+  // The sources this item actually cites, resolved out of the entry's approved
+  // set — the same set validation used, and the same resolution rule. Every URL
+  // the item carries therefore has metadata behind it, which is what
+  // `assertDailyPayloadSourcesArePersistable` refused for the FTC press release
+  // when persistence was assembling its own narrower pool.
+  //
+  // Only the cited sources are upserted: `sources` is the table of documents the
+  // catalog actually stands on, not a dump of everything the run fetched.
+  const resolved = resolveCatalogSourceArticles(item, args.approvedArticles);
+
+  if (resolved.unresolved.length > 0) {
+    throw new Error(
+      `Cannot persist ${input.entryId} (${language}) because ${resolved.unresolved.length} cited source URL(s) are outside the entry's approved material: ${resolved.unresolved.join(", ")}`
+    );
+  }
+
+  const articles = resolved.articles;
 
   const stored = await repository.storeDailyPayload({
     payload: {
@@ -846,24 +943,26 @@ export function rotateSourceWindow(
   return [...unused, ...used, ...rest];
 }
 
-function sourceArticlesFor(item: GeneratedContentItem, pool: RankedArticle[]): RankedArticle[] {
-  const urls = new Set(item.source_urls);
-  return pool.filter((article) => urls.has(article.url));
-}
-
-function dedupeArticles(articles: RankedArticle[]): RankedArticle[] {
-  const seen = new Set<string>();
-  const unique: RankedArticle[] = [];
-
-  for (const article of articles) {
-    if (seen.has(article.url)) {
-      continue;
-    }
-    seen.add(article.url);
-    unique.push(article);
-  }
-
-  return unique;
+/**
+ * Emit a rejection as it happens, not only in the final report.
+ *
+ * `rejected[]` reaches the caller when the run finishes. A run that throws on
+ * its last entry returns nothing at all, and the reasons the earlier entries
+ * were refused die with it. Details are already short strings; nothing here
+ * carries a payload or a credential.
+ */
+function reportRejection(
+  dependencies: BootstrapCatalogDependencies,
+  rejection: RejectedCatalogEntry
+): void {
+  dependencies.onProgress?.("catalog entry rejected", {
+    entry_id: rejection.entryId,
+    content_type: rejection.contentType,
+    mini_case_topic: rejection.miniCaseTopic,
+    index: rejection.index,
+    reason: rejection.reason,
+    details: rejection.details.slice(0, 5)
+  });
 }
 
 /**

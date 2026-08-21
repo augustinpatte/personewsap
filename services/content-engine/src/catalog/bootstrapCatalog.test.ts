@@ -267,21 +267,45 @@ describe("bootstrap catalog safety", () => {
   });
 
   /**
-   * One story syndicated to three URLs. Counting distinct events sees three, so
-   * the capacity preflight lets the run start — and the late identity guard is
-   * what catches that they are the same story. The two guards cover different
-   * failures and both are needed.
+   * A generator that keeps telling one story.
+   *
+   * Source allocation now hands each entry a different primary event, so three
+   * entries genuinely start from three events. This models the failure that
+   * survives that: a model that is given distinct material and still returns the
+   * same company and the same mechanism every time. Nothing upstream can see
+   * that coming, which is exactly why `editorialIdentities` is still needed as
+   * the second guard.
    */
-  const syndicatedPool = (language: Language) =>
-    [1, 2, 3].map((index) => ({
-      ...rankedArticle("business", language, index),
-      title: "The same syndicated business story"
-    }));
+  function oneStoryGenerator(): ContentGenerator {
+    const inner = new StructuredContentGenerator();
+
+    return {
+      generateDailyDrop: async (request) => {
+        const payload = await inner.generateDailyDrop(request);
+
+        return {
+          ...payload,
+          items: payload.items.map((item) =>
+            item.content_type === "business_story" && item.editorial_memory
+              ? {
+                  ...item,
+                  editorial_memory: {
+                    ...item.editorial_memory,
+                    main_company: "Always The Same Group",
+                    key_mechanism: "always the same mechanism"
+                  }
+                }
+              : item
+          )
+        };
+      }
+    } as ContentGenerator;
+  }
 
   it("rejects duplicate entries instead of writing them twice", async () => {
     const output = await runBootstrapCatalog(options({ businessStoryCount: 3, miniCaseCountPerTopic: 0 }), {
-      generator: new StructuredContentGenerator(),
-      loadArticles: async (language) => syndicatedPool(language)
+      generator: oneStoryGenerator(),
+      loadArticles: async (language) => sourcePool(language)
     });
 
     expect(output.counts.businessStoryEntries).toBe(1);
@@ -293,8 +317,8 @@ describe("bootstrap catalog safety", () => {
 
   it("reports requested versus produced counts so a short catalog is visible", async () => {
     const output = await runBootstrapCatalog(options({ businessStoryCount: 3, miniCaseCountPerTopic: 0 }), {
-      generator: new StructuredContentGenerator(),
-      loadArticles: async (language) => syndicatedPool(language)
+      generator: oneStoryGenerator(),
+      loadArticles: async (language) => sourcePool(language)
     });
 
     expect(output.requested.totalEntries).toBe(3);

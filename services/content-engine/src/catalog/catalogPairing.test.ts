@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BusinessStory, GeneratedContentItem, Language, MiniCaseChallenge } from "../domain.js";
-import { validateCatalogLanguagePair } from "./catalogPairing.js";
+import { alignCounterpartEditorialIdentity, validateCatalogLanguagePair } from "./catalogPairing.js";
 
 type MiniCaseQuestions = MiniCaseChallenge["questions"];
 
@@ -253,5 +253,75 @@ describe("catalog language pairing: no untranslated passthrough", () => {
     );
 
     expect(issues).toEqual([]);
+  });
+});
+
+/**
+ * The rejection path that emptied the Business Story half of the catalog.
+ *
+ * A resumed run made 10 French Business Story calls and 10 English paired calls.
+ * All twenty returned. Zero entries were stored, while all thirty Mini Cases
+ * went through — and the difference is entirely in what the pair validator
+ * compares. A Mini Case is paired on controlled vocabulary
+ * (`pricing_decision`, `choose_metric`, `intermediate`): the same token in both
+ * languages, so it matches for free. A Business Story is paired on prose —
+ * `company_or_market`, `industry`, `key_mechanism`, `year_period` — while the
+ * pair rules in the same prompt demand the counterpart be written 100% in its
+ * own language. A model obeying both instructions loses the entry.
+ *
+ * The deterministic generator hid this for as long as it existed: it copies the
+ * reference's mechanism and industry verbatim, so the suite was green while
+ * every real LLM run failed.
+ */
+describe("a Business Story pair keeps one editorial identity", () => {
+  it("shows the failure: a natively written counterpart loses the entry", () => {
+    const reference = businessStory("fr");
+    // What an LLM told to write 100% in English actually returns.
+    const localized = businessStory("en", {
+      company_or_market: "Marché du crédit régional",
+      editorial_memory: {
+        ...businessStory("en").editorial_memory!,
+        industry: "banque",
+        key_mechanism: "pouvoir de fixation des prix"
+      }
+    });
+
+    const issues = pair(reference, localized);
+
+    expect(issues.some((issue) => issue.code === "pair_logic_mismatch")).toBe(true);
+    expect(issues.map((issue) => issue.message).join(" ")).toContain("key_mechanism");
+  });
+
+  it("inherits the identity instead of re-deriving it, and the pair holds", () => {
+    const reference = businessStory("fr");
+    const localized = businessStory("en", {
+      company_or_market: "Marché du crédit régional",
+      editorial_memory: {
+        ...businessStory("en").editorial_memory!,
+        industry: "banque",
+        key_mechanism: "pouvoir de fixation des prix"
+      }
+    });
+
+    const aligned = alignCounterpartEditorialIdentity(reference, localized);
+
+    expect(pair(reference, aligned)).toEqual([]);
+  });
+
+  it("leaves every reader-facing field natively written", () => {
+    const reference = businessStory("fr");
+    const counterpart = businessStory("en");
+    const aligned = alignCounterpartEditorialIdentity(reference, counterpart) as BusinessStory;
+
+    for (const field of ["title", "setup", "tension", "decision", "outcome", "lesson", "body_md"] as const) {
+      expect(aligned[field]).toBe(counterpart[field]);
+    }
+  });
+
+  it("does not touch a Mini Case, which pairs on taxonomy already", () => {
+    const reference = miniCase("fr");
+    const counterpart = miniCase("en");
+
+    expect(alignCounterpartEditorialIdentity(reference, counterpart)).toBe(counterpart);
   });
 });

@@ -97,6 +97,7 @@ export async function runBootstrapCatalogCli(
   return runBootstrapCatalog(options, {
     generator,
     repository,
+    onProgress: (message, details) => logProgress(message, details),
     loadArticles: async (language, recencyDays) => {
       const windowDays = recencyDays ?? options.catalogRecencyDays;
       const cacheKey = `${language}:${windowDays}`;

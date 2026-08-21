@@ -238,10 +238,13 @@ describe("a pair is built from the best event, not the best French event", () =>
       }
     );
 
-    // The counterpart is pinned by languagePair; the generator narrows its
-    // packet to those URLs regardless of how many articles it is handed.
+    // The counterpart is not merely pinned by languagePair — it is handed
+    // nothing else. Its packet IS the reference's sources, so there is no other
+    // story in the room for it to drift onto.
     expect(calls[1].languagePair?.referenceItems).toHaveLength(1);
-    expect(calls[1].crossLanguageSources).toBeFalsy();
+    expect(calls[1].articles.map((entry) => entry.url)).toEqual(
+      calls[1].languagePair?.referenceItems[0].source_urls
+    );
   });
 
   it("keeps both halves of the pair on one factual basis", async () => {

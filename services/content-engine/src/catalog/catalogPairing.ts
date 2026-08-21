@@ -36,6 +36,61 @@ export type CatalogLanguageVersion = {
  */
 const MIN_PASSTHROUGH_WORDS = 5;
 
+/**
+ * Copy the reference version's editorial identity onto its counterpart.
+ *
+ * `validateSharedLogic` requires `company_or_market`, `story_date` and the
+ * editorial-memory identity fields to be byte-identical across the pair. For a
+ * Mini Case that is free: every field it compares is controlled vocabulary
+ * (`pricing_decision`, `choose_metric`, `intermediate`), which is the same
+ * string in both languages. For a Business Story it is not: `industry`,
+ * `key_mechanism` and `year_period` are prose, and the pair rules in the same
+ * prompt also demand the counterpart be written 100% in its own language. A
+ * model obeying both writes "pouvoir de fixation des prix" where the reference
+ * says "pricing power", and the entry is refused for `pair_logic_mismatch`.
+ *
+ * That is what emptied the Business Story half of the catalog while all thirty
+ * Mini Cases went through: 10 FR calls, 10 EN calls, 0 entries.
+ *
+ * These fields are editorial identity, not reader-facing prose. None appears in
+ * `userFacingLanguageFields`; they exist to key editorial memory and the
+ * duplicate guard, and an entry has exactly one identity however many languages
+ * it is written in. So the counterpart inherits them instead of re-deriving
+ * them, and the pair validator keeps checking — it just now checks something the
+ * pipeline guarantees rather than something it hopes for.
+ *
+ * Everything a reader sees — title, setup, tension, decision, outcome, lesson,
+ * body — is untouched and stays natively written in each language.
+ */
+export function alignCounterpartEditorialIdentity(
+  reference: GeneratedContentItem,
+  counterpart: GeneratedContentItem
+): GeneratedContentItem {
+  if (reference.content_type !== "business_story" || counterpart.content_type !== "business_story") {
+    return counterpart;
+  }
+
+  const referenceMemory = reference.editorial_memory;
+
+  return {
+    ...counterpart,
+    company_or_market: reference.company_or_market,
+    story_date: reference.story_date,
+    editorial_memory:
+      counterpart.editorial_memory && referenceMemory
+        ? {
+            ...counterpart.editorial_memory,
+            entity_name: referenceMemory.entity_name,
+            entity_type: referenceMemory.entity_type,
+            main_company: referenceMemory.main_company,
+            industry: referenceMemory.industry,
+            key_mechanism: referenceMemory.key_mechanism,
+            year_period: referenceMemory.year_period
+          }
+        : counterpart.editorial_memory ?? referenceMemory
+  };
+}
+
 export function validateCatalogLanguagePair(
   reference: CatalogLanguageVersion,
   counterpart: CatalogLanguageVersion,
