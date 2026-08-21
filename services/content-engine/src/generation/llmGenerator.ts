@@ -925,7 +925,12 @@ function sourcePackets(request: GenerationRequest): SourcePacket[] {
   const candidates =
     pairSourceUrls.size > 0
       ? request.articles.filter((article) => pairSourceUrls.has(article.url))
-      : request.articles.filter((article) => article.language === request.language);
+      : request.crossLanguageSources === true
+        ? // Catalog inventory: the factual basis is chosen on quality and
+          // relevance, and a source's own language does not decide which
+          // language the entry is written in.
+          request.articles
+        : request.articles.filter((article) => article.language === request.language);
 
   return candidates
     .slice(0, MAX_SOURCE_ARTICLES)

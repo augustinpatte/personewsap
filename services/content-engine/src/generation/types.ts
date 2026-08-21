@@ -49,6 +49,20 @@ export type GenerationRequest = {
   // NEWSLETTER_ITEMS_PER_TOPIC (2) when omitted. The total newsletter catalog is
   // always newsletterTopics.length * newsletterItemsPerTopic.
   newsletterItemsPerTopic?: number;
+  /**
+   * Allow the source packet to hold material in any language.
+   *
+   * Normal generation only shows an item sources written in its own language,
+   * which is right for the Newsletter: a French edition reporting from an
+   * English wire it cannot quote verbatim is a translation problem, not a
+   * sourcing one.
+   *
+   * Reusable catalog content is different. A pair is one factual basis rendered
+   * in two languages, so the basis should be the best available event, not the
+   * best event that happens to have been written up in the language generated
+   * first. Set only by the catalog bootstrap; the Newsletter never sets it.
+   */
+  crossLanguageSources?: boolean;
   miniCaseProductTopics?: MiniCaseTopicId[];
   miniCaseMemory?: MiniCaseMemoryContext;
   businessStoryMemory?: BusinessStoryMemoryContext;

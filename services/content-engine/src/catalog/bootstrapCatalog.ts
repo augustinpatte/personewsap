@@ -32,6 +32,16 @@ import {
 import type { ContentRepository } from "../storage/contentRepository.js";
 import { validateCatalogLanguagePair } from "./catalogPairing.js";
 import {
+  assessBusinessStoryCapacity,
+  buildCanonicalCatalogPool,
+  InsufficientCatalogSourceMaterialError
+} from "./canonicalSourcePool.js";
+import {
+  clampCatalogRecencyDays,
+  DEFAULT_CATALOG_SOURCE_RECENCY_DAYS,
+  MAX_CATALOG_SOURCE_RECENCY_DAYS
+} from "./catalogRecency.js";
+import {
   indexExistingVersions,
   referenceItemFromRecord,
   versionKey
@@ -73,6 +83,8 @@ export type BootstrapCatalogOptions = {
   runId: string;
   useLlm: boolean;
   productionStrict?: boolean;
+  /** Catalog source window in days. Widened only by the capacity preflight. */
+  catalogRecencyDays?: number;
   /**
    * Continue an interrupted persisted run under the same runId.
    *
@@ -85,8 +97,14 @@ export type BootstrapCatalogOptions = {
 
 export type BootstrapCatalogDependencies = {
   generator: ContentGenerator;
-  /** Ranked, same-language source material for one language. */
-  loadArticles: (language: Language) => Promise<RankedArticle[]>;
+  /**
+   * Ranked source material for one language.
+   *
+   * `recencyDays` lets the capacity preflight widen the catalog window, within
+   * the bounds catalogRecency enforces, when the default week cannot support
+   * the requested number of Business Stories.
+   */
+  loadArticles: (language: Language, recencyDays?: number) => Promise<RankedArticle[]>;
   /** Omitted in dry-run. Required for persist mode. */
   repository?: ContentRepository;
 };
@@ -174,9 +192,53 @@ export async function runBootstrapCatalog(
   const counterpartLanguages = options.languages.slice(1);
   const repository = options.persist ? requireRepository(dependencies.repository) : undefined;
 
-  const articlesByLanguage = new Map<Language, RankedArticle[]>();
-  for (const language of options.languages) {
-    articlesByLanguage.set(language, await dependencies.loadArticles(language));
+  const loadPools = async (recencyDays: number | undefined): Promise<Map<Language, RankedArticle[]>> => {
+    const pools = new Map<Language, RankedArticle[]>();
+
+    for (const language of options.languages) {
+      pools.set(language, await dependencies.loadArticles(language, recencyDays));
+    }
+
+    return pools;
+  };
+
+  const baseWindowDays = clampCatalogRecencyDays(
+    options.catalogRecencyDays ?? DEFAULT_CATALOG_SOURCE_RECENCY_DAYS
+  );
+  let catalogWindowDays = baseWindowDays;
+  let articlesByLanguage = await loadPools(options.catalogRecencyDays);
+
+  // One pool for the whole catalog. Which events exist is decided before, and
+  // independently of, which language an entry is written in.
+  let canonicalPool = buildCanonicalCatalogPool(articlesByLanguage);
+
+  let businessStoryCapacity = assessBusinessStoryCapacity({
+    articles: canonicalPool.articles,
+    topics: BUSINESS_STORY_SOURCE_TOPICS,
+    requested: options.businessStoryCount
+  });
+
+  // Bounded widening: a week is the normal question, and the ceiling is the
+  // source layer's own staleness limit. Only reached when the default window
+  // genuinely cannot support the requested inventory.
+  if (options.businessStoryCount > 0 && !businessStoryCapacity.sufficient && baseWindowDays < MAX_CATALOG_SOURCE_RECENCY_DAYS) {
+    catalogWindowDays = MAX_CATALOG_SOURCE_RECENCY_DAYS;
+    articlesByLanguage = await loadPools(catalogWindowDays);
+    canonicalPool = buildCanonicalCatalogPool(articlesByLanguage);
+    businessStoryCapacity = assessBusinessStoryCapacity({
+      articles: canonicalPool.articles,
+      topics: BUSINESS_STORY_SOURCE_TOPICS,
+      requested: options.businessStoryCount
+    });
+  }
+
+  // Refuse before the first Business Story call rather than generating ten
+  // variants of seven events and letting the duplicate validator reject them.
+  if (options.businessStoryCount > 0 && !businessStoryCapacity.sufficient) {
+    throw new InsufficientCatalogSourceMaterialError({
+      capacity: businessStoryCapacity,
+      catalogWindowDays
+    });
   }
 
   // Editorial memory accumulates across the whole batch so entry N+1 sees every
@@ -221,6 +283,7 @@ export async function runBootstrapCatalog(
       referenceLanguage,
       counterpartLanguages,
       articlesByLanguage,
+      canonicalArticles: canonicalPool.articles,
       businessStoryMemory,
       miniCaseMemory,
       seenIdentities,
@@ -266,6 +329,7 @@ export async function runBootstrapCatalog(
         referenceLanguage,
         counterpartLanguages,
         articlesByLanguage,
+        canonicalArticles: canonicalPool.articles,
         businessStoryMemory,
         miniCaseMemory,
         seenIdentities,
@@ -311,6 +375,8 @@ type BuildEntryInput = {
   referenceLanguage: Language;
   counterpartLanguages: Language[];
   articlesByLanguage: Map<Language, RankedArticle[]>;
+  /** Every language's material as one pool: what an entry may be built from. */
+  canonicalArticles: RankedArticle[];
   businessStoryMemory: BusinessStoryEditorialMemoryEntry[];
   miniCaseMemory: MiniCaseEditorialMemoryRecord[];
   seenIdentities: Set<string>;
@@ -363,7 +429,10 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
     return { kind: "skipped" };
   }
 
-  const referenceArticles = input.articlesByLanguage.get(input.referenceLanguage) ?? [];
+  // The factual basis comes from the canonical pool, not from the reference
+  // language's slice of it: an English event is as eligible as a French one for
+  // an entry whose first version happens to be written in French.
+  const referenceArticles = input.canonicalArticles;
   const persistedReference = input.existingVersions.get(
     versionKey(input.entryId, input.referenceLanguage)
   );
@@ -403,6 +472,7 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
           input.index,
           input.usedSourceUrls
         ),
+        crossLanguageSources: true,
         languagePair: undefined
       });
     } catch (error) {
@@ -537,6 +607,7 @@ async function generateOne(args: {
   input: BuildEntryInput;
   language: Language;
   articles: RankedArticle[];
+  crossLanguageSources?: boolean;
   languagePair: { referenceLanguage: Language; referenceItems: GeneratedContentItem[] } | undefined;
 }): Promise<GeneratedContentItem> {
   const { input, language, articles, languagePair } = args;
@@ -545,6 +616,7 @@ async function generateOne(args: {
     dropDate: input.options.dropDate,
     language,
     articles,
+    crossLanguageSources: args.crossLanguageSources === true,
     // Newsletter topics are still required by the request shape for source
     // scoping, but no newsletter is generated: `sections` restricts this call to
     // the single content type this catalog entry needs.

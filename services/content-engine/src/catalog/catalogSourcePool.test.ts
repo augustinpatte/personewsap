@@ -159,7 +159,7 @@ describe("Newsletter recency is untouched", () => {
   it("is only the bootstrap that opens the window", () => {
     const bootstrap = readFileSync(join(__dirname, "..", "cli", "bootstrapCatalog.ts"), "utf8");
 
-    expect(bootstrap).toMatch(/catalogSourceSince\(options\.dropDate, options\.catalogRecencyDays\)/);
+    expect(bootstrap).toMatch(/catalogSourceSince\(options\.dropDate, windowDays\)/);
   });
 });
 

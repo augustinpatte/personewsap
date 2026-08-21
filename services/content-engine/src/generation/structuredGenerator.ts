@@ -794,9 +794,15 @@ export class StructuredContentGenerator implements ContentGenerator {
   }
 
   private pickArticle(request: GenerationRequest, topics: TopicId[]): RankedArticle {
+    // Catalog inventory picks its factual basis on relevance, not on the
+    // language the source happens to be written in. Everything else — the
+    // Newsletter included — keeps selecting within its own language.
+    const eligible =
+      request.crossLanguageSources === true
+        ? request.articles
+        : request.articles.filter((candidate) => candidate.language === request.language);
     const article =
-      request.articles.find((candidate) => candidate.language === request.language && topics.includes(candidate.topic)) ??
-      request.articles.find((candidate) => candidate.language === request.language);
+      eligible.find((candidate) => topics.includes(candidate.topic)) ?? eligible[0];
 
     if (!article) {
       throw new Error(`No article candidates available for ${request.language}`);

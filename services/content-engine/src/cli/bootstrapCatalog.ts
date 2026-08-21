@@ -90,20 +90,24 @@ export async function runBootstrapCatalogCli(
     catalog_recency_days: options.catalogRecencyDays
   });
 
-  const articleCache = new Map<Language, RankedArticle[]>();
+  // Keyed by language AND window: the capacity preflight may reload a language
+  // with a wider window, and must not be served the narrower cached pool.
+  const articleCache = new Map<string, RankedArticle[]>();
 
   return runBootstrapCatalog(options, {
     generator,
     repository,
-    loadArticles: async (language) => {
-      const cached = articleCache.get(language);
+    loadArticles: async (language, recencyDays) => {
+      const windowDays = recencyDays ?? options.catalogRecencyDays;
+      const cacheKey = `${language}:${windowDays}`;
+      const cached = articleCache.get(cacheKey);
       if (cached) {
         return cached;
       }
 
       // Reusable catalog content asks for a window, not for today. The
       // Newsletter path still passes its edition date and is untouched.
-      const since = catalogSourceSince(options.dropDate, options.catalogRecencyDays);
+      const since = catalogSourceSince(options.dropDate, windowDays);
       const raw = await sourceFetcher.fetch({
         topics: SOURCE_TOPICS,
         languages: [language],
@@ -111,12 +115,12 @@ export async function runBootstrapCatalogCli(
         limitPerTopic: options.sourceLimitPerTopic
       });
       const ranked = processArticles(raw).filter((article) => article.language === language);
-      articleCache.set(language, ranked);
+      articleCache.set(cacheKey, ranked);
 
       logProgress("source pool ready", {
         language,
         since,
-        catalog_recency_days: options.catalogRecencyDays,
+        catalog_recency_days: windowDays,
         fetched_articles: raw.length,
         ranked_articles: ranked.length
       });

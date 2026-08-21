@@ -266,12 +266,22 @@ describe("bootstrap catalog safety", () => {
     );
   });
 
+  /**
+   * One story syndicated to three URLs. Counting distinct events sees three, so
+   * the capacity preflight lets the run start — and the late identity guard is
+   * what catches that they are the same story. The two guards cover different
+   * failures and both are needed.
+   */
+  const syndicatedPool = (language: Language) =>
+    [1, 2, 3].map((index) => ({
+      ...rankedArticle("business", language, index),
+      title: "The same syndicated business story"
+    }));
+
   it("rejects duplicate entries instead of writing them twice", async () => {
-    // One usable source per topic forces collisions after the first entry.
-    const thinPool = (language: Language) => [rankedArticle("business", language, 1)];
     const output = await runBootstrapCatalog(options({ businessStoryCount: 3, miniCaseCountPerTopic: 0 }), {
       generator: new StructuredContentGenerator(),
-      loadArticles: async (language) => thinPool(language)
+      loadArticles: async (language) => syndicatedPool(language)
     });
 
     expect(output.counts.businessStoryEntries).toBe(1);
@@ -284,7 +294,7 @@ describe("bootstrap catalog safety", () => {
   it("reports requested versus produced counts so a short catalog is visible", async () => {
     const output = await runBootstrapCatalog(options({ businessStoryCount: 3, miniCaseCountPerTopic: 0 }), {
       generator: new StructuredContentGenerator(),
-      loadArticles: async (language) => [rankedArticle("business", language, 1)]
+      loadArticles: async (language) => syndicatedPool(language)
     });
 
     expect(output.requested.totalEntries).toBe(3);
@@ -309,14 +319,31 @@ describe("bootstrap catalog safety", () => {
   });
 
   it("rejects rather than fabricates when there is no source material", async () => {
-    const output = await runBootstrapCatalog(options({ businessStoryCount: 2, miniCaseCountPerTopic: 0 }), {
-      generator: new StructuredContentGenerator(),
-      loadArticles: async () => []
-    });
+    const output = await runBootstrapCatalog(
+      options({
+        businessStoryCount: 0,
+        miniCaseCountPerTopic: 2,
+        miniCaseTopics: ["finance_economy"]
+      }),
+      {
+        generator: new StructuredContentGenerator(),
+        loadArticles: async () => []
+      }
+    );
 
     expect(output.entries).toEqual([]);
     expect(output.rejected).toHaveLength(2);
     expect(output.rejected.every((entry) => entry.reason === "no_source_material")).toBe(true);
+  });
+
+  it("refuses an empty pool before spending a Business Story call", async () => {
+    // The same starvation, on the side that now fails early.
+    await expect(
+      runBootstrapCatalog(options({ businessStoryCount: 2, miniCaseCountPerTopic: 0 }), {
+        generator: new StructuredContentGenerator(),
+        loadArticles: async () => []
+      })
+    ).rejects.toThrow(/insufficient_distinct_source_material/);
   });
 
   it("validates its option inputs", async () => {
