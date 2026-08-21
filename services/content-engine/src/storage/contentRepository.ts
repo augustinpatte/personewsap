@@ -53,6 +53,7 @@ import {
   type ContentItemSourceInsert
 } from "./mappers.js";
 import { throwPersistenceError } from "./persistenceError.js";
+import { withPersistenceRetry } from "./persistenceRetry.js";
 
 type StoredGeneratedItem = {
   item: GeneratedContentItem;
@@ -88,6 +89,24 @@ export type JobRunRow = {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+/**
+ * One persisted catalog version, carrying enough of the stored item to anchor
+ * its missing counterpart language without regenerating the version that
+ * already exists.
+ */
+export type CatalogEntryVersionRecord = {
+  catalogEntryId: string;
+  contentItemId: string;
+  contentType: "business_story" | "mini_case";
+  language: Language;
+  title: string;
+  summary: string | null;
+  bodyMd: string | null;
+  difficulty: string | null;
+  status: string;
+  metadata: Record<string, unknown>;
 };
 
 export type CatalogReportItem = {
@@ -779,19 +798,26 @@ export class ContentRepository {
       return new Map();
     }
 
-    const { data, error } = await this.supabase
-      .from("sources")
-      .upsert(uniqueSources, { onConflict: "url" })
-      .select("id,url")
-      .returns<SourceRow[]>();
+    // Idempotent by construction (onConflict: url), so a transport failure can
+    // be asked again. This is the write that lost an interrupted catalog run to
+    // a single headers timeout.
+    const data = await withPersistenceRetry("upsert sources", async () => {
+      const result = await this.supabase
+        .from("sources")
+        .upsert(uniqueSources, { onConflict: "url" })
+        .select("id,url")
+        .returns<SourceRow[]>();
 
-    if (error) {
-      throwPersistenceError({
-        table: "sources",
-        action: "upsert sources",
-        error
-      });
-    }
+      if (result.error) {
+        throwPersistenceError({
+          table: "sources",
+          action: "upsert sources",
+          error: result.error
+        });
+      }
+
+      return result.data;
+    });
 
     return new Map((data ?? []).map((source) => [source.url, source.id]));
   }
@@ -1134,6 +1160,81 @@ export class ContentRepository {
     }
 
     return rows.map(mapCatalogReportItem);
+  }
+
+  /**
+   * Every catalog version already persisted under a run, keyed by entry and
+   * language.
+   *
+   * This is what makes an interrupted catalog run resumable. Unlike
+   * listCatalogReportItems it does not filter on status: a row written as a
+   * draft still occupies its slot, and regenerating over it would spend an LLM
+   * call and risk a second row for the same entry.
+   */
+  async listCatalogEntryVersions(input: {
+    runId: string;
+  }): Promise<CatalogEntryVersionRecord[]> {
+    const rows: Array<{
+      id: string;
+      content_type: "business_story" | "mini_case";
+      language: Language;
+      title: string;
+      summary: string | null;
+      body_md: string | null;
+      difficulty: string | null;
+      status: string;
+      metadata: Record<string, unknown> | null;
+    }> = [];
+
+    for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+      const { data, error } = await this.supabase
+        .from("content_items")
+        .select("id,content_type,language,title,summary,body_md,difficulty,status,metadata")
+        .in("content_type", ["business_story", "mini_case"])
+        .eq("metadata->>scheduler_mode", "bootstrap-catalog")
+        .eq("metadata->>bootstrap_run_id", input.runId)
+        .order("id", { ascending: true })
+        .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+
+      if (error) {
+        throwPersistenceError({
+          table: "content_items",
+          action: "select catalog entry versions",
+          error
+        });
+      }
+
+      rows.push(...((data ?? []) as typeof rows));
+
+      if ((data ?? []).length < SUPABASE_PAGE_SIZE) {
+        break;
+      }
+    }
+
+    return rows.flatMap((row) => {
+      const metadata = isRecord(row.metadata) ? row.metadata : {};
+      const entryId = typeof metadata.catalog_entry_id === "string" ? metadata.catalog_entry_id : null;
+
+      if (!entryId) {
+        return [];
+      }
+
+      return [
+        {
+          catalogEntryId: entryId,
+          contentItemId: row.id,
+          contentType: row.content_type,
+          language: row.language,
+          title: row.title,
+          summary: row.summary,
+          bodyMd: row.body_md,
+          // A column, not metadata, and the language-pair validator compares it.
+          difficulty: row.difficulty,
+          status: row.status,
+          metadata
+        }
+      ];
+    });
   }
 
   async publishReviewedCatalogItems(input: { runId: string }): Promise<{ published: number }> {

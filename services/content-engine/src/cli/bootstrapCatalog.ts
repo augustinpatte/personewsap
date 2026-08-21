@@ -27,6 +27,11 @@ import type { SourceConnector } from "../sources/types.js";
 import { ContentRepository } from "../storage/contentRepository.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
 import { getProductEditionDate } from "../scheduler/editionCadence.js";
+import {
+  catalogSourceSince,
+  clampCatalogRecencyDays,
+  DEFAULT_CATALOG_SOURCE_RECENCY_DAYS
+} from "../catalog/catalogRecency.js";
 
 /**
  * `bootstrap-catalog` CLI.
@@ -40,6 +45,11 @@ export type BootstrapCatalogCliOptions = BootstrapCatalogOptions & {
   liveRss: boolean;
   liveRssOnly: boolean;
   sourceLimitPerTopic: number;
+  /**
+   * How many days back catalog source material may come from. Separate from the
+   * Newsletter, which stays on its own J / J-1 / J-2 policy.
+   */
+  catalogRecencyDays: number;
 };
 
 export async function runBootstrapCatalogCli(
@@ -75,7 +85,9 @@ export async function runBootstrapCatalogCli(
     generator: options.useLlm ? "llm" : "deterministic",
     live_rss: options.liveRss,
     live_rss_only: options.liveRssOnly,
-    sample_content_enabled: !options.liveRssOnly
+    sample_content_enabled: !options.liveRssOnly,
+    resume: options.resume === true,
+    catalog_recency_days: options.catalogRecencyDays
   });
 
   const articleCache = new Map<Language, RankedArticle[]>();
@@ -89,10 +101,13 @@ export async function runBootstrapCatalogCli(
         return cached;
       }
 
+      // Reusable catalog content asks for a window, not for today. The
+      // Newsletter path still passes its edition date and is untouched.
+      const since = catalogSourceSince(options.dropDate, options.catalogRecencyDays);
       const raw = await sourceFetcher.fetch({
         topics: SOURCE_TOPICS,
         languages: [language],
-        since: options.dropDate,
+        since,
         limitPerTopic: options.sourceLimitPerTopic
       });
       const ranked = processArticles(raw).filter((article) => article.language === language);
@@ -100,6 +115,8 @@ export async function runBootstrapCatalogCli(
 
       logProgress("source pool ready", {
         language,
+        since,
+        catalog_recency_days: options.catalogRecencyDays,
         fetched_articles: raw.length,
         ranked_articles: ranked.length
       });
@@ -160,10 +177,18 @@ export function parseBootstrapCatalogOptions(args: string[]): BootstrapCatalogCl
     useLlm: envFlag("USE_LLM") || flags.has("llm"),
     liveRss: liveRssOnly || envFlag("LIVE_RSS") || flags.has("live-rss"),
     liveRssOnly,
+    resume: flags.has("resume") || envFlag("RESUME_BOOTSTRAP_CATALOG"),
     sourceLimitPerTopic: parseCount(
       flags.get("limit-per-topic") ?? process.env.RSS_ARTICLES_PER_SOURCE,
       10,
       "--limit-per-topic"
+    ),
+    catalogRecencyDays: clampCatalogRecencyDays(
+      parseCount(
+        flags.get("source-recency-days") ?? process.env.CATALOG_SOURCE_RECENCY_DAYS,
+        DEFAULT_CATALOG_SOURCE_RECENCY_DAYS,
+        "--source-recency-days"
+      )
     )
   };
 }

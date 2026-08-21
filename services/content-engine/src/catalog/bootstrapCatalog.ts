@@ -31,6 +31,12 @@ import {
 } from "../miniCase/editorialMemory.js";
 import type { ContentRepository } from "../storage/contentRepository.js";
 import { validateCatalogLanguagePair } from "./catalogPairing.js";
+import {
+  indexExistingVersions,
+  referenceItemFromRecord,
+  versionKey
+} from "./catalogResume.js";
+import type { CatalogEntryVersionRecord } from "../storage/contentRepository.js";
 
 /**
  * Catalog bootstrap: builds the INITIAL editorial inventory (Business Stories and
@@ -67,6 +73,14 @@ export type BootstrapCatalogOptions = {
   runId: string;
   useLlm: boolean;
   productionStrict?: boolean;
+  /**
+   * Continue an interrupted persisted run under the same runId.
+   *
+   * Every version already stored for this run is skipped whole: no LLM call, no
+   * write, no touch to its rows or source links. Only the missing versions are
+   * produced. Off by default, and meaningless without a repository.
+   */
+  resume?: boolean;
 };
 
 export type BootstrapCatalogDependencies = {
@@ -106,6 +120,13 @@ export type RejectedCatalogEntry = {
   details: string[];
 };
 
+/** A version that already existed and was therefore not regenerated. */
+export type SkippedCatalogVersion = {
+  entryId: string;
+  language: Language;
+  contentItemId: string;
+};
+
 export type BootstrapCatalogOutput = {
   mode: "bootstrap-catalog";
   persisted: boolean;
@@ -137,6 +158,8 @@ export type BootstrapCatalogOutput = {
   };
   entries: CatalogEntry[];
   rejected: RejectedCatalogEntry[];
+  /** Versions found already persisted under this runId and left untouched. */
+  skipped: SkippedCatalogVersion[];
   /** Always empty: the bootstrap never publishes an edition or assigns a user drop. */
   dailyDropsCreated: 0;
 };
@@ -170,7 +193,20 @@ export async function runBootstrapCatalog(
 
   const entries: CatalogEntry[] = [];
   const rejected: RejectedCatalogEntry[] = [];
+  const skipped: SkippedCatalogVersion[] = [];
   const seenIdentities = new Set<string>();
+  // Source URLs already used, per topic batch. Business Stories share one
+  // bucket; each Mini Case topic gets its own, so one topic exhausting its pool
+  // never narrows another's.
+  const usedSourceUrlsByBatch = new Map<string, Set<string>>();
+
+  // Resume reads the whole run's existing inventory once, before any LLM call,
+  // so every decision to skip is made from persisted fact rather than from a
+  // failure encountered mid-generation.
+  const existingVersions =
+    options.resume && repository
+      ? indexExistingVersions(await repository.listCatalogEntryVersions({ runId: options.runId }))
+      : new Map<string, CatalogEntryVersionRecord>();
 
   for (let index = 0; index < options.businessStoryCount; index += 1) {
     const entryId = buildEntryId(options.runId, "business-story", null, index);
@@ -187,11 +223,18 @@ export async function runBootstrapCatalog(
       articlesByLanguage,
       businessStoryMemory,
       miniCaseMemory,
-      seenIdentities
+      seenIdentities,
+      existingVersions,
+      skipped,
+      usedSourceUrls: sourceBatchFor(usedSourceUrlsByBatch, "business_story", null)
     });
 
     if (outcome.kind === "rejected") {
       rejected.push(outcome.rejection);
+      continue;
+    }
+
+    if (outcome.kind === "skipped") {
       continue;
     }
 
@@ -225,11 +268,18 @@ export async function runBootstrapCatalog(
         articlesByLanguage,
         businessStoryMemory,
         miniCaseMemory,
-        seenIdentities
+        seenIdentities,
+        existingVersions,
+        skipped,
+        usedSourceUrls: sourceBatchFor(usedSourceUrlsByBatch, "mini_case", miniCaseTopic)
       });
 
       if (outcome.kind === "rejected") {
         rejected.push(outcome.rejection);
+        continue;
+      }
+
+      if (outcome.kind === "skipped") {
         continue;
       }
 
@@ -247,7 +297,7 @@ export async function runBootstrapCatalog(
     }
   }
 
-  return buildOutput({ options, referenceLanguage, entries, rejected });
+  return buildOutput({ options, referenceLanguage, entries, rejected, skipped });
 }
 
 type BuildEntryInput = {
@@ -264,11 +314,18 @@ type BuildEntryInput = {
   businessStoryMemory: BusinessStoryEditorialMemoryEntry[];
   miniCaseMemory: MiniCaseEditorialMemoryRecord[];
   seenIdentities: Set<string>;
+  /** Versions already persisted for this run, keyed by `entryId::language`. */
+  existingVersions: Map<string, CatalogEntryVersionRecord>;
+  skipped: SkippedCatalogVersion[];
+  /** Sources already used by earlier entries of this topic batch. */
+  usedSourceUrls: Set<string>;
 };
 
 type BuildEntryOutcome =
   | { kind: "entry"; entry: CatalogEntry }
-  | { kind: "rejected"; rejection: RejectedCatalogEntry };
+  | { kind: "rejected"; rejection: RejectedCatalogEntry }
+  /** Nothing to do: every language of this entry is already persisted. */
+  | { kind: "skipped" };
 
 async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
   const reject = (reason: RejectedCatalogEntry["reason"], details: string[]): BuildEntryOutcome => ({
@@ -283,21 +340,74 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
     }
   });
 
-  const referenceArticles = input.articlesByLanguage.get(input.referenceLanguage) ?? [];
-  if (referenceArticles.length === 0) {
-    return reject("no_source_material", [`No ranked source articles available for ${input.referenceLanguage}.`]);
+  const requestedLanguages = [input.referenceLanguage, ...input.counterpartLanguages];
+  const alreadyPersisted = requestedLanguages.filter((language) =>
+    input.existingVersions.has(versionKey(input.entryId, language))
+  );
+
+  // Every language already stored: this entry is done. No generation, no write,
+  // and nothing touched.
+  if (alreadyPersisted.length === requestedLanguages.length) {
+    for (const language of requestedLanguages) {
+      const record = input.existingVersions.get(versionKey(input.entryId, language));
+
+      if (record) {
+        input.skipped.push({
+          entryId: input.entryId,
+          language,
+          contentItemId: record.contentItemId
+        });
+      }
+    }
+
+    return { kind: "skipped" };
   }
 
+  const referenceArticles = input.articlesByLanguage.get(input.referenceLanguage) ?? [];
+  const persistedReference = input.existingVersions.get(
+    versionKey(input.entryId, input.referenceLanguage)
+  );
+
   let referenceItem: GeneratedContentItem;
-  try {
-    referenceItem = await generateOne({
-      input,
+
+  if (persistedReference) {
+    // Half-written pair: the reference version survived the interruption. It is
+    // read back rather than regenerated, so the counterpart adapts the case that
+    // actually exists in the catalog instead of a fresh one.
+    const rehydrated = referenceItemFromRecord(persistedReference);
+
+    if (!rehydrated) {
+      return reject("no_source_material", [
+        `Persisted ${input.referenceLanguage} version of ${input.entryId} cites no source URLs, so its counterpart cannot be paired to it.`
+      ]);
+    }
+
+    referenceItem = rehydrated;
+    input.skipped.push({
+      entryId: input.entryId,
       language: input.referenceLanguage,
-      articles: rotateSourceWindow(referenceArticles, newsletterTopicsForEntry(input), input.index),
-      languagePair: undefined
+      contentItemId: persistedReference.contentItemId
     });
-  } catch (error) {
-    return reject("generation_failed", [errorMessage(error)]);
+  } else {
+    if (referenceArticles.length === 0) {
+      return reject("no_source_material", [`No ranked source articles available for ${input.referenceLanguage}.`]);
+    }
+
+    try {
+      referenceItem = await generateOne({
+        input,
+        language: input.referenceLanguage,
+        articles: rotateSourceWindow(
+          referenceArticles,
+          newsletterTopicsForEntry(input),
+          input.index,
+          input.usedSourceUrls
+        ),
+        languagePair: undefined
+      });
+    } catch (error) {
+      return reject("generation_failed", [errorMessage(error)]);
+    }
   }
 
   const identities = editorialIdentities(referenceItem, input.miniCaseTopic);
@@ -310,13 +420,34 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
     ]);
   }
 
-  const versions: Array<{ language: Language; item: GeneratedContentItem }> = [
-    { language: input.referenceLanguage, item: referenceItem }
+  // `alreadyStored` versions take part in pairing but are never revalidated and
+  // never rewritten: they are the rows that already exist.
+  const versions: Array<{ language: Language; item: GeneratedContentItem; alreadyStored: boolean }> = [
+    { language: input.referenceLanguage, item: referenceItem, alreadyStored: Boolean(persistedReference) }
   ];
 
   for (const language of input.counterpartLanguages) {
+    const persistedCounterpart = input.existingVersions.get(versionKey(input.entryId, language));
+
+    if (persistedCounterpart) {
+      // This half of the pair is already stored; only the other half was missing.
+      input.skipped.push({
+        entryId: input.entryId,
+        language,
+        contentItemId: persistedCounterpart.contentItemId
+      });
+      continue;
+    }
+
+    // The counterpart is pinned to the sources the reference cited, whichever
+    // language those sources are written in. On a resume the reference may be
+    // the rehydrated persisted version, so its sources are looked up across the
+    // whole pool rather than only the reference language's slice.
     const counterpartArticles = dedupeArticles([
-      ...sourceArticlesFor(referenceItem, referenceArticles),
+      ...sourceArticlesFor(referenceItem, [
+        ...referenceArticles,
+        ...(input.articlesByLanguage.get(language) ?? [])
+      ]),
       ...(input.articlesByLanguage.get(language) ?? [])
     ]);
 
@@ -342,13 +473,15 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
       return reject("language_pair_failed", formatIssues(pairIssues));
     }
 
-    versions.push({ language, item: counterpartItem });
+    versions.push({ language, item: counterpartItem, alreadyStored: false });
   }
 
-  const validationIssues = versions.flatMap(({ language, item }) => [
-    ...validateEntryTitle(item, language, input.entryId),
-    ...validateEntryItem(item, input, language)
-  ]);
+  const validationIssues = versions
+    .filter((version) => !version.alreadyStored)
+    .flatMap(({ language, item }) => [
+      ...validateEntryTitle(item, language, input.entryId),
+      ...validateEntryItem(item, input, language)
+    ]);
   if (validationIssues.length > 0) {
     return reject("validation_failed", formatIssues(validationIssues));
   }
@@ -357,8 +490,25 @@ async function buildEntry(input: BuildEntryInput): Promise<BuildEntryOutcome> {
     input.seenIdentities.add(identity);
   }
 
+  for (const url of referenceItem.source_urls) {
+    input.usedSourceUrls.add(url);
+  }
+
   const persistedVersions: CatalogEntryVersion[] = [];
-  for (const { language, item } of versions) {
+  for (const { language, item, alreadyStored } of versions) {
+    if (alreadyStored) {
+      // Already in the catalog: reported as reused, written again never.
+      const existing = input.existingVersions.get(versionKey(input.entryId, language));
+
+      persistedVersions.push({
+        language,
+        item,
+        contentItemId: existing?.contentItemId ?? null,
+        reusedExistingContentItem: true
+      });
+      continue;
+    }
+
     const stored = input.repository
       ? await persistVersion({ input, language, item })
       : { contentItemId: null, reusedExistingContentItem: false };
@@ -599,7 +749,8 @@ function sourceFingerprint(urls: string[]): string {
 export function rotateSourceWindow(
   articles: RankedArticle[],
   topics: TopicId[],
-  index: number
+  index: number,
+  usedSourceUrls: ReadonlySet<string> = new Set()
 ): RankedArticle[] {
   const allowed = new Set(topics);
   const relevant = articles.filter((article) => allowed.has(article.topic));
@@ -610,7 +761,17 @@ export function rotateSourceWindow(
   }
 
   const offset = index % relevant.length;
-  return [...relevant.slice(offset), ...relevant.slice(0, offset), ...rest];
+  const rotated = [...relevant.slice(offset), ...relevant.slice(0, offset)];
+
+  // Diversity, without forcing it. Sources this topic has already built an entry
+  // on move to the back of the packet rather than out of it: the generator still
+  // prefers what it is shown first, so a fresh event wins while there is one,
+  // and a reused source is still reachable when the pool has nothing else that
+  // supports a distinct entry.
+  const unused = rotated.filter((article) => !usedSourceUrls.has(article.url));
+  const used = rotated.filter((article) => usedSourceUrls.has(article.url));
+
+  return [...unused, ...used, ...rest];
 }
 
 function sourceArticlesFor(item: GeneratedContentItem, pool: RankedArticle[]): RankedArticle[] {
@@ -647,6 +808,24 @@ function newsletterTopicsForEntry(input: BuildEntryInput): TopicId[] {
 
 const BUSINESS_STORY_SOURCE_TOPICS: TopicId[] = ["business", "finance", "tech_ai"];
 
+function sourceBatchFor(
+  buckets: Map<string, Set<string>>,
+  contentType: "business_story" | "mini_case",
+  miniCaseTopic: MiniCaseTopicId | null
+): Set<string> {
+  const key = miniCaseTopic ? `${contentType}:${miniCaseTopic}` : contentType;
+  const existing = buckets.get(key);
+
+  if (existing) {
+    return existing;
+  }
+
+  const created = new Set<string>();
+  buckets.set(key, created);
+
+  return created;
+}
+
 function buildEntryId(
   runId: string,
   kind: "business-story" | "mini-case",
@@ -662,8 +841,9 @@ function buildOutput(args: {
   referenceLanguage: Language;
   entries: CatalogEntry[];
   rejected: RejectedCatalogEntry[];
+  skipped: SkippedCatalogVersion[];
 }): BootstrapCatalogOutput {
-  const { options, referenceLanguage, entries, rejected } = args;
+  const { options, referenceLanguage, entries, rejected, skipped } = args;
   const versionsByContentTypeAndLanguage: Record<string, number> = {};
   const miniCaseEntriesByTopic: Record<string, number> = {};
   const miniCaseVersionsByTopicAndLanguage: Record<string, number> = {};
@@ -733,6 +913,7 @@ function buildOutput(args: {
     },
     entries,
     rejected,
+    skipped,
     dailyDropsCreated: 0
   };
 }
