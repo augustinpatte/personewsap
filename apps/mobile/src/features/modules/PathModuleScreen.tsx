@@ -176,7 +176,7 @@ function PathCurrent() {
               {copy.path.sessionLabel(pendingSession.session_number)}
             </AppText>
             <AppText variant="title">
-              {localizeSessionTitle(pendingSession, pendingSession.language ?? language)}
+              {localizeSessionTitle(pendingSession, language)}
             </AppText>
           </>
         ) : (
@@ -360,7 +360,7 @@ function PathHistory() {
               </AppText>
               <AppText variant="bodyStrong">
                 {/* A past session keeps the language it was written in. */}
-                {localizeSessionTitle(session, session.language ?? language)}
+                {localizeSessionTitle(session, language)}
               </AppText>
             </Pressable>
           ))}

@@ -35,12 +35,15 @@ export function LearningHistoricalSessionScreen({
   const styles = useThemedStyles(createStyles);
   const { domains, learningPaths, loadSessionsForPath, objectives } = useLearningPath();
   const path = pathId ? learningPaths.find((candidate) => candidate.id === pathId) ?? null : null;
-  const pathLanguage = path?.language ?? language ?? "en";
+  // Current language, not the path's stored one. See LearningPathOverviewScreen.
+  const pathLanguage = language ?? "en";
   const [state, setState] = useState<HistoricalSessionState>({
     status: "loading",
     session: null
   });
-  const sessionLanguage = state.session?.language ?? pathLanguage;
+  // Archived sessions follow the current language too: the copy exists in both,
+  // and a history that stays French in an English app reads as a bug.
+  const sessionLanguage = pathLanguage;
   const copy = getLearningCopy(sessionLanguage).overview;
   const domain = path ? domains.find((candidate) => candidate.id === path.domain_id) ?? null : null;
   const objective = path

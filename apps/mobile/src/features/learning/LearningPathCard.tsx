@@ -36,7 +36,9 @@ export function LearningPathCard({
   session
 }: LearningPathCardProps) {
   const styles = useThemedStyles(createStyles);
-  const cardLanguage = session?.language ?? language ?? "en";
+  // The reader's current language. A card must never be the one French thing
+  // left on an English Today screen.
+  const cardLanguage = language ?? "en";
   const copy = getLearningCopy(cardLanguage).card;
   const openLabel =
     session?.status === "opened" || session?.status === "started"

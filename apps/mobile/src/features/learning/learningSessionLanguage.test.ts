@@ -7,25 +7,69 @@ import {
   type LearningSession
 } from "./learningTypes";
 
-describe("learning session language", () => {
-  it("keeps historical session copy in the session language after the profile language changes", () => {
-    const session = learningSession("en");
-    const profileLanguage = "fr";
-    const sessionLanguage = session.language ?? profileLanguage;
+/**
+ * A reader who switches to English gets an English Parcours.
+ *
+ * This file used to assert the opposite. Every screen resolved its display
+ * language as `session.language ?? profileLanguage`, so a session authored while
+ * the reader was French stayed French for ever — and because the whole path was
+ * authored in one language, switching to English left the entire Learning Path
+ * in French while the rest of the app turned over. That was the reported bug.
+ *
+ * The copy is stored in both languages on every session, so following the reader
+ * costs nothing and needs no regeneration. `session.language` still exists and
+ * still matters — it records which language the PROMPT was rendered in, which is
+ * the one field that is not bilingual — but it no longer decides what is
+ * displayed.
+ */
 
-    expect(localizeSessionTitle(session, sessionLanguage)).toBe("English title");
-    expect(localizeSessionSummary(session, sessionLanguage)).toBe("English summary");
-    expect(localizeSessionObjectives(session, sessionLanguage)).toEqual(["English goal"]);
+describe("learning session display language follows the reader", () => {
+  it("renders a French-authored session in English once the reader switches", () => {
+    const session = learningSession("fr");
+    const readerLanguage = "en";
+
+    expect(localizeSessionTitle(session, readerLanguage)).toBe("English title");
+    expect(localizeSessionSummary(session, readerLanguage)).toBe("English summary");
+    expect(localizeSessionObjectives(session, readerLanguage)).toEqual(["English goal"]);
   });
 
-  it("uses French session copy for a historical French session after the profile language changes", () => {
-    const session = learningSession("fr");
-    const profileLanguage = "en";
-    const sessionLanguage = session.language ?? profileLanguage;
+  it("renders an English-authored session in French once the reader switches", () => {
+    const session = learningSession("en");
+    const readerLanguage = "fr";
 
-    expect(localizeSessionTitle(session, sessionLanguage)).toBe("Titre français");
-    expect(localizeSessionSummary(session, sessionLanguage)).toBe("Résumé français");
-    expect(localizeSessionObjectives(session, sessionLanguage)).toEqual(["Objectif français"]);
+    expect(localizeSessionTitle(session, readerLanguage)).toBe("Titre français");
+    expect(localizeSessionSummary(session, readerLanguage)).toBe("Résumé français");
+    expect(localizeSessionObjectives(session, readerLanguage)).toEqual(["Objectif français"]);
+  });
+
+  it("switches back and leaves nothing behind", () => {
+    const session = learningSession("fr");
+
+    expect(localizeSessionTitle(session, "en")).toBe("English title");
+    expect(localizeSessionTitle(session, "fr")).toBe("Titre français");
+    expect(localizeSessionTitle(session, "en")).toBe("English title");
+  });
+
+  it("does not read session.language when deciding what to display", () => {
+    // The same reader language must produce the same output whatever language
+    // the row was authored in. This is the property the screens were missing.
+    for (const authored of ["fr", "en"] as const) {
+      const session = learningSession(authored);
+
+      expect(localizeSessionTitle(session, "en")).toBe("English title");
+      expect(localizeSessionSummary(session, "en")).toBe("English summary");
+      expect(localizeSessionObjectives(session, "en")).toEqual(["English goal"]);
+    }
+  });
+
+  it("still records which language the prompt was rendered in", () => {
+    // The one field that is not bilingual. The database requeues a
+    // not-yet-completed session when the reader switches, so the orchestrator
+    // re-renders this in the new language; a completed session keeps its
+    // original prompt as a record of the work the reader actually did.
+    expect(learningSession("fr").language).toBe("fr");
+    expect(learningSession("fr").prompt_text).toBe("Prompt français");
+    expect(learningSession("en").prompt_text).toBe("English prompt");
   });
 });
 

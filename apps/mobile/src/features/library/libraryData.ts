@@ -420,7 +420,8 @@ type ArchiveSearchRow = {
  * page size and the cursor — so no two different searches can ever share an
  * entry, and a re-tap of "load more" is free.
  */
-function getArchiveSearchCacheKey(
+/** Exported so the language-switch guard can assert the key really differs per language. */
+export function getArchiveSearchCacheKey(
   userId: string,
   options: {
     contentType: string;
@@ -685,7 +686,8 @@ function normalizeLibraryLimit(limit: number | undefined): number {
   return Math.min(Math.max(Math.floor(limit), 1), maxLibraryDropLimit);
 }
 
-function getLibraryDropsCacheKey(
+/** Exported so the language-switch guard can assert the key really differs per language. */
+export function getLibraryDropsCacheKey(
   userId: string,
   pageSize: number,
   language: ContentLanguage | undefined,

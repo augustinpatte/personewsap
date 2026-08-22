@@ -46,7 +46,11 @@ export function LearningPathOverviewScreen({
     status
   } = useLearningPath();
   const selectedPath = pathId ? learningPaths.find((path) => path.id === pathId) ?? null : displayPath;
-  const pathLanguage = selectedPath?.language ?? language ?? "en";
+  // The reader's CURRENT language, not the one the path was created in.
+  // learning_paths.language is a second copy written at path creation; pinning
+  // display to it is why a reader who switched to English kept seeing a French
+  // Parcours. Every localized field below exists in both languages already.
+  const pathLanguage = language ?? "en";
   const copy = getLearningCopy(pathLanguage).overview;
   const selectedDomain = selectedPath
     ? domains.find((domain) => domain.id === selectedPath.domain_id) ?? null
@@ -201,7 +205,7 @@ export function LearningPathOverviewScreen({
                 {copy.sessionLabel(session.session_number)}
               </AppText>
               <AppText variant="bodyStrong">
-                {localizeSessionTitle(session, session.language ?? pathLanguage)}
+                {localizeSessionTitle(session, pathLanguage)}
               </AppText>
             </Pressable>
           ))

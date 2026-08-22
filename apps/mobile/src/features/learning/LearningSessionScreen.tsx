@@ -41,7 +41,10 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   } = useLearningPath();
   const styles = useThemedStyles(createStyles);
   const session = sessionId ? getSessionById(sessionId) : undefined;
-  const sessionLanguage = session?.language ?? language ?? "en";
+  // Follows the reader, not the row: title, summary and objectives are stored
+  // in both languages, so a session authored in French renders in English the
+  // moment the reader switches.
+  const sessionLanguage = language ?? "en";
   const copy = getLearningCopy(sessionLanguage).session;
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptUsed, setPromptUsed] = useState(

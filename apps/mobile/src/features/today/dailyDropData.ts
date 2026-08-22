@@ -1011,7 +1011,8 @@ function normalizeDropDate(date: string | Date): string {
   return typeof date === "string" ? date.slice(0, 10) : date.toISOString().slice(0, 10);
 }
 
-function getTodayDropCacheKey(
+/** Exported so the language-switch guard can assert the key really differs per language. */
+export function getTodayDropCacheKey(
   userId: string,
   dropDate: string,
   language?: ContentLanguage
@@ -1031,7 +1032,8 @@ function getContentSourcesCacheKey(
   ].join(":");
 }
 
-function getContentItemCacheKey(
+/** Exported so the language-switch guard can assert the key really differs per language. */
+export function getContentItemCacheKey(
   contentItemId: string,
   options: FetchContentByIdOptions = {}
 ): string {
