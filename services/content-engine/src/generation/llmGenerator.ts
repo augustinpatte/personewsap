@@ -17,6 +17,10 @@ import {
   MINI_CASE_SCENARIO_TYPES
 } from "../miniCase/taxonomy.js";
 import { assembleDailyDropPayload } from "../scheduler/dailyDropBuilder.js";
+import {
+  businessStoryJudgeRejectionReasons,
+  type BusinessStoryEditorialJudge
+} from "./businessStoryEditorialJudge.js";
 import { DAILY_DROP_SECTION_SCHEMAS } from "./dailyDropSchema.js";
 import { compactBusinessStoryMemoryForPrompt } from "./editorialMemory.js";
 import { LlmGenerationError, serializeLlmFailure, toLlmGenerationError } from "./llmErrors.js";
@@ -68,6 +72,14 @@ type LlmContentGeneratorOptions = {
   maxAttempts?: number;
   onLlmCallMetric?: (metric: LlmCallMetric) => void;
   onProgress?: (message: string, details: Record<string, unknown>) => void;
+  /**
+   * Semantic QA over every generated Business Story.
+   *
+   * Optional: without it the deterministic gates stand alone, which is what
+   * fixtures and tests use. With it, a refused story becomes a validation issue
+   * and the existing retry loop asks the model again.
+   */
+  businessStoryJudge?: BusinessStoryEditorialJudge;
 };
 
 type SourcePacket = {
@@ -91,6 +103,8 @@ export class LlmContentGenerator implements ContentGenerator {
   private readonly maxOutputTokens: number;
   private readonly maxAttempts: number;
   private readonly onProgress?: (message: string, details: Record<string, unknown>) => void;
+  /** Optional semantic QA over each generated Business Story. */
+  private readonly businessStoryJudge: LlmContentGeneratorOptions["businessStoryJudge"];
 
   constructor(options: LlmContentGeneratorOptions) {
     if (options.providerForSection) {
@@ -105,6 +119,7 @@ export class LlmContentGenerator implements ContentGenerator {
     this.maxOutputTokens = options.maxOutputTokens ?? 6500;
     this.maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
     this.onProgress = options.onProgress;
+    this.businessStoryJudge = options.businessStoryJudge;
   }
 
   async generateDailyDrop(request: GenerationRequest): Promise<DailyDropPayload> {
@@ -227,6 +242,75 @@ export class LlmContentGenerator implements ContentGenerator {
     return payload;
   }
 
+  /**
+   * Semantic QA over a generated Business Story, as a validation issue.
+   *
+   * Returning issues rather than throwing puts the verdict into the existing
+   * retry loop: the model is told what was wrong and asked again, and only a
+   * story that fails every attempt takes the section down. That is the right
+   * shape for the daily job, where a refusal is a missing section rather than a
+   * batch an operator will read.
+   *
+   * The daily job generates each language as its own run, so there is no pair
+   * here and no parity to judge. The catalog repair, which does build pairs,
+   * calls the same judge with both halves.
+   *
+   * Fail closed: a judge that errors or times out produces an issue, never a
+   * silent pass.
+   */
+  private async judgeBusinessStories(
+    section: DropSection,
+    items: GeneratedContentItem[],
+    request: GenerationRequest
+  ): Promise<Array<{ path: string; message: string }>> {
+    const judge = this.businessStoryJudge;
+
+    if (!judge || section !== "business_story") {
+      return [];
+    }
+
+    const stories = items.filter(
+      (item): item is Extract<GeneratedContentItem, { content_type: "business_story" }> =>
+        item.content_type === "business_story"
+    );
+    const issues: Array<{ path: string; message: string }> = [];
+
+    for (const [index, story] of stories.entries()) {
+      try {
+        const result = await judge.judge({
+          reference: { language: request.language, item: story }
+        });
+        const rejections = businessStoryJudgeRejectionReasons(result.verdict);
+
+        this.reportProgress("business story editorial QA", {
+          language: request.language,
+          model: judge.model,
+          pass: result.verdict.pass && rejections.length === 0,
+          input_tokens: result.inputTokens,
+          output_tokens: result.outputTokens,
+          cost_usd: result.costUsd,
+          cost_verified: result.costVerified
+        });
+
+        if (rejections.length > 0) {
+          issues.push({
+            path: `items.${index}`,
+            message: `Business story editorial QA refused this story: ${rejections.join(" | ")}`
+          });
+        }
+      } catch (error) {
+        issues.push({
+          path: `items.${index}`,
+          message: `Business story editorial QA could not check this story (${
+            error instanceof Error ? error.message : String(error)
+          }). The story is refused rather than published unchecked.`
+        });
+      }
+    }
+
+    return issues;
+  }
+
   private async generateSectionWithRetries(
     section: DropSection,
     request: GenerationRequest,
@@ -239,7 +323,10 @@ export class LlmContentGenerator implements ContentGenerator {
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       try {
         const items = await this.generateSection(section, request, allSources, feedback, attempt, topic);
-        const issues = validateSectionItems(items, section, request, topic, allSources);
+        const issues = [
+          ...validateSectionItems(items, section, request, topic, allSources),
+          ...(await this.judgeBusinessStories(section, items, request))
+        ];
         if (issues.length === 0) {
           return items;
         }

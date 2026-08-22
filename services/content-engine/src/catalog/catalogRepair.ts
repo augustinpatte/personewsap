@@ -1,5 +1,6 @@
 import {
   miniCaseTopicToContentTopics,
+  type BusinessStory,
   type BusinessStoryEditorialMemoryEntry,
   type GeneratedContentItem,
   type Language,
@@ -45,6 +46,10 @@ import {
   judgeRejectionReasons,
   type MiniCaseEditorialJudge
 } from "../miniCase/miniCaseEditorialJudge.js";
+import {
+  businessStoryJudgeRejectionReasons,
+  type BusinessStoryEditorialJudge
+} from "../generation/businessStoryEditorialJudge.js";
 
 /**
  * Targeted repair of individual catalog pairs.
@@ -107,6 +112,13 @@ export type CatalogRepairDependencies = {
    * — which is what the tests and the deterministic generator use.
    */
   miniCaseJudge?: MiniCaseEditorialJudge;
+  /**
+   * Optional semantic QA over the generated Business Story pair.
+   *
+   * Same contract as the Mini Case judge: one call per pair, and a refusal on
+   * failure including when the call itself fails.
+   */
+  businessStoryJudge?: BusinessStoryEditorialJudge;
   repository: ContentRepository;
   loadArticles: (language: Language, recencyDays?: number) => Promise<RankedArticle[]>;
   onProgress?: (message: string, details: Record<string, unknown>) => void;
@@ -540,6 +552,44 @@ async function prepareOneEntry(input: {
       }
     } catch (error) {
       // Fail closed. An unavailable judge is not a pass.
+      return refuse(
+        `${entryId} could not be checked by editorial QA (${errorMessage(error)}). The candidate is refused rather than staged unchecked.`,
+        contentItemIds
+      );
+    }
+  }
+
+  // The same QA for the other content type. BS-02 was a competent, well-sourced
+  // piece about a tariff war between two governments — nothing deterministic
+  // could see that it does not belong in this product.
+  if (
+    dependencies.businessStoryJudge &&
+    contentType === "business_story" &&
+    candidateVersions.length >= 2
+  ) {
+    const [reference, counterpart] = candidateVersions;
+
+    try {
+      const result = await dependencies.businessStoryJudge.judge({
+        reference: { language: reference.language, item: reference.item as BusinessStory },
+        counterpart: { language: counterpart.language, item: counterpart.item as BusinessStory }
+      });
+      const rejections = businessStoryJudgeRejectionReasons(result.verdict);
+
+      dependencies.onProgress?.("business story editorial QA", {
+        entry_id: entryId,
+        model: dependencies.businessStoryJudge.model,
+        pass: result.verdict.pass && rejections.length === 0,
+        input_tokens: result.inputTokens,
+        output_tokens: result.outputTokens,
+        cost_usd: result.costUsd,
+        cost_verified: result.costVerified
+      });
+
+      if (rejections.length > 0) {
+        return refuse(`${entryId} failed editorial QA: ${rejections.join(" | ")}`, contentItemIds);
+      }
+    } catch (error) {
       return refuse(
         `${entryId} could not be checked by editorial QA (${errorMessage(error)}). The candidate is refused rather than staged unchecked.`,
         contentItemIds

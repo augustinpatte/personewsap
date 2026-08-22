@@ -21,6 +21,7 @@ import {
   isTopicId
 } from "../domain.js";
 import { LlmContentGenerator } from "../generation/llmGenerator.js";
+import { createLunaBusinessStoryEditorialJudge } from "../generation/businessStoryEditorialJudge.js";
 import { classifyLlmFailure, serializeLlmFailure, type LlmFailureReason } from "../generation/llmErrors.js";
 import {
   createRoutedProviderFactory,
@@ -1670,7 +1671,11 @@ function createGenerator(useLlm: boolean, logPrefix: string, llmCallMetrics: Llm
       onCallMetric: (metric) => llmCallMetrics.push(metric)
     }),
     onLlmCallMetric: (metric) => llmCallMetrics.push(metric),
-    onProgress: (message, details) => logProgress(message, details, logPrefix)
+    onProgress: (message, details) => logProgress(message, details, logPrefix),
+    // Semantic QA over every Business Story the production job writes. A refused
+    // story becomes a validation issue, so the existing retry loop asks the
+    // model again before the section is given up on.
+    businessStoryJudge: createLunaBusinessStoryEditorialJudge()
   });
 }
 

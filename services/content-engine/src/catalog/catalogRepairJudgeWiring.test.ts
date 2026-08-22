@@ -14,6 +14,10 @@ import {
   type CatalogRepairOptions
 } from "./catalogRepair.js";
 import type { CatalogRepairPlan } from "./catalogRepairPlan.js";
+import type {
+  BusinessStoryEditorialJudge,
+  BusinessStoryJudgeRequest
+} from "../generation/businessStoryEditorialJudge.js";
 
 /**
  * How often the semantic judge runs, and on what.
@@ -57,7 +61,11 @@ function article(url: string, title: string): RankedArticle {
   };
 }
 
-const SOURCE = () => article("https://fr.test/ai/original", "The original AI capacity decision");
+// Deliberately free of English words that read as unaccented French: the
+// deterministic generator embeds the source headline in the French title, and
+// a word like "decision" would trip the accent validator before the judge is
+// ever reached.
+const SOURCE = () => article("https://fr.test/ai/original", "Un opérateur réajuste ses tarifs de capacité");
 
 function version(
   entryId: string,
@@ -343,5 +351,130 @@ describe("the judge never runs where it should not", () => {
     const { plan } = await prepareCatalogRepair(options(), deps(stub, undefined));
 
     expect(plan.entries).toHaveLength(1);
+  });
+});
+
+/**
+ * The Business Story judge, on the same terms: one call per FR/EN pair, none on
+ * apply, and a refusal on failure. BS-02 (a tariff war) and BS-04 (a note asking
+ * for more evidence) both passed every deterministic gate, so this is the only
+ * thing standing between them and a review file.
+ */
+function countingBusinessStoryJudge(
+  outcome: "pass" | "political" | "no-evidence" | "throw" = "pass"
+): { judge: BusinessStoryEditorialJudge; calls: BusinessStoryJudgeRequest[] } {
+  const calls: BusinessStoryJudgeRequest[] = [];
+
+  return {
+    calls,
+    judge: {
+      model: "gpt-5.6-luna",
+      judge: async (request) => {
+        calls.push(request);
+
+        if (outcome === "throw") {
+          throw new Error("judge unavailable");
+        }
+
+        return {
+          verdict: {
+            pass: outcome === "pass",
+            business_mechanism_substantive: true,
+            source_support_sufficient: outcome !== "no-evidence",
+            editorial_self_refusal: outcome === "no-evidence",
+            fr_en_semantic_parity: true,
+            political_geopolitical_exclusion_pass: outcome !== "political",
+            topic_promise_fit: true,
+            reasons: []
+          },
+          inputTokens: 800,
+          outputTokens: 50,
+          costUsd: 0.0001,
+          costVerified: false
+        };
+      }
+    }
+  };
+}
+
+describe("the Business Story judge runs once per pair", () => {
+  it("makes exactly one call for a pair generated in two languages", async () => {
+    const stub = repositoryStub();
+    const { judge, calls } = countingBusinessStoryJudge();
+
+    const { plan } = await prepareCatalogRepair(options({ entryIds: [BUSINESS_ENTRY] }), {
+      ...deps(stub),
+      businessStoryJudge: judge
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].reference.language).toBe("fr");
+    expect(calls[0].counterpart?.language).toBe("en");
+    expect(plan.entries).toHaveLength(1);
+  });
+
+  it("refuses a tariff-war story on the political exclusion", async () => {
+    const stub = repositoryStub();
+    const { judge } = countingBusinessStoryJudge("political");
+
+    const { report, plan } = await prepareCatalogRepair(options({ entryIds: [BUSINESS_ENTRY] }), {
+      ...deps(stub),
+      businessStoryJudge: judge
+    });
+
+    expect(plan.entries).toEqual([]);
+    expect(report.failedEntries[0].details.join(" ")).toContain("political or geopolitical");
+  });
+
+  it("refuses a story whose sources cannot establish its trade-off", async () => {
+    const stub = repositoryStub();
+    const { judge } = countingBusinessStoryJudge("no-evidence");
+
+    const { report } = await prepareCatalogRepair(options({ entryIds: [BUSINESS_ENTRY] }), {
+      ...deps(stub),
+      businessStoryJudge: judge
+    });
+
+    expect(report.failedEntries[0].details.join(" ")).toContain("note asking for more evidence");
+  });
+
+  it("fails closed when the judge cannot answer", async () => {
+    const stub = repositoryStub();
+    const { judge } = countingBusinessStoryJudge("throw");
+
+    const { report, plan } = await prepareCatalogRepair(options({ entryIds: [BUSINESS_ENTRY] }), {
+      ...deps(stub),
+      businessStoryJudge: judge
+    });
+
+    expect(plan.entries).toEqual([]);
+    expect(report.failedEntries[0].details.join(" ")).toContain("could not be checked by editorial QA");
+  });
+
+  it("makes zero calls for a Mini Case repair", async () => {
+    const stub = repositoryStub();
+    const { judge, calls } = countingBusinessStoryJudge();
+
+    await prepareCatalogRepair(options(), { ...deps(stub), businessStoryJudge: judge });
+
+    expect(calls).toEqual([]);
+  });
+
+  it("makes zero calls when applying a prepared plan", async () => {
+    const stub = repositoryStub();
+    const { judge, calls } = countingBusinessStoryJudge();
+    const { plan } = await prepareCatalogRepair(options({ entryIds: [BUSINESS_ENTRY] }), {
+      ...deps(stub),
+      businessStoryJudge: judge
+    });
+
+    expect(calls).toHaveLength(1);
+
+    const applyStub = repositoryStub();
+    await applyCatalogRepairPlan(plan, { persist: true }, { repository: applyStub.repository });
+
+    // Apply takes a repository and nothing else: no judge, no slot for one.
+    expect(calls).toHaveLength(1);
+    expect(applyStub.writes).toHaveLength(2);
   });
 });
