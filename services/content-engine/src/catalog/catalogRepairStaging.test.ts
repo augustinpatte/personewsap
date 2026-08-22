@@ -613,6 +613,9 @@ describe("the editorial judge gates what the deterministic checks cannot", () =>
             ],
             pair_semantic_parity: true,
             taxonomy_semantic_fit: true,
+            topic_promise_fit: true,
+            topic_promise_reason: "The decision turns on a real mechanism.",
+            tested_domain_mechanism: "unit economics of an AI capacity choice",
             reasons: []
           },
           inputTokens: 900,

@@ -130,6 +130,9 @@ describe("the semantic judge decides what a regex cannot", () => {
     ],
     pair_semantic_parity: true,
     taxonomy_semantic_fit: true,
+    topic_promise_fit: true,
+    topic_promise_reason: "The decision turns on the rule's applicability.",
+    tested_domain_mechanism: "scope of a procurement threshold",
     reasons: []
   };
 
@@ -229,6 +232,9 @@ describe("an unusable answer from the judge is a refusal, not a pass", () => {
       ],
       pair_semantic_parity: true,
       taxonomy_semantic_fit: true,
+      topic_promise_fit: true,
+      topic_promise_reason: "ok",
+      tested_domain_mechanism: "scope of a rule",
       reasons: []
     });
 

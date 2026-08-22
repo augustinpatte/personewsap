@@ -19,6 +19,7 @@ import {
   type CatalogRepairReport
 } from "../catalog/catalogRepair.js";
 import { renderCatalogRepairReview } from "../catalog/catalogRepairReview.js";
+import { createLunaMiniCaseEditorialJudge } from "../miniCase/miniCaseEditorialJudge.js";
 import type { CatalogRepairPlan } from "../catalog/catalogRepairPlan.js";
 import { catalogSourceSince } from "../catalog/catalogRecency.js";
 import {
@@ -130,6 +131,7 @@ async function prepareCandidates(options: CatalogRepairCliOptions): Promise<Cata
     entry_ids: options.entryIds,
     languages: options.languages,
     generator: options.useLlm ? "llm" : "deterministic",
+    mini_case_editorial_qa: options.useLlm ? "gpt-5.6-luna" : "disabled",
     live_rss_only: options.liveRssOnly,
     catalog_recency_days: options.catalogRecencyDays
   });
@@ -147,6 +149,13 @@ async function prepareCandidates(options: CatalogRepairCliOptions): Promise<Cata
     },
     {
       generator: createGenerator(options.useLlm),
+      // Semantic QA on every generated Mini Case pair, on the LLM path only.
+      // One call per pair — the guard lives in prepareOneEntry, which runs it
+      // once on the finished FR/EN pair and never for a Business Story. The
+      // deterministic generator gets no judge: its output is fixed, so there is
+      // nothing for a model to have an opinion about, and the tests must not
+      // need network access.
+      miniCaseJudge: options.useLlm ? createLunaMiniCaseEditorialJudge() : undefined,
       repository,
       onProgress: (message, details) => logProgress(message, details),
       loadArticles: async (language, recencyDays) => {

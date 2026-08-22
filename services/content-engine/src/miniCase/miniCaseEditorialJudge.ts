@@ -47,6 +47,21 @@ export type MiniCaseJudgeVerdict = {
   questions: MiniCaseJudgeQuestionVerdict[];
   pair_semantic_parity: boolean;
   taxonomy_semantic_fit: boolean;
+  /**
+   * Whether the case teaches what its product topic promises.
+   *
+   * Distinct from `taxonomy_semantic_fit`, which asks whether the labels match
+   * the case. This asks whether the case is worth being in that topic at all.
+   *
+   * The rejected "Le goulot d'étranglement des constitutions d'État" is why it
+   * exists: sourced from a law article, filed with coherent law taxonomy, and
+   * the decision it actually asked the reader to make was capacity planning. A
+   * legal setting is not a legal lesson.
+   */
+  topic_promise_fit: boolean;
+  topic_promise_reason: string;
+  /** What the case genuinely makes the learner reason about. */
+  tested_domain_mechanism: string;
   reasons: string[];
 };
 
@@ -71,7 +86,16 @@ export type MiniCaseJudgeResult = {
 const JUDGE_SCHEMA: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
-  required: ["pass", "questions", "pair_semantic_parity", "taxonomy_semantic_fit", "reasons"],
+  required: [
+    "pass",
+    "questions",
+    "pair_semantic_parity",
+    "taxonomy_semantic_fit",
+    "topic_promise_fit",
+    "topic_promise_reason",
+    "tested_domain_mechanism",
+    "reasons"
+  ],
   properties: {
     pass: { type: "boolean" },
     questions: {
@@ -95,12 +119,29 @@ const JUDGE_SCHEMA: Record<string, unknown> = {
     },
     pair_semantic_parity: { type: "boolean" },
     taxonomy_semantic_fit: { type: "boolean" },
+    topic_promise_fit: { type: "boolean" },
+    topic_promise_reason: { type: "string" },
+    tested_domain_mechanism: { type: "string" },
     reasons: { type: "array", items: { type: "string" } }
   }
 };
 
 const JUDGE_SYSTEM_PROMPT =
-  "You are an editorial QA reviewer for multiple-choice business cases. You judge whether wrong answers are credible professional mistakes, whether the correct answer can be found without reading the case, whether the two language versions represent the same reasoning exercise, and whether the taxonomy fits. You return verdicts only. You never write, rewrite or suggest content.";
+  "You are an editorial QA reviewer for multiple-choice business cases. You judge whether wrong answers are credible professional mistakes, whether the correct answer can be found without reading the case, whether the two language versions represent the same reasoning exercise, whether the taxonomy fits, and whether the case teaches what its product topic promises. You return verdicts only. You never write, rewrite or suggest content.";
+
+/**
+ * What a topic has to make the learner actually reason about.
+ *
+ * Only `law_compliance` is specified here, because only it has a demonstrated
+ * failure: a case sourced from a law article, filed with coherent law taxonomy,
+ * whose decision was capacity planning. Every other topic gets the generic
+ * question. Writing rules for all six on the strength of one incident would be
+ * guessing.
+ */
+const TOPIC_PROMISE_RULES: Partial<Record<string, string>> = {
+  law_compliance:
+    "This is a Law & Compliance case. topic_promise_fit is true ONLY if the decision the learner makes requires practical legal or compliance reasoning: the applicability or scope of a rule, a legal, regulatory or contractual obligation, a documentation or evidence requirement, a procedural step, a filing, notice or authorization requirement, enforcement exposure, liability, a compliance control, the interpretation of a legal threshold, a conflict between legal constraints, or a decision under regulatory uncertainty. A legal SETTING is not a legal lesson: set topic_promise_fit false when the real lesson is generic capacity planning, generic operations, project management, productivity, public popularity, political ideology, constitutional philosophy, legal civics or abstract jurisprudential debate — even when the source is a court, a regulator or a statute. Operational constraints may be present; what matters is whether the decision turns on a legal or compliance rule."
+};
 
 /** The production judge: one cheap model, structured output, no reasoning. */
 export function createLunaMiniCaseEditorialJudge(
@@ -162,7 +203,13 @@ export function buildMiniCaseJudgePrompt(request: MiniCaseJudgeRequest): string 
         "Set correct_answer_too_obvious when the correct option is the only professionally plausible choice, or is identifiable by being the longest, most technical or most cautious.",
         "Set pair_semantic_parity false when option id B, C or D does not represent the SAME reasoning mistake in both languages. Idiomatic rewording is expected and fine; a different exercise is not.",
         "Set taxonomy_semantic_fit false when scenario_type or concept_tested names a mechanism the case does not contain.",
-        "pass must be false if any question has fewer than 3 plausible wrong options, any obviously_irrelevant_options is non-empty, any correct_answer_too_obvious is true, or either parity flag is false."
+        "Set topic_promise_fit false when the case does not make the learner reason about what its product_topic promises. Being SET in a domain is not the same as TESTING that domain.",
+        "Put in tested_domain_mechanism the mechanism the case genuinely makes the learner reason about, in a few words, whatever the labels claim.",
+        "Put in topic_promise_reason one sentence explaining the topic_promise_fit verdict.",
+        "pass must be false if any question has fewer than 3 plausible wrong options, any obviously_irrelevant_options is non-empty, any correct_answer_too_obvious is true, or any of the parity, taxonomy or topic-promise flags is false.",
+        ...(TOPIC_PROMISE_RULES[String(item.product_topic)]
+          ? [TOPIC_PROMISE_RULES[String(item.product_topic)] as string]
+          : [])
       ],
       taxonomy: {
         product_topic: item.product_topic,
@@ -206,6 +253,9 @@ export function parseJudgeVerdict(payload: unknown): MiniCaseJudgeVerdict {
     questions: [],
     pair_semantic_parity: false,
     taxonomy_semantic_fit: false,
+    topic_promise_fit: false,
+    topic_promise_reason: reason,
+    tested_domain_mechanism: "",
     reasons: [reason]
   });
 
@@ -250,6 +300,11 @@ export function parseJudgeVerdict(payload: unknown): MiniCaseJudgeVerdict {
     questions,
     pair_semantic_parity: record.pair_semantic_parity !== false,
     taxonomy_semantic_fit: record.taxonomy_semantic_fit !== false,
+    topic_promise_fit: record.topic_promise_fit !== false,
+    topic_promise_reason:
+      typeof record.topic_promise_reason === "string" ? record.topic_promise_reason : "",
+    tested_domain_mechanism:
+      typeof record.tested_domain_mechanism === "string" ? record.tested_domain_mechanism : "",
     reasons: Array.isArray(record.reasons)
       ? record.reasons.filter((value): value is string => typeof value === "string")
       : []
@@ -293,6 +348,15 @@ export function judgeRejectionReasons(verdict: MiniCaseJudgeVerdict): string[] {
 
   if (!verdict.taxonomy_semantic_fit) {
     reasons.push("The taxonomy names a mechanism the case does not contain.");
+  }
+
+  if (!verdict.topic_promise_fit) {
+    const detail = verdict.topic_promise_reason.trim();
+    const tested = verdict.tested_domain_mechanism.trim();
+
+    reasons.push(
+      `The case does not teach what its topic promises${tested ? ` — it actually tests ${tested}` : ""}.${detail ? ` ${detail}` : ""}`
+    );
   }
 
   if (reasons.length === 0 && !verdict.pass) {
