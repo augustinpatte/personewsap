@@ -452,7 +452,7 @@ describe("selecting entries out of a plan", () => {
       }
     );
 
-    expect(plan?.entries).toHaveLength(2);
+    expect(plan.entries).toHaveLength(2);
 
     const applyStub = repositoryStub();
     const report = await applyCatalogRepairPlan(
@@ -516,7 +516,7 @@ describe("a replacement batch does not spend one event twice", () => {
       }
     );
 
-    expect(plan?.entries).toHaveLength(2);
+    expect(plan.entries).toHaveLength(2);
 
     const chosen = plan!.entries.map((entry) => entry.sourceUrls.join(","));
     // The real failure was both slots citing one Federal Reserve order.
@@ -537,7 +537,7 @@ describe("a replacement batch does not spend one event twice", () => {
       }
     );
 
-    expect(plan?.entries).toHaveLength(1);
+    expect(plan.entries).toHaveLength(1);
     expect(report.counts.failed).toBe(1);
     expect(report.failedEntries[0].entryId).toBe(SECOND_ENTRY);
     expect(report.failedEntries[0].details.join(" ")).toContain("already allocated to earlier slots");
@@ -564,9 +564,9 @@ describe("a partial batch is never reported as a success", () => {
     expect(report.failedEntries.map((entry) => entry.entryId)).toEqual([missing]);
 
     // The artifact itself carries the three lists, not just the successes.
-    expect(plan?.requestedEntryIds).toEqual([ENTRY, missing]);
-    expect(plan?.preparedEntryIds).toEqual([ENTRY]);
-    expect(plan?.failedEntries.map((entry) => entry.entryId)).toEqual([missing]);
+    expect(plan.requestedEntryIds).toEqual([ENTRY, missing]);
+    expect(plan.preparedEntryIds).toEqual([ENTRY]);
+    expect(plan.failedEntries.map((entry) => entry.entryId)).toEqual([missing]);
   });
 
   it("leads the review file with the failures", async () => {
@@ -638,7 +638,7 @@ describe("the editorial judge gates what the deterministic checks cannot", () =>
       miniCaseJudge: judge("pass")
     });
 
-    expect(plan?.entries).toHaveLength(1);
+    expect(plan.entries).toHaveLength(1);
   });
 
   it("refuses a candidate the judge rejects, and says which option", async () => {
@@ -652,7 +652,7 @@ describe("the editorial judge gates what the deterministic checks cannot", () =>
       miniCaseJudge: judge("fail")
     });
 
-    expect(plan).toBeNull();
+    expect(plan.entries).toEqual([]);
     expect(report.failedEntries[0].details.join(" ")).toContain("failed editorial QA");
     expect(report.failedEntries[0].details.join(" ")).toContain("option(s) C");
   });
@@ -669,7 +669,7 @@ describe("the editorial judge gates what the deterministic checks cannot", () =>
     });
 
     // An unavailable judge is not a pass.
-    expect(plan).toBeNull();
+    expect(plan.entries).toEqual([]);
     expect(report.failedEntries[0].details.join(" ")).toContain("could not be checked by editorial QA");
   });
 });
@@ -722,7 +722,7 @@ describe("a rework on a packet that cannot carry a story says so", () => {
       }
     );
 
-    expect(plan).toBeNull();
+    expect(plan.entries).toEqual([]);
     expect(report.outcomes[0].status).toBe("needs_replace");
     expect(report.outcomes[0].reason).toContain("needs_replace_source_too_thin");
     expect(report.failedEntries[0].reason).toBe("needs_replace_source_too_thin");

@@ -148,8 +148,16 @@ export type CatalogRepairReport = {
 
 export type CatalogRepairPrepareResult = {
   report: CatalogRepairReport;
-  /** Null when nothing could be prepared: there is no plan worth writing. */
-  plan: CatalogRepairPlan | null;
+  /**
+   * Always produced, even when every requested entry was refused.
+   *
+   * A batch that prepares nothing is exactly the batch whose diagnosis matters
+   * most: `entries` is empty, and `requestedEntryIds` / `failedEntries` carry
+   * the whole account of what was asked for and why none of it worked. The
+   * artifact is a record first and an applyable plan second — and a plan with no
+   * entries is refused at apply, so an empty one can only ever be read.
+   */
+  plan: CatalogRepairPlan;
 };
 
 /**
@@ -267,10 +275,6 @@ export async function prepareCatalogRepair(
     failedEntries,
     untouchedVersions: allVersions.length
   };
-
-  if (planned.length === 0) {
-    return { report, plan: null };
-  }
 
   return {
     report,

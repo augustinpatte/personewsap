@@ -253,7 +253,9 @@ async function prepareAndApply(
 ) {
   const { report, plan } = await prepareCatalogRepair(repairOptions, deps);
 
-  if (!plan) {
+  // A prepare that refused everything still returns a plan — the diagnostic
+  // one — and there is nothing in it to apply.
+  if (plan.entries.length === 0) {
     return report;
   }
 

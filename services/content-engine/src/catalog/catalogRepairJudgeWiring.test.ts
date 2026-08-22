@@ -209,7 +209,7 @@ describe("the judge runs once per Mini Case pair", () => {
     // Two generation calls — FR then EN — and ONE judge call over the pair.
     expect(generatorCalls).toHaveLength(2);
     expect(calls).toHaveLength(1);
-    expect(plan?.entries).toHaveLength(1);
+    expect(plan.entries).toHaveLength(1);
   });
 
   it("hands the judge both languages in a single request", async () => {
@@ -247,7 +247,7 @@ describe("the judge runs once per Mini Case pair", () => {
     const { report, plan } = await prepareCatalogRepair(options(), deps(stub, judge));
 
     expect(calls).toHaveLength(1);
-    expect(plan).toBeNull();
+    expect(plan.entries).toEqual([]);
     expect(report.counts.failed).toBe(1);
     expect(report.failedEntries[0].entryId).toBe(MINI_CASE_ENTRY);
     expect(report.failedEntries[0].details.join(" ")).toContain("failed editorial QA");
@@ -298,8 +298,8 @@ describe("the judge runs once per Mini Case pair", () => {
 
     expect(calls).toHaveLength(2);
     expect(report.requestedEntryIds).toHaveLength(2);
-    expect(plan?.preparedEntryIds).toEqual([MINI_CASE_ENTRY]);
-    expect(plan?.failedEntries.map((entry) => entry.entryId)).toEqual([SECOND_MINI_CASE]);
+    expect(plan.preparedEntryIds).toEqual([MINI_CASE_ENTRY]);
+    expect(plan.failedEntries.map((entry) => entry.entryId)).toEqual([SECOND_MINI_CASE]);
     expect(report.counts.failed).toBe(1);
   });
 });
@@ -342,6 +342,6 @@ describe("the judge never runs where it should not", () => {
     // USE_LLM=false wires no judge, so a fixture run needs no model access.
     const { plan } = await prepareCatalogRepair(options(), deps(stub, undefined));
 
-    expect(plan?.entries).toHaveLength(1);
+    expect(plan.entries).toHaveLength(1);
   });
 });

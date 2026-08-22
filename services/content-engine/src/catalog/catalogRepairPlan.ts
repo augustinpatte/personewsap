@@ -174,7 +174,15 @@ export function assertPlanIntegrity(plan: CatalogRepairPlan): void {
   }
 
   if (!Array.isArray(plan.entries) || plan.entries.length === 0) {
-    throw new Error("catalog-repair plan contains no entries.");
+    // A prepare that refused everything still writes a plan, because the reasons
+    // are the point of it. That file is a diagnosis, not something to apply.
+    throw new Error(
+      `catalog-repair plan ${plan.repairId ?? ""} contains no prepared candidates: ${
+        Array.isArray(plan.failedEntries) ? plan.failedEntries.length : 0
+      } of ${
+        Array.isArray(plan.requestedEntryIds) ? plan.requestedEntryIds.length : 0
+      } requested entries were refused. Read its review file, fix what it names, and prepare again — there is nothing here to write.`
+    );
   }
 
   for (const entry of plan.entries) {

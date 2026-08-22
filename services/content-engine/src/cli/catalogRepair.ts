@@ -189,42 +189,67 @@ async function prepareCandidates(options: CatalogRepairCliOptions): Promise<Cata
     }
   );
 
-  if (!plan) {
-    logProgress("catalog repair prepared nothing", {
-      run_id: options.runId,
-      requested: report.requestedEntryIds.length,
-      prepared: 0,
-      failed: report.counts.failed,
-      failed_entries: report.failedEntries
-    });
+  writeRepairArtifacts({
+    plan,
+    report,
+    mode: options.mode,
+    outDir: options.outDir,
+    allowPartialPlan: options.allowPartialPlan
+  });
 
-    throw new CatalogRepairPartialPlanError(report.failedEntries.map((entry) => entry.entryId), report);
-  }
+  return report;
+}
 
-  const planDir = join(resolve(options.outDir), report.repairId);
-  const planPath = join(planDir, `repair-${options.mode}-plan.json`);
-  const reviewPath = join(planDir, `repair-${options.mode}-review.md`);
+/**
+ * Write the plan and the review, then decide whether the command failed.
+ *
+ * Both files are written FIRST, unconditionally, including when nothing was
+ * prepared. Two real batches — 2 requested / 0 prepared, and 5 requested / 0
+ * prepared — logged "prepared nothing", exited non-zero, and left no record at
+ * all, because the earlier version threw before it got here. The batch that
+ * refused everything is the one whose reasons the operator most needs.
+ *
+ * Exported so the tests exercise this exact function rather than a copy of it.
+ */
+export function writeRepairArtifacts(input: {
+  plan: CatalogRepairPlan;
+  report: CatalogRepairReport;
+  mode: CatalogRepairMode;
+  outDir: string;
+  allowPartialPlan: boolean;
+  log?: (message: string, details: Record<string, unknown>) => void;
+}): { planPath: string; reviewPath: string } {
+  const { plan, report } = input;
+  const log = input.log ?? logProgress;
+  const planDir = join(resolve(input.outDir), report.repairId);
+  const planPath = join(planDir, `repair-${input.mode}-plan.json`);
+  const reviewPath = join(planDir, `repair-${input.mode}-review.md`);
 
   mkdirSync(dirname(planPath), { recursive: true });
   writeFileSync(planPath, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
   writeFileSync(reviewPath, renderCatalogRepairReview(plan), "utf8");
 
-  logProgress("catalog repair plan written", {
+  const prepared = plan.preparedEntryIds.length;
+
+  log(prepared === 0 ? "catalog repair prepared nothing" : "catalog repair plan written", {
     plan_path: planPath,
     review_path: reviewPath,
     repair_id: report.repairId,
     requested: report.requestedEntryIds.length,
-    prepared: plan.preparedEntryIds.length,
+    prepared,
     failed: report.counts.failed,
     failed_entries: report.failedEntries,
-    next_step: `npm run content:catalog-repair -- --apply-plan ${planPath} --persist`
+    next_step:
+      prepared === 0
+        ? `Nothing to apply. Read ${reviewPath}, fix what it names, and prepare again.`
+        : `npm run content:catalog-repair -- --apply-plan ${planPath} --persist`
   });
 
-  // A plan covering fewer entries than were requested is not a success. The
-  // diagnostic artifacts are written either way — they are what the operator
-  // needs to act — but the command fails so a script cannot mistake 5 of 8 for
-  // a finished job. `--allow-partial-plan` is the explicit way to accept it.
-  if (report.counts.failed > 0 && !options.allowPartialPlan) {
+  // A batch that produced fewer candidates than were requested is not a
+  // success, whether it produced five of eight or none of five. The artifacts
+  // exist either way; the exit code is what stops a script treating it as done.
+  // `--allow-partial-plan` is the explicit way to accept it.
+  if (report.counts.failed > 0 && !input.allowPartialPlan) {
     throw new CatalogRepairPartialPlanError(
       report.failedEntries.map((entry) => entry.entryId),
       report,
@@ -232,7 +257,7 @@ async function prepareCandidates(options: CatalogRepairCliOptions): Promise<Cata
     );
   }
 
-  return report;
+  return { planPath, reviewPath };
 }
 
 /**
