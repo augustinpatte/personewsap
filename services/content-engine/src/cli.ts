@@ -5,6 +5,7 @@ import { parseBootstrapCatalogOptions, runBootstrapCatalogCli } from "./cli/boot
 import { parseBusinessStoryMemoryOptions, runBusinessStoryMemory } from "./cli/businessStoryMemory.js";
 import { parseCatalogPublishOptions, runCatalogPublish } from "./cli/catalogPublish.js";
 import { runCatalogRepairCli, parseCatalogRepairOptions } from "./cli/catalogRepair.js";
+import { runStagingPublishCli, parseStagingPublishOptions } from "./cli/stagingPublish.js";
 import { parseCatalogReportOptions, runCatalogReport } from "./cli/catalogReport.js";
 import { parseCleanupTestOptions, runCleanupTest } from "./cli/cleanupTest.js";
 import { parseDailyJobOptions, runDailyJob } from "./cli/dailyJob.js";
@@ -137,6 +138,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "staging-publish") {
+    const output = await runStagingPublishCli(parseStagingPublishOptions(args));
+    writeJson(output, { redactIdentifiers: true });
+    return;
+  }
+
   if (command === "catalog-repair") {
     const output = await runCatalogRepairCli(parseCatalogRepairOptions(args));
     writeJson(output, { redactIdentifiers: true });
@@ -191,6 +198,7 @@ Commands:
   rss-check               Fetch live RSS only, without LLM or Supabase persistence.
   bootstrap-catalog       Build the initial FR/EN editorial inventory (Business Stories + Mini Cases). No-write by default.
   catalog-report          Inspect persisted review/published bootstrap catalog inventory.
+  staging-publish         Publish the approved ChatGPT staging edition. --preview / --dry-run write nothing.
   catalog-repair          Replace named catalog pairs (rework|replace). Dry run unless --persist and CONFIRM_CATALOG_REPAIR=true.
   catalog-publish         Publish reviewed bootstrap catalog inventory after explicit confirmation.
   quality-proof           Prove production-strict editorial validation rejects bad generated content.

@@ -42,7 +42,6 @@
     "content:catalog-report": "npm --prefix services/content-engine run catalog-report --",
     "content:catalog-publish": "npm --prefix services/content-engine run catalog-publish --",
     "content:prod-dry-run": "DRY_RUN=true LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true RSS_ARTICLES_PER_SOURCE=1 npm --prefix services/content-engine run daily-job --",
-    "content:prod-run": "PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic CONTENT_STATUS=published npm --prefix services/content-engine run daily-job --",
     "learning:catalog:validate": "node scripts/learning-paths-validate.mjs",
     "learning:catalog:report": "node scripts/learning-paths-report.mjs",
     "learning:proof": "npm --prefix services/content-engine run learning-proof --",
@@ -63,7 +62,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "learning:catalog:build": "node scripts/learning-paths-build.mjs",
-    "content:catalog-repair": "npm --prefix services/content-engine run catalog-repair --"
+    "content:catalog-repair": "npm --prefix services/content-engine run catalog-repair --",
+    "content:staging-publish": "npm --prefix services/content-engine run staging-publish --",
+    "content:staging-preview": "npm --prefix services/content-engine run staging-publish -- --preview",
+    "content:legacy-api-run": "PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic CONTENT_STATUS=published npm --prefix services/content-engine run daily-job --"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

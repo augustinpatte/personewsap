@@ -189,7 +189,7 @@ DRY_RUN=true npm run content:daily-job
 OPENAI_API_KEY=... ANTHROPIC_API_KEY=... npm run content:prod-dry-run
 ```
 
-Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow. Non-dry production writes require `PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic`, plus `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY` for the default routes. The guarded wrapper is `npm run content:prod-run`.
+Run without `DRY_RUN=true` only from a server-side environment with production Supabase credentials, source/legal approval, and an editorial review workflow. Non-dry production writes require `PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic`, plus `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY` for the default routes. The guarded wrapper is `npm run content:legacy-api-run`.
 
 Read-only diagnostic commands:
 
@@ -262,6 +262,6 @@ PersoNewsAP is not production-ready until TestFlight setup, privacy review, edit
 | Backend persistence safety | done | Write commands fail closed behind confirmation flags and service-role env vars. |
 | Mobile live-data path | implemented, wave proof required | Supported through marked test persistence and assignment; still needs a selected tester Supabase project and manual proof run. |
 | TestFlight | partial | Expo config, icons/splash, iOS build number, and EAS profiles exist; Apple signing, App Store Connect setup, final privacy/support copy, and device proof are still required. |
-| Production scheduler | ready for staging | `content:prod-run` uses the production daily-job path, GitHub Actions schedules Mon/Wed/Fri/Sun, and `job_runs` records monitoring summaries. |
+| Production scheduler | ready for staging | `content:legacy-api-run` uses the production daily-job path, GitHub Actions schedules Mon/Wed/Fri/Sun, and `job_runs` records monitoring summaries. |
 | Editorial production workflow | missing | LLM output still needs human review before production publication. |
 | Source licensing | missing | RSS/source terms need review before production use. |

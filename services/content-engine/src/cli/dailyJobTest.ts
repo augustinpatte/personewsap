@@ -1012,7 +1012,14 @@ async function runDailyJobLanguage(input: {
   return result;
 }
 
-async function assignStoredDropToUsers(input: {
+/**
+ * Exported so the staging publish path reuses production assignment verbatim.
+ *
+ * Assignment, personalisation and daily-drop construction did not change when
+ * generation moved to ChatGPT, and duplicating them for the new path is exactly
+ * how the two would drift.
+ */
+export async function assignStoredDropToUsers(input: {
   repository: ContentRepository;
   storedItems: StoredItems;
   preparedAssignment?: PreparedAssignment;

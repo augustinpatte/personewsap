@@ -32,16 +32,20 @@ jobs:
     env:
       LANGUAGES: ${{ github.event.inputs.languages || 'fr,en' }}
       CONTENT_STATUS: published
-      USE_LLM: "true"
-      LIVE_RSS: "true"
-      LIVE_RSS_ONLY: "true"
-      DRY_RUN: "false"
-      PRODUCTION_DAILY_JOB: "true"
       LEARNING_GENERATION_MODE: deterministic
+      # Production project: where the edition is published and read from.
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # ChatGPT staging project: where the approved edition is read from. Read
+      # only, apart from the publication receipt written after production
+      # succeeds. Deliberately a separate credential pair — a job pointed at the
+      # wrong project must fail loudly, not silently find no editions.
+      STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      # No OPENAI_API_KEY, no ANTHROPIC_API_KEY, and no USE_LLM. Editorial
+      # generation happens in ChatGPT Scheduled Tasks before this workflow runs,
+      # and there is deliberately no automatic fallback to a paid API: an
+      # unreviewed edition is worse than no edition.
 
     steps:
       - name: Checkout
@@ -65,10 +69,23 @@ jobs:
       - name: Supabase schema doctor
         run: npm run supabase:doctor
 
-      - name: Production generation and assignment
+      # Reads the approved staging batch, revalidates every item through the
+      # same validators the LLM path used, persists through ContentRepository,
+      # assigns the daily drops, then records the receipt in staging.
+      #
+      # A clean no-op when no READY batch exists: the command refuses and the
+      # step is allowed to fail without taking the rest of the workflow down.
+      - name: Publish approved staging edition
+        id: publish
+        continue-on-error: true
         env:
           RUN_ID: ${{ github.event.inputs.run_id }}
-        run: npm run content:prod-run
+        run: npm run content:staging-publish -- --languages "$LANGUAGES"
+
+      - name: Report missing edition
+        if: steps.publish.outcome == 'failure'
+        run: |
+          echo "::warning title=No edition published::No approved ChatGPT batch was ready for today. Nothing was written. Check the staging review queue, then re-run this workflow."
 
       # Announcing the edition is a separate, re-runnable step on purpose: the
       # edition is already published by the step above, and a push failure must
@@ -76,6 +93,7 @@ jobs:
       # edition, so re-running this sends nothing twice.
       - name: Edition push notifications
         id: push_notifications
+        if: steps.publish.outcome == 'success'
         continue-on-error: true
         run: npm run content:push-notifications
 

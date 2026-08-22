@@ -67,7 +67,7 @@ SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
 OPENAI_API_KEY="<openai-key>" \
 ANTHROPIC_API_KEY="<anthropic-key>" \
 LANGUAGES=fr,en \
-npm run content:prod-run
+npm run content:legacy-api-run
 ```
 
 5. Check health without reading the full job logs:
@@ -248,7 +248,7 @@ OPENAI_API_KEY="<openai-key>" \
 ANTHROPIC_API_KEY="<anthropic-key>" \
 LANGUAGES=fr,en \
 RUN_ID="daily-job-$(date +%F)" \
-npm run content:prod-run
+npm run content:legacy-api-run
 ```
 
 5. Immediately run strict health:
@@ -263,7 +263,7 @@ Automation assumptions:
 
 - Run at most once per calendar date unless the operator chooses a language-specific rerun id.
 - Keep stdout/stderr logs for at least 14 days; redact logs before sharing.
-- Alert on any nonzero exit code from `content:prod-run` or strict `content:job-health`.
+- Alert on any nonzero exit code from `content:legacy-api-run` or strict `content:job-health`.
 - Alert if no `job_runs` row exists for the current date by the expected local time.
 - Prefer `STRICT_ALL_LANGUAGES=true` only when a partial FR/EN daily drop is worse than holding the day.
 - Keep `USER_LIMIT` unset in real production; use it only for staged rollouts.
@@ -377,7 +377,7 @@ OPENAI_API_KEY="<openai-key>" \
 ANTHROPIC_API_KEY="<anthropic-key>" \
 RUN_ID="daily-job-$(date +%F)-fr-rerun-1" \
 LANGUAGES=fr \
-npm run content:prod-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
+npm run content:legacy-api-run -- --topics business,finance,tech_ai,law,medicine,engineering,sport_business,culture_media
 ```
 
 5. If the failure is validation quality, do not publish a workaround. Fix prompts/validation or hold that language's daily drop.

@@ -113,7 +113,7 @@ Open the app signed in as the assigned test user, go to the Today tab for the pr
 | Test commands | `npm run smoke`, `npm run mobile:typecheck`, `npm run content:build`, `npm run content:dry-run` | No | Routine local validation before handoff. |
 | Local no-write commands | `npm run content:llm-run`, `npm run content:llm-proof`, `npm run content:quality-proof`, `npm run content:prod-dry-run`, `npm run content:rss-check`, `npm run supabase:doctor`, `npm run content:debug-users`, `npm run content:health`, `npm run content:business-story-memory` | No | LLM/RSS inspection, static/live read-only schema checks, user eligibility diagnostics, production-shaped dry runs, job health checks, and Business Story editorial-memory inspection. |
 | Local-only dangerous write commands | `npm run backend:e2e`, `npm run backend:e2e:live-rss`, `npm run backend:e2e:llm`, `npm run content:persist-test`, `npm run content:assign-test-users`, `npm run content:personalize-test`, `npm run content:daily-job-test`, `npm run content:app-preview-test`, `npm run content:cleanup-test` | Yes | Disposable or staging Supabase testing with explicit confirmation flags. `content:app-preview-test` is the one-user, see-it-in-the-app preview. |
-| Production commands | `npm run content:daily-job`, `npm run content:prod-run` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. Production runs write a `job_runs` summary for `content:job-health`. |
+| Production commands | `npm run content:daily-job`, `npm run content:legacy-api-run` | Yes unless `DRY_RUN=true` | Production-shaped scheduler command. Production runs write a `job_runs` summary for `content:job-health`. |
 
 Dangerous write commands require `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the command-specific `CONFIRM_*` flag. Treat them as staging/test tools unless a production owner intentionally accepts test rows in production. `content:daily-job` does not use a test confirmation flag, so run it with `DRY_RUN=true` until the production environment, scheduler, monitoring, source rights, and editorial review workflow are explicitly approved.
 
@@ -526,7 +526,7 @@ PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM
 Root wrapper equivalent:
 
 ```sh
-SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... ANTHROPIC_API_KEY=... LANGUAGES=fr,en npm run content:prod-run
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... ANTHROPIC_API_KEY=... LANGUAGES=fr,en npm run content:legacy-api-run
 ```
 
 Sample articles can still be used in `dry-run`, `daily-job-test`, `persist-test`, smoke, and backend E2E. Non-dry `daily-job` refuses sample content and should not be used for sample-content write rehearsals.
