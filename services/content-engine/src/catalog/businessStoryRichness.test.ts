@@ -121,7 +121,7 @@ describe("a source packet has to be able to carry a business story", () => {
     ).toBe(true);
   });
 
-  it("does not judge a packet with too little prose to judge", () => {
+  it("reports a packet too terse to judge as ambiguous, not as a pass", () => {
     const terse = article({
       url: "https://wire.test/terse",
       title: "Firm names a new chief executive",
@@ -130,10 +130,37 @@ describe("a source packet has to be able to carry a business story", () => {
     });
     const richness = assessBusinessStorySourceRichness({ articles: [terse] });
 
-    // Absence of evidence is not evidence of a weak event. A terse feed is not
-    // grounds for refusal, and the editorial validators still apply downstream.
+    // This used to count as a pass, on the reasoning that absence of evidence is
+    // not evidence of absence. For Business Story selection that is backwards:
+    // the information the format needs is exactly the information missing, and
+    // it is how "les abonnements sont visibles, pas encore le mécanisme" came to
+    // be written. The verdict is reported; the caller decides.
     expect(richness.assessable).toBe(false);
-    expect(richness.sufficient).toBe(true);
+    expect(richness.verdict).toBe("ambiguous");
+    expect(richness.sufficient).toBe(false);
+  });
+
+  it("keeps a terse event out of the allocation unless it is explicitly allowed", () => {
+    const terse = article({
+      url: "https://wire.test/terse-2",
+      title: "Firm names a new chief executive",
+      summary: "Short wire item.",
+      body: ""
+    });
+
+    expect(
+      allocateBusinessStorySourcePackets({ articles: [terse], topics: ["business"] })
+    ).toEqual([]);
+
+    // The old lenient behaviour stays reachable, for a caller that has already
+    // had the ambiguous packets looked at.
+    expect(
+      allocateBusinessStorySourcePackets({
+        articles: [terse],
+        topics: ["business"],
+        allowAmbiguousPackets: true
+      }).map((packet) => packet.primary.url)
+    ).toEqual([terse.url]);
   });
 });
 

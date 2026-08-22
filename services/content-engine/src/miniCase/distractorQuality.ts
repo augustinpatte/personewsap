@@ -36,18 +36,35 @@ type OffTopicSignal = {
   relevance: RegExp;
 };
 
+/**
+ * Why the first version let these through, recorded so it is not repeated:
+ *
+ *   "packaging color"                            no family existed
+ *   "brand age"                                  the family matched only "founding date"
+ *   "number of countries where the brand is sold" no family existed
+ *   "decide based on media coverage"             the family required "coverage count"
+ *   "exact date the debt threshold was crossed"  no family existed
+ *   "debt levels of other countries"             no family existed
+ *
+ * Every miss is the same miss: the guard was an allowlist of three narrowly
+ * worded phrasings, so it could only catch what someone had already imagined.
+ * The families below cover the observed classes and are widened where they were
+ * too literal — but a string matcher cannot decide whether an unanticipated
+ * option is a credible professional choice. That question belongs to the
+ * semantic judge in `miniCaseEditorialJudge`; this stays the cheap first line.
+ */
 const OFF_TOPIC_SIGNALS: OffTopicSignal[] = [
   {
     name: "media attention",
     pattern:
-      /\b(count(ing)?\s+(the\s+)?(news\s+)?articles|number\s+of\s+(news\s+)?articles|press\s+(mentions|clippings)|media\s+(buzz|hype|coverage\s+count)|nombre\s+d'articles|compter\s+les\s+articles|retomb[ée]es\s+presse)/i,
+      /\b(count(ing)?\s+(the\s+)?(news\s+)?articles|number\s+of\s+(news\s+)?articles|press\s+(mentions|clippings|coverage)|media\s+(buzz|hype|coverage|attention)|couverture\s+m[ée]diatique|nombre\s+d'articles|compter\s+les\s+articles|retomb[ée]es\s+presse)/i,
     relevance:
       /\b(reputation|r[ée]putation|brand|marque|communicat|public\s+relations|crisis|crise|boycott|sentiment|attention\s+[ée]conom)/i
   },
   {
     name: "company age",
     pattern:
-      /\b((founding|foundation|incorporation)\s+date|date\s+de\s+(cr[ée]ation|fondation)|fund\s+launch\s+date|date\s+de\s+lancement\s+du\s+fonds|year\s+the\s+company\s+was\s+founded|ann[ée]e\s+de\s+cr[ée]ation)/i,
+      /\b((founding|foundation|incorporation)\s+date|date\s+de\s+(cr[ée]ation|fondation)|fund\s+launch\s+date|date\s+de\s+lancement\s+du\s+fonds|year\s+the\s+(company|brand|fund)\s+was\s+(founded|launched)|ann[ée]e\s+de\s+cr[ée]ation|(brand|company|fund)\s+age|(âge|age|anciennet[ée])\s+(de\s+la\s+marque|de\s+l'entreprise|du\s+fonds))/i,
     relevance:
       /\b(track\s+record|historique|anciennet[ée]|maturity|maturit[ée]|vintage|seniority|legacy\s+cost|amortis)/i
   },
@@ -57,6 +74,38 @@ const OFF_TOPIC_SIGNALS: OffTopicSignal[] = [
       /\b(public\s+visibility|visibilit[ée]\s+publique|how\s+well[-\s]known|notori[ée]t[ée]|name\s+recognition|popularity|popularit[ée]|biggest\s+promise|plus\s+grande\s+promesse|loudest|le\s+plus\s+connu)/i,
     relevance:
       /\b(brand|marque|market\s+share|part\s+de\s+march|customer\s+acquisition|acquisition\s+client|demand|demande|reputation|r[ée]putation)/i
+  },
+  {
+    name: "cosmetic product attributes",
+    pattern:
+      /\b(packaging\s+(colou?r|design)|colou?r\s+of\s+the\s+(packaging|logo|label)|couleur\s+(de\s+l'emballage|du\s+logo)|logo\s+design|typeface|slogan|nom\s+de\s+la\s+marque|brand\s+name\s+alone)/i,
+    // Phrases, not ambient words: a case that merely says "shelf price" is not
+    // a case about packaging, and a one-word escape hatch is no hatch at all.
+    relevance:
+      /\b(packaging\s+(cost|redesign|change)|co[uû]t\s+d'emballage|rebrand|repositionn|shelf\s+space|lin[ée]aire|design\s+cost|regulatory\s+labell?ing|[ée]tiquetage)/i
+  },
+  {
+    name: "geographic footprint count",
+    pattern:
+      /\b(number\s+of\s+(countries|markets|cities)|how\s+many\s+(countries|markets)|nombre\s+de\s+pays|nombre\s+de\s+march[ée]s|count(ing)?\s+the\s+(countries|markets))/i,
+    relevance:
+      /\b(market\s+entry|entr[ée]e\s+sur\s+le\s+march|expansion|international|distribution|logistic|supply\s+chain|regulatory\s+jurisdiction|juridiction)/i
+  },
+  {
+    name: "an exact date as the decision criterion",
+    pattern:
+      /\b(exact\s+date|date\s+exacte|precise\s+date|the\s+exact\s+day|jour\s+exact)\b/i,
+    relevance:
+      /\b(deadline|[ée]ch[ée]ance|maturity|expiry|expiration|cut[-\s]?off|filing|d[ée]p[ôo]t|prescription|statute\s+of\s+limitation|d[ée]lai)/i
+  },
+  {
+    name: "an unrelated third party's level",
+    pattern:
+      /\b((debt|revenue|margin|valuation|price)\s+levels?\s+of\s+other|(dette|revenus?|marges?)\s+d(es|'autres)\s+(pays|entreprises|soci[ée]t[ée]s)|other\s+(countries|companies)'?\s+(debt|revenue|margin))/i,
+    // Same rule: "spread against the benchmark" is ambient market vocabulary,
+    // not evidence that this case turns on what OTHER issuers owe.
+    relevance:
+      /\b(peer\s+(group|comparison|benchmark)|comparable\s+(compan|issuer|transaction)|relative\s+value|contagion|systemic|syst[ée]mique|cross[-\s]border\s+exposure)/i
   }
 ];
 

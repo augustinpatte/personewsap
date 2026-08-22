@@ -50,6 +50,8 @@ export type CatalogRepairCliOptions = {
   onlyEntryIds: string[];
   /** Where prepare writes its artifacts. */
   outDir: string;
+  /** Accept a plan that covers fewer entries than were requested. */
+  allowPartialPlan: boolean;
   runId: string;
   entryIds: string[];
   mode: CatalogRepairMode;
@@ -181,10 +183,13 @@ async function prepareCandidates(options: CatalogRepairCliOptions): Promise<Cata
   if (!plan) {
     logProgress("catalog repair prepared nothing", {
       run_id: options.runId,
-      refused: report.counts.refused
+      requested: report.requestedEntryIds.length,
+      prepared: 0,
+      failed: report.counts.failed,
+      failed_entries: report.failedEntries
     });
 
-    return report;
+    throw new CatalogRepairPartialPlanError(report.failedEntries.map((entry) => entry.entryId), report);
   }
 
   const planDir = join(resolve(options.outDir), report.repairId);
@@ -199,12 +204,56 @@ async function prepareCandidates(options: CatalogRepairCliOptions): Promise<Cata
     plan_path: planPath,
     review_path: reviewPath,
     repair_id: report.repairId,
-    prepared_entries: plan.entries.length,
-    refused: report.counts.refused,
+    requested: report.requestedEntryIds.length,
+    prepared: plan.preparedEntryIds.length,
+    failed: report.counts.failed,
+    failed_entries: report.failedEntries,
     next_step: `npm run content:catalog-repair -- --apply-plan ${planPath} --persist`
   });
 
+  // A plan covering fewer entries than were requested is not a success. The
+  // diagnostic artifacts are written either way — they are what the operator
+  // needs to act — but the command fails so a script cannot mistake 5 of 8 for
+  // a finished job. `--allow-partial-plan` is the explicit way to accept it.
+  if (report.counts.failed > 0 && !options.allowPartialPlan) {
+    throw new CatalogRepairPartialPlanError(
+      report.failedEntries.map((entry) => entry.entryId),
+      report,
+      { planPath, reviewPath }
+    );
+  }
+
   return report;
+}
+
+/**
+ * Thrown when prepare produced fewer candidates than were requested.
+ *
+ * Carries the report so the caller can still print what WAS prepared, and names
+ * every failed entry with its reason: the first real batch lost three requests
+ * into a plan that reported success, and that must not be possible again.
+ */
+export class CatalogRepairPartialPlanError extends Error {
+  readonly reason = "catalog_repair_partial_plan";
+  readonly failedEntryIds: string[];
+  readonly report: CatalogRepairReport;
+  readonly artifacts: { planPath: string; reviewPath: string } | null;
+
+  constructor(
+    failedEntryIds: string[],
+    report: CatalogRepairReport,
+    artifacts: { planPath: string; reviewPath: string } | null = null
+  ) {
+    super(
+      `catalog-repair prepared ${report.requestedEntryIds.length - failedEntryIds.length} of ${report.requestedEntryIds.length} requested entries. Failed: ${report.failedEntries
+        .map((entry) => `${entry.entryId} (${entry.reason})`)
+        .join("; ")}. Re-run the failed entries, or pass --allow-partial-plan to accept this plan as it is.`
+    );
+    this.name = "CatalogRepairPartialPlanError";
+    this.failedEntryIds = failedEntryIds;
+    this.report = report;
+    this.artifacts = artifacts;
+  }
 }
 
 /** Artifacts land beside the repo by default, never inside src. */
@@ -234,6 +283,7 @@ export function parseCatalogRepairOptions(args: string[]): CatalogRepairCliOptio
   const applyPlanPath = flags.get("apply-plan") ?? null;
   const liveRssOnly = flags.has("live-rss-only") || envFlag("LIVE_RSS_ONLY");
   const outDir = flags.get("out-dir") ?? process.env.CATALOG_REPAIR_OUT_DIR ?? DEFAULT_OUT_DIR;
+  const allowPartialPlan = flags.has("allow-partial-plan");
 
   // Applying a reviewed plan needs the plan and nothing else: the run id, the
   // entries, the mode and the source window are all recorded in it.
@@ -242,6 +292,7 @@ export function parseCatalogRepairOptions(args: string[]): CatalogRepairCliOptio
       applyPlanPath,
       onlyEntryIds: entryIds,
       outDir,
+      allowPartialPlan,
       runId: flags.get("run-id") ?? process.env.CATALOG_RUN_ID ?? "",
       entryIds,
       mode: "rework",
@@ -283,6 +334,7 @@ export function parseCatalogRepairOptions(args: string[]): CatalogRepairCliOptio
     applyPlanPath: null,
     onlyEntryIds: [],
     outDir,
+    allowPartialPlan,
     runId,
     entryIds,
     mode,

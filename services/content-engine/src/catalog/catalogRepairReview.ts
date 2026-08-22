@@ -23,12 +23,42 @@ export function renderCatalogRepairReview(plan: CatalogRepairPlan): string {
     `Edition date: ${plan.dropDate}`,
     `Languages: ${plan.languages.join(", ")}`,
     `Generator: ${plan.generator?.generatorLabel ?? "unknown"}`,
-    `Entries: ${plan.entries.length}`,
     "",
+    "## Summary",
+    "",
+    `- **Requested**: ${plan.requestedEntryIds.length}`,
+    `- **Prepared**: ${plan.preparedEntryIds.length}`,
+    `- **Failed**: ${plan.failedEntries.length}`,
+    ""
+  ];
+
+  // Failures lead, before any candidate. A batch that produced five of eight is
+  // not a success with a footnote, and the three that did not make it are the
+  // first thing the operator has to act on.
+  if (plan.failedEntries.length > 0) {
+    lines.push(
+      "### Entries that produced no candidate",
+      "",
+      "These were requested and are NOT in this plan. They still need repair.",
+      ""
+    );
+
+    for (const failure of plan.failedEntries) {
+      lines.push(`- \`${failure.entryId}\` — **${failure.reason}**`);
+
+      for (const detail of failure.details) {
+        lines.push(`  - ${detail}`);
+      }
+    }
+
+    lines.push("");
+  }
+
+  lines.push(
     "> Nothing here has been written. Read each entry, then apply the plan with",
     "> `--apply-plan` to persist exactly these candidates — no regeneration.",
     ""
-  ];
+  );
 
   plan.entries.forEach((entry, index) => {
     lines.push(...renderEntry(entry, index));

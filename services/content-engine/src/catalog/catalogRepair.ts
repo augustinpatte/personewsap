@@ -3,6 +3,7 @@ import {
   type BusinessStoryEditorialMemoryEntry,
   type GeneratedContentItem,
   type Language,
+  type MiniCaseChallenge,
   type MiniCaseTopicId,
   type RankedArticle,
   type TopicId
@@ -17,6 +18,7 @@ import { resolveCatalogSourceArticles } from "./catalogSourceResolution.js";
 import {
   assertPlanIntegrity,
   assertPlanShape,
+  type FailedCatalogRepairEntry,
   CATALOG_REPAIR_PLAN_VERSION,
   fingerprintCatalogVersion,
   hashPlannedEntry,
@@ -38,6 +40,11 @@ import {
   isSameSourceEvent,
   type BusinessStorySourcePacket
 } from "./sourceEventAllocation.js";
+import { assessBusinessStorySourceRichness } from "./businessStoryRichness.js";
+import {
+  judgeRejectionReasons,
+  type MiniCaseEditorialJudge
+} from "../miniCase/miniCaseEditorialJudge.js";
 
 /**
  * Targeted repair of individual catalog pairs.
@@ -91,6 +98,15 @@ export type CatalogRepairOptions = {
 
 export type CatalogRepairDependencies = {
   generator: ContentGenerator;
+  /**
+   * Optional semantic QA over the generated Mini Case pair.
+   *
+   * When present it runs after the deterministic checks and REJECTS on failure,
+   * including when the call itself fails: a judge that cannot judge must not
+   * wave a candidate through. When absent, the deterministic checks stand alone
+   * — which is what the tests and the deterministic generator use.
+   */
+  miniCaseJudge?: MiniCaseEditorialJudge;
   repository: ContentRepository;
   loadArticles: (language: Language, recencyDays?: number) => Promise<RankedArticle[]>;
   onProgress?: (message: string, details: Record<string, unknown>) => void;
@@ -99,7 +115,7 @@ export type CatalogRepairDependencies = {
 export type CatalogRepairOutcome = {
   entryId: string;
   mode: CatalogRepairMode;
-  status: "repaired" | "planned" | "refused";
+  status: "repaired" | "planned" | "refused" | "needs_replace";
   /** Why a refusal happened, or what a dry run would have done. */
   reason: string;
   contentItemIds: string[];
@@ -122,7 +138,10 @@ export type CatalogRepairReport = {
     repaired: number;
     planned: number;
     refused: number;
+    /** Requested entries that produced no candidate. Never silently dropped. */
+    failed: number;
   };
+  failedEntries: FailedCatalogRepairEntry[];
   /** Every catalog version this run did not name. Reported to prove it was left alone. */
   untouchedVersions: number;
 };
@@ -178,6 +197,15 @@ export async function prepareCatalogRepair(
   const planned: PlannedCatalogEntry[] = [];
   const repairId = `${options.mode}-${options.dropDate}-${Date.now().toString(36)}`;
 
+  // Events already handed to an earlier slot IN THIS BATCH.
+  //
+  // The first real replace batch gave the same Federal Reserve order to both
+  // stock_market-02 and stock_market-04, and both taught the same lesson — which
+  // recreated the duplication the repair existed to remove. Entries prepared
+  // earlier in a batch are not in the database yet, so nothing upstream can see
+  // them; the batch has to remember them itself.
+  const batchAllocatedEvents: RankedArticle[] = [];
+
   for (const entryId of options.entryIds) {
     const result = await prepareOneEntry({
       entryId,
@@ -189,13 +217,15 @@ export async function prepareCatalogRepair(
       counterpartLanguages,
       articlesByLanguage,
       canonicalArticles: canonicalPool.articles,
-      seenIdentities
+      seenIdentities,
+      batchAllocatedEvents
     });
 
     outcomes.push(result.outcome);
 
     if (result.planned) {
       planned.push(result.planned);
+      batchAllocatedEvents.push(...result.planned.approvedSources);
     }
 
     dependencies.onProgress?.("catalog repair candidate", {
@@ -205,6 +235,17 @@ export async function prepareCatalogRepair(
       reason: result.outcome.reason
     });
   }
+
+  // Anything that did not produce a candidate is recorded by name and reason.
+  // A requested entry never simply vanishes from the artifact.
+  const failedEntries: FailedCatalogRepairEntry[] = outcomes
+    .filter((outcome) => outcome.status === "refused" || outcome.status === "needs_replace")
+    .map((outcome) => ({
+      entryId: outcome.entryId,
+      reason: outcome.status === "needs_replace" ? "needs_replace_source_too_thin" : "refused",
+      details: [outcome.reason]
+    }));
+  const preparedEntryIds = planned.map((entry) => entry.entryId);
 
   const report: CatalogRepairReport = {
     mode: "catalog-repair-prepare",
@@ -220,8 +261,10 @@ export async function prepareCatalogRepair(
     counts: {
       repaired: 0,
       planned: outcomes.filter((outcome) => outcome.status === "planned").length,
-      refused: outcomes.filter((outcome) => outcome.status === "refused").length
+      refused: outcomes.filter((outcome) => outcome.status === "refused").length,
+      failed: failedEntries.length
     },
+    failedEntries,
     untouchedVersions: allVersions.length
   };
 
@@ -237,6 +280,9 @@ export async function prepareCatalogRepair(
       createdAt: new Date().toISOString(),
       runId: options.runId,
       mode: options.mode,
+      requestedEntryIds: options.entryIds,
+      preparedEntryIds,
+      failedEntries,
       dropDate: options.dropDate,
       languages: options.languages,
       contentStatus: options.contentStatus,
@@ -263,6 +309,8 @@ async function prepareOneEntry(input: {
   articlesByLanguage: Map<Language, RankedArticle[]>;
   canonicalArticles: RankedArticle[];
   seenIdentities: Set<string>;
+  /** Events already allocated to an earlier slot of this same batch. */
+  batchAllocatedEvents: RankedArticle[];
 }): Promise<{ outcome: CatalogRepairOutcome; planned?: PlannedCatalogEntry }> {
   const { dependencies, entryId, options } = input;
   const languages = [input.referenceLanguage, ...input.counterpartLanguages];
@@ -338,6 +386,29 @@ async function prepareOneEntry(input: {
       );
     }
 
+    // A rework keeps the event — but only if the event can carry the format. A
+    // Business Story built on a packet with no mechanism becomes a story about
+    // there being no story, which is exactly what the last batch produced four
+    // times. Say so, and let the operator move the entry to REPLACE.
+    if (contentType === "business_story") {
+      const richness = assessBusinessStorySourceRichness({ articles: persistedSources });
+
+      if (richness.verdict !== "sufficient") {
+        return {
+          outcome: {
+            entryId,
+            mode: options.mode,
+            status: "needs_replace",
+            reason: `needs_replace_source_too_thin: the persisted source packet of ${entryId} carries ${richness.mechanisms.length} business mechanism(s) and ${richness.hasFigures ? "a figure" : "no figure"} (verdict: ${richness.verdict}). Reworking it would produce a story about the absence of a story. Re-run this entry with --mode replace.`,
+            contentItemIds,
+            previousSourceUrls,
+            newSourceUrls: [],
+            newTitles: {}
+          }
+        };
+      }
+    }
+
     approvedArticles = persistedSources;
     packet = { primary: persistedSources[0], supporting: persistedSources.slice(1), articles: persistedSources };
   } else {
@@ -353,11 +424,14 @@ async function prepareOneEntry(input: {
     ]);
     const excludedArticles = [
       ...persistedSources,
+      ...input.batchAllocatedEvents,
       ...input.canonicalArticles.filter((article) => excludedUrls.has(article.url))
     ];
+    const batchUrls = new Set(input.batchAllocatedEvents.map((article) => article.url));
     const candidates = input.canonicalArticles.filter(
       (article) =>
         !excludedUrls.has(article.url) &&
+        !batchUrls.has(article.url) &&
         !excludedArticles.some((excluded) => isSameSourceEvent(excluded, article))
     );
     const topics = contentType === "mini_case" && miniCaseTopic
@@ -373,7 +447,7 @@ async function prepareOneEntry(input: {
 
     if (available.length === 0) {
       return refuse(
-        `No replacement event is available for ${entryId} in ${topics.join("/")} once the previous event and every event already used by this run are excluded.`,
+        `No replacement event is available for ${entryId} in ${topics.join("/")} once the previous event, every event already used by this run, and the ${input.batchAllocatedEvents.length} event(s) already allocated to earlier slots in this batch are excluded. Reusing one would recreate the duplication this repair exists to remove, so the entry fails instead.`,
         contentItemIds
       );
     }
@@ -422,6 +496,51 @@ async function prepareOneEntry(input: {
       `${entryId} was asked to replace its event but the candidate cites the same source. Nothing was changed.`,
       contentItemIds
     );
+  }
+
+  // Semantic QA on the finished pair, when a judge is configured. This is the
+  // half a regex cannot do: whether each wrong answer is a mistake somebody
+  // could actually make, and whether option id B means the same mistake in both
+  // languages. One call per pair, cheapest model, no reasoning.
+  if (dependencies.miniCaseJudge && contentType === "mini_case" && candidateVersions.length >= 2) {
+    const [reference, counterpart] = candidateVersions;
+
+    try {
+      const result = await dependencies.miniCaseJudge.judge({
+        reference: {
+          language: reference.language,
+          item: reference.item as MiniCaseChallenge
+        },
+        counterpart: {
+          language: counterpart.language,
+          item: counterpart.item as MiniCaseChallenge
+        }
+      });
+      const rejections = judgeRejectionReasons(result.verdict);
+
+      dependencies.onProgress?.("mini case editorial QA", {
+        entry_id: entryId,
+        model: dependencies.miniCaseJudge.model,
+        pass: result.verdict.pass && rejections.length === 0,
+        input_tokens: result.inputTokens,
+        output_tokens: result.outputTokens,
+        cost_usd: result.costUsd,
+        cost_verified: result.costVerified
+      });
+
+      if (rejections.length > 0) {
+        return refuse(
+          `${entryId} failed editorial QA: ${rejections.join(" | ")}`,
+          contentItemIds
+        );
+      }
+    } catch (error) {
+      // Fail closed. An unavailable judge is not a pass.
+      return refuse(
+        `${entryId} could not be checked by editorial QA (${errorMessage(error)}). The candidate is refused rather than staged unchecked.`,
+        contentItemIds
+      );
+    }
   }
 
   const newTitles = Object.fromEntries(
@@ -573,8 +692,12 @@ export async function applyCatalogRepairPlan(
     counts: {
       repaired: outcomes.filter((outcome) => outcome.status === "repaired").length,
       planned: outcomes.filter((outcome) => outcome.status === "planned").length,
-      refused: outcomes.filter((outcome) => outcome.status === "refused").length
+      refused: outcomes.filter((outcome) => outcome.status === "refused").length,
+      failed: outcomes.filter((outcome) => outcome.status === "refused").length
     },
+    failedEntries: outcomes
+      .filter((outcome) => outcome.status === "refused")
+      .map((outcome) => ({ entryId: outcome.entryId, reason: "refused", details: [outcome.reason] })),
     untouchedVersions: allVersions.filter((version) => !touched.has(version.contentItemId)).length
   };
 }
@@ -949,6 +1072,10 @@ function defaultTopicFor(
   }
 
   return BUSINESS_STORY_TOPICS[0];
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function assertRepairOptions(options: CatalogRepairOptions): void {

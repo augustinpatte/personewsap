@@ -26,6 +26,7 @@ import {
   isMiniCaseQuestionPattern,
   isMiniCaseScenarioType
 } from "../miniCase/taxonomy.js";
+import { validateBusinessStorySubstance } from "./businessStorySubstance.js";
 import { validateMiniCaseDistractorQuality } from "../miniCase/distractorQuality.js";
 import {
   miniCaseSemanticText,
@@ -369,6 +370,20 @@ export function validateDailyDropQuality(
     issues.push(...validateItemProductTopicMapping(item, path, options, strict));
     issues.push(...validateMiniCaseUxAndRotation(item, path, payload.drop_date, options, strict));
     issues.push(...validateBusinessStoryEditorialMemory(item, path, payload.drop_date, options, strict));
+
+    // A source-quality refusal must never be published as the story itself.
+    // Always blocking: this is an editorial floor, not a strict-mode nicety, and
+    // a retry on a different event is the only correct response to it.
+    if (item.content_type === "business_story") {
+      for (const issue of validateBusinessStorySubstance(item)) {
+        issues.push(qualityIssue({
+          path: `${path}.${issue.field}`,
+          code: issue.code,
+          message: issue.message,
+          strict: true
+        }));
+      }
+    }
   });
 
   issues.push(...validateRepeatedTemplatePhrases(payload, strict));

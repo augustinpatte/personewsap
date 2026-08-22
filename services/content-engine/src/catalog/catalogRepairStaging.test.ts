@@ -10,6 +10,7 @@ import {
   type CatalogRepairOptions
 } from "./catalogRepair.js";
 import { renderCatalogRepairReview } from "./catalogRepairReview.js";
+import type { MiniCaseEditorialJudge } from "../miniCase/miniCaseEditorialJudge.js";
 import {
   assertPlanIntegrity,
   CATALOG_REPAIR_PLAN_VERSION,
@@ -477,5 +478,253 @@ describe("selecting entries out of a plan", () => {
         { repository: repositoryStub().repository }
       )
     ).rejects.toThrow(/does not contain/);
+  });
+});
+
+/**
+ * The first real REPLACE batch asked for 8 entries, wrote a plan with 5, and
+ * recorded nothing about the other 3. It also handed the SAME Federal Reserve
+ * order to two different replacement slots, recreating the duplication the
+ * repair existed to remove. Both are regression-tested here.
+ */
+describe("a replacement batch does not spend one event twice", () => {
+  const SECOND_ENTRY = `${RUN_ID}-mini-case-ai-04`;
+
+  function twoSlotInventory(): CatalogEntryVersionRecord[] {
+    return [
+      ...inventory(),
+      persistedVersion(SECOND_ENTRY, "fr", 3),
+      persistedVersion(SECOND_ENTRY, "en", 3)
+    ];
+  }
+
+  const alternatives = (): RankedArticle[] => [
+    article({ url: "https://en.test/ai/alt-1", language: "en", title: "An inference pricing change" }),
+    article({ url: "https://en.test/ai/alt-2", language: "en", title: "A datacentre build delay" })
+  ];
+
+  it("gives two replacement slots two different events", async () => {
+    const stub = repositoryStub({ existing: twoSlotInventory() });
+    const { generator } = countingGenerator();
+
+    const { plan } = await prepareCatalogRepair(
+      options({ entryIds: [ENTRY, SECOND_ENTRY], mode: "replace" }),
+      {
+        generator,
+        repository: stub.repository,
+        loadArticles: async () => alternatives()
+      }
+    );
+
+    expect(plan?.entries).toHaveLength(2);
+
+    const chosen = plan!.entries.map((entry) => entry.sourceUrls.join(","));
+    // The real failure was both slots citing one Federal Reserve order.
+    expect(new Set(chosen).size).toBe(2);
+  });
+
+  it("fails the second slot rather than reuse the only remaining event", async () => {
+    const stub = repositoryStub({ existing: twoSlotInventory() });
+    const { generator } = countingGenerator();
+
+    const { report, plan } = await prepareCatalogRepair(
+      options({ entryIds: [ENTRY, SECOND_ENTRY], mode: "replace" }),
+      {
+        generator,
+        repository: stub.repository,
+        // One usable alternative for two slots.
+        loadArticles: async () => [alternatives()[0]]
+      }
+    );
+
+    expect(plan?.entries).toHaveLength(1);
+    expect(report.counts.failed).toBe(1);
+    expect(report.failedEntries[0].entryId).toBe(SECOND_ENTRY);
+    expect(report.failedEntries[0].details.join(" ")).toContain("already allocated to earlier slots");
+  });
+});
+
+describe("a partial batch is never reported as a success", () => {
+  it("records what was requested, what was prepared and what failed", async () => {
+    const stub = repositoryStub();
+    const { generator } = countingGenerator();
+    const missing = `${RUN_ID}-mini-case-ai-09`;
+
+    const { report, plan } = await prepareCatalogRepair(
+      options({ entryIds: [ENTRY, missing] }),
+      {
+        generator,
+        repository: stub.repository,
+        loadArticles: async () => [LINKED_SOURCE()]
+      }
+    );
+
+    expect(report.requestedEntryIds).toEqual([ENTRY, missing]);
+    expect(report.counts.failed).toBe(1);
+    expect(report.failedEntries.map((entry) => entry.entryId)).toEqual([missing]);
+
+    // The artifact itself carries the three lists, not just the successes.
+    expect(plan?.requestedEntryIds).toEqual([ENTRY, missing]);
+    expect(plan?.preparedEntryIds).toEqual([ENTRY]);
+    expect(plan?.failedEntries.map((entry) => entry.entryId)).toEqual([missing]);
+  });
+
+  it("leads the review file with the failures", async () => {
+    const stub = repositoryStub();
+    const { generator } = countingGenerator();
+    const missing = `${RUN_ID}-mini-case-ai-09`;
+
+    const { plan } = await prepareCatalogRepair(options({ entryIds: [ENTRY, missing] }), {
+      generator,
+      repository: stub.repository,
+      loadArticles: async () => [LINKED_SOURCE()]
+    });
+    const review = renderCatalogRepairReview(plan as CatalogRepairPlan);
+
+    expect(review).toContain("- **Requested**: 2");
+    expect(review).toContain("- **Prepared**: 1");
+    expect(review).toContain("- **Failed**: 1");
+    expect(review).toContain("Entries that produced no candidate");
+    expect(review).toContain(missing);
+    // The failure section comes before the candidates.
+    expect(review.indexOf("produced no candidate")).toBeLessThan(review.indexOf("What is being replaced"));
+  });
+});
+
+describe("the editorial judge gates what the deterministic checks cannot", () => {
+  function judge(verdictOrError: "pass" | "fail" | "throw"): MiniCaseEditorialJudge {
+    return {
+      model: "gpt-5.6-luna",
+      judge: async () => {
+        if (verdictOrError === "throw") {
+          throw new Error("judge unavailable");
+        }
+
+        return {
+          verdict: {
+            pass: verdictOrError === "pass",
+            questions: [
+              {
+                id: "q1",
+                plausible_wrong_options: verdictOrError === "pass" ? 3 : 1,
+                obviously_irrelevant_options: verdictOrError === "pass" ? [] : ["C"],
+                correct_answer_too_obvious: false
+              }
+            ],
+            pair_semantic_parity: true,
+            taxonomy_semantic_fit: true,
+            reasons: []
+          },
+          inputTokens: 900,
+          outputTokens: 60,
+          costUsd: 0.0001,
+          costVerified: false
+        };
+      }
+    };
+  }
+
+  it("stages a candidate the judge accepts", async () => {
+    const stub = repositoryStub();
+    const { generator } = countingGenerator();
+
+    const { plan } = await prepareCatalogRepair(options(), {
+      generator,
+      repository: stub.repository,
+      loadArticles: async () => [LINKED_SOURCE()],
+      miniCaseJudge: judge("pass")
+    });
+
+    expect(plan?.entries).toHaveLength(1);
+  });
+
+  it("refuses a candidate the judge rejects, and says which option", async () => {
+    const stub = repositoryStub();
+    const { generator } = countingGenerator();
+
+    const { report, plan } = await prepareCatalogRepair(options(), {
+      generator,
+      repository: stub.repository,
+      loadArticles: async () => [LINKED_SOURCE()],
+      miniCaseJudge: judge("fail")
+    });
+
+    expect(plan).toBeNull();
+    expect(report.failedEntries[0].details.join(" ")).toContain("failed editorial QA");
+    expect(report.failedEntries[0].details.join(" ")).toContain("option(s) C");
+  });
+
+  it("fails closed when the judge cannot answer", async () => {
+    const stub = repositoryStub();
+    const { generator } = countingGenerator();
+
+    const { report, plan } = await prepareCatalogRepair(options(), {
+      generator,
+      repository: stub.repository,
+      loadArticles: async () => [LINKED_SOURCE()],
+      miniCaseJudge: judge("throw")
+    });
+
+    // An unavailable judge is not a pass.
+    expect(plan).toBeNull();
+    expect(report.failedEntries[0].details.join(" ")).toContain("could not be checked by editorial QA");
+  });
+});
+
+/**
+ * business-story-01, -07 and -09 were REWORK requests whose persisted packets
+ * could not carry a Business Story. The rework produced "Brouillon non
+ * publiable" and staged it for review. It must say so instead.
+ */
+describe("a rework on a packet that cannot carry a story says so", () => {
+  const BUSINESS_ENTRY = `${RUN_ID}-business-story-01`;
+
+  function businessInventory(): CatalogEntryVersionRecord[] {
+    return (["fr", "en"] as Language[]).map((language) => ({
+      ...persistedVersion(BUSINESS_ENTRY, language, 0),
+      contentType: "business_story" as const,
+      topic: "business" as TopicId,
+      metadata: {
+        ...persistedVersion(BUSINESS_ENTRY, language, 0).metadata,
+        catalog_content_type: "business_story",
+        catalog_mini_case_topic: null,
+        slot: "business_story"
+      }
+    }));
+  }
+
+  const THIN_SOURCE = (): RankedArticle[] => [
+    {
+      ...LINKED_SOURCE(),
+      url: "https://gov.test/thin",
+      title: "Tax data compromised in a supplier incident",
+      summary: "The administration confirmed that some records were exposed.",
+      body: "No supplier was named, no volume was given and no timeline was offered."
+    }
+  ];
+
+  it("returns needs_replace instead of staging an unpublishable rewrite", async () => {
+    const stub = repositoryStub({ existing: businessInventory() });
+    const { generator, calls } = countingGenerator();
+
+    const { report, plan } = await prepareCatalogRepair(
+      options({ entryIds: [BUSINESS_ENTRY], mode: "rework" }),
+      {
+        generator,
+        repository: {
+          ...(stub.repository as unknown as Record<string, unknown>),
+          listSourceArticlesForContentItem: async () => THIN_SOURCE()
+        } as never,
+        loadArticles: async () => THIN_SOURCE()
+      }
+    );
+
+    expect(plan).toBeNull();
+    expect(report.outcomes[0].status).toBe("needs_replace");
+    expect(report.outcomes[0].reason).toContain("needs_replace_source_too_thin");
+    expect(report.failedEntries[0].reason).toBe("needs_replace_source_too_thin");
+    // Refused before a single generation call: no unpublishable draft exists.
+    expect(calls).toEqual([]);
+    expect(stub.writes).toEqual([]);
   });
 });

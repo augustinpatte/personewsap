@@ -22,16 +22,24 @@ import type { RankedArticle } from "../domain.js";
  * allowing supporting sources at all.
  */
 
+export type BusinessStoryRichnessVerdict = "sufficient" | "insufficient" | "ambiguous";
+
 export type BusinessStoryRichness = {
-  /**
-   * Whether there was enough text to judge at all.
-   *
-   * A packet with almost no prose is not evidence of a weak event; it is the
-   * absence of evidence, and refusing on it would mean refusing every source
-   * whose feed happens to be terse. Those pass, and the editorial validators
-   * downstream still apply.
-   */
+  /** Whether there was enough text to judge at all. */
   assessable: boolean;
+  /**
+   * The deterministic reading.
+   *
+   * `ambiguous` means the packet is too terse to judge — a title and a two-line
+   * RSS summary. That used to count as a pass, on the reasoning that absence of
+   * evidence is not evidence of absence. For Business Story selection that is
+   * backwards, and it is how "Budget de rentrée : les abonnements sont visibles,
+   * pas encore le mécanisme" got written: the missing information IS the story.
+   *
+   * The verdict is reported rather than resolved here. The caller decides, and
+   * for Business Stories the default is to move on to another event.
+   */
+  verdict: BusinessStoryRichnessVerdict;
   sufficient: boolean;
   /** Which mechanism families the packet actually supports. */
   mechanisms: string[];
@@ -87,13 +95,20 @@ export function assessBusinessStorySourceRichness(input: {
   );
   const hasFigures = FIGURE_PATTERN.test(text);
 
+  // Two independent mechanisms, or one mechanism the packet can put a number on.
+  // Either gives a story a WHO, a WHAT CHANGED and a real trade-off; neither can
+  // be satisfied by an announcement that says only that a thing happened.
+  const carriesMechanism = mechanisms.length >= 2 || (mechanisms.length >= 1 && hasFigures);
+  const verdict: BusinessStoryRichnessVerdict = carriesMechanism
+    ? "sufficient"
+    : assessable
+      ? "insufficient"
+      : "ambiguous";
+
   return {
     assessable,
-    // Two independent mechanisms, or one mechanism the packet can put a number
-    // on. Either gives a story a WHO, a WHAT CHANGED and a real trade-off;
-    // neither can be satisfied by an announcement that says only that a thing
-    // happened.
-    sufficient: !assessable || mechanisms.length >= 2 || (mechanisms.length >= 1 && hasFigures),
+    verdict,
+    sufficient: verdict === "sufficient",
     mechanisms,
     hasFigures
   };

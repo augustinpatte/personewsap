@@ -60,6 +60,16 @@ export function allocateBusinessStorySourcePackets(input: {
   count?: number;
   /** Off for Mini Case batches, which do not need a business mechanism. */
   requireBusinessMechanism?: boolean;
+  /**
+   * Accept packets too terse for the deterministic gate to judge.
+   *
+   * Off by default. Set only when a source-sufficiency classifier has already
+   * looked at the ambiguous packets, or when the caller genuinely wants the old
+   * lenient behaviour.
+   */
+  allowAmbiguousPackets?: boolean;
+  /** Collects the primaries skipped for being unjudgeable, for reporting. */
+  ambiguousSkipped?: string[];
 }): BusinessStorySourcePacket[] {
   const allowed = new Set(input.topics);
   const eligible: RankedArticle[] = [];
@@ -83,6 +93,7 @@ export function allocateBusinessStorySourcePackets(input: {
   const limit = input.count ?? Number.POSITIVE_INFINITY;
   const consumed = new Set<string>();
   const packets: BusinessStorySourcePacket[] = [];
+  const ambiguousSkipped = input.ambiguousSkipped ?? [];
 
   for (const candidate of eligible) {
     if (packets.length >= limit) {
@@ -127,7 +138,17 @@ export function allocateBusinessStorySourcePackets(input: {
     if (input.requireBusinessMechanism !== false) {
       const richness = assessBusinessStorySourceRichness({ articles });
 
-      if (!richness.sufficient) {
+      // Both "insufficient" and "ambiguous" are skipped. A packet too terse to
+      // judge is not a free pass for a Business Story: the information the
+      // format needs is exactly the information that is missing, and there are
+      // other events in the pool. An optional classifier may promote an
+      // ambiguous packet — see `sourceSufficiencyClassifier`.
+      if (richness.verdict === "insufficient") {
+        continue;
+      }
+
+      if (richness.verdict === "ambiguous" && input.allowAmbiguousPackets !== true) {
+        ambiguousSkipped.push(candidate.url);
         continue;
       }
     }

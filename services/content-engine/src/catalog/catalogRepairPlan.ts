@@ -69,12 +69,30 @@ export type PlannedCatalogEntry = {
   entryHash: string;
 };
 
+/** A requested entry that produced no candidate, and why. */
+export type FailedCatalogRepairEntry = {
+  entryId: string;
+  reason: string;
+  details: string[];
+};
+
 export type CatalogRepairPlan = {
   planVersion: number;
   repairId: string;
   createdAt: string;
   runId: string;
   mode: CatalogRepairMode;
+  /**
+   * What was asked for, what was produced, and what was not.
+   *
+   * The first real prepare was asked for 8 replacements and wrote a plan with 5
+   * entries and no record of the other three. A plan that reports only its
+   * successes is a plan that loses work silently, so the three lists are part of
+   * the artifact and the review file leads with them.
+   */
+  requestedEntryIds: string[];
+  preparedEntryIds: string[];
+  failedEntries: FailedCatalogRepairEntry[];
   dropDate: string;
   languages: Language[];
   contentStatus: "draft" | "review" | "published";
@@ -204,6 +222,9 @@ export function assertPlanShape(value: unknown): asserts value is CatalogRepairP
     "dropDate",
     "languages",
     "contentStatus",
+    "requestedEntryIds",
+    "preparedEntryIds",
+    "failedEntries",
     "entries"
   ];
 

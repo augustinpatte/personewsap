@@ -59,8 +59,17 @@ function article(input: {
     published_at: `${DROP_DATE}T08:00:00.000Z`,
     retrieved_at: `${DROP_DATE}T09:00:00.000Z`,
     language: input.language,
-    summary: "A concrete development with a mechanism and one measurable signal.",
-    body: "Body.",
+    // Rich enough for the Business Story allocator to judge: a terse packet is
+    // now skipped rather than waved through, and these fixtures stand for real
+    // source material.
+    summary:
+      input.language === "fr"
+        ? "L'opérateur a revu ses tarifs après une hausse des coûts unitaires, et la marge dépend du taux d'acceptation."
+        : "The operator reset its pricing after unit costs moved, and the margin now depends on the acceptance rate.",
+    body:
+      input.language === "fr"
+        ? "Le contrat porte sur 12 millions d'euros de capacité. La marge dépend du nombre de clients qui acceptent le nouveau tarif."
+        : "The contract covers 12 million euros of capacity. The margin depends on how many customers accept the new tariff.",
     sourceTopic: input.topic,
     canonicalTopic: input.topic,
     credibility_score: 0.9,
