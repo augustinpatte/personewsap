@@ -12,6 +12,7 @@ import type { LibraryItemSummary } from "../library/libraryTypes";
 import { useModulePreferenceState } from "../preferences";
 import { editionDisplayDate, estimateReadMinutes } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
+import { resolveTodayEditionState } from "../today/todayEditionState";
 import { stripMarkdownInline } from "../today/readers/markdown";
 import { ItemArchiveList } from "./ItemArchiveList";
 import { getModuleCopy } from "./moduleCopy";
@@ -65,7 +66,7 @@ export function StoriesModuleScreen() {
           <ModuleDisabledState language={language} moduleId="business_story" />
         </ModuleScroll>
       ) : view === "left" ? (
-        <StoriesToday />
+        <StoriesToday onOpenArchive={() => setView("right")} />
       ) : (
         <StoriesArchive />
       )}
@@ -73,19 +74,25 @@ export function StoriesModuleScreen() {
   );
 }
 
-function StoriesToday() {
+function StoriesToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { language, drop, status, error, isEmptyDrop, isItemComplete, reload } =
     useDailyDrop();
   const copy = getModuleCopy(language);
   const story = drop.items.business_story;
+  const editionState = resolveTodayEditionState({
+    dropDate: drop.drop_date,
+    error,
+    isEmptyDrop,
+    status
+  });
 
-  if (status === "loading") {
+  if (editionState === "loading") {
     return <ModuleLoading label={copy.common.loading} />;
   }
 
-  if (isEmptyDrop && error) {
+  if (editionState === "error") {
     return (
       <ModuleScroll>
         <ModuleError language={language} onRetry={reload} />
@@ -93,14 +100,16 @@ function StoriesToday() {
     );
   }
 
-  if (isEmptyDrop) {
+  if (editionState === "upcoming" || editionState === "quiet") {
     return (
       <ModuleScroll>
         <TodayQuietState
           dropDate={drop.drop_date}
           iconName="briefcase"
           language={language}
+          onOpenArchive={onOpenArchive}
           onRefresh={reload}
+          state={editionState}
         />
       </ModuleScroll>
     );

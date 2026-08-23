@@ -49,13 +49,22 @@ export function getModuleCopy(language: Language | null | undefined) {
           seeEarlierEditions: "Load earlier editions",
           searchPageFailed: "Could not load more results. Check your connection.",
           minuteCount: (count: number) => `${count} min`,
+          // An off-day in the cadence: stated as a deliberate rhythm, never as
+          // missing content. Both quiet states end on the archive, so there is
+          // always something worth doing.
           quietDayTitle: "No new edition today",
           quietDayBody:
-            "PersoNews publishes four considered editions a week — Monday, Wednesday, Friday and Sunday. Your archive stays available, and your learning path can still be opened from Parcours.",
+            "New editions are released only on selected days — Monday, Wednesday, Friday and Sunday — to keep the rhythm short and intentional.",
+          quietDaySecondary:
+            "You can use the archive to revisit a previous edition while you wait for the next one.",
+          exploreArchive: "Explore the archive",
           nextEdition: (weekday: string) => `Next edition: ${weekday}.`,
-          onItsWayTitle: "Today's edition is on its way",
+          onItsWayTitle: "Today's edition is on the way",
           onItsWayBody:
-            "This edition is not available yet. Nothing to do — check back in a moment.",
+            "Your new edition is being prepared. It will appear here as soon as it is ready.",
+          onItsWaySecondary:
+            "In the meantime, you can revisit a previous edition in the archive.",
+          browseArchive: "Browse the archive",
           languageChangeAppliesNext:
             "Your language change will apply to your next edition."
         },
@@ -187,13 +196,19 @@ export function getModuleCopy(language: Language | null | undefined) {
           seeEarlierEditions: "Voir les éditions précédentes",
           searchPageFailed: "Impossible de charger plus de résultats. Vérifiez votre connexion.",
           minuteCount: (count: number) => `${count} min`,
-          quietDayTitle: "Aucune nouvelle édition aujourd'hui",
+          quietDayTitle: "Pas de nouvelle édition aujourd'hui",
           quietDayBody:
-            "PersoNews publie quatre éditions soignées par semaine — lundi, mercredi, vendredi et dimanche. Vos archives restent disponibles, et votre parcours reste accessible depuis Parcours.",
+            "Les nouvelles éditions paraissent seulement certains jours — lundi, mercredi, vendredi et dimanche — pour garder un rythme court et intentionnel.",
+          quietDaySecondary:
+            "Vous pouvez revoir une édition précédente dans les archives en attendant la prochaine.",
+          exploreArchive: "Explorer les archives",
           nextEdition: (weekday: string) => `Prochaine édition : ${weekday}.`,
           onItsWayTitle: "L'édition du jour arrive",
           onItsWayBody:
-            "Cette édition n'est pas encore disponible. Rien à faire — revenez dans un instant.",
+            "Votre nouvelle édition est en préparation. Elle apparaîtra ici dès qu'elle sera prête.",
+          onItsWaySecondary:
+            "En attendant, vous pouvez revoir une édition précédente dans les archives.",
+          browseArchive: "Voir les archives",
           languageChangeAppliesNext:
             "Votre changement de langue s'appliquera à votre prochaine édition."
         },

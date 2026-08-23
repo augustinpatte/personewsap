@@ -16,6 +16,7 @@ import {
   getTopicLabel
 } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
+import { resolveTodayEditionState } from "../today/todayEditionState";
 import {
   readAllMiniCaseResponses,
   readMiniCaseResponse,
@@ -77,7 +78,7 @@ export function MiniCasesModuleScreen() {
           <ModuleDisabledState language={language} moduleId="mini_case" />
         </ModuleScroll>
       ) : view === "left" ? (
-        <MiniCaseToday />
+        <MiniCaseToday onOpenArchive={() => setView("right")} />
       ) : (
         <MiniCaseArchive />
       )}
@@ -85,7 +86,7 @@ export function MiniCasesModuleScreen() {
   );
 }
 
-function MiniCaseToday() {
+function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { language, drop, status, error, isEmptyDrop, isItemComplete, reload } =
@@ -124,11 +125,18 @@ function MiniCaseToday() {
     };
   }, [caseCompleted, caseId]);
 
-  if (status === "loading") {
+  const editionState = resolveTodayEditionState({
+    dropDate: drop.drop_date,
+    error,
+    isEmptyDrop,
+    status
+  });
+
+  if (editionState === "loading") {
     return <ModuleLoading label={copy.common.loading} />;
   }
 
-  if (isEmptyDrop && error) {
+  if (editionState === "error") {
     return (
       <ModuleScroll>
         <ModuleError language={language} onRetry={reload} />
@@ -136,14 +144,16 @@ function MiniCaseToday() {
     );
   }
 
-  if (isEmptyDrop) {
+  if (editionState === "upcoming" || editionState === "quiet") {
     return (
       <ModuleScroll>
         <TodayQuietState
           dropDate={drop.drop_date}
           iconName="check-square"
           language={language}
+          onOpenArchive={onOpenArchive}
           onRefresh={reload}
+          state={editionState}
         />
       </ModuleScroll>
     );

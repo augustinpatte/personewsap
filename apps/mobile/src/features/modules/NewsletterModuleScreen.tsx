@@ -24,6 +24,7 @@ import {
   getTopicLabel
 } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
+import { resolveTodayEditionState } from "../today/todayEditionState";
 import { isEditionDay } from "../today/editionCadence";
 import { stripMarkdownInline } from "../today/readers/markdown";
 import { getModuleCopy } from "./moduleCopy";
@@ -78,7 +79,7 @@ export function NewsletterModuleScreen() {
           <ModuleDisabledState language={language} moduleId="newsletter" />
         </ModuleScroll>
       ) : view === "left" ? (
-        <NewsletterToday />
+        <NewsletterToday onOpenArchive={() => setView("right")} />
       ) : (
         <NewsletterArchive />
       )}
@@ -86,7 +87,7 @@ export function NewsletterModuleScreen() {
   );
 }
 
-function NewsletterToday() {
+function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { language, drop, status, error, isEmptyDrop, isItemComplete, reload } =
@@ -94,6 +95,12 @@ function NewsletterToday() {
   const copy = getModuleCopy(language);
   const [showLanguageChangeNotice, setShowLanguageChangeNotice] = useState(false);
   const articles = drop.items.newsletter;
+  const editionState = resolveTodayEditionState({
+    dropDate: drop.drop_date,
+    error,
+    isEmptyDrop,
+    status
+  });
 
   useEffect(() => {
     let active = true;
@@ -120,11 +127,11 @@ function NewsletterToday() {
     };
   }, [drop.drop_date, isEmptyDrop, language]);
 
-  if (status === "loading") {
+  if (editionState === "loading") {
     return <ModuleLoading label={copy.common.loading} />;
   }
 
-  if (isEmptyDrop && error) {
+  if (editionState === "error") {
     return (
       <ModuleScroll>
         <ModuleError language={language} onRetry={reload} />
@@ -132,28 +139,34 @@ function NewsletterToday() {
     );
   }
 
-  if (isEmptyDrop || articles.length === 0) {
+  if (editionState === "upcoming" || editionState === "quiet") {
     return (
       <ModuleScroll>
-        {isEmptyDrop ? (
-          <>
-            <TodayQuietState
-              dropDate={drop.drop_date}
-              iconName="calendar"
-              language={language}
-              onRefresh={reload}
-            />
-            {showLanguageChangeNotice ? (
-              <AppText color="accentInk" variant="label">
-                {copy.common.languageChangeAppliesNext}
-              </AppText>
-            ) : null}
-          </>
-        ) : (
-          <AppText color="muted" variant="read">
-            {copy.newsletter.noModuleToday}
+        <TodayQuietState
+          dropDate={drop.drop_date}
+          iconName="calendar"
+          language={language}
+          onOpenArchive={onOpenArchive}
+          onRefresh={reload}
+          state={editionState}
+        />
+        {showLanguageChangeNotice ? (
+          <AppText color="accentInk" variant="label">
+            {copy.common.languageChangeAppliesNext}
           </AppText>
-        )}
+        ) : null}
+      </ModuleScroll>
+    );
+  }
+
+  // The edition exists but carries no newsletter — the other tabs do have
+  // something today, so this is not a quiet day.
+  if (articles.length === 0) {
+    return (
+      <ModuleScroll>
+        <AppText color="muted" variant="read">
+          {copy.newsletter.noModuleToday}
+        </AppText>
       </ModuleScroll>
     );
   }

@@ -1,3 +1,4 @@
+import { getProductEditionDate } from "../today/editionCadence";
 import type { Language } from "../../types/domain";
 
 export const LANGUAGE_CHANGE_NOTICE_KEY_V1 = "personewsap:language-change-notice:v1";
@@ -16,7 +17,11 @@ type LanguageChangeNoticeStorage = {
 export async function recordLanguageChangeNotice(
   storage: LanguageChangeNoticeStorage,
   language: Language,
-  changedOn = formatLocalDate(new Date())
+  // The stored day is compared against the edition's drop_date, which is a
+  // product-timezone date. Stamping it with the *device* calendar day made the
+  // two disagree for any reader whose local date differs from Paris — the
+  // notice was then silently dropped. One date convention, everywhere.
+  changedOn = getProductEditionDate()
 ): Promise<void> {
   await storage.setItem(
     LANGUAGE_CHANGE_NOTICE_KEY_V1,
@@ -100,11 +105,4 @@ export function parseLanguageChangeNotice(value: string | null): LanguageChangeN
   }
 
   return null;
-}
-
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
