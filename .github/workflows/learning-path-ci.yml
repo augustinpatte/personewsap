@@ -16,6 +16,7 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm ci --prefix apps/mobile
       - run: npm run learning:catalog:build
       - run: git diff --exit-code -- content/learning-paths/v1
       - run: npm run learning:catalog:validate
