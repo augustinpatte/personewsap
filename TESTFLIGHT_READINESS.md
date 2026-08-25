@@ -14,9 +14,13 @@ This is the checklist for moving from local/simulator tester prep to an installa
 | Live daily-drop backend path | implemented, proof required | Implemented, but each tester wave still needs an assigned marked drop and live proof. |
 | LLM generation | not release-validated | LLM commands exist; prompt quality and editorial safety are next-phase work. |
 | Production content generation | partial | Deterministic test paths exist; production editorial approval is not automated. |
-| Production scheduler/ops | partial | `content:daily-job`, `content:prod-dry-run`, `content:legacy-api-run`, and `content:health` exist; [BACKEND_OPERATIONS.md](BACKEND_OPERATIONS.md) covers manual operations, but unattended scheduler ownership is still not defined. |
+| Production scheduler/ops | on `main`, needs CI secrets | The four workflows are on the default branch, so the Mon/Wed/Fri/Sun schedules are live. The repository has no secrets configured, so every run fails until `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STAGING_SUPABASE_URL` and `STAGING_SUPABASE_SERVICE_ROLE_KEY` are set. |
+| Account deletion Edge Function | deployed | ACTIVE on the production project, matching the checked-in source. Endpoint env vars and `ACCOUNT_DELETION_ALLOWED_ORIGINS` are still unset. |
+| Content catalog | generated | 20 FR + 20 EN Business Stories, 120 FR + 120 EN Mini Cases in production. |
+| Leaked credentials | **action required** | The live service-role and Resend keys are in this public repository's git history. Rotate before inviting testers. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md). |
+| EAS project | **not initialised** | `eas whoami` is not logged in; `app.json` has no `extra.eas.projectId`. No TestFlight build can be produced until the Expo account holder runs `eas login && eas init`. |
 
-Current TestFlight status: not ready. This repo is ready for local/staging backend proof and controlled live-data rehearsal, but not for external TestFlight invites until the checklist below is complete.
+Current TestFlight status: not ready — and the blocker is now external, not code. The repository passes every automated check (1262 tests, clean typecheck, clean lint, `expo-doctor` 20/20, `supabase:doctor --live` 157 pass / 0 fail). What remains needs the Expo, Apple, Google and Supabase account holders: rotate the leaked keys, run `eas login && eas init`, set the production build env vars and the CI secrets.
 
 ## Current Mobile Build Config Audit
 

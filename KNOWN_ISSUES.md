@@ -1,6 +1,6 @@
 # Known Issues
 
-Last reviewed: 2026-08-18
+Last reviewed: 2026-08-25
 
 What a tester may hit, what the coordinator should watch, and what is not
 production-safe yet. Items are removed only when they are genuinely fixed —
@@ -10,16 +10,50 @@ never to make this document read better.
 
 | Blocker | Status | Why it matters |
 | --- | --- | --- |
-| Initial catalog not generated | open | The reuse path is built and tested, but the 10 Business Stories and 30 Mini Cases (FR + EN) have not been produced yet. Until they exist, every edition is generated from scratch. |
-| `delete-account` Edge Function not deployed | open | The function and both clients are written; it needs `supabase functions deploy delete-account` and the endpoint env vars. Account deletion is a store requirement, so this blocks submission. |
+| **Leaked production credentials in git history** | **open — highest priority** | The live Supabase service-role key and Resend API key are reachable in the history of a public repository. A service-role key bypasses every RLS policy. See the section below. |
+| GitHub Actions secrets not configured | open | The repository has no secrets at all, at repository level or in the `Preview` / `Production` environments. The four scheduled workflows are now on `main` and will fail on every run until `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STAGING_SUPABASE_URL` and `STAGING_SUPABASE_SERVICE_ROLE_KEY` exist. |
+| EAS project not initialised | open | `eas whoami` reports "Not logged in" and `app.json` has no `extra.eas.projectId`. No build can start, and physical-device push tokens need the project id. Requires the Expo account holder. |
+| Account deletion endpoint not wired into builds | open | The function is deployed and working, but `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT` and `VITE_ACCOUNT_DELETION_ENDPOINT` are unset, so the app and web page both report deletion as unavailable. Store requirement. |
+| `ACCOUNT_DELETION_ALLOWED_ORIGINS` not set | open | Without it the function returns an empty `Access-Control-Allow-Origin`, so the browser page cannot call it. Google Play requires the external web deletion URL to work. Mobile is unaffected. |
 | Support address not configured | open | `VITE_SUPPORT_EMAIL` is unset, so /support says so instead of showing an address. Both stores require a working support contact. |
-| Scheduled content workflow not on `main` | open | `.github/workflows/content-daily-job.yml` is complete but lives on a feature branch. GitHub only runs a schedule from the default branch. |
 | Push delivery not validated on a real device | open | The sender, idempotency and tap routing are covered by tests; Expo Go cannot fully exercise remote notifications. Needs a development build or TestFlight. |
 | Editorial review gate missing | open | LLM output can be structurally valid and still not be publishable, especially for law, medicine and finance. There is no human review step before production publication. |
 | Source licensing review missing | open | The ingestion layer reads RSS/feed metadata only. Publisher terms and commercial reuse rights are still unreviewed. Treat sources as internal-test-only until that is settled. |
 | TestFlight operations incomplete | open | Signing, App Store Connect setup, privacy answers and the invite process still need an owner. |
 
 ## Active Issues
+
+### Leaked Production Credentials In Git History
+
+Status: production blocker, highest priority.
+
+Real secrets were committed early in the project's life and later removed from
+the working tree. Removing a file does not remove it from history, and this
+repository is **public** on GitHub.
+
+| Secret | Added in | Removed in | Still the value in use? |
+| --- | --- | --- | --- |
+| `SUPABASE_SERVICE_ROLE_KEY` (production, `wkbviidrbmehmjbhvpeh`) | `d91aee1`, `56045d0` (`.env.python`, `.env.python.bak`) | `d273ae2` | **Yes** |
+| `RESEND_API_KEY` (`re_Vg…`) | `56045d0` | `d273ae2` | **Yes** |
+
+Both commits are ancestors of `origin/main`, so anyone who has ever cloned or
+forked the repository already has them, as do GitHub's own fork and event
+caches. A Supabase service-role key bypasses every RLS policy in the project:
+it can read and write every reader's account data.
+
+History was deliberately **not** rewritten. Rewriting would change every commit
+hash, break every existing clone, and — because forks and caches keep the old
+objects — would not actually make the leaked keys safe. Rotation is what makes
+them safe.
+
+Workaround: none. Rotate before launch.
+
+1. Supabase → Project Settings → API → roll the `service_role` key.
+2. Resend → API Keys → revoke `re_Vg…`, issue a new one.
+3. Update every consumer: `services/content-engine/.env`, `.env.python`, the
+   four GitHub Actions secrets, and the Supabase Function secrets.
+4. Re-run `npm run supabase:doctor -- --live` to confirm the new key works.
+5. Decide whether the repository should stay public.
 
 ### LLM Output Requires Editorial Review
 
@@ -113,12 +147,71 @@ Status: release operations gap.
 
 Readiness criteria exist, but signing, App Store Connect setup, the EAS project
 id and the final upload steps still need owner decisions and credentials.
+Concretely: `eas whoami` reports "Not logged in", so `app.json` still has no
+`extra.eas.projectId` and no build can be started from this repository.
 
 Workaround: complete [TESTFLIGHT_READINESS.md](TESTFLIGHT_READINESS.md) and
 [STORE_RELEASE_CHECKLIST.md](STORE_RELEASE_CHECKLIST.md) before inviting
 external testers.
 
 ## Resolved
+
+### Initial Catalog Not Generated
+
+Status: resolved (2026-08-25).
+
+This said the 10 Business Stories and 30 Mini Cases had never been produced.
+They have. Counted directly in production (`content_items` where
+`metadata->>'catalog_entry_id'` is set):
+
+| Type | FR | EN |
+| --- | --- | --- |
+| Business Story | 20 | 20 |
+| Mini Case | 120 | 120 |
+
+Published inventory overall: 11 business stories, 66 mini cases, 21 (EN) / 18
+(FR) newsletter articles, plus archived history. The curated launch catalog v2
+was imported on 2026-08-22; the v1 editorial review that preceded it is checked
+in as `catalog-quality-review.md` / `.json`.
+
+### `delete-account` Edge Function Not Deployed
+
+Status: resolved (2026-08-25).
+
+It has been deployed since 2026-08-19. `delete-account` is ACTIVE on
+`wkbviidrbmehmjbhvpeh` at version 2 with `verify_jwt: true`, and the deployed
+bundle contains the same logic as `supabase/functions/delete-account/index.ts`.
+Unauthenticated and malformed-JWT requests both answer 401.
+
+Two follow-ups are still open and tracked as blockers above: the endpoint env
+vars are not set in any build, and `ACCOUNT_DELETION_ALLOWED_ORIGINS` is not
+configured.
+
+### Scheduled Content Workflow Not On `main`
+
+Status: resolved (2026-08-25).
+
+`.github/workflows/` did not exist on `main` at all — not just
+`content-daily-job.yml` but also `push-notification-retry.yml`,
+`push-receipts.yml` and `learning-path-ci.yml`. All four are now on the default
+branch and their schedules are live.
+
+They will fail until the repository secrets exist, which is tracked as a
+separate blocker above.
+
+### Production Schema Drift
+
+Status: resolved (2026-08-25).
+
+Two migrations had been applied directly to production and were missing from
+the repository (`20260822184440_curated_launch_mini_case_import_helper`,
+`20260822184715_fix_curated_launch_import_digest_search_path`). The mismatch
+made the Supabase CLI refuse `db pull` and `db push` outright, and a project
+rebuilt from this repository would have lacked the import helper.
+
+Both are now checked in, recovered verbatim from
+`supabase_migrations.schema_migrations`. Local and remote histories match on all
+32 migrations.
 
 ### Sample Content Could Replace A Real Edition
 
@@ -140,12 +233,12 @@ plugin configuration.
 
 ### Unattended Scheduling Missing
 
-Status: resolved in code, pending merge to `main`.
+Status: resolved.
 
 `.github/workflows/content-daily-job.yml` runs the four editorial days in the
-product timezone, with preflight, schema doctor, production run, push
-notifications and strict job health. It only becomes active once it is on the
-default branch — tracked as a blocker above.
+product timezone, with preflight, schema doctor, staging publication, push
+notifications and strict job health. It is now on the default branch — see
+"Scheduled Content Workflow Not On `main`" above for what still gates it.
 
 ### No Infinite Feed
 

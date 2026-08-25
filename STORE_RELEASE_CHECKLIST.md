@@ -13,6 +13,10 @@ iOS buildNumber `1`, Android versionCode `1`, `supportsTablet: false`,
 Expo SDK 55 (targets Android API 36, builds with the iOS 26 SDK on EAS's
 current Xcode image).
 
+Verified 2026-08-25: `npx expo-doctor` 20/20, `npx expo install --check` clean,
+root suite 1262 tests green, mobile `tsc --noEmit` clean, `eslint` 0 errors,
+`supabase:doctor --live` 157 pass / 0 fail against production.
+
 ## Apple Developer
 
 - [ ] Confirm the paid Apple Developer membership is active.
@@ -58,26 +62,65 @@ current Xcode image).
 
 ## Supabase
 
-- [ ] Deploy the account-deletion Edge Function. It is written and reviewed —
-      see `supabase/functions/delete-account/` — and only needs deploying:
-      `supabase functions deploy delete-account --project-ref <ref>`.
-      Then set its URL as `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT` (EAS build
-      env) and `VITE_ACCOUNT_DELETION_ENDPOINT` (web env). Until then both the
-      app and /delete-account say deletion is not enabled rather than failing.
-- [ ] Set `ACCOUNT_DELETION_ALLOWED_ORIGINS` on the function to the public web
-      origin, so the browser page can call it:
+- [ ] Set the deployed function URL as `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT`
+      (EAS production build env) and `VITE_ACCOUNT_DELETION_ENDPOINT` (web env):
+      `https://wkbviidrbmehmjbhvpeh.supabase.co/functions/v1/delete-account`.
+      Until they are set, both the app and /delete-account say deletion is not
+      enabled rather than failing.
+- [ ] Test one real deletion with a throwaway account before submitting.
+- [x] Deploy the account-deletion Edge Function — **done**. `delete-account` is
+      ACTIVE on `wkbviidrbmehmjbhvpeh` (version 2, `verify_jwt: true`), and the
+      deployed bundle matches `supabase/functions/delete-account/index.ts`.
+      Both unauthenticated probes answer 401.
+- [x] Verify the production project has only the checked-in migrations applied
+      — **done**. All 32 migrations match local↔remote. Two migrations had been
+      applied directly in the dashboard and were missing from git; they are now
+      checked in (`20260822184440`, `20260822184715`).
+- [ ] Set `ACCOUNT_DELETION_ALLOWED_ORIGINS` on the function. It is **not set**
+      today, so `Access-Control-Allow-Origin` comes back empty and the web
+      `/delete-account` page cannot call the function from a browser. The
+      mobile app is unaffected (it sends no `Origin`), but Google Play requires
+      the *external* web deletion URL to work:
       `supabase secrets set ACCOUNT_DELETION_ALLOWED_ORIGINS="https://<domain>"`.
-- [ ] Verify the two curl checks in
-      `supabase/functions/delete-account/README.md` both answer 401 before
-      testing a real deletion with a throwaway account.
-- [ ] Verify the production project has only the checked-in migrations applied
-      (`npx supabase migration list` against the linked project).
 - [ ] Confirm the daily content job (content-engine) runs on the 4×/week
       cadence with production env vars (no test flags).
-- [ ] Merge `.github/workflows/content-daily-job.yml` to `main`: a scheduled
-      workflow never fires from a feature branch. Set the repository secrets it
-      reads (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`,
-      `ANTHROPIC_API_KEY`).
+
+## GitHub Actions
+
+Scheduled workflows only fire from the default branch. `.github/workflows/` is
+now on `main`, so the four editorial-day schedules are live — and they will fail
+on every run until the secrets below exist. **The repository currently has no
+secrets configured at all** (neither repository-level nor in the `Preview` /
+`Production` environments).
+
+Set exactly these four, and only these four:
+
+- [ ] `SUPABASE_URL` — production project URL.
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` — production service-role key (rotated; see
+      SECURITY below).
+- [ ] `STAGING_SUPABASE_URL` — ChatGPT staging project URL.
+- [ ] `STAGING_SUPABASE_SERVICE_ROLE_KEY` — staging service-role key.
+
+`OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are **not** used by any workflow and
+must not be set as CI secrets. Editorial generation happens in ChatGPT
+Scheduled Tasks before the workflow runs; `content-daily-job.yml` only reads the
+approved staging batch and publishes it. There is deliberately no automatic
+fallback to a paid API. Those two keys are needed solely for the manual
+`npm run content:legacy-api-run` path, from an operator machine.
+
+## SECURITY — do this before anything else
+
+- [ ] **Rotate the Supabase service-role key** for `wkbviidrbmehmjbhvpeh`. The
+      key currently in use was committed to this repository in `d91aee1` and
+      `56045d0`, removed in `d273ae2`, and remains reachable in the published
+      history of a **public** GitHub repository. A service-role key bypasses
+      every RLS policy.
+- [ ] **Rotate the Resend API key** (`re_Vg…`), leaked in the same commits.
+- [ ] After rotating, update: `services/content-engine/.env`, `.env.python`,
+      the four GitHub secrets above, and the Supabase Function secrets.
+- [ ] Consider whether the repository should be public at all before launch.
+
+See KNOWN_ISSUES.md → "Leaked Production Credentials In Git History".
 
 ## EAS
 

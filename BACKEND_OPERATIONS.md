@@ -2,9 +2,66 @@
 
 Daily operator guide for the PersoNewsAP content backend.
 
-## Production Env Contract
+## How Editions Are Produced Today
 
-Non-dry production writes must have all of these set:
+Since 2026-08-22 the scheduled path does **no LLM generation of its own**.
+Editorial generation happens in ChatGPT Scheduled Tasks against a separate
+Supabase *staging* project; a human approves a batch there; then
+`.github/workflows/content-daily-job.yml` reads the approved batch, revalidates
+every item through the same validators the LLM path used, persists it to
+production and assigns the daily drops.
+
+That workflow sets no `USE_LLM`, no `OPENAI_API_KEY` and no `ANTHROPIC_API_KEY`,
+by design: there is no automatic fallback to a paid API, because an unreviewed
+edition is worse than no edition. When no approved batch is ready the run is a
+clean no-op with a warning annotation.
+
+The direct-API pipeline described in the rest of this document still exists and
+still works, but it is now the **legacy operator path**, run by hand from a
+trusted machine (`npm run content:legacy-api-run`). It is the only thing that
+needs provider keys.
+
+## Environment Variable Matrix
+
+| Variable | Used by | Public? | Local | CI | Production |
+| --- | --- | --- | --- | --- | --- |
+| `EXPO_PUBLIC_SUPABASE_URL` | mobile app | public | yes | — | yes (EAS build env) |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | mobile app | public | yes | — | yes (EAS build env) |
+| `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT` | mobile Account screen | public | optional | — | **yes, store requirement** |
+| `EXPO_PUBLIC_EAS_PROJECT_ID` | push token registration | public | optional | — | yes (set by `eas init`) |
+| `EXPO_PUBLIC_SUPPORT_EMAIL` | mobile Support screen | public | optional | — | yes |
+| `EXPO_PUBLIC_ANALYTICS_*` | analytics no-op shim | public | optional | — | optional |
+| `EXPO_PUBLIC_LIVE_DATA_PROOF_MODE` | internal QA only | public | optional | — | no |
+| `EXPO_PUBLIC_ALLOW_MOCK_CONTENT` | sample-content gate | public | optional | — | must stay `false` |
+| `VITE_SUPABASE_URL` | web app | public | yes | — | yes |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | web app (alias: `VITE_SUPABASE_ANON_KEY`) | public | yes | — | yes |
+| `VITE_ACCOUNT_DELETION_ENDPOINT` | web `/delete-account` | public | optional | — | **yes, Play requirement** |
+| `VITE_SUPPORT_EMAIL` | web `/support` | public | optional | — | yes |
+| `SUPABASE_URL` | content engine, scripts, Edge Function | **secret-adjacent** | yes | **yes** | yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | content engine, scripts, Edge Function | **SECRET** | yes | **yes** | yes |
+| `SUPABASE_ANON_KEY` | Edge Function, RLS probes | public | optional | — | yes (auto-set on functions) |
+| `STAGING_SUPABASE_URL` | `content:staging-publish` | **secret-adjacent** | optional | **yes** | yes |
+| `STAGING_SUPABASE_SERVICE_ROLE_KEY` | `content:staging-publish` | **SECRET** | optional | **yes** | yes |
+| `ACCOUNT_DELETION_ALLOWED_ORIGINS` | Edge Function CORS | config | — | — | **yes, for the web page** |
+| `OPENAI_API_KEY` | legacy operator path only | **SECRET** | only for legacy runs | **no** | **no** |
+| `ANTHROPIC_API_KEY` | legacy operator path only | **SECRET** | only for legacy runs | **no** | **no** |
+| `RESEND_API_KEY` | legacy Python newsletter sender | **SECRET** | only for that script | no | n/a |
+| `CONFIRM_*`, `DRY_RUN`, `USE_LLM`, `LIVE_RSS*`, `LANGUAGES`, `CONTENT_STATUS`, … | run-shape flags | config | as needed | set in workflow | set in workflow |
+
+`SUPABASE_SERVICE_ROLE_KEY` bypasses every RLS policy. It belongs only in
+`services/content-engine/.env`, CI secrets, and Supabase Function secrets —
+never in an Expo, Vite or mobile env file, and never in client code. The mobile
+client (`apps/mobile/src/lib/supabase.ts`) reads only the two `EXPO_PUBLIC_`
+variables; this was verified, not assumed.
+
+The four GitHub Actions secrets the workflows actually read are exactly:
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STAGING_SUPABASE_URL`,
+`STAGING_SUPABASE_SERVICE_ROLE_KEY`.
+
+## Legacy Production Env Contract
+
+Applies to `npm run content:legacy-api-run` only, not to the scheduled workflow.
+Non-dry production writes on that path must have all of these set:
 
 - `PRODUCTION_DAILY_JOB=true`
 - `DRY_RUN=false`
@@ -33,6 +90,11 @@ Optional controls:
 Never put service-role or OpenAI keys in Expo, Vite, or mobile env files.
 
 ## Operator Workflow
+
+The steps below are the **legacy direct-API workflow**. For the routine 4×/week
+edition, nothing here is run by hand: the GitHub Actions workflow does it, and
+step 1 (`supabase:doctor`) plus the strict job health check are already part of
+it. Use this workflow for a manual catch-up run or a controlled rehearsal.
 
 1. Prove schema and RLS before touching content:
 

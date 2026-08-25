@@ -47,7 +47,7 @@ PersoNewsAP is close to a small controlled tester build, not production launch. 
 
 - Preview Today and Library content are mock fallback data.
 - Default `content:dry-run` uses bundled sample articles and does not publish content.
-- Some daily content generation paths use structured placeholder generation unless `OPENAI_API_KEY` is configured for `llm-run`, `daily-job-test`, or `daily-job`.
+- Some daily content generation paths use structured placeholder generation unless `OPENAI_API_KEY` is configured for `llm-run`, `daily-job-test`, or `daily-job`. This applies to the legacy direct-API path only. The scheduled edition no longer generates: it publishes a human-approved ChatGPT staging batch and uses no provider key. See README.md and BACKEND_OPERATIONS.md.
 - Small tester daily drops can still be created through marked test commands; production-shaped daily drops now use `daily-job`, but unattended scheduling and monitoring are not wired in this repo.
 - Editorial review is manual. There is no review dashboard yet.
 - Push notifications are not validated for testers.
