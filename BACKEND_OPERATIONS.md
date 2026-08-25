@@ -21,6 +21,41 @@ still works, but it is now the **legacy operator path**, run by hand from a
 trusted machine (`npm run content:legacy-api-run`). It is the only thing that
 needs provider keys.
 
+## Database Permission Model
+
+Set by `20260825150000_security_hardening_rpc_permissions.sql`. If you add an
+RPC, place it in one of these three groups deliberately — the schema default
+grants EXECUTE to `anon` and `authenticated`, so a new function is exposed to
+the client unless you say otherwise.
+
+| Group | Roles with EXECUTE | Members |
+| --- | --- | --- |
+| Server-only | `service_role` | `claim_push_notification_deliveries`, `cleanup_expired_pending_registrations`, `insert_curated_launch_mini_case` |
+| User-facing | `authenticated`, `service_role` | `start_learning_path`, `disable_learning_path`, `create_next_learning_session`, `open_learning_session`, `start_learning_session`, `submit_learning_session_feedback`, `update_profile_language`, `learning_paths_healthcheck` |
+| RLS policy helpers | `anon`, `authenticated`, `service_role` | `is_published_content`, `public_archive_enabled`, `published_content_has_source`, `user_has_assigned_content`, `user_has_assigned_source` |
+
+The third group keeps `anon` on purpose. PostgreSQL evaluates a policy
+expression as the querying role and enforces EXECUTE on the functions it
+calls, so revoking there fails the policy with `42501` rather than tightening
+anything. Do not "fix" those advisor warnings.
+
+Two standing traps:
+
+- `CREATE OR REPLACE VIEW` resets a view's `reloptions` and reapplies the
+  schema default grants. That is how `user_archive_search_items` silently lost
+  `security_invoker` and handed `anon` a SELECT between two migrations. Any
+  migration that replaces a view must re-apply both.
+- Server-only tables (`business_story_history`, `generation_runs`, `job_runs`,
+  `mini_case_history`, `push_notification_deliveries`) run RLS-enabled with no
+  policies. That is deny-all by design, not a missing policy. `service_role`
+  bypasses RLS, so the engine is unaffected.
+
+Check the live state at any time with:
+
+```bash
+npm run supabase:doctor -- --live
+```
+
 ## Environment Variable Matrix
 
 | Variable | Used by | Public? | Local | CI | Production |

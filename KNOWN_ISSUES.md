@@ -1,6 +1,6 @@
 # Known Issues
 
-Last reviewed: 2026-08-25
+Last reviewed: 2026-08-25 (Supabase security pass)
 
 What a tester may hit, what the coordinator should watch, and what is not
 production-safe yet. Items are removed only when they are genuinely fixed —
@@ -10,7 +10,7 @@ never to make this document read better.
 
 | Blocker | Status | Why it matters |
 | --- | --- | --- |
-| **Leaked production credentials in git history** | **open — highest priority** | The live Supabase service-role key and Resend API key are reachable in the history of a public repository. A service-role key bypasses every RLS policy. See the section below. |
+| **Leaked production credentials in git history** | **open — highest priority** | The live Supabase service-role key and Resend API key are reachable in the history of a public repository. A service-role key bypasses every RLS policy. The replacement keys already exist and the swap is verified against the live API — only the human rotation step is left. See the section below. |
 | GitHub Actions secrets not configured | open | The repository has no secrets at all, at repository level or in the `Preview` / `Production` environments. The four scheduled workflows are now on `main` and will fail on every run until `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STAGING_SUPABASE_URL` and `STAGING_SUPABASE_SERVICE_ROLE_KEY` exist. |
 | EAS project not initialised | open | `eas whoami` reports "Not logged in" and `app.json` has no `extra.eas.projectId`. No build can start, and physical-device push tokens need the project id. Requires the Expo account holder. |
 | Account deletion endpoint not wired into builds | open | The function is deployed and working, but `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT` and `VITE_ACCOUNT_DELETION_ENDPOINT` are unset, so the app and web page both report deletion as unavailable. Store requirement. |
@@ -21,6 +21,53 @@ never to make this document read better.
 | Editorial review gate missing | open | LLM output can be structurally valid and still not be publishable, especially for law, medicine and finance. There is no human review step before production publication. |
 | Source licensing review missing | open | The ingestion layer reads RSS/feed metadata only. Publisher terms and commercial reuse rights are still unreviewed. Treat sources as internal-test-only until that is settled. |
 | TestFlight operations incomplete | open | Signing, App Store Connect setup, privacy answers and the invite process still need an owner. |
+
+## Resolved On 2026-08-25 — Supabase Permission Hardening
+
+Migration `20260825150000_security_hardening_rpc_permissions.sql`, applied to
+production and confirmed by re-running the advisors.
+
+| Finding | Before | After |
+| --- | --- | --- |
+| `user_archive_search_items` ran as its owner (advisor ERROR) | `security_invoker` lost to a later `CREATE OR REPLACE VIEW`; RLS on the three underlying tables bypassed; `anon` held SELECT | runs `security_invoker`; `anon` revoked; reader sees only their own rows (verified: 77 own, 0 of another reader) |
+| `claim_push_notification_deliveries` | `anon` + `authenticated` EXECUTE | `service_role` only |
+| `cleanup_expired_pending_registrations` | `anon` + `authenticated` EXECUTE | `service_role` only |
+| 8 Parcours/language RPCs | `anon` + `authenticated` EXECUTE | `authenticated` only |
+| server-only tables (5) | leftover `anon`/`authenticated` table grants | revoked; RLS-on/no-policy kept as the intended deny-all |
+| password minimum | 6 on the server, 8 in the app | 8 on both |
+
+Advisor result: **0 ERROR**. The warnings that remain are deliberate — see
+below.
+
+### Advisor Warnings That Remain By Design
+
+`anon_security_definer_function_executable` on `is_published_content`,
+`public_archive_enabled`, `published_content_has_source`,
+`user_has_assigned_content` and `user_has_assigned_source`: these five are
+called from inside RLS policies, and PostgreSQL enforces EXECUTE on functions
+a policy expression calls. Confirmed on a throwaway table — revoking made a
+policy-guarded SELECT fail with `42501` instead of returning rows. Revoking
+them would break every reader's access to their own content. Each returns a
+boolean, and the two that answer per-reader questions scope themselves with
+`auth.uid()`. **Safe.**
+
+`authenticated_security_definer_function_executable` on the eight user-facing
+RPCs: that is the intended access. Each is scoped by `auth.uid()` and raises
+on a missing or foreign caller. **Safe.**
+
+`rls_enabled_no_policy` (INFO) on `business_story_history`,
+`generation_runs`, `job_runs`, `mini_case_history` and
+`push_notification_deliveries`: intended. These are server-only; RLS with no
+policy is deny-all for `anon` and `authenticated`, and `service_role`
+bypasses RLS. No policy is invented to silence it. **Safe.**
+
+`auth_leaked_password_protection`: **cannot be fixed on this plan.** The
+Management API refuses it with HTTP 402 — "Configuring leaked password
+protection via HaveIBeenPwned.org is available on Pro Plans and up". The
+project is on Free. Raising the server password minimum from 6 to 8 (matching
+what the app already enforces) was applied as the available compensating
+control. **Unsafe only in the narrow sense that breached passwords are still
+accepted; needs a Pro upgrade.**
 
 ## Active Issues
 
@@ -49,10 +96,33 @@ them safe.
 
 Workaround: none. Rotate before launch.
 
-1. Supabase → Project Settings → API → roll the `service_role` key.
-2. Resend → API Keys → revoke `re_Vg…`, issue a new one.
-3. Update every consumer: `services/content-engine/.env`, `.env.python`, the
-   four GitHub Actions secrets, and the Supabase Function secrets.
+The project already carries modern API keys beside the legacy pair, so the
+rotation does not need new code. Verified against the live REST API on
+2026-08-25: the publishable key reads as `anon` (200) and is refused on a
+server-only RPC (401); the secret key reads server-only tables and calls
+server-only RPCs (200). Nothing in the app or the engine parses a key as a
+JWT, so a non-JWT `sb_…` key drops straight in — the one JWT decode in
+`scripts/supabase-schema-doctor.mjs` decodes a *user* access token, which
+stays a JWT after rotation.
+
+| Consumer | Variable | New value |
+| --- | --- | --- |
+| mobile (`apps/mobile/.env`, EAS) | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_…` |
+| web (`.env`) | `VITE_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_…` |
+| content engine (`services/content-engine/.env`) | `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_…` |
+| legacy script (`.env.python`) | `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_…` |
+| GitHub Actions | `SUPABASE_SERVICE_ROLE_KEY`, `STAGING_SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_…` |
+
+The variable *names* stay as they are. The compromised value is the problem,
+not the naming, and renaming would churn EAS and workflow configuration for
+nothing.
+
+1. Migrate every consumer above to the modern keys, one at a time.
+2. Only once all of them are moved, disable the legacy `anon` and
+   `service_role` keys in Supabase → Project Settings → API Keys.
+3. Resend → API Keys → revoke `re_Vg…`, issue a new one, update
+   `.env.python` (the only runtime consumer, `dispatchnewsletter.py`), and
+   send one test email before revoking the old key.
 4. Re-run `npm run supabase:doctor -- --live` to confirm the new key works.
 5. Decide whether the repository should stay public.
 
