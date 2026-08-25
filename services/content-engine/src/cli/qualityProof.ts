@@ -521,10 +521,30 @@ function miniCaseQuestions(): Extract<GeneratedContentItem, { content_type: "min
       role: "method_framework",
       question: "Which framework should you use first?",
       options: [
-        miniCaseOption("A", "Separate sourced fact, owner, and signal.", true),
-        miniCaseOption("B", "Make an immediate recommendation.", false),
-        miniCaseOption("C", "Pick the loudest interpretation.", false),
-        miniCaseOption("D", "Wait for the story to fade.", false)
+        miniCaseOption(
+          "A",
+          "Separate the sourced fact, the decision owner, and the signal that would change the call.",
+          true,
+          "Correct: it fixes what is known before anyone argues about what to do."
+        ),
+        miniCaseOption(
+          "B",
+          "Rank the affected positions by size and brief the largest exposure first.",
+          false,
+          "Reasonable triage, but sizing exposure is not the same as establishing what the source actually supports."
+        ),
+        miniCaseOption(
+          "C",
+          "Model the inflation pass-through before agreeing what the source reports.",
+          false,
+          "Puts the model ahead of the evidence: a pass-through estimate built on an unagreed fact inherits that uncertainty."
+        ),
+        miniCaseOption(
+          "D",
+          "Reuse the playbook from the last comparable supply disruption.",
+          false,
+          "Assumes comparability instead of testing it. The playbook is a hypothesis here, not a framework."
+        )
       ]
     },
     {
@@ -532,10 +552,30 @@ function miniCaseQuestions(): Extract<GeneratedContentItem, { content_type: "min
       role: "technical_application",
       question: "Which signal matters most?",
       options: [
-        miniCaseOption("A", "Funding costs and inflation expectations.", true),
-        miniCaseOption("B", "A louder headline.", false),
-        miniCaseOption("C", "The number of reshares.", false),
-        miniCaseOption("D", "An unrelated competitor move.", false)
+        miniCaseOption(
+          "A",
+          "Funding costs and inflation expectations.",
+          true,
+          "Correct: this is the channel through which the move reaches the decision."
+        ),
+        miniCaseOption(
+          "B",
+          "The size of the single-day move in the oil price.",
+          false,
+          "That is the trigger, not the transmission. A large move that does not reach funding costs changes nothing here."
+        ),
+        miniCaseOption(
+          "C",
+          "The volatility index level at yesterday's close.",
+          false,
+          "A snapshot of sentiment. It moves with the news rather than telling you whether the risk is being repriced."
+        ),
+        miniCaseOption(
+          "D",
+          "The revision to this quarter's earnings guidance.",
+          false,
+          "It lags: guidance is revised after the repricing you are trying to detect."
+        )
       ]
     },
     {
@@ -543,10 +583,30 @@ function miniCaseQuestions(): Extract<GeneratedContentItem, { content_type: "min
       role: "conclusion_decision",
       question: "What should the team do?",
       options: [
-        miniCaseOption("A", "Wait for the signal before escalating.", true),
-        miniCaseOption("B", "Treat one source as a complete forecast.", false),
-        miniCaseOption("C", "Reverse the budget on one data point.", false),
-        miniCaseOption("D", "Ignore the update entirely.", false)
+        miniCaseOption(
+          "A",
+          "Wait for the named signal before escalating.",
+          true,
+          "Correct: it keeps the decision reversible while the uncertainty resolves."
+        ),
+        miniCaseOption(
+          "B",
+          "Hedge the full exposure now, while pricing is still moving.",
+          false,
+          "Decisive, but it pays the cost of a hedge before knowing whether the risk reached the portfolio."
+        ),
+        miniCaseOption(
+          "C",
+          "Escalate to the investment committee with the current evidence.",
+          false,
+          "Escalation without the confirming signal spends attention on a call the committee cannot yet make."
+        ),
+        miniCaseOption(
+          "D",
+          "Cut the risk budget by a fixed percentage until conditions clarify.",
+          false,
+          "A mechanical rule that is not tied to the signal, so it is as likely to be wrong in size as in direction."
+        )
       ]
     }
   ];
@@ -562,15 +622,18 @@ function twoOptionMiniCaseQuestions(): Extract<GeneratedContentItem, { content_t
 function miniCaseOption(
   id: string,
   text: string,
-  isCorrect: boolean
+  isCorrect: boolean,
+  feedback?: string
 ): Extract<GeneratedContentItem, { content_type: "mini_case" }>["questions"][number]["options"][number] {
   return {
     id,
     text,
     is_correct: isCorrect,
-    feedback: isCorrect
-      ? "Correct: this keeps the case tied to evidence."
-      : "Not quite: this overreaches beyond the source."
+    feedback:
+      feedback ??
+      (isCorrect
+        ? "Correct: this keeps the case tied to evidence."
+        : "Not quite: this overreaches beyond the source.")
   };
 }
 
