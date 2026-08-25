@@ -9,7 +9,7 @@ import type { ContentEngineSupabaseClient } from "../storage/supabaseClient.js";
  * to `SUPABASE_URL` if the staging variables are missing: a misconfigured job
  * that quietly read the production project and found no `automation_batches`
  * would report "no edition ready" instead of "you pointed me at the wrong
- * database", and the difference matters at 09:17 on a publishing morning.
+ * database", and the difference matters at 19:00 on a publishing evening.
  *
  * Staging is read-only from here except for the publication receipt. ChatGPT
  * writes the editorial content; this engine reads it, and writes back only the

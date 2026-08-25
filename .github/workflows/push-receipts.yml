@@ -4,17 +4,17 @@ name: PersoNewsAP Push Receipt Reconciliation
 # runs after the edition notification window and reconciles receipts without
 # delaying or blocking publication.
 #
-# The edition job starts at 09:17 Europe/Paris. Receipt checks run repeatedly
+# The edition job starts at 19:00 Europe/Paris. Receipt checks run repeatedly
 # while Expo receipts are fresh and then stop naturally once rows are sent or
 # terminal.
 
 on:
   schedule:
-    - cron: "52 9 * * 1,3,5,0"
+    - cron: "35 19 * * 1,3,5,0"
       timezone: "Europe/Paris"
-    - cron: "52 10 * * 1,3,5,0"
+    - cron: "35 20 * * 1,3,5,0"
       timezone: "Europe/Paris"
-    - cron: "52 11 * * 1,3,5,0"
+    - cron: "35 21 * * 1,3,5,0"
       timezone: "Europe/Paris"
   workflow_dispatch:
     inputs:

@@ -109,7 +109,8 @@ export const REQUIRED_REVIEW_CHECKS = [
   "factual_accuracy",
   "safety",
   "schema",
-  "fr_en_parity"
+  "fr_en_parity",
+  "novelty_anti_repetition"
 ] as const;
 
 /** A full scheduled edition: 16 newsletter articles, 1 story, 6 mini cases. */
