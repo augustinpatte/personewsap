@@ -10,9 +10,6 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-.env
-.env.*
-!.env.example
 *.local
 
 # Editor directories and files
@@ -30,3 +27,23 @@ supabase/.temp
 
 # Repair plans and review files: local operator artifacts, never committed.
 runs/
+
+# Secrets and signing material. Nothing matching these may ever be committed;
+# .env.example files are the deliberate exception, at any depth.
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.keystore
+credentials.json
+*service-account*.json
+
+# Store submission credentials (Play service account, App Store Connect key).
+google-play-service-account*.json
+AuthKey_*.p8
