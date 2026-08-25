@@ -64,7 +64,12 @@ supabase secrets set ACCOUNT_DELETION_ALLOWED_ORIGINS="https://your-web-domain" 
 
 Then point the clients at it:
 
-- mobile: `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT=https://wkbviidrbmehmjbhvpeh.supabase.co/functions/v1/delete-account`
+- mobile: **optional since 2026-08-25.** The app derives
+  `<EXPO_PUBLIC_SUPABASE_URL>/functions/v1/delete-account` when
+  `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT` is unset, so a build that has a
+  Supabase URL can already delete accounts. Set it only to point at a custom
+  domain or a proxy:
+  `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT=https://wkbviidrbmehmjbhvpeh.supabase.co/functions/v1/delete-account`
 - web: `VITE_ACCOUNT_DELETION_ENDPOINT=` same URL
 
 ## Verify after deploying

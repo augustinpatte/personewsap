@@ -1,4 +1,5 @@
 import { getAuthSession, normalizeSupabaseError, supabase, type NormalizedSupabaseError } from "../../lib/supabase";
+import { resolveAccountDeletionEndpoint } from "./accountDeletionEndpoint";
 
 type PrivacyActionResult<T> = {
   data: T | null;
@@ -18,8 +19,10 @@ type ExportedUserData = {
   daily_drops: unknown[];
 };
 
-const accountDeletionEndpoint =
-  process.env.EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT?.trim() ?? "";
+const accountDeletionEndpoint = resolveAccountDeletionEndpoint(
+  process.env.EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT,
+  process.env.EXPO_PUBLIC_SUPABASE_URL
+);
 
 export async function exportAuthenticatedUserData(
   userId: string
