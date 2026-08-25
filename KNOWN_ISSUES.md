@@ -15,6 +15,7 @@ never to make this document read better.
 | EAS project not initialised | open | `eas whoami` reports "Not logged in" and `app.json` has no `extra.eas.projectId`. No build can start, and physical-device push tokens need the project id. Requires the Expo account holder. |
 | Account deletion endpoint not wired into builds | open | The function is deployed and working, but `EXPO_PUBLIC_ACCOUNT_DELETION_ENDPOINT` and `VITE_ACCOUNT_DELETION_ENDPOINT` are unset, so the app and web page both report deletion as unavailable. Store requirement. |
 | `ACCOUNT_DELETION_ALLOWED_ORIGINS` not set | open | Without it the function returns an empty `Access-Control-Allow-Origin`, so the browser page cannot call it. Google Play requires the external web deletion URL to work. Mobile is unaffected. |
+| Editorial pipeline has never published end-to-end | open | The ChatGPT staging project is provisioned and configured, but no batch has ever reached an approved state: 2 cancelled, 1 stuck in `generating` since 2026-08-22, 93 cancelled and 23 queued generation jobs, and **0 rows in `publication_receipts`**. The scheduled workflow will find no approved batch and no-op. Current editions were published by hand. |
 | Support address not configured | open | `VITE_SUPPORT_EMAIL` is unset, so /support says so instead of showing an address. Both stores require a working support contact. |
 | Push delivery not validated on a real device | open | The sender, idempotency and tap routing are covered by tests; Expo Go cannot fully exercise remote notifications. Needs a development build or TestFlight. |
 | Editorial review gate missing | open | LLM output can be structurally valid and still not be publishable, especially for law, medicine and finance. There is no human review step before production publication. |
@@ -54,6 +55,42 @@ Workaround: none. Rotate before launch.
    four GitHub Actions secrets, and the Supabase Function secrets.
 4. Re-run `npm run supabase:doctor -- --live` to confirm the new key works.
 5. Decide whether the repository should stay public.
+
+### Editorial Pipeline Has Never Published End-To-End
+
+Status: production blocker.
+
+The ChatGPT staging project (`kukyotcgbnchsoeriqoz`) exists and is configured —
+`automation_config` holds the `chatgpt-staging-v1` pipeline definition, and the
+tables the bridge reads (`automation_batches`, `generation_jobs`,
+`generation_outputs`, `generation_reviews`, `publication_receipts`) are all
+present. What has never happened is a successful run through it.
+
+Observed on 2026-08-25:
+
+| Table | State |
+| --- | --- |
+| `automation_batches` | 2 `cancelled`, 1 `generating` since 2026-08-22. None ever approved. |
+| `generation_jobs` | 93 `cancelled`, 23 `queued`, 0 completed. |
+| `publication_receipts` | **0 rows** |
+| production `job_runs` | last entries are `daily-job-test` from June |
+
+So `content-daily-job.yml` would find no approved batch and take its clean
+no-op path with a warning annotation. Production does have current content —
+editions exist through 2026-08-23 for all 9 profiles — but they were published
+by hand, not by the pipeline.
+
+Two consequences worth being explicit about: shipping the app does not by itself
+start producing editions, and the automated path is unproven, so its first real
+run will also be its first test.
+
+Note also that the staging project's schema lives only in that project. It is
+not in `supabase/migrations`, which targets production only. If the staging
+project were lost it would have to be rebuilt by hand.
+
+Workaround: keep publishing by hand until one batch has gone
+generating → review → approved → published with a receipt, then let the schedule
+take over.
 
 ### LLM Output Requires Editorial Review
 
