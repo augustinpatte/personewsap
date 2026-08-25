@@ -984,13 +984,13 @@ describe("workflow schedules", () => {
       expect(workflow).toContain("* * 1,3,5,0");
     }
 
-    expect(workflows[0]).toContain('cron: "17 9 * * 1,3,5,0"');
-    expect(workflows[1]).toContain('cron: "32 9 * * 1,3,5,0"');
-    expect(workflows[1]).toContain('cron: "47 9 * * 1,3,5,0"');
-    expect(workflows[1]).toContain('cron: "17 10 * * 1,3,5,0"');
-    expect(workflows[2]).toContain('cron: "52 9 * * 1,3,5,0"');
-    expect(workflows[2]).toContain('cron: "52 10 * * 1,3,5,0"');
-    expect(workflows[2]).toContain('cron: "52 11 * * 1,3,5,0"');
+    expect(workflows[0]).toContain('cron: "0 19 * * 1,3,5,0"');
+    expect(workflows[1]).toContain('cron: "15 19 * * 1,3,5,0"');
+    expect(workflows[1]).toContain('cron: "30 19 * * 1,3,5,0"');
+    expect(workflows[1]).toContain('cron: "0 20 * * 1,3,5,0"');
+    expect(workflows[2]).toContain('cron: "35 19 * * 1,3,5,0"');
+    expect(workflows[2]).toContain('cron: "35 20 * * 1,3,5,0"');
+    expect(workflows[2]).toContain('cron: "35 21 * * 1,3,5,0"');
   });
 });
 

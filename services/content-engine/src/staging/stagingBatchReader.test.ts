@@ -266,7 +266,8 @@ function stagingStub(input: {
           factual_accuracy: true,
           safety: true,
           schema: true,
-          fr_en_parity: true
+          fr_en_parity: true,
+          novelty_anti_repetition: true
         },
         reviewed_at: `${EDITION_DATE}T09:00:00Z`
       }))
