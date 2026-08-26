@@ -9,39 +9,12 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Write smoke event to staging Supabase
-        env:
-          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Call staging smoke bridge
         run: |
           set -euo pipefail
 
-          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-          BODY=$(cat <<JSON
-          {
-            "actor": "github-actions-smoke",
-            "event_type": "scheduled_github_bridge_smoke",
-            "severity": "info",
-            "details": {
-              "source": "github_actions",
-              "purpose": "scheduled_task_bridge_test",
-              "github_run_id": "${GITHUB_RUN_ID}",
-              "github_run_attempt": "${GITHUB_RUN_ATTEMPT}",
-              "timestamp": "${NOW}"
-            }
-          }
-          JSON
-          )
-
           curl --fail-with-body \
-            --request POST \
-            "${STAGING_SUPABASE_URL}/rest/v1/automation_health" \
-            --header "apikey: ${STAGING_SUPABASE_SERVICE_ROLE_KEY}" \
-            --header "Authorization: Bearer ${STAGING_SUPABASE_SERVICE_ROLE_KEY}" \
-            --header "Content-Type: application/json" \
-            --header "Prefer: return=representation" \
-            --data "$BODY"
+            "https://kukyotcgbnchsoeriqoz.supabase.co/functions/v1/personews-github-smoke?run_id=${GITHUB_RUN_ID}"
 
           echo
-          echo "GitHub -> staging Supabase smoke write succeeded."
+          echo "GitHub -> staging bridge smoke succeeded."
