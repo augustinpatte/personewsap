@@ -26,6 +26,34 @@ corriger localement, refaire la recherche si nécessaire, puis recommencer toute
 
 ---
 
+
+# 0. FIRST-TRY CANDIDATE GATE — MINI CASE — BLOQUANT
+
+Avant toute rédaction Mini Case :
+
+générer au moins deux candidats internes.
+
+Le candidat choisi doit passer :
+
+candidate_source_fit = PASS
+candidate_mechanism_fit = PASS
+candidate_novelty = PASS
+candidate_calculability = PASS
+candidate_q2_unique_solution = PASS
+candidate_q3_tradeoff = PASS
+
+Sinon :
+
+ABANDONNER LE CANDIDAT.
+
+Le Reviewer n’est pas une étape de correction normale.
+
+Objectif :
+
+FIRST SUBMISSION = PUBLISHABLE.
+
+---
+
 # 1. SOURCE FREEZE — BLOQUANT
 
 Avant rédaction, figer les sources réellement utilisées.
@@ -56,6 +84,36 @@ Chercher l'article/communiqué/rapport exact.
 Si la source exacte n'est pas vérifiable, choisir un autre événement.
 
 source_urls et source_records doivent correspondre exactement aux sources réellement ouvertes et utilisées.
+
+SOURCE RELEVANCE — BLOQUANT :
+
+Une source peut être crédible et correctement citée tout en étant hors sujet.
+
+Pour chaque source principale :
+
+1. identifier le claim exact utilisé ;
+2. identifier le mécanisme soutenu ;
+3. identifier pourquoi ce claim est nécessaire à la décision.
+
+SOURCE_REMOVAL_TEST :
+
+si retirer la source ne retire aucun élément réel spécifique et important du cas :
+
+source_relevance = FAIL.
+
+Une source macro générale ne soutient pas automatiquement un mécanisme de working capital.
+
+Une source générale d’investissement ne soutient pas automatiquement un mécanisme précis d’exécution.
+
+Une source réglementaire doit être précisément pertinente à la règle/procédure utilisée.
+
+Une source santé/engineering doit soutenir précisément le système ou mécanisme utilisé.
+
+Avant rédaction :
+
+claim_source_map = PASS
+
+Chaque claim réel important doit pointer vers un source_record exact.
 
 ---
 
@@ -224,6 +282,71 @@ Si OUI :
 Q2 FAIL.
 
 La reconstruire.
+
+---
+
+
+# 7A. MINI CASE — Q2 PROOF SHEET — BLOQUANT
+
+Avant submit, résoudre Q2 depuis zéro.
+
+Pour chaque variable :
+
+name
+value
+unit
+origin
+
+Puis :
+
+objective
+constraints
+formula
+calculation
+result
+rounding
+
+Calculer ensuite chacune des quatre options.
+
+Tests obligatoires :
+
+q2_unique_solution = PASS
+option_dominance_check = PASS
+
+Si un distracteur satisfait toutes les contraintes et obtient un objectif égal ou
+meilleur que la bonne réponse :
+
+FAIL.
+
+Pour les carnets d’ordres avec prix moyen minimal :
+
+average_execution_price =
+total_proceeds / total_shares_executed
+
+sur toutes les tranches consommées.
+
+---
+
+# 7B. MASTER CASE SPEC FR / EN — BLOQUANT
+
+FR et EN doivent dériver d’une seule fiche canonique contenant :
+
+facts
+fictional parameters
+numbers
+units
+constraints
+assumptions
+formulas
+results
+correct answers
+uncertainty
+
+Aucune différence substantielle autorisée.
+
+Test :
+
+master_case_spec_consistency = PASS
 
 ---
 
@@ -462,15 +585,23 @@ Juste avant submit, tous ces contrôles doivent être PASS :
 
 schema = PASS
 sources_exact = PASS
+source_relevance = PASS
+claim_source_map = PASS
 facts_verified = PASS
 fr_en_parity = PASS
+cross_language_scope_parity = PASS
+master_case_spec_consistency = PASS
 word_count_fr = PASS
 word_count_en = PASS
 no_placeholder = PASS
 constraint_sufficiency = PASS
 numerical_consistency = PASS
+q2_unique_solution = PASS
+option_dominance_check = PASS
+q3_dependency_on_valid_q2 = PASS
 editorial_naturalness = PASS
-cross_language_scope_parity = PASS
+novelty_distance = PASS
+shadow_reviewer_score_94_plus = PASS
 
 Newsletter :
 

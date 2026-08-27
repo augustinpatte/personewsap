@@ -449,6 +449,487 @@ Résumé en une ligne pour mémoire anti-répétition.
 
 ---
 
+
+## FIRST-TRY QUALITY GATE — BLOQUANT AVANT TOUTE RÉDACTION
+
+L’objectif opérationnel est :
+
+FIRST SUBMISSION = PUBLISHABLE.
+
+Le Reviewer ne doit jamais être utilisé comme une étape normale de correction.
+
+Une tentative Supabase n’est PAS un brouillon.
+
+Avant toute rédaction finale, exécuter silencieusement les étapes ci-dessous.
+
+---
+
+### 1. CANDIDATE GENERATION GATE
+
+Avant de choisir un scénario, produire mentalement AU MOINS DEUX candidats
+matériellement différents pour le topic demandé.
+
+Pour chaque candidat définir :
+
+- source réelle principale ;
+- claim réel exact utilisé ;
+- mécanisme réel ;
+- problème professionnel ;
+- objectif de décision ;
+- paramètres fictifs internes nécessaires ;
+- données quantitatives ;
+- scenario_type ;
+- decision_type ;
+- concept_tested ;
+- mechanism ;
+- question_pattern ;
+- correct_answer_pattern ;
+- raisonnement Q2 ;
+- arbitrage Q3 ;
+- distance avec la mémoire récente.
+
+Ne jamais choisir un candidat simplement parce qu’il est le premier trouvé.
+
+Le candidat retenu doit être clairement meilleur que les alternatives.
+
+Si aucun candidat n’est excellent :
+
+continuer la recherche.
+
+---
+
+### 2. SOURCE–MECHANISM FIT — BLOQUANT
+
+Une source n’est PAS pertinente simplement parce qu’elle appartient au même
+domaine général.
+
+Elle doit soutenir précisément le mécanisme réel du Mini Case.
+
+Test obligatoire :
+
+SOURCE_REMOVAL_TEST
+
+Question :
+
+« Si je supprime cette source, quel fait réel ou mécanisme spécifique utilisé
+par le cas disparaît ? »
+
+Si la réponse est :
+
+- rien ;
+- uniquement du contexte général ;
+- uniquement le nom du secteur ;
+- uniquement une inspiration vague ;
+
+alors :
+
+source_relevance = FAIL
+
+et le candidat doit être abandonné.
+
+Exemple :
+
+Un rapport général sur l’allocation des dépenses publiques ne soutient pas un
+Mini Case dont le mécanisme central est le working capital d’une entreprise.
+
+Pour finance_economy :
+
+la source doit soutenir réellement un mécanisme tel que :
+
+- cash flow ;
+- working capital ;
+- liquidity ;
+- credit conditions ;
+- financing ;
+- payment terms ;
+- receivables ;
+- payables ;
+- inventory cash conversion ;
+- treasury ;
+
+selon le scénario choisi.
+
+Pour stock_market :
+
+la source doit soutenir précisément :
+
+- market liquidity ;
+- order execution ;
+- bid/ask spread ;
+- depth ;
+- slippage ;
+- volatility ;
+- valuation ;
+- portfolio risk ;
+
+selon le cas.
+
+Pour ai :
+
+la source doit soutenir précisément le mécanisme IA réellement utilisé.
+
+Pour law_compliance :
+
+utiliser la règle, décision, communication ou procédure exacte.
+
+Pour health_pharma :
+
+la source doit soutenir le dispositif, étude, mécanisme ou contrainte réelle.
+
+Pour engineering_operations :
+
+la source doit soutenir le process, système, capacité, supply chain, fiabilité
+ou contrainte technique réellement utilisée.
+
+---
+
+### 3. CLAIM–SOURCE MAP
+
+Avant rédaction finale, identifier toutes les affirmations RÉELLES qui seront
+utilisées.
+
+Pour chacune :
+
+CLAIM
+SOURCE_RECORD EXACT
+PASS / FAIL
+
+Cela couvre les claims présents dans :
+
+- body_md ;
+- context ;
+- challenge ;
+- questions ;
+- options ;
+- feedback ;
+- expected_reasoning ;
+- sample_answer ;
+- conclusion ;
+- final_takeaway.
+
+Un claim réel sans source exacte :
+
+FAIL.
+
+Les paramètres fictifs internes sont autorisés, mais doivent être explicitement
+des paramètres du scénario.
+
+Ne jamais les attribuer à l’organisation réelle.
+
+---
+
+### 4. MASTER CASE SPEC
+
+Créer UNE fiche canonique avant de rédiger FR ou EN.
+
+Cette fiche contient :
+
+ACTORS
+REAL_FACTS
+FICTIONAL_INTERNAL_PARAMETERS
+NUMBERS
+UNITS
+CONSTRAINTS
+OBJECTIVE
+ASSUMPTIONS
+FORMULAS
+INTERMEDIATE_RESULTS
+FINAL_RESULTS
+Q1_CORRECT
+Q2_CORRECT
+Q3_CORRECT
+UNCERTAINTY
+TAKEAWAY
+
+FR et EN sont deux rendus de cette même fiche.
+
+Il est INTERDIT de modifier entre FR et EN :
+
+- une donnée ;
+- une unité ;
+- une réserve ;
+- une contrainte ;
+- une hypothèse ;
+- une formule ;
+- une bonne réponse ;
+- une causalité ;
+- une conclusion quantitative.
+
+---
+
+### 5. NUMERICAL PROOF SHEET
+
+Pour chaque nombre décisionnel, définir :
+
+VARIABLE
+VALUE
+UNIT
+ORIGIN = real_source | fictional_internal_parameter
+
+Puis :
+
+OBJECTIVE
+CONSTRAINTS
+FORMULA
+CALCULATION
+RESULT
+ROUNDING_RULE
+
+Aucune conclusion quantitative ne peut être écrite sans cette preuve.
+
+---
+
+### 6. Q2 — SOLVE BEFORE WRITING
+
+Q2 doit être résolue AVANT d’écrire les options.
+
+Le Generator doit calculer les QUATRE options séparément.
+
+Pour chaque option :
+
+- résultat ;
+- contraintes satisfaites ;
+- contraintes violées ;
+- objectif obtenu ;
+- raison précise pour laquelle elle gagne ou perd.
+
+Ensuite appliquer :
+
+Q2_UNIQUE_SOLUTION_TEST.
+
+Question :
+
+« Une autre option satisfait-elle toutes les contraintes et obtient-elle un
+résultat égal ou meilleur ? »
+
+Si oui :
+
+q2_unique_solution = FAIL
+
+et Q2 doit être reconstruite.
+
+---
+
+### 7. OPTION DOMINANCE TEST
+
+Une mauvaise option ne doit jamais dominer la bonne.
+
+Une option A domine B si :
+
+- A satisfait toutes les contraintes satisfaites par B ;
+- A satisfait éventuellement davantage de contraintes ;
+- A obtient un objectif égal ou meilleur ;
+- A n’introduit aucun coût/risque pertinent supplémentaire.
+
+Si un distracteur domine la réponse marquée correcte :
+
+FAIL IMMÉDIAT.
+
+---
+
+### 8. STOCK MARKET EXECUTION RULE
+
+Si un Mini Case demande combien d’actions peuvent être exécutées avec une
+contrainte de PRIX MOYEN MINIMAL :
+
+calculer obligatoirement le prix moyen pondéré :
+
+AVERAGE_EXECUTION_PRICE =
+TOTAL_PROCEEDS / TOTAL_SHARES_EXECUTED
+
+Il faut agréger TOUS les niveaux consommés du carnet.
+
+Ne jamais utiliser seulement :
+
+- le meilleur bid ;
+- le dernier niveau ;
+- le prix marginal ;
+- une seule tranche.
+
+Pour CHAQUE quantité candidate :
+
+calculer le prix moyen complet.
+
+Si 70 000 actions respectent encore la contrainte de prix moyen et que l’objectif
+est de maximiser le volume exécuté, une réponse 40 000 ne peut pas être correcte
+sans autre contrainte explicite.
+
+---
+
+### 9. CASH / WORKING CAPITAL SIGN TEST
+
+Pour tout cas de trésorerie, utiliser explicitement :
+
+opening_cash
++ inflows
+- outflows
++ financing_drawn
+= closing_cash
+
+Définir séparément :
+
+available_reserve
+reserve_drawn
+remaining_reserve
+minimum_cash_buffer
+
+Ne jamais utiliser indistinctement :
+
+« réserve disponible »
+
+et
+
+« réserve déjà utilisée ».
+
+FR et EN doivent utiliser exactement la même convention.
+
+---
+
+### 10. CAPACITY SUFFICIENCY TEST
+
+Une capacité maximale ne suffit jamais à prouver qu’un volume est acceptable.
+
+Il faut, selon le cas :
+
+- expected load ;
+- incident frequency ;
+- escalation rate ;
+- demand rate ;
+- processing time ;
+- staffing ;
+- buffer ;
+
+ou toute autre variable réellement nécessaire.
+
+Exemple :
+
+capacity = 6 escalations / shift
+
+ne permet PAS de conclure qu’un pilote de 24 patients surcharge le système sans
+connaître le nombre attendu d’escalades par patient.
+
+---
+
+### 11. Q3 DEPENDENCY TEST
+
+Si Q3 dépend du résultat de Q2 :
+
+Q2_PROOF = PASS obligatoire.
+
+Une Q3 construite à partir d’une conclusion Q2 incorrecte est automatiquement
+incorrecte.
+
+---
+
+### 12. Q3 REAL TRADE-OFF PROOF
+
+Pour AU MOINS DEUX options de Q3, le Generator doit pouvoir remplir :
+
+OPTION
+BENEFIT
+COST
+RISK
+WHEN_IT_WOULD_WIN
+
+Si seulement une option paraît professionnellement sérieuse :
+
+q3_tradeoff = FAIL.
+
+La réponse correcte doit gagner uniquement grâce aux contraintes spécifiques du
+scénario.
+
+---
+
+### 13. MEMORY DISTANCE TEST
+
+Comparer le candidat à la mémoire récente AVANT rédaction.
+
+Ne pas comparer seulement :
+
+- titre ;
+- entreprise ;
+- pays.
+
+Comparer le problème décisionnel réel.
+
+Rejeter le candidat s’il répète substantiellement :
+
+- scenario_type ;
+- decision_type ;
+- concept_tested ;
+- mechanism ;
+- question_pattern ;
+- correct_answer_pattern ;
+- structure économique ;
+- structure du calcul ;
+- core_takeaway.
+
+Changer simplement le nom, le pays ou les chiffres ne crée pas un nouveau cas.
+
+---
+
+### 14. ADVERSARIAL SHADOW REVIEW
+
+Après rédaction complète, relire le contenu comme un Reviewer hostile.
+
+Chercher activement :
+
+- source hors sujet ;
+- source décorative ;
+- claim non sourcé ;
+- variable absente ;
+- erreur de signe ;
+- calcul faux ;
+- option dominante ;
+- deux réponses correctes possibles ;
+- Q3 dépendant d’un Q2 faux ;
+- distracteur caricatural ;
+- répétition récente ;
+- différence FR/EN ;
+- bonne réponse pré-résolue dans le body ;
+- formulation scolaire ;
+- texte artificiel.
+
+Le Generator doit attribuer mentalement un score Reviewer.
+
+SUBMIT autorisé uniquement si :
+
+SHADOW_REVIEW_SCORE >= 94
+
+ET :
+
+aucun check bloquant n’est FAIL.
+
+Si le contenu semble seulement « autour de 90 » :
+
+NE PAS SUBMIT.
+
+Corriger localement.
+
+---
+
+### 15. DISCARD BAD CANDIDATES
+
+Avant le premier submit, abandonner un mauvais candidat ne coûte aucune tentative.
+
+Si :
+
+- la source est faible ;
+- la source est hors mécanisme ;
+- le calcul devient artificiel ;
+- trop d’hypothèses sont nécessaires ;
+- Q2 n’a pas de solution unique ;
+- Q3 devient évidente ;
+- le cas ressemble trop à un récent ;
+
+ABANDONNER LE CANDIDAT.
+
+Rechercher un meilleur scénario.
+
+Le premier submit doit être le produit final.
+
+---
+
 ## IMMERSION ET VOIX ÉDITORIALE — PRIORITÉ ÉLEVÉE
 
 Le lecteur doit entrer directement dans une situation professionnelle.
