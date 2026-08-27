@@ -132,6 +132,456 @@ histoire qui n'aurait pas dû être écrite sur cet événement.
 
 ---
 
+
+## FIRST-TRY QUALITY GATE — BUSINESS STORY — BLOQUANT
+
+Objectif opérationnel :
+
+FIRST SUBMISSION = PUBLISHABLE.
+
+Le Reviewer n'est pas une étape normale de correction.
+
+Une tentative Supabase ne doit jamais servir de brouillon.
+
+Avant toute rédaction finale, effectuer silencieusement les contrôles suivants.
+
+---
+
+### 1. CANDIDATE SELECTION GATE
+
+Si aucun sujet précis n'est imposé, produire mentalement au moins TROIS candidats.
+
+Pour chaque candidat définir :
+
+- entreprise / marché ;
+- période ;
+- contradiction ou tension ;
+- décision stratégique ;
+- mécanisme business principal ;
+- coût ou renoncement ;
+- résultat observable ;
+- source primaire principale ;
+- seconde source informative ;
+- richesse factuelle disponible ;
+- distance avec les Business Stories récentes.
+
+Le candidat retenu doit permettre naturellement :
+
+HOOK
+→ PROBLEM
+→ DECISION
+→ MECHANISM
+→ TRADE-OFF
+→ CONSEQUENCE
+
+sans remplissage.
+
+Ne jamais choisir un candidat uniquement parce qu'il est récent.
+
+Si l'histoire devient principalement une liste de choses que les sources ne
+permettent pas de savoir :
+
+ABANDONNER LE CANDIDAT.
+
+---
+
+### 2. SOURCE PACKET QUALITY GATE
+
+Minimum :
+
+2 sources réelles et réellement informatives.
+
+Au moins une source primaire lorsque raisonnablement disponible :
+
+- filing ;
+- rapport annuel ;
+- lettre aux actionnaires ;
+- earnings release ;
+- investor relations ;
+- documentation officielle ;
+- interview directe ;
+- archive officielle ;
+- décision réglementaire ;
+- publication institutionnelle.
+
+La deuxième source doit AJOUTER quelque chose.
+
+Elle ne doit pas être une duplication superficielle de la première.
+
+Une seule press release ne suffit normalement pas pour une Business Story.
+
+Test :
+
+SOURCE_PACKET_DEPTH = PASS
+
+Le packet doit permettre de soutenir :
+
+- la situation ;
+- le mécanisme ;
+- les chiffres principaux ;
+- la décision ;
+- le résultat ;
+- les détails opérationnels importants.
+
+---
+
+### 3. SOURCE PACKET CLOSURE — CRITIQUE
+
+Une fois les sources figées :
+
+AUCUNE nouvelle source ne peut être utilisée implicitement pendant la rédaction.
+
+Tout fait réel utilisé doit venir d'un source_record déclaré.
+
+Interdit :
+
+- se souvenir d'un article vu pendant la recherche mais non ajouté ;
+- utiliser une statistique trouvée ailleurs ;
+- utiliser une anecdote provenant d'une page absente du packet ;
+- utiliser une citation ou détail historique dont l'URL n'est pas déclarée.
+
+Si une source supplémentaire devient nécessaire pendant la rédaction :
+
+STOP.
+
+Ajouter la source exacte au packet.
+
+Revalider le packet.
+
+Puis seulement continuer.
+
+C'est exactement le type d'erreur à éviter lorsqu'un paragraphe utilise un billet
+Adobe réel mais que ce billet n'apparaît pas dans source_records.
+
+---
+
+### 4. CLAIM–SOURCE MAP
+
+Avant rédaction finale, dresser mentalement la liste des claims factuels.
+
+Pour CHAQUE claim :
+
+CLAIM
+→ SOURCE URL EXACTE
+→ PASS
+
+Cela comprend :
+
+- dates ;
+- chiffres ;
+- comportements utilisateurs ;
+- décisions internes ;
+- cycle produit ;
+- historique ;
+- coûts ;
+- revenus ;
+- abonnements ;
+- marges ;
+- canaux ;
+- détails opérationnels ;
+- concurrence ;
+- anecdotes ;
+- citations ;
+- résultats.
+
+Un claim réel sans source exacte :
+
+FAIL.
+
+Ne jamais supposer qu'une source générale couvre automatiquement tous les faits.
+
+---
+
+### 5. SOURCE REMOVAL TEST
+
+Pour chaque source :
+
+« Si je retire cette source, quel fait ou mécanisme spécifique disparaît ? »
+
+Si la réponse est :
+
+« aucun élément important »,
+
+la source est probablement décorative.
+
+Les sources du packet doivent avoir une vraie fonction éditoriale.
+
+---
+
+### 6. FACTUAL CORE SPEC
+
+Créer avant FR/EN une fiche canonique unique contenant :
+
+ENTITY
+PERIOD
+HOOK_FACT
+CORE_CONTRADICTION
+REAL_DECISION
+KEY_MECHANISM
+TRADE_OFF
+REAL_NUMBERS
+OPERATIONAL_DETAILS
+OUTCOME
+LIMITATIONS
+SOURCE_MAP
+CORE_TAKEAWAY
+
+FR et EN doivent être deux rendus de cette même fiche.
+
+Aucune langue ne peut ajouter :
+
+- un chiffre ;
+- un fait ;
+- une causalité ;
+- une réserve ;
+- un risque ;
+- une conclusion ;
+- un détail historique ;
+
+absent de l'autre.
+
+---
+
+### 7. MECHANISM PROOF
+
+Avant rédaction, répondre précisément :
+
+INPUT
+→ ACTION / SYSTEM
+→ ECONOMIC EFFECT
+→ CUSTOMER / COST / REVENUE EFFECT
+→ WHY IT COMPOUNDS OR FAILS
+
+Le mécanisme ne peut pas être simplement :
+
+« abonnement »
+« distribution »
+« scale »
+« pricing »
+« network effect »
+
+Il faut expliquer COMMENT il fonctionne.
+
+Si le mécanisme ne peut pas être décrit causalement avec les sources disponibles :
+
+changer de sujet.
+
+---
+
+### 8. TRADE-OFF PROOF
+
+Une vraie stratégie implique un coût.
+
+Identifier :
+
+DECISION
+BENEFIT
+COST
+RISK
+ALTERNATIVE
+WHY MANAGEMENT ACCEPTED THE TRADE-OFF
+
+Si aucun coût ou renoncement réel n'existe dans les sources :
+
+ne pas fabriquer de tension.
+
+Choisir une meilleure histoire.
+
+---
+
+### 9. MOBILE STORY INTEGRITY
+
+Le reader mobile utilise notamment :
+
+setup
+tension
+decision
+outcome
+
+Ces champs doivent raconter LA STORY COMPLÈTE.
+
+Ils ne doivent pas être quatre résumés.
+
+Avant submit :
+
+setup = 120–280 mots
+tension = 120–280 mots
+decision = 120–280 mots
+outcome = 120–280 mots
+
+total visible = 700–1000 mots
+
+body_md = 750–950 mots
+
+cible idéale body_md = 800–900 mots
+
+abs(total_visible - body_md) <= 100 mots
+
+Le lecteur qui voit uniquement les quatre chapitres doit comprendre :
+
+- le problème ;
+- le mécanisme ;
+- la décision ;
+- le trade-off ;
+- le résultat.
+
+---
+
+### 10. PARAGRAPH NOVELTY TEST
+
+Pour chaque paragraphe demander :
+
+« Quelle nouvelle information apporte-t-il ? »
+
+Réponse obligatoire parmi :
+
+- nouveau fait ;
+- nouvelle décision ;
+- nouveau chiffre ;
+- nouveau mécanisme ;
+- nouvelle contrainte ;
+- nouvelle conséquence ;
+- nouveau risque ;
+- nouveau détail opérationnel.
+
+Si deux paragraphes successifs répètent essentiellement la même thèse :
+
+réécrire ou supprimer.
+
+---
+
+### 11. CAVEAT RATIO TEST
+
+La prudence factuelle est obligatoire.
+
+Mais une Business Story ne doit pas devenir une liste de limites documentaires.
+
+Si plusieurs paragraphes reposent principalement sur :
+
+- « on ne sait pas » ;
+- « la source ne dit pas » ;
+- « impossible de conclure » ;
+- « aucune donnée n'est disponible » ;
+
+le sujet est trop faible.
+
+ABANDONNER LE SUJET.
+
+---
+
+### 12. MEMORY DISTANCE TEST
+
+Comparer avant rédaction :
+
+main_company
+entity_name
+industry
+key_mechanism
+strategic_angle
+core_takeaway
+narrative_structure
+
+Ne pas réutiliser une Business Story récente en changeant seulement :
+
+- le titre ;
+- la formulation ;
+- la période ;
+- le hook.
+
+---
+
+### 13. ADVERSARIAL SOURCE AUDIT
+
+Après rédaction complète :
+
+prendre CHAQUE phrase contenant :
+
+- chiffre ;
+- date ;
+- comportement ;
+- détail historique ;
+- fait opérationnel ;
+- décision réelle ;
+- causalité factuelle ;
+
+et vérifier :
+
+SOURCE_RECORD EXISTS = YES
+URL DECLARED IN FR = YES
+URL DECLARED IN EN = YES
+CLAIM SUPPORTED = YES
+
+Un seul NO :
+
+NE PAS SUBMIT.
+
+---
+
+### 14. ADVERSARIAL SHADOW REVIEW
+
+Relire ensuite le texte comme un Reviewer hostile.
+
+Chercher :
+
+- source oubliée ;
+- source décorative ;
+- claim non soutenu ;
+- extrapolation ;
+- causalité excessive ;
+- chiffre absent du packet ;
+- différence FR/EN ;
+- chapitre app trop court ;
+- body/chapter divergence ;
+- thèse répétée ;
+- sujet trop mince ;
+- ton consultant ;
+- conclusion LinkedIn ;
+- détail inventé ;
+- mécanisme seulement nommé et non expliqué.
+
+Attribuer mentalement un score.
+
+SUBMIT autorisé uniquement si :
+
+SHADOW_REVIEW_SCORE >= 94
+
+ET aucun check critique ne semble discutable.
+
+Si l'output semble valoir 90–93 :
+
+NE PAS SUBMIT.
+
+Améliorer localement.
+
+---
+
+### 15. FIRST-TRY RULE
+
+Le premier submit doit déjà être considéré comme la version finale.
+
+Avant submit :
+
+candidate_quality = PASS
+source_packet_depth = PASS
+source_packet_closure = PASS
+claim_source_map = PASS
+source_relevance = PASS
+facts_verified = PASS
+mechanism_proof = PASS
+tradeoff_proof = PASS
+cross_language_scope_parity = PASS
+mobile_story_integrity = PASS
+paragraph_novelty = PASS
+caveat_ratio = PASS
+novelty_distance = PASS
+shadow_reviewer_score_94_plus = PASS
+
+Un seul FAIL :
+
+INTERDICTION DE SUBMIT.
+
+---
+
 ## RÈGLE FACTUELLE — CRITIQUE
 
 Les anecdotes, détails terrain, comportements utilisateurs, décisions internes et habitudes opérationnelles doivent être réels ou directement déduits de sources réelles.

@@ -181,31 +181,150 @@ Un seul FAIL = PAS DE SUBMIT.
 
 ---
 
-# 4. BUSINESS STORY
+# 4. BUSINESS STORY — FIRST-TRY GATE
 
-Compter réellement le corps final dans chaque langue.
+Le premier submit doit être publiable.
 
-Hard contract :
+Avant rédaction finale :
 
-650 à 950 mots PAR LANGUE.
+comparer plusieurs candidats lorsque le sujet n'est pas imposé.
 
-Zone cible :
+Le candidat retenu doit avoir :
 
-720 à 850 mots PAR LANGUE.
+- une vraie contradiction ou tension ;
+- une décision ;
+- un mécanisme business causal ;
+- un coût / renoncement ;
+- un résultat observable ;
+- un packet de sources suffisamment riche.
 
-Vérifier :
+Minimum source packet :
 
-- vraie narration ;
-- mécanisme économique/stratégique ;
-- détails opérationnels ;
-- vraie tension ;
-- vrai arbitrage ;
-- sources exactes ;
-- parité FR/EN ;
-- aucun fait important non sourcé ;
-- longueur conforme.
+2 sources réellement informatives.
 
-Un seul FAIL = PAS DE SUBMIT.
+Au moins une source primaire lorsque raisonnablement disponible.
+
+Une seule press release est normalement insuffisante.
+
+Tests obligatoires :
+
+candidate_quality = PASS
+source_packet_depth = PASS
+source_packet_closure = PASS
+
+SOURCE PACKET CLOSURE :
+
+après freeze des sources, aucun fait ne peut être ajouté depuis une page absente
+de source_records.
+
+Si une nouvelle source devient nécessaire :
+
+l'ajouter AVANT rédaction finale et refaire le source audit.
+
+CLAIM–SOURCE MAP :
+
+tout claim factuel important doit pointer vers une URL exacte du packet.
+
+Tests :
+
+claim_source_map = PASS
+source_relevance = PASS
+facts_verified = PASS
+
+MECHANISM PROOF :
+
+le générateur doit être capable d'expliquer causalement :
+
+input
+→ action/system
+→ effet économique
+→ effet revenu/coût/client
+→ résultat
+
+mechanism_proof = PASS
+
+TRADE-OFF PROOF :
+
+identifier :
+
+decision
+benefit
+cost
+risk
+alternative
+
+tradeoff_proof = PASS
+
+LONGUEUR :
+
+body_md FR :
+750–950 mots
+
+body_md EN :
+750–950 mots
+
+cible :
+800–900 mots par langue.
+
+APP READER :
+
+setup :
+120–280 mots
+
+tension :
+120–280 mots
+
+decision :
+120–280 mots
+
+outcome :
+120–280 mots
+
+total visible :
+700–1000 mots
+
+abs(total_visible - body_md) <= 100 mots.
+
+Tests :
+
+mobile_story_integrity = PASS
+body_visible_alignment = PASS
+
+FR / EN :
+
+même factual core,
+mêmes chiffres,
+mêmes sources,
+même mécanisme,
+même trade-off,
+même degré d'incertitude.
+
+cross_language_scope_parity = PASS
+
+PARAGRAPH TEST :
+
+chaque paragraphe ajoute une information nouvelle.
+
+paragraph_novelty = PASS
+
+CAVEAT TEST :
+
+si une part significative du texte explique surtout ce que les sources ne disent
+pas, changer de sujet.
+
+caveat_ratio = PASS
+
+ANTI-REPETITION :
+
+novelty_distance = PASS
+
+SHADOW REVIEW :
+
+shadow_reviewer_score_94_plus = PASS
+
+Un seul FAIL :
+
+PAS DE SUBMIT.
 
 ---
 
