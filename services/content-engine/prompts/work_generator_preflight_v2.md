@@ -117,6 +117,47 @@ Chaque claim réel important doit pointer vers un source_record exact.
 
 ---
 
+
+# 1A. NEWSLETTER — FIRST-TRY CANDIDATE GATE
+
+Objectif :
+
+FIRST SUBMISSION = PUBLISHABLE.
+
+Avant submit :
+
+editorial_value = PASS
+materiality = PASS
+topic_fit = PASS
+source_relevance = PASS
+claim_source_map = PASS
+mechanism_quality = PASS
+implication_specificity = PASS
+cross_language_scope_parity = PASS
+editorial_naturalness = PASS
+shadow_reviewer_score_94_plus = PASS
+
+Lorsqu'un topic contient deux ordinals :
+
+distinct_event = PASS
+
+Si topic = sport_business :
+
+sport_business_materiality = PASS
+
+Une actualité vraie mais sans valeur éditoriale suffisante :
+
+FAIL.
+
+Une information de chaîne TV, feed, horaire ou programmation ordinaire :
+
+FAIL pour sport_business sauf modification réelle de l'économie des droits,
+de la distribution ou de la monétisation.
+
+Ne jamais soumettre un événement faible simplement parce qu'il est récent.
+
+---
+
 # 2. NEWSLETTER — DISTINCTNESS
 
 Lorsqu'un topic possède deux ordinals, comparer les deux contenus avant submit.
@@ -700,46 +741,99 @@ reconstruire complètement le contenu.
 
 # 13. FINAL PREFLIGHT
 
-Juste avant submit, tous ces contrôles doivent être PASS :
+Juste avant submit :
+
+TRONC COMMUN — TOUS CONTENT TYPES
 
 schema = PASS
 sources_exact = PASS
-source_relevance = PASS
-claim_source_map = PASS
 facts_verified = PASS
 fr_en_parity = PASS
 cross_language_scope_parity = PASS
-master_case_spec_consistency = PASS
 word_count_fr = PASS
 word_count_en = PASS
 no_placeholder = PASS
-constraint_sufficiency = PASS
-numerical_consistency = PASS
-q2_unique_solution = PASS
-option_dominance_check = PASS
-q3_dependency_on_valid_q2 = PASS
 editorial_naturalness = PASS
-novelty_distance = PASS
+
+Ensuite appliquer UNIQUEMENT les checks correspondant au content_type courant.
+
+--------------------------------------------------
+NEWSLETTER
+--------------------------------------------------
+
+editorial_value = PASS
+materiality = PASS
+topic_fit = PASS
+source_relevance = PASS
+claim_source_map = PASS
+mechanism_quality = PASS
+implication_specificity = PASS
 shadow_reviewer_score_94_plus = PASS
 
-Newsletter :
+Si deux ordinals existent :
 
 distinct_event = PASS
 
-Mini Case :
+Si topic = sport_business :
 
+sport_business_materiality = PASS
+
+--------------------------------------------------
+BUSINESS STORY
+--------------------------------------------------
+
+candidate_quality = PASS
+source_packet_depth = PASS
+source_packet_closure = PASS
+claim_source_map = PASS
+source_relevance = PASS
+mechanism_proof = PASS
+tradeoff_proof = PASS
+mobile_story_integrity = PASS
+body_visible_alignment = PASS
+paragraph_novelty = PASS
+caveat_ratio = PASS
+novelty_distance = PASS
+shadow_reviewer_score_94_plus = PASS
+
+--------------------------------------------------
+MINI CASE
+--------------------------------------------------
+
+source_relevance = PASS
+claim_source_map = PASS
+master_case_spec_consistency = PASS
+constraint_sufficiency = PASS
+numerical_consistency = PASS
 q1_method = PASS
 q2_application = PASS
+q2_unique_solution = PASS
+option_dominance_check = PASS
+q3_dependency_on_valid_q2 = PASS
 q3_tradeoff = PASS
 distractors_plausible = PASS
 immersion = PASS
+novelty_distance = PASS
+shadow_reviewer_score_94_plus = PASS
 
-SI UN SEUL EST FAIL :
+--------------------------------------------------
+
+RÈGLE ABSOLUE :
+
+Ne jamais demander à un content_type un check appartenant uniquement à un autre.
+
+Une Newsletter n'a pas de Q2 ou Q3.
+
+Une Business Story n'a pas de distracteurs.
+
+Un Mini Case n'a pas de mobile_story_integrity Business Story.
+
+Un seul FAIL applicable au content_type courant :
 
 INTERDICTION DE SUBMIT.
 
-Corriger puis recommencer.
+Corriger localement ou changer de candidat.
 
-Le reviewer reste indépendant et strict.
-Cette preflight ne garantit jamais l'approbation.
-Elle sert uniquement à éliminer les erreurs évitables avant review.
+Le Reviewer reste indépendant.
+
+La preflight sert à empêcher les erreurs évitables d'atteindre le Reviewer.

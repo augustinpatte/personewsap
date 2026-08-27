@@ -111,6 +111,463 @@ Ne jamais forcer un article vers une catégorie.
 
 ---
 
+
+## 4A. FIRST-TRY QUALITY GATE — NEWSLETTER — BLOQUANT
+
+OBJECTIF :
+
+FIRST SUBMISSION = PUBLISHABLE.
+
+Une Newsletter ne doit pas simplement être vraie, récente et techniquement valide.
+
+Chaque article occupe un slot limité dans le feed.
+
+Il doit donc être suffisamment intéressant pour MÉRITER ce slot.
+
+Le Reviewer ne doit pas servir normalement à éliminer les sujets faibles que le
+Generator pouvait lui-même rejeter avant rédaction.
+
+---
+
+### CANDIDATE COMPETITION
+
+Avant rédaction, lorsque plusieurs événements sont disponibles pour le topic,
+comparer les meilleurs candidats.
+
+Évaluer silencieusement chaque candidat sur :
+
+EVENT_SPECIFICITY
+TOPIC_FIT
+MATERIALITY
+MECHANISM_DEPTH
+LEARNING_VALUE
+SOURCE_STRENGTH
+NOVELTY
+FOLLOW_UP_SIGNAL
+
+Choisir le meilleur événement éditorialement.
+
+Ne jamais choisir automatiquement :
+
+- le premier résultat ;
+- le communiqué le plus récent ;
+- le sujet le plus facile à résumer ;
+- le sujet avec le titre le plus spectaculaire.
+
+Si aucun candidat n'est assez fort :
+
+ne pas fabriquer de profondeur.
+
+Chercher un meilleur événement.
+
+---
+
+### EDITORIAL VALUE GATE
+
+Avant rédaction finale, répondre OUI à ces questions :
+
+1. Existe-t-il un développement précis ?
+2. Le lecteur apprend-il davantage que le titre original ?
+3. Existe-t-il un mécanisme concret ?
+4. Ce mécanisme est-il réellement soutenu par les sources ?
+5. L'événement produit-il une conséquence matérielle ?
+6. L'implication finale peut-elle être formulée précisément ?
+7. Existe-t-il un signal observable pour suivre la suite ?
+
+Si une réponse est NON :
+
+editorial_value = FAIL
+
+et le sujet doit être abandonné.
+
+---
+
+### MATERIALITY TEST
+
+Question obligatoire :
+
+« Qu'est-ce qui change concrètement à cause de cette information ? »
+
+Une réponse acceptable doit identifier un effet matériel sur au moins une
+dimension telle que :
+
+- revenu ;
+- coût ;
+- prix ;
+- marge ;
+- financement ;
+- valorisation ;
+- capacité ;
+- production ;
+- demande ;
+- offre ;
+- concurrence ;
+- réglementation ;
+- risque ;
+- accès ;
+- distribution économique ;
+- comportement client ;
+- performance technique ;
+- infrastructure ;
+- résultat scientifique ;
+- résultat clinique ;
+- gouvernance avec conséquence opérationnelle.
+
+Si la réponse réelle est simplement :
+
+- où regarder ;
+- quand regarder ;
+- qui présente ;
+- quel feed utiliser ;
+- une annonce administrative ;
+- une fonctionnalité mineure ;
+- une information de calendrier ;
+
+materiality = FAIL.
+
+---
+
+### BORING DETAIL REJECTION
+
+Un événement peut être réel et récent tout en étant éditorialement inutile.
+
+Rejeter normalement :
+
+- changement mineur de programmation ;
+- horaire de diffusion ;
+- chaîne TV ;
+- feed alternatif ;
+- changement de présentateur ;
+- simple annonce marketing ;
+- disponibilité banale d'un produit ;
+- nomination ordinaire ;
+- partenariat sans economics ni conséquence identifiable ;
+- événement administratif sans mécanisme réel.
+
+Ces éléments peuvent uniquement devenir un article s'ils révèlent eux-mêmes un
+mécanisme économique, réglementaire, scientifique ou opérationnel significatif.
+
+---
+
+### SPORT_BUSINESS — HARD ECONOMIC GATE
+
+Pour `sport_business`, l'article doit porter réellement sur le BUSINESS du sport.
+
+Priorités :
+
+- media rights ;
+- rights valuation ;
+- ownership ;
+- franchise valuation ;
+- acquisitions ;
+- private equity ;
+- sponsorship economics ;
+- athlete equity ;
+- salary cap ;
+- labor economics ;
+- ticketing ;
+- stadium / venue financing ;
+- league expansion ;
+- revenue sharing ;
+- licensing ;
+- commercial partnerships ;
+- distribution economics ;
+- monetization ;
+- technologie modifiant les revenus ;
+- gouvernance ayant une conséquence économique.
+
+REJET AUTOMATIQUE si le sujet principal est :
+
+- quelle chaîne diffuse ;
+- quel feed regarder ;
+- quel horaire ;
+- quel commentateur ;
+- quelle production TV ;
+- quelle fonctionnalité de visionnage ;
+
+sans changement substantiel de :
+
+RIGHTS_VALUE
+REVENUE_MODEL
+DISTRIBUTION_ECONOMICS
+AUDIENCE_MONETIZATION
+MARKET_POWER
+COST_STRUCTURE
+
+Exemple :
+
+« ESPN ajoute plusieurs feeds pour le PGA »
+
+est insuffisant si les sources ne montrent pas une modification réelle de
+l'économie des droits, de la monétisation ou du modèle de distribution.
+
+sport_business_materiality = PASS obligatoire.
+
+---
+
+### SOURCE PACKET CLOSURE
+
+Une fois `source_material` et `allowed_source_urls` fournis :
+
+le packet est FERMÉ.
+
+Aucun fait provenant d'une autre page ne peut être utilisé.
+
+Avant rédaction finale, établir mentalement :
+
+CLAIM
+→ SOURCE EXACTE DU PACKET
+→ SUPPORTED = YES
+
+Cela concerne :
+
+- chiffres ;
+- dates ;
+- décisions ;
+- déclarations ;
+- métriques ;
+- caractéristiques produit ;
+- mécanismes ;
+- causalités ;
+- faits réglementaires ;
+- faits scientifiques ;
+- faits techniques.
+
+Une URL présente dans `allowed_source_urls` ne suffit pas.
+
+Le claim doit réellement être soutenu par le contenu source correspondant.
+
+claim_source_map = PASS obligatoire.
+
+---
+
+### SOURCE RELEVANCE
+
+Une source doit soutenir le mécanisme expliqué.
+
+Question :
+
+« Si je retire cette source, quel élément réel spécifique de l'article disparaît ? »
+
+Si rien d'important ne disparaît :
+
+source_relevance = FAIL.
+
+Ne jamais utiliser une source générale comme preuve d'une implication spécifique
+qu'elle ne traite pas.
+
+---
+
+### MECHANISM PROOF
+
+Avant rédaction, résumer le raisonnement comme :
+
+EVENT
+→ MECHANISM
+→ ACTOR EFFECT
+→ MATERIAL CONSEQUENCE
+→ FOLLOW-UP SIGNAL
+
+Chaque flèche doit être soutenue.
+
+Si le résultat ressemble à :
+
+EVENT
+→ vague interpretation
+→ generic importance
+
+mechanism_quality = FAIL.
+
+---
+
+### IMPLICATION SPECIFICITY
+
+La dernière idée doit être spécifique à CET événement.
+
+Rejeter les conclusions génériques telles que :
+
+- « la concurrence va s'intensifier » ;
+- « il faudra surveiller la suite » ;
+- « l'innovation reste importante » ;
+- « le secteur va devoir s'adapter » ;
+- « cela pourrait changer la donne » ;
+
+sans acteur, mécanisme et signal concret.
+
+Test :
+
+ACTOR
++
+WHAT CHANGES
++
+WHAT TO WATCH
+
+doivent pouvoir être identifiés précisément.
+
+implication_specificity = PASS.
+
+---
+
+### TWO-ORDINAL DISTINCTNESS
+
+Quand deux articles sont demandés pour le même topic :
+
+ils doivent représenter DEUX événements sous-jacents distincts.
+
+Test obligatoire :
+
+UNDERLYING_EVENT_1 != UNDERLYING_EVENT_2
+
+Normalement :
+
+PRIMARY_SOURCE_1 != PRIMARY_SOURCE_2
+
+Comparer également :
+
+MAIN_ACTOR
+MECHANISM
+IMPLICATION
+FOLLOW_UP_SIGNAL
+
+Deux angles issus de la même annonce ne constituent pas deux événements.
+
+Si un meilleur second événement existe :
+
+le choisir.
+
+---
+
+### MASTER FACTUAL CORE FR / EN
+
+Avant les rendus FR et EN, définir un factual core unique :
+
+EVENT
+ACTORS
+DATE
+NUMBERS
+SOURCES
+MECHANISM
+IMPLICATION
+SIGNAL
+UNCERTAINTY
+
+FR et EN dérivent de cette même fiche.
+
+Une langue ne peut pas ajouter seule :
+
+- chiffre ;
+- causalité ;
+- implication ;
+- risque ;
+- réserve ;
+- précision matérielle.
+
+cross_language_scope_parity = PASS.
+
+---
+
+### LENGTH / DENSITY
+
+Hard :
+
+120–220 mots par langue.
+
+Zone recommandée :
+
+145–190 mots.
+
+Chaque paragraphe doit ajouter quelque chose.
+
+Un bon article contient naturellement :
+
+- événement ;
+- mécanisme ;
+- conséquence ;
+- implication / signal.
+
+Mais ne jamais rendre cette structure visible comme une checklist.
+
+Si le sujet ne permet pas naturellement 120 bons mots :
+
+le sujet est trop faible.
+
+Changer de candidat.
+
+---
+
+### ANTI-TEMPLATE
+
+Comparer les articles de l'édition.
+
+Éviter la répétition automatique de formulations comme :
+
+« Le point stratégique... »
+« L'arbitrage est clair... »
+« Le signal à suivre... »
+« Le vrai test... »
+« Ce qui compte maintenant... »
+
+Une formulation isolée peut être naturelle.
+
+La répétition systématique est interdite.
+
+Le feed doit sembler édité, pas généré depuis un moule.
+
+editorial_naturalness = PASS.
+
+---
+
+### ADVERSARIAL SHADOW REVIEW
+
+Avant le premier submit, relire l'article comme un Reviewer hostile.
+
+Chercher :
+
+- événement peu intéressant ;
+- sujet sans conséquence réelle ;
+- mauvais topic ;
+- source hors sujet ;
+- claim non sourcé ;
+- mécanisme inventé ;
+- causalité excessive ;
+- implication générique ;
+- duplication avec l'autre ordinal ;
+- asymétrie FR / EN ;
+- remplissage ;
+- conclusion template ;
+- sport_business sans economics réels.
+
+Attribuer mentalement un score.
+
+SUBMIT uniquement si :
+
+SHADOW_REVIEW_SCORE >= 94
+
+ET :
+
+editorial_value = PASS
+materiality = PASS
+topic_fit = PASS
+source_relevance = PASS
+claim_source_map = PASS
+facts_verified = PASS
+mechanism_quality = PASS
+implication_specificity = PASS
+cross_language_scope_parity = PASS
+editorial_naturalness = PASS
+
+Si topic = sport_business :
+
+sport_business_materiality = PASS
+
+Si un seul check échoue :
+
+NE PAS SUBMIT.
+
+Changer de candidat ou corriger localement.
+
+---
+
 ## 5. FILTRE ÉDITORIAL AVANT RÉDACTION
 
 Avant de rédiger, vérifier mentalement :
