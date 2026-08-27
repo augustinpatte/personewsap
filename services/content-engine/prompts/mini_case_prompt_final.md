@@ -449,6 +449,95 @@ Résumé en une ligne pour mémoire anti-répétition.
 
 ---
 
+## IMMERSION ET VOIX ÉDITORIALE — PRIORITÉ ÉLEVÉE
+
+Le lecteur doit entrer directement dans une situation professionnelle.
+
+Le corps ne doit pas commenter la fabrication du mini-case.
+
+Éviter dans le texte destiné au lecteur :
+
+- « scénario fictif d'entraînement » ;
+- « dans ce cas, nous allons… » ;
+- « cette situation s'inspire de… » ;
+- « les questions testent… » ;
+- « la leçon est… » ;
+- « ce cas est éducatif… ».
+
+Lorsque la sécurité exige une distinction entre scénario fictif et conseil réel,
+utiliser le champ ou l'emplacement prévu par le produit plutôt que casser
+l'immersion dans chaque paragraphe.
+
+### SOURCE EN ARRIÈRE-PLAN
+
+Une source réelle sert à construire un cas solide.
+
+Elle ne doit pas devenir le narrateur du cas.
+
+Ne pas interrompre l'histoire pour expliquer au lecteur :
+« cette situation est inspirée du communiqué X ».
+
+L'attribution reste dans les champs de sources.
+
+Une attribution peut rester dans le corps uniquement lorsqu'elle est nécessaire
+à la compréhension factuelle elle-même.
+
+### COMMENCER DANS L'ACTION
+
+Préférer :
+
+« Mercredi matin, Harbour Bank dispose de 600 M$A… »
+
+à :
+
+« Scénario fictif d'entraînement. Harbour Bank… »
+
+Préférer une pression, une décision, une échéance ou une contrainte concrète.
+
+### NE PAS PRÉ-RÉSOUDRE LE QUIZ
+
+Le contexte doit contenir les informations nécessaires.
+
+Il ne doit pas déjà expliquer explicitement quelle option est la meilleure.
+
+Le lecteur doit encore avoir quelque chose à déduire.
+
+### DONNÉES FICTIVES INTERNES
+
+Un mini-case peut ajouter des contraintes fictives réalistes nécessaires au
+raisonnement :
+
+- capacité ;
+- budget ;
+- délai interne ;
+- volume ;
+- taux d'incident ;
+- effectif ;
+- limite opérationnelle.
+
+Ces données doivent être clairement des paramètres du scénario.
+
+Ne jamais les attribuer à la source réelle si elles ne viennent pas de cette
+source.
+
+Elles doivent être choisies de manière à rendre le problème calculable et
+cohérent.
+
+### SENSATION RECHERCHÉE
+
+Le lecteur doit penser :
+
+« Je dois décider. »
+
+Pas :
+
+« Le texte est en train de m'expliquer la bonne réponse avant le QCM. »
+
+Le mini-case doit ressembler à une petite décision de travail, pas à un exercice
+scolaire déguisé.
+
+---
+
 ## CONCLUSION
 
 Toujours terminer par `final_takeaway`.
@@ -657,6 +746,12 @@ Vérifier :
 19. Les trois distracteurs sont-ils tous défendables par un junior compétent ?
 20. La bonne réponse évite-t-elle d'être la plus longue et la plus technique des quatre ?
 21. `scenario_type` et `concept_tested` décrivent-ils un mécanisme réellement présent dans le texte du cas ?
+22. Le corps commence-t-il directement dans la situation plutôt que par une explication méta ?
+23. Ai-je supprimé les formulations « scénario fictif d'entraînement », « ce cas teste », « la leçon » et autres commentaires de fabrication ?
+24. Le corps laisse-t-il encore au lecteur un vrai raisonnement à effectuer ?
+25. Toute donnée fictive ajoutée est-elle clairement un paramètre interne du scénario et non un fait attribué à la source ?
+26. Chaque conclusion quantitative est-elle calculable avec les données réellement présentes ?
+27. Q3 contient-il au moins deux stratégies qu'un professionnel compétent pourrait sincèrement défendre ?
 
 Si une réponse est mauvaise, corriger avant génération.
 

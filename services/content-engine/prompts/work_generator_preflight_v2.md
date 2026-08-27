@@ -314,6 +314,104 @@ Une langue ne doit pas ajouter un fait ou une conclusion absente de l'autre.
 
 ---
 
+# 10A. SUFFISANCE DES CONTRAINTES ET COHÉRENCE NUMÉRIQUE — BLOQUANT
+
+Toute conclusion quantitative doit être calculable à partir des données réellement
+présentes dans le scénario.
+
+INTERDIT :
+
+- déduire une capacité sûre à partir d'un plafond sans connaître la charge ;
+- déduire qu'un volume dépasse une capacité sans taux d'incident ou fréquence ;
+- transformer une corrélation en relation quantitative ;
+- utiliser un chiffre dans la bonne réponse qui ne découle pas des données du cas.
+
+Avant submit, identifier chaque calcul ou conclusion quantitative et vérifier que
+TOUTES ses variables sont présentes.
+
+Si une variable manque :
+
+1. ajouter une hypothèse fictive interne explicitement présentée comme paramètre
+   du scénario, si le format l'autorise ;
+OU
+2. supprimer la conclusion quantitative.
+
+Ne jamais attribuer une hypothèse fictive à la source réelle.
+
+Recalculer manuellement chaque calcul.
+
+Le résultat doit être cohérent dans :
+
+- body_md ;
+- context ;
+- constraints ;
+- Q2 ;
+- Q3 ;
+- option correcte ;
+- feedback ;
+- explanation ;
+- sample_answer ;
+- expected_reasoning ;
+- final_takeaway.
+
+Test obligatoire :
+
+constraint_sufficiency = PASS
+numerical_consistency = PASS
+
+---
+
+# 10B. QUALITÉ ÉDITORIALE ET PARITÉ DE PORTÉE — BLOQUANT
+
+Le texte ne doit pas simplement être valide.
+
+Il doit être publiable.
+
+NEWSLETTER :
+
+- ne pas rendre visible la checklist mécanisme / implication / signal ;
+- éviter les mêmes transitions et conclusions que les autres articles ;
+- ne pas forcer une profondeur absente des sources ;
+- préférer une formulation concrète à un label abstrait.
+
+BUSINESS STORY :
+
+- chaque paragraphe apporte une nouvelle idée ;
+- ne pas répéter la thèse pour remplir ;
+- progression narrative visible ;
+- pas de cadence de rapport ou de consultant.
+
+MINI CASE :
+
+- immersion immédiate ;
+- pas de commentaire sur la fabrication du cas ;
+- ne pas pré-résoudre les questions dans le corps ;
+- Q3 conserve au moins deux voies professionnellement défendables.
+
+FR / EN :
+
+La parité n'est pas seulement l'absence de contradiction.
+
+Les deux langues doivent avoir la même PORTÉE éditoriale.
+
+Interdit :
+
+- un paragraphe supplémentaire important dans une seule langue ;
+- une nouvelle explication causale dans une seule langue ;
+- une implication ou un risque important présent dans une seule langue ;
+- un chiffre ou une réserve substantielle absent de l'autre version.
+
+Les formulations peuvent être naturelles et différentes.
+
+Les idées substantielles doivent être les mêmes.
+
+Tests obligatoires :
+
+editorial_naturalness = PASS
+cross_language_scope_parity = PASS
+
+---
+
 # 11. SCHEMA / JSON
 
 Avant submit vérifier :
@@ -369,6 +467,10 @@ fr_en_parity = PASS
 word_count_fr = PASS
 word_count_en = PASS
 no_placeholder = PASS
+constraint_sufficiency = PASS
+numerical_consistency = PASS
+editorial_naturalness = PASS
+cross_language_scope_parity = PASS
 
 Newsletter :
 
@@ -380,6 +482,7 @@ q1_method = PASS
 q2_application = PASS
 q3_tradeoff = PASS
 distractors_plausible = PASS
+immersion = PASS
 
 SI UN SEUL EST FAIL :
 

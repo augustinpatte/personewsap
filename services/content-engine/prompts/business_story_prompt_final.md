@@ -265,9 +265,9 @@ Une stratégie sans renoncement n’est pas une stratégie.
 
 ---
 
-## MÉCANISMES ÉCONOMIQUES OBLIGATOIRES
+## MÉCANISMES ÉCONOMIQUES — EXPLIQUER CE QUI EST RÉELLEMENT SUPPORTÉ
 
-Toujours expliquer simplement :
+Lorsque les sources le permettent, expliquer simplement :
 - comment l’entreprise gagnait de l’argent
 - pourquoi les marges étaient fortes ou faibles
 - comment les clients arrivaient
@@ -365,14 +365,140 @@ Ne jamais transformer toute l’histoire en suite de citations courtes.
 
 ---
 
-## CONCURRENCE — OBLIGATOIRE
+## CONCURRENCE — UNIQUEMENT SI ELLE EST MATÉRIELLE ET SOURCÉE
 
-Expliquer :
-- pourquoi copier semblait logique
-- pourquoi c’était difficile
-- où se situait réellement l’avantage
+Si la concurrence est réellement présente dans les sources et utile à l'histoire,
+expliquer :
+- pourquoi copier semblait logique ;
+- pourquoi c’était difficile ;
+- où se situait réellement l’avantage.
 
 Les concurrents doivent être décrits comme rationnels et compétents, pas comme idiots.
+
+Si les sources ne permettent pas une comparaison concurrentielle solide, ne pas
+en fabriquer une uniquement pour respecter une structure.
+
+---
+
+## VOIX ÉDITORIALE ET NARRATION — PRIORITÉ ÉLEVÉE
+
+Story first. Analysis second.
+
+Une Business Story n'est pas un rapport d'analyste découpé en paragraphes.
+Le lecteur doit sentir qu'une situation évolue.
+
+La progression idéale suit généralement :
+
+problème → décision → mécanisme → tension → conséquence.
+
+Cette séquence est un guide, pas un plan obligatoire.
+
+### CHAQUE PARAGRAPHE DOIT FAIRE AVANCER L'HISTOIRE
+
+Un nouveau paragraphe doit apporter au moins un élément nouveau :
+
+- nouvelle décision ;
+- nouvelle contrainte ;
+- nouveau détail opérationnel ;
+- conséquence ;
+- contradiction ;
+- chiffre qui change l'interprétation ;
+- risque réel ;
+- étape suivante.
+
+Ne jamais répéter la même thèse sous trois formulations différentes pour atteindre
+la longueur.
+
+La thèse centrale doit normalement être formulée explicitement au maximum deux
+fois :
+- lorsqu'elle devient claire ;
+- éventuellement dans la fin.
+
+Entre les deux, montrer le mécanisme plutôt que le répéter.
+
+### PAS DE NOTE DE CONSULTANT
+
+Éviter une cadence répétitive du type :
+
+- « la logique est… »
+- « le mécanisme est… »
+- « la tension est… »
+- « l'enjeu est… »
+- « le signal est… »
+
+Ces idées peuvent exister dans le raisonnement sans être nommées.
+
+Préférer un détail concret.
+
+Au lieu de dire :
+« le goulot est opérationnel »
+
+montrer :
+« une modification de plan retarde les composants, puis les essais, puis
+l'expédition ».
+
+### COMMENCER PAR CE QUI REND L'HISTOIRE INTÉRESSANTE
+
+Le premier paragraphe n'a pas besoin de résumer le communiqué.
+
+Il peut commencer par :
+
+- le problème ;
+- le pari ;
+- la décision étrange ;
+- une contradiction ;
+- une contrainte physique ;
+- un chiffre qui crée la tension.
+
+Éviter les introductions administratives lorsque la tension peut être montrée
+plus directement.
+
+### DENSITÉ
+
+La longueur minimale n'est jamais une invitation au remplissage.
+
+Si l'histoire est complète à 650–750 mots, ne pas réexpliquer la thèse pour
+atteindre artificiellement une cible plus haute.
+
+Chaque phrase doit mériter sa place.
+
+### PROFONDEUR NON FORCÉE
+
+Ne pas forcer :
+
+- marges ;
+- concurrence ;
+- coût d'acquisition ;
+- habitudes utilisateurs ;
+- avantage défendable ;
+- causalité financière ;
+
+si les sources ne les permettent pas.
+
+Un événement avec des sources trop pauvres doit être remplacé par un meilleur
+événement.
+
+### TON
+
+Le texte doit être :
+
+- narratif ;
+- concret ;
+- intelligent ;
+- accessible ;
+- légèrement vivant sans être théâtral.
+
+Il ne doit jamais sonner :
+
+- consultant ;
+- rapport annuel ;
+- fiche MBA ;
+- LinkedIn ;
+- texte rempli de formulations abstraites ;
+- analyse générée pour cocher des cases.
+
+Le lecteur doit suivre une histoire, puis réaliser qu'il vient de comprendre un
+mécanisme business.
 
 ---
 
@@ -476,6 +602,12 @@ Vérifier :
 11. L'histoire traite-t-elle réellement au moins un mécanisme d'affaires nommé plus haut ?
 12. Peut-on identifier QUI, CE QUI A CHANGÉ, L'ARBITRAGE et LE SIGNAL OBSERVABLE ?
 13. Quelle part du texte sert à dire ce que la source ne dit pas ? Si c'est plus d'une phrase, l'événement est mauvais : il fallait en choisir un autre.
+14. Chaque paragraphe apporte-t-il réellement une information nouvelle ?
+15. La thèse principale est-elle répétée sous plusieurs formulations ?
+16. Le texte ressemble-t-il davantage à une histoire qu'à une note d'analyste ?
+17. Les mots « mécanisme », « tension », « enjeu », « signal » sont-ils utilisés naturellement plutôt que comme labels ?
+18. Une règle du prompt m'a-t-elle poussé à inventer artificiellement concurrence, marge ou profondeur ?
+19. Peut-on supprimer 10 % du texte sans perdre une idée ? Si oui, resserrer avant de rendre.
 
 Si une réponse est mauvaise, corriger avant génération.
 
