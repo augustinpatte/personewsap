@@ -1,4 +1,5 @@
 import type { TopicId } from "../../constants/product";
+import { getUserLocalYear } from "../../lib/localDate";
 import type { Language } from "../../types/domain";
 import type { ContentType } from "../today/contentTypes";
 import { resolveEditionType, type EditionType } from "../today/editionCadence";
@@ -293,7 +294,9 @@ export function parseArchiveQuery(query: string, language: Language): ArchiveQue
   }
 
   if (month !== null) {
-    const resolvedYear = year ?? new Date().getUTCFullYear();
+    // The reader's year, not the UTC one: searching "decembre" on 31 December
+    // at 22:00 in New Orleans must not resolve to the following year.
+    const resolvedYear = year ?? getUserLocalYear();
     const range =
       day !== null ? dayRange(resolvedYear, month, day) : monthRange(resolvedYear, month);
 

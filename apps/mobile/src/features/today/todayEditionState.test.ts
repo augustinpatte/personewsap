@@ -128,12 +128,17 @@ describe("loading and error are never mistaken for an empty schedule", () => {
   });
 });
 
-describe("the edition date is the product's, not the device's", () => {
-  it("resolves the same calendar day for every device timezone", () => {
-    // 22:30 UTC on the 18th is already 00:30 on the 19th in Paris. A reader in
-    // New York (18:30, still the 18th locally) must be told about the same
-    // edition as a reader in Paris, or the app asks for a drop the job never
-    // built.
+/**
+ * getProductEditionDate answers "which edition dates can exist yet" — a fact
+ * about the publisher, resolved in one zone for everyone. What day it is for
+ * the *reader* is getUserLocalDateKey (src/lib/localDate.ts), and how the two
+ * combine into the date the Today view requests is resolveReaderEditionDate,
+ * covered in readerEditionDate.test.ts.
+ */
+describe("the publisher's edition date is the same for every device", () => {
+  it("resolves the same calendar day whatever the device timezone", () => {
+    // 22:30 UTC on the 18th is already 00:30 on the 19th in Paris, which is the
+    // first moment the job may have built the 19th's edition.
     const lateEvening = new Date("2026-08-18T22:30:00Z");
 
     expect(getProductEditionDate(lateEvening)).toBe("2026-08-19");
@@ -333,10 +338,14 @@ describe("every content module routes through the one resolver", () => {
     expect(source).toMatch(/state=\{editionState\}/);
   });
 
-  it("asks Supabase for the product edition date, never a device-local one", () => {
+  it("asks Supabase for the reader's edition date, never a raw UTC one", () => {
     const provider = readFileSync(join(__dirname, "DailyDropContext.tsx"), "utf8");
 
-    expect(provider).toMatch(/getProductEditionDate\(\)/);
+    // The reader's own calendar day, capped at what the publisher has reached.
+    // Requesting getProductEditionDate() directly is what moved a New Orleans
+    // reader into tomorrow at 21:30 their time.
+    expect(provider).toMatch(/resolveReaderEditionDate\(\)/);
+    expect(provider).not.toMatch(/getProductEditionDate\(\)/);
     expect(provider).not.toMatch(/toISOString\(\)\.slice\(0, 10\)/);
   });
 });

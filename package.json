@@ -46,6 +46,7 @@
     "learning:catalog:report": "node scripts/learning-paths-report.mjs",
     "learning:proof": "npm --prefix services/content-engine run learning-proof --",
     "supabase:doctor": "node scripts/supabase-schema-doctor.mjs",
+    "supabase:migration-check": "node scripts/migration-history-check.mjs",
     "backend:e2e": "node scripts/backend-e2e.mjs",
     "backend:e2e:live-rss": "node scripts/backend-e2e.mjs --live-rss",
     "backend:e2e:llm": "node scripts/backend-e2e.mjs --llm",
@@ -65,6 +66,11 @@
     "content:catalog-repair": "npm --prefix services/content-engine run catalog-repair --",
     "content:staging-publish": "npm --prefix services/content-engine run staging-publish --",
     "content:staging-preview": "npm --prefix services/content-engine run staging-publish -- --preview",
+    "publisher:status": "node scripts/publisher-status.mjs",
+    "publisher:test:sql": "node scripts/publisher-sql-tests.mjs",
+    "publisher:test": "vitest run supabase/functions/personews-scheduled-publisher",
+    "edge:deploy:prod": "supabase functions deploy delete-account --project-ref wkbviidrbmehmjbhvpeh && supabase functions deploy personews-task-publisher --project-ref wkbviidrbmehmjbhvpeh --no-verify-jwt",
+    "edge:deploy:staging": "supabase functions deploy personews-task-bridge --project-ref kukyotcgbnchsoeriqoz --no-verify-jwt && supabase functions deploy personews-scheduled-publisher --project-ref kukyotcgbnchsoeriqoz --no-verify-jwt",
     "content:legacy-api-run": "PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic CONTENT_STATUS=published npm --prefix services/content-engine run daily-job --"
   },
   "dependencies": {

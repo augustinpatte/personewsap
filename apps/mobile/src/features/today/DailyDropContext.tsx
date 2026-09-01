@@ -7,6 +7,7 @@ import {
   useState,
   type PropsWithChildren
 } from "react";
+import { AppState } from "react-native";
 
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import type { DataFetchSource } from "../../lib/dataState";
@@ -25,7 +26,7 @@ import type {
   TodayDailyDrop
 } from "./contentTypes";
 import { fetchTodayDrop, getFallbackTodayDrop } from "./dailyDropData";
-import { getProductEditionDate } from "./editionCadence";
+import { resolveReaderEditionDate } from "./editionCadence";
 
 export type DailyDropContextValue = {
   language: ContentLanguage;
@@ -61,7 +62,7 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
   const language: ContentLanguage = profileLanguage ?? "en";
   // Mock only in dev/preview builds; production starts from an honest empty drop.
   const fallbackDrop = useMemo(
-    () => getFallbackTodayDrop(language, getProductEditionDate()),
+    () => getFallbackTodayDrop(language, resolveReaderEditionDate()),
     [language]
   );
 
@@ -91,7 +92,7 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
         return;
       }
 
-      const result = await fetchTodayDrop(userId, getProductEditionDate(), {
+      const result = await fetchTodayDrop(userId, resolveReaderEditionDate(), {
         language
       });
 
@@ -134,6 +135,41 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
     return () => {
       isMounted = false;
     };
+  }, [authStatus, load]);
+
+  // The provider otherwise resolves the edition date once per session, so an
+  // app left open across the reader's local midnight — or carried into another
+  // timezone — would keep serving the day it started on. Re-checking on
+  // foreground is enough: that is when the reader can actually see the screen,
+  // and the check is a string comparison, so a no-op costs nothing.
+  useEffect(() => {
+    if (authStatus !== "ready") {
+      return;
+    }
+
+    let isMounted = true;
+    let lastEditionDate = state.drop.drop_date;
+
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState !== "active") {
+        return;
+      }
+
+      const currentEditionDate = resolveReaderEditionDate();
+
+      if (currentEditionDate !== lastEditionDate) {
+        lastEditionDate = currentEditionDate;
+        void load(() => isMounted);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+    // `state.drop.drop_date` is read as the starting point only; re-subscribing
+    // on every drop change would tear the listener down mid-flight.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus, load]);
 
   const items = useMemo(() => flattenDailyDropItems(state.drop), [state.drop]);

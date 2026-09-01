@@ -984,13 +984,33 @@ describe("workflow schedules", () => {
       expect(workflow).toContain("* * 1,3,5,0");
     }
 
-    expect(workflows[0]).toContain('cron: "0 19 * * 1,3,5,0"');
+    // The edition itself is published by Supabase cron at 19:00 Europe/Paris.
+    // This workflow only announces an edition that already exists, so it starts
+    // ten minutes later — announcing at 19:00 would race the publisher.
+    expect(workflows[0]).toContain('cron: "10 19 * * 1,3,5,0"');
     expect(workflows[1]).toContain('cron: "15 19 * * 1,3,5,0"');
     expect(workflows[1]).toContain('cron: "30 19 * * 1,3,5,0"');
     expect(workflows[1]).toContain('cron: "0 20 * * 1,3,5,0"');
     expect(workflows[2]).toContain('cron: "35 19 * * 1,3,5,0"');
     expect(workflows[2]).toContain('cron: "35 20 * * 1,3,5,0"');
     expect(workflows[2]).toContain('cron: "35 21 * * 1,3,5,0"');
+  });
+
+  it("does not publish editions from CI", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const workflow = await readFile(".github/workflows/content-daily-job.yml", "utf8");
+
+    // Publication belongs to the Supabase scheduled publisher and to nothing
+    // else. A second publisher writing the same edition through a different
+    // dedup key is the duplicate this repository must not be able to produce.
+    // Comment lines are excluded on purpose: the file explains at length why the
+    // publish step is gone, and naming the removed command is part of that.
+    const executable = workflow
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("#"));
+
+    expect(executable.some((line) => line.includes("staging-publish"))).toBe(false);
+    expect(executable.some((line) => line.includes("publish_scheduled_staging_payload"))).toBe(false);
   });
 });
 

@@ -5,6 +5,7 @@ import {
   type DataFallbackReason,
   type DataFetchResult
 } from "../../lib/dataState";
+import { getUserLocalDateKey } from "../../lib/localDate";
 import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
 import { orderMiniCaseQuestionOptions } from "./miniCaseOptionOrder";
 import { allowMockContent } from "../../lib/mockPolicy";
@@ -1008,7 +1009,9 @@ function estimateReadMinutes(contentItems: ContentItem[]): number {
 }
 
 function normalizeDropDate(date: string | Date): string {
-  return typeof date === "string" ? date.slice(0, 10) : date.toISOString().slice(0, 10);
+  // A Date must go through the reader's calendar day, never toISOString(): the
+  // UTC slice is already tomorrow for most of the Americas every evening.
+  return typeof date === "string" ? date.slice(0, 10) : getUserLocalDateKey(date);
 }
 
 /** Exported so the language-switch guard can assert the key really differs per language. */

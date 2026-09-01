@@ -6,15 +6,35 @@ Daily operator guide for the PersoNewsAP content backend.
 
 Since 2026-08-22 the scheduled path does **no LLM generation of its own**.
 Editorial generation happens in ChatGPT Scheduled Tasks against a separate
-Supabase *staging* project; a human approves a batch there; then
-`.github/workflows/content-daily-job.yml` reads the approved batch, revalidates
-every item through the same validators the LLM path used, persists it to
-production and assigns the daily drops.
+Supabase *staging* project, and an independent reviewer approves the batch there.
 
-That workflow sets no `USE_LLM`, no `OPENAI_API_KEY` and no `ANTHROPIC_API_KEY`,
-by design: there is no automatic fallback to a paid API, because an unreviewed
-edition is worse than no edition. When no approved batch is ready the run is a
-clean no-op with a warning annotation.
+Since 2026-09-01, **publication is no longer done by CI or by any agent**. It runs
+inside Supabase: pg_cron in the staging project fires the
+`personews-scheduled-publisher` Edge Function at 19:00 Europe/Paris on Monday,
+Wednesday, Friday and Sunday; a deterministic SQL hard gate decides whether the
+batch is genuinely complete; and production's own
+`publish_scheduled_staging_payload` writes the whole edition in one transaction.
+The publisher then reads production back and only marks the staging batch
+published once the edition is verifiably there.
+
+Full description, including the DST-safe schedule, the cross-project security
+model and the diagnosis commands: **[docs/SCHEDULED_PUBLICATION.md](docs/SCHEDULED_PUBLICATION.md)**.
+
+Is tonight's edition going out?
+
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_… npm run publisher:status
+```
+
+`.github/workflows/content-daily-job.yml` still runs, at 19:10 Europe/Paris, but
+only for what comes *after* an edition exists: push notifications and health
+checks. It no longer publishes anything. `npm run content:staging-publish` remains
+as a manual break-glass publisher and is not on any schedule.
+
+No workflow sets `USE_LLM`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`, by design:
+there is no automatic fallback to a paid API, because an unreviewed edition is
+worse than no edition. When no approved batch is ready, nothing is published and
+the reason is recorded in `public.scheduled_publication_runs`.
 
 The direct-API pipeline described in the rest of this document still exists and
 still works, but it is now the **legacy operator path**, run by hand from a

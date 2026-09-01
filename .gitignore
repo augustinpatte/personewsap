@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 apps/mobile/.expo
 supabase/.temp
+supabase-staging/supabase/.temp
 
 # Repair plans and review files: local operator artifacts, never committed.
 runs/

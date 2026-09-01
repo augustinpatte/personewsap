@@ -11,13 +11,18 @@
  * ("No new edition today") instead of an error or a "missing content" state.
  */
 
+import { getDeviceTimeZone, getUserLocalDateKey } from "../../lib/localDate";
+
 export type EditionType = "daily" | "weekly_digest";
 
 /**
- * The single product timezone. The editorial date is the same for everyone,
- * everywhere — it is never derived from the device clock. A reader in the US who
- * is still on Tuesday night sees Wednesday's Paris edition the moment it is the
- * editorial day in Paris.
+ * The PUBLISHER's timezone — not the reader's.
+ *
+ * PersoNews builds one edition per editorial day, and the job that builds it
+ * runs on a Europe/Paris schedule (19:00 Mon/Wed/Fri/Sun). So this zone answers
+ * exactly one question: *which edition dates can exist yet*. It must never be
+ * used to decide what day it is for the person reading — that is
+ * `getUserLocalDateKey()` in src/lib/localDate.ts, and only that.
  */
 export const PRODUCT_TIME_ZONE = "Europe/Paris";
 
@@ -31,12 +36,44 @@ const productDateFormat = new Intl.DateTimeFormat("en-CA", {
 });
 
 /**
- * Resolve the current editorial date (YYYY-MM-DD) in the product timezone.
- * This is what the client uses to decide which edition exists — never the
- * device-local calendar date.
+ * The newest edition date the content engine may have built by now.
+ *
+ * Kept in parity with services/content-engine/src/scheduler/editionCadence.ts:
+ * both sides must resolve the same YYYY-MM-DD for the same instant, or the app
+ * asks for a drop_date the job has never written.
  */
 export function getProductEditionDate(now: Date = new Date()): string {
   return productDateFormat.format(now);
+}
+
+/**
+ * The edition date the Today view should ask Supabase for.
+ *
+ * Two facts, both required:
+ *
+ *   - the reader's own calendar day, from their device timezone. An edition is
+ *     theirs for the whole of their local day and moves to the past at their
+ *     local midnight, not at Paris's. This is what stopped a reader in New
+ *     Orleans from losing Sunday's edition at 21:30 on Sunday.
+ *
+ *   - the publisher's day, as a ceiling. The reader's day is never allowed to
+ *     run ahead of the newest edition that can exist: a reader in Tokyo is on
+ *     the 31st while Paris is still building the 30th, and asking for the 31st
+ *     would show them an empty app rather than the edition they have.
+ *
+ * So: the reader's own day, capped at what has been published. West of Paris
+ * the reader's day wins (the bug this fixes); east of Paris the ceiling wins
+ * and behaviour is unchanged. Nowhere is a geographic zone used to decide what
+ * "today" means to the reader.
+ */
+export function resolveReaderEditionDate(
+  now: Date = new Date(),
+  timeZone: string = getDeviceTimeZone()
+): string {
+  const readerToday = getUserLocalDateKey(now, timeZone);
+  const latestPublishable = getProductEditionDate(now);
+
+  return readerToday < latestPublishable ? readerToday : latestPublishable;
 }
 
 const EDITION_WEEKDAYS: Partial<Record<number, EditionType>> = {

@@ -1,0 +1,19 @@
+# STAGING project directory — kukyotcgbnchsoeriqoz.
+#
+# The repository holds two Supabase projects. The root `supabase/` directory is
+# PRODUCTION (wkbviidrbmehmjbhvpeh) and is what the CLI picks up by default; this
+# one is the ChatGPT staging project, and the CLI only ever sees it when it is
+# pointed here explicitly:
+#
+#   supabase migration list  --workdir supabase-staging --linked
+#   supabase db push         --workdir supabase-staging --linked --dry-run
+#
+# Keeping them apart is not tidiness. One shared `migrations/` folder would mean
+# a staging push proposing to replay every production migration into staging, and
+# a production push proposing the reverse — with `automation_batches` and
+# `content_items` living in different projects, either direction is a bad day.
+#
+# `project_id` namespaces the local Docker stack only. The remote project is in
+# supabase/.temp/project-ref (gitignored), written by:
+#   supabase link --workdir supabase-staging --project-ref kukyotcgbnchsoeriqoz
+project_id = "personewsap-staging-local"

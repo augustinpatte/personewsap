@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getProductEditionDate as getMobileEditionDate,
+  resolveReaderEditionDate,
   PRODUCT_TIME_ZONE as MOBILE_TIME_ZONE
 } from "../../apps/mobile/src/features/today/editionCadence";
 import {
@@ -12,6 +13,11 @@ import {
 /**
  * The app and the content engine must resolve the same YYYY-MM-DD for the same
  * instant, or the app requests an edition the job has not built.
+ *
+ * This is the PUBLISHER's date on both sides — "which edition dates exist yet".
+ * It is not what "today" means to a reader: that is the device timezone, in
+ * apps/mobile/src/lib/localDate.ts. The Today view combines the two in
+ * resolveReaderEditionDate, which never asks for a date past the one below.
  *
  * This test deliberately lives at the repo root: it is the only place that can
  * import both mirrors (apps/mobile and services/content-engine) and compare
@@ -56,6 +62,29 @@ describe("editorial date parity between the app and the content engine", () => {
     expect(getMobileEditionDate(instant)).toBe("2026-06-22");
     expect(getEngineEditionDate(instant)).toBe("2026-06-22");
     expect(instant.toISOString().slice(0, 10)).toBe("2026-06-21");
+  });
+
+  it("bounds the date the app actually requests, in every reader timezone", () => {
+    // The reader's own day decides Today/Past, but the app never asks for an
+    // edition the job cannot have built yet.
+    const zones = [
+      "America/Chicago",
+      "America/Los_Angeles",
+      "America/New_York",
+      "Europe/Paris",
+      "Asia/Tokyo",
+      "Pacific/Kiritimati"
+    ];
+
+    for (const iso of instants) {
+      const instant = new Date(iso);
+
+      for (const zone of zones) {
+        expect(resolveReaderEditionDate(instant, zone) <= getEngineEditionDate(instant)).toBe(
+          true
+        );
+      }
+    }
   });
 
   it("agrees across a whole year of hourly instants", () => {
