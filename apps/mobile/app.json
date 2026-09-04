@@ -41,6 +41,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "30f70b52-4540-465a-88d7-c0b0b428c082"
+      }
+    },
+    "owner": "augustinpatte"
   }
 }
