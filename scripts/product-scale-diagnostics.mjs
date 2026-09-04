@@ -94,7 +94,7 @@ check("push workflows use Europe/Paris edition, retry and receipt schedules", ()
   const receiptWorkflow = read(".github/workflows/push-receipts.yml");
 
   assertIncludes(editionWorkflow, 'timezone: "Europe/Paris"');
-  assertIncludes(editionWorkflow, 'cron: "17 9 * * 1,3,5,0"');
+  assertIncludes(editionWorkflow, 'cron: "10 19 * * 1,3,5,0"');
   assertIncludes(retryWorkflow, 'timezone: "Europe/Paris"');
   assertIncludes(retryWorkflow, "content:push-notifications");
   assertIncludes(receiptWorkflow, 'timezone: "Europe/Paris"');

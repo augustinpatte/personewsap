@@ -48,6 +48,12 @@
         "projectId": "30f70b52-4540-465a-88d7-c0b0b428c082"
       }
     },
-    "owner": "augustinpatte"
+    "owner": "augustinpatte",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/30f70b52-4540-465a-88d7-c0b0b428c082"
+    }
   }
 }
