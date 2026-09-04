@@ -7,6 +7,7 @@ import {
 } from "../../lib/dataState";
 import { getUserLocalDateKey } from "../../lib/localDate";
 import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
+import { resolveContentItemsForLanguage } from "./contentTranslations";
 import { orderMiniCaseQuestionOptions } from "./miniCaseOptionOrder";
 import { allowMockContent } from "../../lib/mockPolicy";
 import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../lib/supabase";
@@ -133,18 +134,17 @@ export async function fetchTodayDrop(
       return createCachedResult(cachedDrop);
     }
 
-    let dropQuery = supabase
+    // One drop per (user, date), whatever language it was published in. The
+    // reader's current language is applied afterwards by translating the items
+    // (see resolveContentItemsForLanguage), so switching language mid-day never
+    // hides an edition that already exists in the other language.
+    const { data: drop, error: dropError } = await supabase
       .from("daily_drops")
       .select(dailyDropSelect)
       .eq("user_id", userId)
       .eq("drop_date", dropDate)
-      .in("status", [...publishedDropStatuses]);
-
-    if (options.language) {
-      dropQuery = dropQuery.eq("language", options.language);
-    }
-
-    const { data: drop, error: dropError } = await dropQuery.maybeSingle();
+      .in("status", [...publishedDropStatuses])
+      .maybeSingle();
 
     if (dropError) {
       const normalizedError = normalizeSupabaseError(dropError);
@@ -172,7 +172,7 @@ export async function fetchTodayDrop(
       return createSupabaseResult(buildEmptyTodayDrop(options.language ?? "en", dropDate));
     }
 
-    const mappedDrop = await fetchAndMapDailyDrop(drop);
+    const mappedDrop = await fetchAndMapDailyDrop(drop, options.language);
 
     if (!mappedDrop) {
       logTodayDataProof("no_edition", {
@@ -336,17 +336,15 @@ export async function fetchContentItemById(
       return createCachedResult(cachedItem);
     }
 
-    let contentQuery = supabase
+    // The id names the assigned row, whatever language it was published in;
+    // the requested language is applied afterwards by translation so an item
+    // from an edition published in the other language still opens.
+    const { data: contentItem, error } = await supabase
       .from("content_items")
       .select(contentItemSelect)
       .eq("id", contentItemId)
-      .eq("status", "published");
-
-    if (options.language) {
-      contentQuery = contentQuery.eq("language", options.language);
-    }
-
-    const { data: contentItem, error } = await contentQuery.maybeSingle();
+      .eq("status", "published")
+      .maybeSingle();
 
     if (error) {
       const normalizedError = normalizeSupabaseError(error);
@@ -373,9 +371,17 @@ export async function fetchContentItemById(
       return createSupabaseResult(null);
     }
 
+    // Render in the requested language when a translation exists; the item
+    // keeps its assigned id (and its own sources — both renderings of one job
+    // cite the same source records).
+    const [renderedItem] = await resolveContentItemsForLanguage(
+      [contentItem],
+      options.language
+    );
+
     const sourcesByContentItemId = await fetchSourcesByContentItemIds([contentItemId]);
     const mappedItem = mapDailyDropContentItem(
-      contentItem,
+      renderedItem ?? contentItem,
       synthesizeDropItem(contentItemId, slot),
       sourcesByContentItemId
     );
@@ -422,7 +428,8 @@ async function isContentItemAssignedToUser(
 }
 
 async function fetchAndMapDailyDrop(
-  drop: DailyDrop
+  drop: DailyDrop,
+  language?: ContentLanguage
 ): Promise<TodayDailyDrop | null> {
   if (!supabase) {
     return null;
@@ -455,8 +462,15 @@ async function fetchAndMapDailyDrop(
     throw contentItemsError;
   }
 
+  // Render in the reader's current language: display fields come from the
+  // translation, ids stay the assigned rows' — the anchor for interactions.
+  const renderedContentItems = await resolveContentItemsForLanguage(
+    contentItems ?? [],
+    language
+  );
+
   const contentItemsById = new Map(
-    (contentItems ?? []).map((contentItem) => [contentItem.id, contentItem])
+    renderedContentItems.map((contentItem) => [contentItem.id, contentItem])
   );
   const availableContentItems = orderedDropItems
     .map((dropItem) => contentItemsById.get(dropItem.content_item_id))
@@ -472,7 +486,13 @@ async function fetchAndMapDailyDrop(
     })
     .filter(isDailyDropContentItem);
 
-  return assembleTodayDrop(drop, mappedItems, availableContentItems);
+  // The edition's own chrome (title) follows the rendered language, not the
+  // language the drop happened to be published in.
+  return assembleTodayDrop(
+    { ...drop, language: language ?? drop.language },
+    mappedItems,
+    availableContentItems
+  );
 }
 
 async function fetchSourcesByContentItemIds(

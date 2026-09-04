@@ -9,10 +9,12 @@ const USER_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 type QueryCall = {
   table: string;
   eq: Array<{ column: string; value: unknown }>;
+  or: string[];
 };
 
 const calls: QueryCall[] = [];
 let assignments = new Set<string>();
+let hasTwin = true;
 
 vi.stubGlobal("__DEV__", false);
 
@@ -33,6 +35,7 @@ beforeEach(() => {
   clearMemoryCache();
   calls.length = 0;
   assignments = new Set([`${USER_A}:${CONTENT_ID}`]);
+  hasTwin = true;
 });
 
 describe("reader content cache account isolation", () => {
@@ -66,13 +69,14 @@ describe("reader content cache account isolation", () => {
     expect(tableCalls("content_items")).toHaveLength(2);
   });
 
-  it("does not serve a cached FR item into an EN reader", async () => {
-    await expect(
-      fetchContentItemById(CONTENT_ID, {
-        language: "fr",
-        userId: USER_A
-      })
-    ).resolves.toMatchObject({ source: "supabase" });
+  it("serves the EN rendering of a FR item to an EN reader, under the same id", async () => {
+    const french = await fetchContentItemById(CONTENT_ID, {
+      language: "fr",
+      userId: USER_A
+    });
+
+    expect(french.source).toBe("supabase");
+    expect(french.data?.title).toBe("Story assigned to account A");
 
     const english = await fetchContentItemById(CONTENT_ID, {
       language: "en",
@@ -80,19 +84,40 @@ describe("reader content cache account isolation", () => {
     });
 
     expect(english.source).toBe("supabase");
-    expect(english.data).toBeNull();
-    expect(tableCalls("content_items")).toHaveLength(2);
+    // The display comes from the EN twin; the id stays the assigned row's, so
+    // interactions and completion keep one anchor across languages.
+    expect(english.data?.id).toBe(CONTENT_ID);
+    expect(english.data?.language).toBe("en");
+    expect(english.data?.title).toBe("Story assigned to account A (EN)");
+  });
+
+  it("falls back to the item's own language when no translation exists", async () => {
+    hasTwin = false;
+
+    const english = await fetchContentItemById(CONTENT_ID, {
+      language: "en",
+      userId: USER_A
+    });
+
+    expect(english.source).toBe("supabase");
+    expect(english.data?.id).toBe(CONTENT_ID);
+    expect(english.data?.language).toBe("fr");
+    expect(english.data?.title).toBe("Story assigned to account A");
   });
 });
 
 function createQuery(table: string) {
-  const call: QueryCall = { table, eq: [] };
+  const call: QueryCall = { table, eq: [], or: [] };
   calls.push(call);
 
   const builder: Record<string, unknown> = {
     select: () => builder,
     eq: (column: string, value: unknown) => {
       call.eq.push({ column, value });
+      return builder;
+    },
+    or: (filter: string) => {
+      call.or.push(filter);
       return builder;
     },
     in: () => builder,
@@ -111,9 +136,8 @@ function resolveSingle(call: QueryCall) {
   if (call.table === "content_items") {
     const id = eqValue(call, "id");
     const status = eqValue(call, "status");
-    const language = eqValue(call, "language");
 
-    if (id === CONTENT_ID && status === "published" && language === "fr") {
+    if (id === CONTENT_ID && status === "published") {
       return { data: contentItem(), error: null };
     }
 
@@ -136,11 +160,15 @@ function resolveSingle(call: QueryCall) {
 }
 
 function resolveMany(call: QueryCall) {
-  if (call.table === "content_item_sources") {
-    return { data: [], error: null };
-  }
+  // The translation lookup: content_items filtered on language + an OR over
+  // the logical-key metadata fields.
+  if (call.table === "content_items" && call.or.length > 0) {
+    const language = eqValue(call, "language");
 
-  if (call.table === "sources") {
+    if (hasTwin && language === "en" && call.or[0]?.includes("job-1")) {
+      return { data: [englishTwin()], error: null };
+    }
+
     return { data: [], error: null };
   }
 
@@ -172,6 +200,7 @@ function contentItem() {
     generation_run_id: null,
     source_count: 0,
     metadata: {
+      staging_job_id: "job-1",
       company_or_market: "Marché",
       decision: "Choisir le bon rythme.",
       lesson: "La cadence compte.",
@@ -182,5 +211,24 @@ function contentItem() {
     },
     created_at: "2026-08-18T10:00:00.000Z",
     updated_at: "2026-08-18T10:00:00.000Z"
+  };
+}
+
+function englishTwin() {
+  return {
+    ...contentItem(),
+    id: "22222222-2222-4222-8222-222222222222",
+    language: "en",
+    title: "Story assigned to account A (EN)",
+    metadata: {
+      staging_job_id: "job-1",
+      company_or_market: "Market",
+      decision: "Pick the right pace.",
+      lesson: "Cadence matters.",
+      outcome: "The team keeps slack.",
+      setup: "A team prepares its launch.",
+      story_date: "2026-08-18",
+      tension: "Growth or quality."
+    }
   };
 }

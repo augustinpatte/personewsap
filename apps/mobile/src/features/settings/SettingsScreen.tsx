@@ -20,7 +20,7 @@ import { NotificationPreferencesCard } from "../notifications";
 import { LearningAccountSection } from "../learning";
 import { PreferencesEditor, updateProfileLanguage } from "../preferences";
 import { recordLanguageChangeNotice } from "../preferences/languageChangeNotice";
-import { shouldApplyLanguageSaveResult } from "../preferences/languagePersistence";
+import { performLanguageChange } from "../preferences/languageSwitch";
 import { LANGUAGE_OPTIONS, localizeOptions, SelectableCard } from "../onboarding";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { formatLanguageName, localized } from "../../lib/i18n";
@@ -73,44 +73,34 @@ export function SettingsScreen() {
 
   const handleLanguageChange = useCallback(
     async (language: Language): Promise<boolean> => {
-      const previousLanguage = profileLanguage ?? "en";
       const requestId = languageSaveRequestRef.current + 1;
       languageSaveRequestRef.current = requestId;
-      setLanguageSaveError(null);
-      applyProfileLanguage(language);
 
-      if (!user?.id) {
-        return true;
-      }
-
-      const result = await updateProfileLanguage(user.id, language);
-
-      if (
-        !shouldApplyLanguageSaveResult({
-          requestId,
-          latestRequestId: languageSaveRequestRef.current
-        })
-      ) {
-        return true;
-      }
-
-      if (!result.ok) {
-        applyProfileLanguage(previousLanguage);
-        setLanguageSaveError(
-          localized(
-            {
-              en: "Could not save your language. Your previous language was restored.",
-              fr: "Impossible d'enregistrer votre langue. La langue précédente a été restaurée."
-            },
-            previousLanguage
-          )
-        );
-        return false;
-      }
-
-      await recordLanguageChangeNotice(AsyncStorage, language);
-      await refreshAuthState();
-      return true;
+      return performLanguageChange({
+        language,
+        previousLanguage: profileLanguage ?? "en",
+        userId: user?.id ?? null,
+        requestId,
+        getLatestRequestId: () => languageSaveRequestRef.current,
+        applyLanguage: applyProfileLanguage,
+        persistLanguage: updateProfileLanguage,
+        clearError: () => setLanguageSaveError(null),
+        showError: (previousLanguage) => {
+          setLanguageSaveError(
+            localized(
+              {
+                en: "Could not save your language. Your previous language was restored.",
+                fr: "Impossible d'enregistrer votre langue. La langue précédente a été restaurée."
+              },
+              previousLanguage
+            )
+          );
+        },
+        onPersisted: async (persistedLanguage) => {
+          await recordLanguageChangeNotice(AsyncStorage, persistedLanguage);
+          await refreshAuthState();
+        }
+      });
     },
     [applyProfileLanguage, profileLanguage, refreshAuthState, user?.id]
   );

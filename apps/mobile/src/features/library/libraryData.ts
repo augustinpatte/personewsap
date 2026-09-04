@@ -19,6 +19,7 @@ import {
 } from "../archive/archiveSearchPaging";
 import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
+import { resolveContentItemsForLanguage } from "../today/contentTranslations";
 import type { ContentLanguage } from "../today";
 import { resolveEditionType } from "../today/editionCadence";
 import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
@@ -155,15 +156,16 @@ export async function fetchLibraryDrops(
       return withPageFlag(createCachedResult(cachedPage.drops), cachedPage.hasMore);
     }
 
+    // Every edition the reader owns, whatever language each one was published
+    // in. The current reading language is applied afterwards by translating the
+    // items (resolveContentItemsForLanguage), so switching language re-renders
+    // the same history instead of hiding the editions published in the other
+    // language.
     let dropsQuery = supabase
       .from("daily_drops")
       .select(dailyDropSelect)
       .eq("user_id", userId)
       .in("status", [...archiveDropStatuses]);
-
-    if (options.language) {
-      dropsQuery = dropsQuery.eq("language", options.language);
-    }
 
     if (beforeDate) {
       dropsQuery = dropsQuery.lt("drop_date", beforeDate);
@@ -208,7 +210,7 @@ export async function fetchLibraryDrops(
       );
     }
 
-    const summaries = await buildLibraryDropSummaries(pageDrops, userId);
+    const summaries = await buildLibraryDropSummaries(pageDrops, userId, options.language);
     const displayableSummaries = summaries.filter((summary) => summary.item_count > 0);
 
     setCachedValue(
@@ -453,7 +455,8 @@ function escapeLikePattern(value: string): string {
 
 async function buildLibraryDropSummaries(
   drops: DailyDrop[],
-  userId: string
+  userId: string,
+  language?: ContentLanguage
 ): Promise<LibraryDropSummary[]> {
   if (!supabase) {
     return [];
@@ -471,7 +474,7 @@ async function buildLibraryDropSummaries(
   }
 
   const contentItemIds = [...new Set((dropItems ?? []).map((item) => item.content_item_id))];
-  const contentItemsById = await fetchContentItemsById(contentItemIds);
+  const contentItemsById = await fetchContentItemsById(contentItemIds, language);
   const interactions = await fetchLibraryInteractions(userId, contentItemIds);
   const completedItemIds = getInteractedContentItemIds(interactions, "complete");
   const savedItemIds = getInteractedContentItemIds(interactions, "save");
@@ -492,9 +495,9 @@ async function buildLibraryDropSummaries(
       drop_id: drop.id,
       items: mapLibraryItems(drop, contentItems, completedItemIds, savedItemIds),
       item_count: contentItems.length,
-      language: drop.language,
+      language: language ?? drop.language,
       saved_item_count: countMatchingContentItems(contentItems, savedItemIds),
-      title: getLibraryDropTitle(drop),
+      title: getLibraryDropTitle(drop, language),
       topics: getTopicsForContentItems(contentItems)
     };
   });
@@ -532,7 +535,8 @@ function mapLibraryItems(
 }
 
 async function fetchContentItemsById(
-  contentItemIds: string[]
+  contentItemIds: string[],
+  language?: ContentLanguage
 ): Promise<Map<string, ContentItem>> {
   if (!supabase || contentItemIds.length === 0) {
     return new Map();
@@ -548,7 +552,14 @@ async function fetchContentItemsById(
     throw error;
   }
 
-  return new Map((contentItems ?? []).map((contentItem) => [contentItem.id, contentItem]));
+  // Display fields in the requested language, ids unchanged (the assigned ids
+  // are what interactions and reader routes key on).
+  const renderedContentItems = await resolveContentItemsForLanguage(
+    contentItems ?? [],
+    language
+  );
+
+  return new Map(renderedContentItems.map((contentItem) => [contentItem.id, contentItem]));
 }
 
 async function fetchLibraryInteractions(
@@ -668,10 +679,10 @@ function mapLibraryContentType(
   return null;
 }
 
-function getLibraryDropTitle(drop: DailyDrop): string {
+function getLibraryDropTitle(drop: DailyDrop, language?: ContentLanguage): string {
   const isWeeklyDigest = resolveEditionType(drop.drop_date) === "weekly_digest";
 
-  if (drop.language === "fr") {
+  if ((language ?? drop.language) === "fr") {
     return isWeeklyDigest ? "Synthèse hebdomadaire" : "Brief du jour";
   }
 

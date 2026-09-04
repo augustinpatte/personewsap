@@ -68,6 +68,7 @@
     "content:staging-preview": "npm --prefix services/content-engine run staging-publish -- --preview",
     "publisher:status": "node scripts/publisher-status.mjs",
     "publisher:test:sql": "node scripts/publisher-sql-tests.mjs",
+    "language:test:sql": "node scripts/language-sql-tests.mjs",
     "publisher:test": "vitest run supabase/functions/personews-scheduled-publisher",
     "edge:deploy:prod": "supabase functions deploy delete-account --project-ref wkbviidrbmehmjbhvpeh && supabase functions deploy personews-task-publisher --project-ref wkbviidrbmehmjbhvpeh --no-verify-jwt",
     "edge:deploy:staging": "supabase functions deploy personews-task-bridge --project-ref kukyotcgbnchsoeriqoz --no-verify-jwt && supabase functions deploy personews-scheduled-publisher --project-ref kukyotcgbnchsoeriqoz --no-verify-jwt",
