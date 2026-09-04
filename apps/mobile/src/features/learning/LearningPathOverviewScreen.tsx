@@ -10,6 +10,7 @@ import {
   PrimaryButton,
   SecondaryButton
 } from "../../components";
+import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles } from "../../design/theme";
 import type { Language } from "../../types/domain";
@@ -36,6 +37,7 @@ export function LearningPathOverviewScreen({
   const params = useLocalSearchParams<{ pathId?: string }>();
   const pathId = Array.isArray(params.pathId) ? params.pathId[0] : params.pathId;
   const styles = useThemedStyles(createStyles);
+  const pressedSurface = usePressedSurfaceStyle();
   const {
     displayPath,
     domains,
@@ -199,7 +201,7 @@ export function LearningPathOverviewScreen({
                   } as unknown as Href
                 )
               }
-              style={({ pressed }) => [styles.historyRow, pressed ? styles.pressed : null]}
+              style={({ pressed }) => [styles.historyRow, pressed ? pressedSurface : null]}
             >
               <AppText color="muted" variant="caption">
                 {copy.sessionLabel(session.session_number)}
@@ -263,9 +265,6 @@ const createStyles = () =>
     },
     infoRow: {
       gap: tokens.space.xs
-    },
-    pressed: {
-      opacity: 0.72
     },
     screen: {
       gap: tokens.space.xl,

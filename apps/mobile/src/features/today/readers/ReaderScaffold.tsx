@@ -10,7 +10,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppText, IconBadge, type IconBadgeName } from "../../../components";
+import {
+  AppText,
+  IconBadge,
+  type IconBadgeName
+} from "../../../components";
+import { usePressedSurfaceStyle } from "../../../design/usePressedSurfaceStyle";
 import { tokens } from "../../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../../design/theme";
 
@@ -33,6 +38,7 @@ export function ReaderScaffold({
   children
 }: ReaderScaffoldProps) {
   const styles = useThemedStyles(createStyles);
+  const pressedSurface = usePressedSurfaceStyle();
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
@@ -42,7 +48,7 @@ export function ReaderScaffold({
           accessibilityRole="button"
           hitSlop={12}
           onPress={onClose}
-          style={({ pressed }) => [styles.close, pressed ? styles.closePressed : null]}
+          style={({ pressed }) => [styles.close, pressed ? pressedSurface : null]}
         >
           <Feather name="arrow-left" size={24} style={styles.closeIcon} />
         </Pressable>
@@ -76,22 +82,24 @@ const createStyles = (c: ThemeColors) =>
     flex: 1,
     backgroundColor: c.background
   },
+  // minHeight, not height: the bar carries the eyebrow, so at large
+  // accessibility text sizes it has to be allowed to grow rather than clip the
+  // label it exists to show.
   topBar: {
     alignItems: "center",
     flexDirection: "row",
-    height: 48,
     justifyContent: "space-between",
-    paddingHorizontal: tokens.space.lg
+    minHeight: 48,
+    paddingHorizontal: tokens.space.lg,
+    paddingVertical: tokens.space.xs
   },
   close: {
     alignItems: "center",
+    borderRadius: tokens.radius.pill,
     height: 40,
     justifyContent: "center",
     marginLeft: -tokens.space.xs,
     width: 40
-  },
-  closePressed: {
-    opacity: 0.5
   },
   closeIcon: {
     color: c.muted

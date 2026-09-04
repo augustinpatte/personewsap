@@ -2,7 +2,14 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { AppScreen, AppText, Card, IconBadge, PrimaryButton } from "../../components";
+import {
+  AppScreen,
+  AppText,
+  Card,
+  IconBadge,
+  PrimaryButton
+} from "../../components";
+import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import type { Language } from "../../types/domain";
@@ -160,6 +167,7 @@ function RatingGroup({
   selectedValue: number | null;
 }) {
   const styles = useThemedStyles(createStyles);
+  const pressedSurface = usePressedSurfaceStyle();
 
   return (
     <Card padding="lg">
@@ -181,7 +189,7 @@ function RatingGroup({
               style={({ pressed }) => [
                 styles.ratingButton,
                 selected ? styles.ratingSelected : null,
-                pressed ? styles.pressed : null
+                pressed ? pressedSurface : null
               ]}
             >
               <AppText
@@ -204,9 +212,6 @@ const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     header: {
       gap: tokens.space.sm
-    },
-    pressed: {
-      opacity: 0.72
     },
     ratingButton: {
       alignItems: "center",

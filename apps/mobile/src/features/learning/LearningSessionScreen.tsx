@@ -11,6 +11,7 @@ import {
   PrimaryButton,
   SecondaryButton
 } from "../../components";
+import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
@@ -40,6 +41,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     status
   } = useLearningPath();
   const styles = useThemedStyles(createStyles);
+  const pressedSurface = usePressedSurfaceStyle();
   const session = sessionId ? getSessionById(sessionId) : undefined;
   // Follows the reader, not the row: title, summary and objectives are stored
   // in both languages, so a session authored in French renders in English the
@@ -256,7 +258,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
         accessibilityRole="button"
         accessibilityState={{ expanded: promptVisible }}
         onPress={() => setPromptVisible((current) => !current)}
-        style={({ pressed }) => [styles.promptToggle, pressed ? styles.pressed : null]}
+        style={({ pressed }) => [styles.promptToggle, pressed ? pressedSurface : null]}
       >
         <AppText color="accentInk" variant="label">
           {promptVisible ? copy.hidePrompt : copy.viewPrompt}
@@ -308,9 +310,6 @@ const createStyles = (c: ThemeColors) =>
     objectiveRow: {
       flexDirection: "row",
       gap: tokens.space.sm
-    },
-    pressed: {
-      opacity: 0.72
     },
     promptToggle: {
       alignSelf: "flex-start",

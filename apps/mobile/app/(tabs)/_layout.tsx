@@ -111,7 +111,9 @@ export default function TabsLayout() {
           tabBarStyle: {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
-            height: 68 + bottomInset,
+            // minHeight rather than height: at large accessibility text sizes
+            // the bar grows with its labels instead of clipping them.
+            minHeight: 68 + bottomInset,
             paddingBottom: bottomInset,
             paddingTop: 8
           },
@@ -120,6 +122,10 @@ export default function TabsLayout() {
             fontWeight: "700",
             letterSpacing: 0
           },
+          // Deliberately no font-scaling cap here. This version only offers
+          // `tabBarAllowFontScaling`, an all-or-nothing switch that would
+          // freeze the labels outright; letting the bar grow with them is the
+          // behaviour Dynamic Type asks for.
           tabBarItemStyle: {
             // Comfortably above the 44pt minimum target on every device.
             minHeight: 44,

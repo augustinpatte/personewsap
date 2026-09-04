@@ -1,6 +1,5 @@
 import { useRouter, type Href } from "expo-router";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,9 +9,18 @@ import {
 } from "react-native";
 import type { PropsWithChildren } from "react";
 
-import { AppText, EmptyState, IconBadge, type IconBadgeName } from "../../components";
+import {
+  AppText,
+  ContentReveal,
+  EmptyState,
+  IconBadge,
+  ModuleContentSkeleton,
+  type IconBadgeName
+} from "../../components";
+import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
-import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
+import { useThemedStyles, type ThemeColors } from "../../design/theme";
+import type { EditionProgressState } from "./editionProgress";
 import { getModuleCopy } from "./moduleCopy";
 import type { Language } from "../../types/domain";
 import type { OnboardingModuleId } from "../onboarding";
@@ -62,6 +70,7 @@ export function ViewSwitch({
   onChange: (value: "left" | "right") => void;
 }) {
   const styles = useThemedStyles(createStyles);
+  const pressedSurface = usePressedSurfaceStyle();
 
   return (
     <View accessibilityRole="tablist" style={styles.switchRow}>
@@ -77,12 +86,16 @@ export function ViewSwitch({
           <Pressable
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
+            // The label is short and the row is tall enough, but the horizontal
+            // reach is only as wide as the word: extend it rather than pad the
+            // layout, so a near-miss still switches views.
+            hitSlop={{ bottom: 8, left: 10, right: 10, top: 8 }}
             key={key}
             onPress={() => onChange(key)}
             style={({ pressed }) => [
               styles.switchItem,
               active ? styles.switchItemActive : null,
-              pressed ? styles.pressed : null
+              pressed ? pressedSurface : null
             ]}
           >
             <AppText color={active ? "ink" : "muted"} variant="label">
@@ -102,8 +115,17 @@ export function ViewSwitch({
  */
 export function ModuleScroll({
   children,
-  contentStyle
-}: PropsWithChildren<{ contentStyle?: StyleProp<ViewStyle> }>) {
+  contentStyle,
+  reveal = false
+}: PropsWithChildren<{
+  contentStyle?: StyleProp<ViewStyle>;
+  /**
+   * Fade the content in on mount. Set only where this scroll is what replaces
+   * a loading placeholder, so a screen that was always there does not fade
+   * every time the reader switches back to it.
+   */
+  reveal?: boolean;
+}>) {
   const styles = useThemedStyles(createStyles);
 
   return (
@@ -113,7 +135,7 @@ export function ModuleScroll({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      {children}
+      {reveal ? <ContentReveal>{children}</ContentReveal> : children}
     </ScrollView>
   );
 }
@@ -192,13 +214,76 @@ export function Monogram({ label }: { label: string }) {
   );
 }
 
+/**
+ * Content loading, shaped like the content.
+ *
+ * This is the shared "the edition is on its way" surface for every daily module
+ * and the archive. It used to be a centred spinner, which said only that
+ * something was happening and then let the page jump when the text arrived.
+ *
+ * Note what this is NOT used for: anything the reader explicitly asked for and
+ * is waiting on — saving a preference, loading an earlier page. Those keep
+ * their spinner, because there the spinner is the answer to a question the
+ * reader just asked.
+ */
 export function ModuleLoading({ label }: { label: string }) {
+  return (
+    <ModuleScroll>
+      <ModuleContentSkeleton label={label} />
+    </ModuleScroll>
+  );
+}
+
+/**
+ * One line telling the reader where they are in today's edition.
+ *
+ * Orientation, not a scoreboard: a hairline rule that fills, and a sentence.
+ * No streak, no points, no badge — the product's promise is that the session
+ * ends, and the only thing worth showing is how close that end is.
+ *
+ * It renders nothing at all when there is no live edition to be part-way
+ * through, so a quiet day stays quiet instead of showing an empty gauge.
+ */
+export function EditionProgress({
+  language,
+  state
+}: {
+  language: Language | null | undefined;
+  state: EditionProgressState;
+}) {
   const styles = useThemedStyles(createStyles);
-  const colors = useThemeColors();
+  const copy = getModuleCopy(language).common;
+
+  if (state.kind === "hidden") {
+    return null;
+  }
+
+  const complete = state.kind === "complete";
+  const ratio = complete ? 1 : state.ratio;
+  const label = complete
+    ? copy.editionComplete
+    : copy.editionProgress(state.completed, state.total);
 
   return (
-    <View accessibilityLabel={label} style={styles.loading}>
-      <ActivityIndicator color={colors.muted} />
+    <View style={styles.progress}>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+        style={styles.progressTrack}
+      >
+        <View
+          style={[
+            styles.progressFill,
+            // Percentage width: the track is as wide as the column, whatever
+            // the device, and the fill stays proportional under Dynamic Type.
+            { width: `${Math.round(ratio * 100)}%` },
+            complete ? styles.progressFillComplete : null
+          ]}
+        />
+      </View>
+      <AppText color={complete ? "accentInk" : "muted"} variant="caption">
+        {label}
+      </AppText>
     </View>
   );
 }
@@ -256,8 +341,22 @@ const createStyles = (c: ThemeColors) =>
       flex: 1,
       gap: tokens.space.xs
     },
-    pressed: {
-      opacity: 0.6
+    progress: {
+      gap: tokens.space.sm
+    },
+    progressTrack: {
+      backgroundColor: c.border,
+      borderRadius: tokens.radius.pill,
+      height: 2,
+      overflow: "hidden"
+    },
+    progressFill: {
+      backgroundColor: c.accent,
+      borderRadius: tokens.radius.pill,
+      height: 2
+    },
+    progressFillComplete: {
+      backgroundColor: c.success
     },
     switchRow: {
       borderBottomColor: c.border,
@@ -296,11 +395,6 @@ const createStyles = (c: ThemeColors) =>
       height: 40,
       justifyContent: "center",
       width: 40
-    },
-    loading: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: tokens.space.xxl
     },
     scrollContent: {
       flexGrow: 1,

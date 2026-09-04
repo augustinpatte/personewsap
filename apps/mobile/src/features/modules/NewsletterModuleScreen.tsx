@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppText, EmptyState, SecondaryButton } from "../../components";
+import {
+  AppText,
+  EmptyState,
+  PressableSurface,
+  SecondaryButton
+} from "../../components";
+import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
@@ -33,12 +39,14 @@ import {
   MetaLine,
   ModuleDisabledState,
   ModuleError,
+  EditionProgress,
   ModuleHeader,
   ModuleLoading,
   ModuleScroll,
   ViewSwitch
 } from "./ModuleChrome";
 import { TodayQuietState } from "./TodayQuietState";
+import { useEditionProgress } from "./useEditionProgress";
 
 function readerHref(kind: "newsletter" | "concept", id: string): Href {
   return { pathname: `/(reader)/${kind}/[id]`, params: { id } } as unknown as Href;
@@ -50,6 +58,7 @@ export function NewsletterModuleScreen() {
   const modulePreference = useModulePreferenceState("newsletter");
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
+  const editionProgress = useEditionProgress();
   const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
@@ -66,12 +75,19 @@ export function NewsletterModuleScreen() {
           title={copy.newsletter.title}
         />
         {disabled ? null : (
-          <ViewSwitch
-            leftLabel={copy.common.todayView}
-            onChange={setView}
-            rightLabel={copy.common.editionsView}
-            value={view}
-          />
+          <>
+            {/* Today's session, not this tab's: the same line appears on
+                Stories and Mini cases, counting the same edition. */}
+            {view === "left" ? (
+              <EditionProgress language={language} state={editionProgress} />
+            ) : null}
+            <ViewSwitch
+              leftLabel={copy.common.todayView}
+              onChange={setView}
+              rightLabel={copy.common.editionsView}
+              value={view}
+            />
+          </>
         )}
       </View>
       {disabled ? (
@@ -175,7 +191,7 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const readCount = articles.filter((article) => isItemComplete(article.id)).length;
 
   return (
-    <ModuleScroll contentStyle={styles.todayContent}>
+    <ModuleScroll contentStyle={styles.todayContent} reveal>
       {/* Masthead line: the edition, then how far through it you are. Reads as
           the top of a front page rather than as a progress widget. */}
       <View style={styles.masthead}>
@@ -188,11 +204,10 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
         <EditorialRule />
       </View>
 
-      <Pressable
+      <PressableSurface
         accessibilityHint={copy.common.openHint}
-        accessibilityRole="button"
         onPress={() => router.push(readerHref("newsletter", lead.id))}
-        style={({ pressed }) => [styles.lead, pressed ? styles.pressed : null]}
+        style={styles.lead}
       >
         <View style={styles.kicker}>
           <AppText variant="eyebrow">{copy.newsletter.lead}</AppText>
@@ -212,7 +227,7 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
           completedLabel={copy.common.read}
           openLabel={copy.newsletter.readLead}
         />
-      </Pressable>
+      </PressableSurface>
 
       {rest.length > 0 ? (
         <View style={styles.alsoBlock}>
@@ -220,12 +235,12 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
               column under the lead instead of as more cards. */}
           <EditorialRule label={copy.newsletter.alsoInBrief} />
           {rest.map((article) => (
-            <Pressable
+            <PressableSurface
               accessibilityHint={copy.common.openHint}
-              accessibilityRole="button"
               key={article.id}
               onPress={() => router.push(readerHref("newsletter", article.id))}
-              style={({ pressed }) => [styles.alsoItem, pressed ? styles.pressed : null]}
+              style={styles.alsoItem}
+              variant="row"
             >
               <AppText style={styles.alsoHeadline} variant="subtitle">
                 {article.title}
@@ -238,7 +253,7 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
                 ]}
                 tone={isItemComplete(article.id) ? "accentInk" : "muted"}
               />
-            </Pressable>
+            </PressableSurface>
           ))}
         </View>
       ) : null}
@@ -419,6 +434,9 @@ function EditionArticleRow({ article }: { article: LibraryItemSummary }) {
   const { language } = useArchive();
   const copy = getModuleCopy(language);
   const colors = useThemeColors();
+  // A list row is tinted, never scaled, and never given its own Animated.Value:
+  // scaling one row inside a list reads as the list shifting.
+  const pressedSurface = usePressedSurfaceStyle();
 
   const open = () => {
     trackAnalyticsEvent("content_item_opened", {
@@ -436,7 +454,7 @@ function EditionArticleRow({ article }: { article: LibraryItemSummary }) {
       accessibilityHint={copy.common.openHint}
       accessibilityRole="button"
       onPress={open}
-      style={({ pressed }) => [styles.itemRow, pressed ? styles.pressed : null]}
+      style={({ pressed }) => [styles.itemRow, pressed ? pressedSurface : null]}
     >
       <View
         style={[
@@ -493,17 +511,20 @@ const createStyles = (c: ThemeColors) =>
       gap: tokens.space.sm,
       justifyContent: "space-between"
     },
-    pressed: {
-      opacity: 0.7
-    },
     masthead: {
       gap: tokens.space.sm
     },
     // The lead owns the top of the page: no rule above it (the masthead already
     // draws one) and generous air, so the eye lands on the headline first.
+    // The negative margin against equal padding is what gives the pressed tint
+    // a shape: the highlight reaches a little past the text on both sides, the
+    // way an iOS list row does, while the type stays exactly where it was.
     lead: {
+      borderRadius: tokens.radius.md,
       gap: tokens.space.sm,
-      paddingBottom: tokens.space.md
+      marginHorizontal: -tokens.space.md,
+      paddingBottom: tokens.space.md,
+      paddingHorizontal: tokens.space.md
     },
     leadHeadline: {
       marginTop: tokens.space.xs
@@ -514,9 +535,12 @@ const createStyles = (c: ThemeColors) =>
     // Secondaries are deliberately tighter than the lead: title then one quiet
     // metadata line, nothing else competing.
     alsoItem: {
+      borderRadius: tokens.radius.md,
       gap: tokens.space.xs,
+      marginHorizontal: -tokens.space.md,
       minHeight: 44,
-      paddingVertical: tokens.space.xs
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.sm
     },
     alsoHeadline: {
       lineHeight: 24

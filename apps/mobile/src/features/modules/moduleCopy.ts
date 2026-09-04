@@ -34,6 +34,12 @@ export function getModuleCopy(language: Language | null | undefined) {
           openHint: "Opens this reading",
           read: "Read",
           solved: "Solved",
+          // How far through today's whole edition the reader is — the same
+          // sentence on every daily tab, because it counts one session rather
+          // than one module.
+          editionProgress: (completed: number, total: number) =>
+            `${completed} of ${total} completed today`,
+          editionComplete: "Edition complete",
           noResultsTitle: "No match",
           noResultsBody: "Nothing matches that title or date yet.",
           clearSearch: "Clear search",
@@ -183,6 +189,10 @@ export function getModuleCopy(language: Language | null | undefined) {
           openHint: "Ouvre cette lecture",
           read: "Lu",
           solved: "Résolu",
+          // « terminé » s'accorde avec le nombre de lectures achevées.
+          editionProgress: (completed: number, total: number) =>
+            `${completed} sur ${total} ${completed > 1 ? "terminés" : "terminé"} aujourd'hui`,
+          editionComplete: "Édition terminée",
           noResultsTitle: "Aucun résultat",
           noResultsBody: "Rien ne correspond à ce titre ou cette date pour l'instant.",
           clearSearch: "Effacer la recherche",

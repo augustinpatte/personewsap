@@ -83,7 +83,7 @@ const createStyles = (c: ThemeColors) =>
       borderColor: c.accent
     },
     pressed: {
-      transform: [{ scale: 0.99 }]
+      transform: [{ scale: tokens.press.cardScale }]
     },
     disabled: {
       opacity: 0.62

@@ -8,7 +8,12 @@ import {
   View
 } from "react-native";
 
-import { AppText, EmptyState, SecondaryButton } from "../../components";
+import {
+  AppText,
+  EmptyState,
+  SecondaryButton
+} from "../../components";
+import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import {
@@ -220,13 +225,15 @@ function ArchiveRow({
   const styles = useThemedStyles(createStyles);
   const { language } = useArchive();
   const copy = getModuleCopy(language);
+  // A row is tinted, not scaled: the list must not appear to shift under a tap.
+  const pressedSurface = usePressedSurfaceStyle();
 
   return (
     <Pressable
       accessibilityHint={copy.common.openHint}
       accessibilityRole="button"
       onPress={() => onOpen(item)}
-      style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
+      style={({ pressed }) => [styles.row, pressed ? pressedSurface : null]}
     >
       {/* Date rail on the left, title as the thing you scan. The arrow sits
           with the date rather than beside the title, so nothing competes with
@@ -290,9 +297,6 @@ const createStyles = (c: ThemeColors) =>
     },
     rowMeta: {
       minHeight: 18
-    },
-    rowPressed: {
-      opacity: 0.6
     },
     rowHead: {
       alignItems: "center",

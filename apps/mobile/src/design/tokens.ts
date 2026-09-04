@@ -90,8 +90,56 @@ export const tokens = {
       semibold: "600",
       bold: "700"
     },
+    /**
+     * Tracking is a function of size, never one value for the whole app: type
+     * set large reads too loose and has to be pulled in, type set small reads
+     * too tight and has to be opened up. The per-variant values live in
+     * AppText; these are the two cases that sit outside it.
+     */
+    tracking: {
+      /** Serif display quotes at 25pt, where 0 already reads slightly loose. */
+      quote: -0.2,
+      /** Small caps used as a label — letterforms need air to stay countable. */
+      smallCaps: 1.4
+    },
     bodyLineHeight: 24,
     titleLineHeight: 36
+  },
+  /**
+   * How a surface answers a finger.
+   *
+   * One product-wide answer instead of the per-screen opacity values this
+   * replaced (0.5 / 0.6 / 0.7 / 0.72), which dimmed the text along with the
+   * surface and read as "disabled" rather than "pressed". A press now tints the
+   * surface — instantly, on touch-down — and large surfaces additionally
+   * compress by a hair. Text is never dimmed.
+   */
+  press: {
+    /**
+     * Large editorial surfaces (a lead article, an archive row, a session
+     * card). Deliberately shallower than the 0.98 of a typical button: these
+     * blocks are wide, and on a wide block even 2% reads as a lurch.
+     */
+    cardScale: 0.99,
+    /** Small controls keep their geometry; the tint alone carries the press. */
+    controlScale: 1
+  },
+  motion: {
+    /**
+     * Content arriving after a load. Long enough to be perceived as arriving
+     * rather than blinking, short enough never to feel like a wait.
+     */
+    contentRevealMs: 180,
+    /**
+     * Press compression. Near-critically damped (ratio ≈ 1.0) so it settles
+     * without a bounce: a card is paper, not rubber. Press-in is effectively
+     * instantaneous; the release is what settles.
+     */
+    pressSpring: {
+      damping: 28,
+      mass: 0.6,
+      stiffness: 320
+    }
   },
   shadow: {
     none: {

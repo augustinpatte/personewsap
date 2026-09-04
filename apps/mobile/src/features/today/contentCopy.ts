@@ -117,6 +117,7 @@ export function getReaderCopy(language: ContentLanguage) {
     {
       en: {
         close: "Back",
+        loading: "Loading this reading…",
         minutes: (count: number) => `${count} min read`,
         newsletterEyebrow: "Newsletter",
         storyEyebrow: "Business story",
@@ -180,6 +181,7 @@ export function getReaderCopy(language: ContentLanguage) {
       },
       fr: {
         close: "Retour",
+        loading: "Chargement de cette lecture…",
         minutes: (count: number) => `${count} min de lecture`,
         newsletterEyebrow: "Newsletter",
         storyEyebrow: "Business story",

@@ -1,6 +1,12 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
-import { AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
+import {
+  AppText,
+  Card,
+  PressableSurface,
+  PrimaryButton,
+  SecondaryButton
+} from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import type { Language } from "../../types/domain";
@@ -65,10 +71,10 @@ export function LearningPathCard({
 
   if (!session) {
     return (
-      <Pressable
-        accessibilityRole="button"
+      <PressableSurface
         onPress={onOpenOverview}
-        style={({ pressed }) => (pressed ? styles.pressed : null)}
+        style={styles.cardPress}
+        pressedStyle={styles.cardPressed}
       >
         <Card padding="lg" style={styles.card} tone="muted">
           <View style={styles.kicker}>
@@ -88,15 +94,15 @@ export function LearningPathCard({
           </AppText>
           <SecondaryButton label={copy.view} onPress={onOpenOverview} />
         </Card>
-      </Pressable>
+      </PressableSurface>
     );
   }
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    <PressableSurface
       onPress={completed ? onOpenOverview : onOpenSession}
-      style={({ pressed }) => (pressed ? styles.pressed : null)}
+      style={styles.cardPress}
+      pressedStyle={styles.cardPressed}
     >
       <Card padding="lg" style={styles.card} tone="accent">
         <View style={styles.kicker}>
@@ -130,7 +136,7 @@ export function LearningPathCard({
           </AppText>
         </View>
       </Card>
-    </Pressable>
+    </PressableSurface>
   );
 }
 
@@ -151,8 +157,11 @@ const createStyles = (c: ThemeColors) =>
       gap: tokens.space.md,
       justifyContent: "space-between"
     },
-    pressed: {
-      opacity: 0.72
+    cardPress: {
+      borderRadius: tokens.radius.lg
+    },
+    cardPressed: {
+      backgroundColor: "transparent"
     },
     statusDot: {
       backgroundColor: c.accent,

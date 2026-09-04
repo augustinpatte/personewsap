@@ -142,7 +142,7 @@ const createStyles = (c: ThemeColors) =>
       gap: tokens.space.md
     },
     chapterNumber: {
-      letterSpacing: 1.4
+      letterSpacing: tokens.typography.tracking.smallCaps
     },
     lesson: {
       backgroundColor: c.surface,

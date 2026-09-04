@@ -10,3 +10,4 @@ export {
 } from "./theme";
 export type { Theme, ThemeColors, ThemeColorToken, ColorScheme } from "./theme";
 export { useReducedMotion } from "./useReducedMotion";
+export { usePressedSurfaceStyle } from "./usePressedSurfaceStyle";

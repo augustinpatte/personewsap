@@ -11,6 +11,7 @@ import {
   PrimaryButton,
   SecondaryButton
 } from "../../components";
+import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useLearningPath } from "../learning";
@@ -307,6 +308,7 @@ function PathHistory() {
   const { language } = useDailyDrop();
   const learningPath = useLearningPath();
   const copy = getModuleCopy(language);
+  const pressedSurface = usePressedSurfaceStyle();
 
   const completedSessions = useMemo(
     () =>
@@ -352,7 +354,7 @@ function PathHistory() {
               }
               style={({ pressed }) => [
                 styles.historyRow,
-                pressed ? styles.pressed : null
+                pressed ? pressedSurface : null
               ]}
             >
               <AppText color="muted" variant="caption">
@@ -433,7 +435,7 @@ const createStyles = (c: ThemeColors) =>
       minHeight: 44,
       paddingTop: tokens.space.md
     },
-    pressed: {
-      opacity: 0.6
+    historyRowPressed: {
+      borderRadius: tokens.radius.md
     }
   });

@@ -1,9 +1,9 @@
 import { useRouter, type Href } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppText, Card } from "../../components";
+import { AppText, Card, PressableSurface } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
@@ -30,6 +30,7 @@ import { ItemArchiveList } from "./ItemArchiveList";
 import { getModuleCopy } from "./moduleCopy";
 import {
   ModuleError,
+  EditionProgress,
   ModuleHeader,
   ModuleDisabledState,
   ModuleLoading,
@@ -37,6 +38,7 @@ import {
   ModuleScroll,
   ViewSwitch
 } from "./ModuleChrome";
+import { useEditionProgress } from "./useEditionProgress";
 import { TodayQuietState } from "./TodayQuietState";
 
 function caseHref(id: string): Href {
@@ -49,6 +51,7 @@ export function MiniCasesModuleScreen() {
   const modulePreference = useModulePreferenceState("mini_case");
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
+  const editionProgress = useEditionProgress();
   const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
@@ -65,12 +68,17 @@ export function MiniCasesModuleScreen() {
           title={copy.cases.title}
         />
         {disabled ? null : (
-          <ViewSwitch
-            leftLabel={copy.common.todayView}
-            onChange={setView}
-            rightLabel={copy.common.archiveView}
-            value={view}
-          />
+          <>
+            {view === "left" ? (
+              <EditionProgress language={language} state={editionProgress} />
+            ) : null}
+            <ViewSwitch
+              leftLabel={copy.common.todayView}
+              onChange={setView}
+              rightLabel={copy.common.archiveView}
+              value={view}
+            />
+          </>
         )}
       </View>
       {disabled ? (
@@ -172,12 +180,14 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const completed = isItemComplete(miniCase.id);
 
   return (
-    <ModuleScroll>
-      <Pressable
+    <ModuleScroll reveal>
+      <PressableSurface
         accessibilityHint={copy.common.openHint}
-        accessibilityRole="button"
         onPress={() => router.push(caseHref(miniCase.id))}
-        style={({ pressed }) => (pressed ? styles.pressed : null)}
+        style={styles.casePress}
+        // The Card paints its own accent surface over the tint, so the
+        // compression is what answers the finger here.
+        pressedStyle={styles.casePressed}
       >
         {/* Built to announce a decision, not an article: the framing sits on
             top, the question is the centre of the card, and the call sits at
@@ -229,7 +239,7 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
             </AppText>
           </View>
         </Card>
-      </Pressable>
+      </PressableSurface>
     </ModuleScroll>
   );
 }
@@ -335,8 +345,11 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: tokens.space.lg,
       paddingTop: tokens.space.md
     },
-    pressed: {
-      opacity: 0.7
+    casePress: {
+      borderRadius: tokens.radius.lg
+    },
+    casePressed: {
+      backgroundColor: "transparent"
     },
     caseCard: {
       gap: tokens.space.sm

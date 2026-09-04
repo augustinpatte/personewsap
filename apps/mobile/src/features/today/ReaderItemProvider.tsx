@@ -1,9 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
 
-import { tokens } from "../../design/tokens";
-import { useThemeColors } from "../../design/theme";
+import { ReaderContentSkeleton } from "../../components";
 import { isSupabaseContentItemId } from "../../lib/contentItemId";
 import type { DataFetchSource } from "../../lib/dataState";
 import type { NormalizedSupabaseError } from "../../lib/supabase";
@@ -193,14 +191,13 @@ function FetchedReaderProvider({
 
 function ReaderLoading({ language }: { language: ContentLanguage }) {
   const router = useRouter();
-  const colors = useThemeColors();
   const copy = getReaderCopy(language);
 
+  // Shaped like the reading that is coming — headline, byline, body — so the
+  // page is already composed when the text lands and only the greys change.
   return (
     <ReaderScaffold closeLabel={copy.close} onClose={() => router.back()}>
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.muted} />
-      </View>
+      <ReaderContentSkeleton label={copy.loading} />
     </ReaderScaffold>
   );
 }
@@ -226,11 +223,3 @@ function buildSingleItemDrop(
     }
   };
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: tokens.space.xxl
-  }
-});

@@ -1,9 +1,9 @@
 import { useRouter, type Href } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppText, Card } from "../../components";
+import { AppText, Card, PressableSurface } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
@@ -19,12 +19,14 @@ import { getModuleCopy } from "./moduleCopy";
 import {
   ModuleError,
   ModuleDisabledState,
+  EditionProgress,
   ModuleHeader,
   ModuleLoading,
   MetaLine,
   ModuleScroll,
   ViewSwitch
 } from "./ModuleChrome";
+import { useEditionProgress } from "./useEditionProgress";
 import { TodayQuietState } from "./TodayQuietState";
 
 function storyHref(id: string): Href {
@@ -37,6 +39,7 @@ export function StoriesModuleScreen() {
   const modulePreference = useModulePreferenceState("business_story");
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
+  const editionProgress = useEditionProgress();
   const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
@@ -53,12 +56,17 @@ export function StoriesModuleScreen() {
           title={copy.stories.title}
         />
         {disabled ? null : (
-          <ViewSwitch
-            leftLabel={copy.common.todayView}
-            onChange={setView}
-            rightLabel={copy.common.archiveView}
-            value={view}
-          />
+          <>
+            {view === "left" ? (
+              <EditionProgress language={language} state={editionProgress} />
+            ) : null}
+            <ViewSwitch
+              leftLabel={copy.common.todayView}
+              onChange={setView}
+              rightLabel={copy.common.archiveView}
+              value={view}
+            />
+          </>
         )}
       </View>
       {disabled ? (
@@ -128,12 +136,14 @@ function StoriesToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const completed = isItemComplete(story.id);
 
   return (
-    <ModuleScroll>
-      <Pressable
+    <ModuleScroll reveal>
+      <PressableSurface
         accessibilityHint={copy.common.openHint}
-        accessibilityRole="button"
         onPress={() => router.push(storyHref(story.id))}
-        style={({ pressed }) => (pressed ? styles.pressed : null)}
+        style={styles.storyPress}
+        // The Card inside already paints its own surface, so the tint would be
+        // hidden behind it: the compression alone carries this press.
+        pressedStyle={styles.storyPressed}
       >
         {/* Read as a company dossier: a filed label, the subject on the tab,
             then the case itself. The monogram carries the identity — never a
@@ -179,7 +189,7 @@ function StoriesToday({ onOpenArchive }: { onOpenArchive: () => void }) {
             </AppText>
           </View>
         </Card>
-      </Pressable>
+      </PressableSurface>
     </ModuleScroll>
   );
 }
@@ -261,8 +271,11 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: tokens.space.lg,
       paddingTop: tokens.space.md
     },
-    pressed: {
-      opacity: 0.7
+    storyPress: {
+      borderRadius: tokens.radius.lg
+    },
+    storyPressed: {
+      backgroundColor: "transparent"
     },
     storyCard: {
       gap: tokens.space.md

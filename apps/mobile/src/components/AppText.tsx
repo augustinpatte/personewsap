@@ -121,6 +121,9 @@ const styles = StyleSheet.create({
     fontFamily: tokens.typography.family.serif,
     fontSize: tokens.typography.size.quote,
     fontWeight: tokens.typography.weight.medium,
+    // 25pt sits above the size where tracking should still be neutral; without
+    // this it inherits the base 0 and reads looser than the title above it.
+    letterSpacing: tokens.typography.tracking.quote,
     lineHeight: tokens.typography.lineHeight.quote
   },
   pullQuote: {
@@ -128,7 +131,7 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.size.quote,
     fontStyle: "italic",
     fontWeight: tokens.typography.weight.medium,
-    letterSpacing: -0.2,
+    letterSpacing: tokens.typography.tracking.quote,
     lineHeight: tokens.typography.lineHeight.quote
   },
   body: {

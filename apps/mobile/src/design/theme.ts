@@ -12,7 +12,7 @@ import { tokens, type ColorToken } from "./tokens";
 // Every palette exposes the same set of semantic color slots. Light mode reuses
 // the base tokens verbatim; dark mode supplies its own warm, premium values for
 // the same slots so that every screen re-themes from a single source of truth.
-export type ThemeColorToken = ColorToken | "onAccent" | "scrim";
+export type ThemeColorToken = ColorToken | "onAccent" | "scrim" | "pressedSurface";
 
 export type ThemeColors = Record<ThemeColorToken, string>;
 
@@ -23,7 +23,10 @@ export type ColorScheme = "light" | "dark";
 export const lightColors: ThemeColors = {
   ...tokens.color,
   onAccent: "#FFFFFF",
-  scrim: "rgba(17, 16, 13, 0.44)"
+  scrim: "rgba(17, 16, 13, 0.44)",
+  // The paper darkening a shade under a finger. Opaque rather than a black
+  // overlay, so the ink on top keeps its full contrast while pressed.
+  pressedSurface: "#EAE4D7"
 };
 
 // Calm night-reading palette: warm espresso backgrounds instead of pure black,
@@ -56,7 +59,10 @@ export const darkColors: ThemeColors = {
   black: "#000000",
   transparent: "transparent",
   onAccent: "#0B201E",
-  scrim: "rgba(0, 0, 0, 0.58)"
+  scrim: "rgba(0, 0, 0, 0.58)",
+  // At night a press lifts rather than darkens: going further down would be
+  // indistinguishable from the background on an OLED panel.
+  pressedSurface: "#2E2A20"
 };
 
 const palettes: Record<ColorScheme, ThemeColors> = {
