@@ -8,5 +8,14 @@ export {
   type NotificationNavigationTarget,
   type NotificationRoute
 } from "./notificationRouting";
+export { configureNotificationPresentation } from "./notificationPresentation";
+export {
+  decidePushPermissionAction,
+  resolveNotificationSettingsState,
+  shouldEnablePreferenceAfterGrant,
+  type IosPermissionStatus,
+  type NotificationSettingsState,
+  type PushPermissionAction
+} from "./pushPermissionFlow";
 export { useNotificationRouting } from "./useNotificationRouting";
 export { usePushTokenRefresh } from "./usePushTokenRefresh";

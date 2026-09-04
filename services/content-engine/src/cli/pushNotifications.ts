@@ -23,13 +23,32 @@ export type PushNotificationsOptions = {
   /** Send even on a day the cadence has no edition (manual dispatch only). */
   force: boolean;
   dryRun: boolean;
+  /**
+   * Single-reader test send. Requires CONFIRM_SINGLE_USER_PUSH=true, and is the
+   * only way to reach a real device from a laptop: without it this command has
+   * no way to address one account, and with it it can address no other.
+   */
+  onlyUserId: string | null;
 };
+
+export class SingleUserPushConfirmationError extends Error {
+  constructor() {
+    super(
+      "--user targets one real device. Re-run with CONFIRM_SINGLE_USER_PUSH=true to confirm this single-reader send."
+    );
+    this.name = "SingleUserPushConfirmationError";
+  }
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type PushNotificationsOutput = {
   mode: "push-notifications";
   dropDate: string;
   editionDay: boolean;
   dryRun: boolean;
+  /** True when the send was restricted to a single reader by --user. */
+  singleUser?: boolean;
   result: SendEditionNotificationsResult | null;
   note: string;
 };
@@ -41,11 +60,24 @@ export function parsePushNotificationsOptions(args: string[]): PushNotifications
     .map((value) => value.trim().toLowerCase())
     .filter((value): value is Language => value === "fr" || value === "en");
 
+  const onlyUserId = flags.get("user")?.trim() ?? null;
+
+  if (onlyUserId !== null) {
+    if (!UUID_PATTERN.test(onlyUserId)) {
+      throw new Error("--user expects one reader's account id (a UUID).");
+    }
+
+    if (process.env.CONFIRM_SINGLE_USER_PUSH !== "true") {
+      throw new SingleUserPushConfirmationError();
+    }
+  }
+
   return {
     dropDate: flags.get("date") ?? getProductEditionDate(),
     languages: languages.length > 0 ? languages : ["fr", "en"],
     force: flags.has("force") || process.env.FORCE_PUSH_NOTIFICATIONS === "true",
-    dryRun: flags.has("dry-run") || process.env.DRY_RUN === "true"
+    dryRun: flags.has("dry-run") || process.env.DRY_RUN === "true",
+    onlyUserId
   };
 }
 
@@ -87,7 +119,8 @@ export async function runPushNotifications(
     store,
     client,
     dropDate: options.dropDate,
-    languages: options.languages
+    languages: options.languages,
+    onlyUserIds: options.onlyUserId ? [options.onlyUserId] : undefined
   });
 
   return {
@@ -95,6 +128,7 @@ export async function runPushNotifications(
     dropDate: options.dropDate,
     editionDay,
     dryRun: false,
+    singleUser: options.onlyUserId !== null,
     result,
     note:
       result.retryable > 0

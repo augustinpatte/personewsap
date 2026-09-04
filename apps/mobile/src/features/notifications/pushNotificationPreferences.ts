@@ -6,6 +6,11 @@ import { Platform } from "react-native";
 import { localized } from "../../lib/i18n";
 import { normalizeSupabaseError, supabase, type NormalizedSupabaseError } from "../../lib/supabase";
 import type { Language } from "../../types/domain";
+import {
+  decidePushPermissionAction,
+  shouldEnablePreferenceAfterGrant,
+  type IosPermissionStatus
+} from "./pushPermissionFlow";
 
 export type NotificationPreferences = {
   language: Language | null;
@@ -226,42 +231,18 @@ export async function saveNotificationPreferences({
   return { ok: true, registrationState: "granted" };
 }
 
-export async function syncRefreshedPushToken({
-  expoPushToken,
-  language = null,
-  userId
-}: {
-  expoPushToken: string;
-  language?: Language | null;
-  userId: string;
-}): Promise<{ ok: true; stored: boolean } | { ok: false; error: NormalizedSupabaseError }> {
-  const preferences = await loadNotificationPreferences(userId, language);
-
-  if (!preferences.ok) {
-    return { ok: false, error: preferences.error };
-  }
-
-  if (!preferences.preferences.notificationsEnabled) {
-    return { ok: true, stored: false };
-  }
-
-  const stored = await storePushToken(userId, expoPushToken, language);
-
-  if (!stored.ok) {
-    return stored;
-  }
-
-  if (__DEV__) {
-    console.info("[Notifications]", {
-      event: "push_token_refreshed",
-      platform: normalizePlatform(Platform.OS),
-      tokenStored: true
-    });
-  }
-
-  return { ok: true, stored: true };
-}
-
+/**
+ * Startup notification setup for a signed-in reader.
+ *
+ * On a first launch iOS still reports `undetermined`, so this is where the
+ * native Apple prompt is shown — once, and before the in-app preference is
+ * consulted, because a reader cannot have opted out of a request they were
+ * never shown. Granting it switches the account preference on and registers
+ * the device; refusing it leaves both off and is never asked again.
+ *
+ * On every later launch it only refreshes the stored device for a reader who
+ * has notifications on and permission granted.
+ */
 export async function registerCurrentDeviceForEnabledNotifications({
   language = null,
   userId
@@ -282,11 +263,40 @@ export async function registerCurrentDeviceForEnabledNotifications({
     };
   }
 
-  if (!preferences.preferences.notificationsEnabled) {
+  const permissionStatus = await readIosPermissionStatus();
+  const action = decidePushPermissionAction({
+    permissionStatus,
+    notificationsEnabled: preferences.preferences.notificationsEnabled
+  });
+
+  logNotificationDebug("push_permission_decision", {
+    action,
+    notificationsEnabled: preferences.preferences.notificationsEnabled,
+    permissionStatus
+  });
+
+  if (action === "none") {
     return { ok: true, registered: false, registrationState: "not_requested" };
   }
 
   const registration = await registerForPushNotifications(language);
+
+  if (
+    registration.ok &&
+    shouldEnablePreferenceAfterGrant({ action, grantedStatus: "granted" })
+  ) {
+    // The reader just answered "Allow" to PersoNewsAP's own prompt; record that
+    // as the account preference so the sender considers them eligible.
+    const enabled = await upsertNotificationPreferences(userId, true, language);
+
+    if (!enabled.ok) {
+      return {
+        ok: false,
+        error: enabled.error,
+        registrationState: "storage_not_ready"
+      };
+    }
+  }
 
   if (!registration.ok) {
     return {
@@ -411,6 +421,40 @@ async function registerForPushNotifications(
   }
 }
 
+/**
+ * The iOS permission as the system currently reports it. Anything unreadable
+ * (no notification module, an unexpected status string) is treated as denied
+ * so a broken read can never produce a repeated prompt.
+ */
+export async function readIosPermissionStatus(): Promise<IosPermissionStatus> {
+  try {
+    const permission = await Notifications.getPermissionsAsync();
+
+    if (permission.status === "granted") {
+      return "granted";
+    }
+
+    if (permission.status === "undetermined") {
+      return "undetermined";
+    }
+
+    // iOS reports `denied` with canAskAgain false once the reader refuses; some
+    // provisional/unknown states also land here and must not re-prompt.
+    return permission.canAskAgain && permission.status !== "denied"
+      ? "undetermined"
+      : "denied";
+  } catch {
+    return "denied";
+  }
+}
+
+/** Diagnostics for a failed registration. No token value is ever logged. */
+function logNotificationDebug(event: string, details: Record<string, unknown>): void {
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.info("[Notifications]", { event, ...details });
+  }
+}
+
 export async function ensureAndroidNotificationChannel(): Promise<void> {
   if (Platform.OS !== "android") {
     return;
@@ -423,6 +467,18 @@ export async function ensureAndroidNotificationChannel(): Promise<void> {
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     showBadge: true
   });
+}
+
+/**
+ * `push_tokens.expo_push_token` holds Expo push tokens and nothing else.
+ *
+ * The native APNs device token is a bare hex string and is what
+ * `addPushTokenListener` reports; storing one produces a row the Expo Push
+ * Service rejects on every edition. Shape is checked here, at the single write
+ * point, so no caller can reintroduce that.
+ */
+export function isExpoPushToken(token: string): boolean {
+  return /^Expo(nent)?PushToken\[[^\]]+\]$/.test(token.trim());
 }
 
 async function storePushToken(
@@ -438,6 +494,20 @@ async function storePushToken(
       error: {
         code: "missing_supabase_config",
         message: copy.missingConfig
+      }
+    };
+  }
+
+  if (!isExpoPushToken(expoPushToken)) {
+    logNotificationDebug("push_token_rejected_wrong_shape", {
+      reason: "not_an_expo_push_token"
+    });
+
+    return {
+      ok: false,
+      error: {
+        code: "invalid_expo_push_token",
+        message: copy.tokenStoreFailed
       }
     };
   }

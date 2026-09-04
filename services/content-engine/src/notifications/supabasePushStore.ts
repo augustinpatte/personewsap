@@ -152,6 +152,35 @@ export function createSupabasePushNotificationStore(
       return enabled;
     },
 
+    async loadCurrentUserLanguages(userIds) {
+      if (userIds.length === 0) {
+        return new Map();
+      }
+
+      const languages = new Map<string, Language>();
+
+      for (const batch of chunk([...new Set(userIds)], USER_ID_FILTER_BATCH_SIZE)) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id,language")
+          .in("id", batch);
+
+        if (error) {
+          throw new Error(`Could not read reader languages: ${error.message}`);
+        }
+
+        for (const row of data ?? []) {
+          const profile = row as { id: string; language: string | null };
+
+          if (profile.language === "fr" || profile.language === "en") {
+            languages.set(profile.id, profile.language);
+          }
+        }
+      }
+
+      return languages;
+    },
+
     async loadEnabledPushTokens(userIds) {
       if (userIds.length === 0) {
         return [];

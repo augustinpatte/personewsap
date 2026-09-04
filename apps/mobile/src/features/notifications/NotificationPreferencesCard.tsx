@@ -8,6 +8,7 @@ import { formatLanguageName, localized } from "../../lib/i18n";
 import { getUserFacingErrorMessage } from "../../lib/userFacingErrors";
 import type { Language } from "../../types/domain";
 import {
+  readIosPermissionStatus,
   loadNotificationPreferences,
   saveNotificationPreferences,
   type NotificationPreferences,
@@ -55,7 +56,20 @@ export function NotificationPreferencesCard({
     }
 
     setPreferences(result.preferences);
-    setRegistrationState(result.preferences.tokenStored ? "granted" : "not_requested");
+
+    // A stored device row is not proof that notifications work: the reader may
+    // have revoked permission in iOS Settings since it was written. Ask the
+    // system, so this card can never promise a notification iOS will refuse to
+    // deliver.
+    const permissionStatus = await readIosPermissionStatus();
+
+    setRegistrationState(
+      permissionStatus === "denied"
+        ? "denied"
+        : result.preferences.tokenStored && permissionStatus === "granted"
+          ? "granted"
+          : "not_requested"
+    );
   }, [language, userId]);
 
   useEffect(() => {

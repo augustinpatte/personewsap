@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Language } from "../domain.js";
 import {
   buildEditionNotificationMessage,
   chunkForExpo,
@@ -69,6 +70,8 @@ function createStore(seed: {
   tokens: NotificationCandidateToken[];
   notificationsEnabled: string[];
   deliveries?: DeliveryRecord[];
+  /** `profiles.language` at send time; absent means the profile read found nothing. */
+  currentLanguages?: Record<string, Language>;
 }) {
   const deliveries = new Map<string, DeliveryRecord>();
   const disabledTokens: string[] = [];
@@ -83,6 +86,8 @@ function createStore(seed: {
   const store: PushNotificationStore = {
     loadEditionDrops: async () => seed.drops,
     loadNotificationsEnabledUserIds: async () => new Set(seed.notificationsEnabled),
+    loadCurrentUserLanguages: async () =>
+      new Map(Object.entries(seed.currentLanguages ?? {})),
     loadEnabledPushTokens: async () => seed.tokens.filter((entry) => entry.enabled),
     loadDeliveries: async ({ dropDate, notificationKind }) =>
       [...deliveries.values()].filter(
@@ -236,10 +241,10 @@ describe("message", () => {
     const fr = buildEditionNotificationMessage("fr", DROP_DATE);
     const en = buildEditionNotificationMessage("en", DROP_DATE);
 
-    expect(fr.title).toBe("Votre édition est prête");
-    expect(fr.body).toBe("Votre nouvelle édition PersoNewsAP est disponible.");
-    expect(en.title).toBe("Your edition is ready");
-    expect(en.body).toBe("Your new PersoNewsAP edition is ready.");
+    expect(fr.title).toBe("Votre édition du jour est arrivée");
+    expect(fr.body).toBe("Venez la découvrir dans PersoNews.");
+    expect(en.title).toBe("Today's edition is here");
+    expect(en.body).toBe("Come discover it in PersoNews.");
     expect(fr.title).not.toBe(en.title);
 
     // No streak, no count, no urgency.
@@ -323,7 +328,7 @@ describe("eligibility", () => {
 
     expect(resolved.recipients).toHaveLength(1);
     expect(resolved.recipients[0].message.body).toBe(
-      "Votre nouvelle édition PersoNewsAP est disponible."
+      "Venez la découvrir dans PersoNews."
     );
   });
 
@@ -410,10 +415,89 @@ describe("sending", () => {
     expect(result.awaitingReceipt).toBe(2);
     const batch = client.messages[0] as Array<{ title: string; data: unknown }>;
     expect(batch.map((message) => message.title)).toEqual([
-      "Votre édition est prête",
-      "Your edition is ready"
+      "Votre édition du jour est arrivée",
+      "Today's edition is here"
     ]);
     expect(batch[0].data).toEqual({ type: "edition_ready", drop_date: DROP_DATE });
+  });
+
+  it("TEST 6: one published edition, one enabled reader, one valid token, one push", async () => {
+    const { store, deliveries } = createStore({
+      drops: [drop()],
+      tokens: [token()],
+      notificationsEnabled: [FR_USER],
+      currentLanguages: { [FR_USER]: "fr" }
+    });
+    const client = createClient(okTickets(1));
+
+    const result = await sendEditionNotifications({ store, client, dropDate: DROP_DATE });
+
+    expect(result.ticketAccepted).toBe(1);
+    expect(client.messages.flat()).toHaveLength(1);
+    expect(deliveries.size).toBe(1);
+  });
+
+  it("TEST 9 (end to end): a reader who switched to English is sent English", async () => {
+    // The drop is still the French edition published at 19:00; only the
+    // profile moved. Nothing about the device row changed.
+    const { store } = createStore({
+      drops: [drop({ language: "fr" })],
+      tokens: [token()],
+      notificationsEnabled: [FR_USER],
+      currentLanguages: { [FR_USER]: "en" }
+    });
+    const client = createClient(okTickets(1));
+
+    await sendEditionNotifications({ store, client, dropDate: DROP_DATE });
+
+    const batch = client.messages[0] as Array<{ title: string; body: string }>;
+    expect(batch[0].title).toBe("Today's edition is here");
+    expect(batch[0].body).toBe("Come discover it in PersoNews.");
+  });
+
+  it("TEST 13: retires a stored device whose token Expo cannot accept", async () => {
+    const { store, disabledTokens } = createStore({
+      drops: [drop()],
+      tokens: [
+        token({ pushTokenId: "expo-row" }),
+        // Written by an earlier build from addPushTokenListener: the native
+        // APNs token, not an Expo one.
+        token({
+          pushTokenId: "apns-row",
+          expoPushToken: "fe71701d317f4c0a9b2d8e6f10a3c5b7fe71701d317f4c0a9b2d8e6f10a3c5b7"
+        })
+      ],
+      notificationsEnabled: [FR_USER],
+      currentLanguages: { [FR_USER]: "fr" }
+    });
+    const client = createClient(okTickets(1));
+
+    const result = await sendEditionNotifications({ store, client, dropDate: DROP_DATE });
+
+    // The good device is still notified; the unusable row is retired, not retried.
+    expect(client.messages.flat()).toHaveLength(1);
+    expect(disabledTokens).toEqual(["apns-row"]);
+    expect(result.disabledTokens).toBe(1);
+  });
+
+  it("restricts the send to one reader when a single-user test asks for it", async () => {
+    const { store } = createStore({
+      ...seed(),
+      currentLanguages: { [FR_USER]: "fr", [EN_USER]: "en" }
+    });
+    const client = createClient(okTickets(2));
+
+    const result = await sendEditionNotifications({
+      store,
+      client,
+      dropDate: DROP_DATE,
+      onlyUserIds: [EN_USER]
+    });
+
+    expect(result.ticketAccepted).toBe(1);
+    const batch = client.messages[0] as Array<{ title: string }>;
+    expect(batch).toHaveLength(1);
+    expect(batch[0].title).toBe("Today's edition is here");
   });
 
   it("sends nothing the second time it runs", async () => {

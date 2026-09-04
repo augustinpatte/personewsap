@@ -67,6 +67,8 @@ export type RecipientSkipReason =
 export type ResolvedRecipients = {
   recipients: EditionNotificationRecipient[];
   skipped: Array<{ userId: string; reason: RecipientSkipReason }>;
+  /** Stored device rows the Expo Push Service cannot accept; retired by the sender. */
+  invalidTokens: NotificationCandidateToken[];
 };
 
 /**
@@ -80,18 +82,32 @@ export function buildEditionNotificationMessage(
   const copy =
     language === "fr"
       ? {
-          title: "Votre édition est prête",
-          body: "Votre nouvelle édition PersoNewsAP est disponible."
+          title: "Votre édition du jour est arrivée",
+          body: "Venez la découvrir dans PersoNews."
         }
       : {
-          title: "Your edition is ready",
-          body: "Your new PersoNewsAP edition is ready."
+          title: "Today's edition is here",
+          body: "Come discover it in PersoNews."
         };
 
   return {
     ...copy,
     data: { type: EDITION_NOTIFICATION_KIND, drop_date: dropDate }
   };
+}
+
+/**
+ * Whether a stored token is something the Expo Push Service can accept.
+ *
+ * This exists because a raw APNs device token can reach `push_tokens`: on the
+ * device, `addPushTokenListener` reports the *native* token (64 hex characters
+ * on iOS), which is not an Expo push token. The mobile side no longer stores
+ * those, but rows written by earlier builds are still in the table, and sending
+ * one to Expo is a guaranteed error. Such a device is retired at send time
+ * instead of failing every edition forever.
+ */
+export function isExpoPushToken(token: string): boolean {
+  return /^Expo(nent)?PushToken\[[^\]]+\]$/.test(token.trim());
 }
 
 /** True when the drop carries every slot the product promises in the message. */
@@ -103,21 +119,31 @@ export function isCompleteEdition(drop: NotificationCandidateDrop): boolean {
 }
 
 /**
- * Who is told about this edition.
+ * Who is told about this edition, and in which language.
  *
  * Four independent conditions, all required: the reader asked for
  * notifications, they have at least one live device, their drop is published,
  * and it is complete. A reader with two devices gets one message per device —
  * the idempotency key is the device, not the account.
+ *
+ * The language is resolved HERE, from the reader's current profile, not from
+ * the edition and never from the device row. An edition is published in the
+ * language the reader had at 19:00 and is deliberately never rewritten
+ * afterwards, so a reader who switches to English at 19:05 would otherwise be
+ * told in French. `languagesByUserId` carries `profiles.language` as read at
+ * send time; the edition's language is only a fallback for a reader whose
+ * profile could not be read.
  */
 export function resolveEditionNotificationRecipients(input: {
   dropDate: string;
   drops: NotificationCandidateDrop[];
   tokensByUserId: Map<string, NotificationCandidateToken[]>;
   notificationsEnabledUserIds: Set<string>;
+  languagesByUserId?: Map<string, Language>;
 }): ResolvedRecipients {
   const recipients: EditionNotificationRecipient[] = [];
   const skipped: ResolvedRecipients["skipped"] = [];
+  const invalidTokens: NotificationCandidateToken[] = [];
 
   for (const drop of input.drops) {
     if (drop.status !== "published") {
@@ -137,18 +163,27 @@ export function resolveEditionNotificationRecipients(input: {
       continue;
     }
 
-    const tokens = (input.tokensByUserId.get(drop.userId) ?? []).filter(
+    const enabledTokens = (input.tokensByUserId.get(drop.userId) ?? []).filter(
       (token) => token.enabled
     );
+    const tokens = enabledTokens.filter((token) => {
+      if (isExpoPushToken(token.expoPushToken)) {
+        return true;
+      }
+
+      invalidTokens.push(token);
+      return false;
+    });
 
     if (tokens.length === 0) {
       skipped.push({ userId: drop.userId, reason: "no_enabled_token" });
       continue;
     }
 
-    // The edition's own language, so a reader who reads in French is told in
-    // French even if their device is set to something else.
-    const message = buildEditionNotificationMessage(drop.language, input.dropDate);
+    // The reader's language right now. Every device of one reader therefore
+    // gets the same wording, whatever language each was registered under.
+    const language = input.languagesByUserId?.get(drop.userId) ?? drop.language;
+    const message = buildEditionNotificationMessage(language, input.dropDate);
 
     for (const token of tokens) {
       recipients.push({
@@ -156,13 +191,13 @@ export function resolveEditionNotificationRecipients(input: {
         userId: token.userId,
         expoPushToken: token.expoPushToken,
         dailyDropId: drop.dailyDropId,
-        language: drop.language,
+        language,
         message
       });
     }
   }
 
-  return { recipients, skipped };
+  return { recipients, skipped, invalidTokens };
 }
 
 export type ExpoPushTicket =

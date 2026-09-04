@@ -68,6 +68,12 @@ export type PushNotificationStore = {
     languages?: Language[];
   }) => Promise<NotificationCandidateDrop[]>;
   loadNotificationsEnabledUserIds: (userIds: string[]) => Promise<Set<string>>;
+  /**
+   * `profiles.language` as it is right now. Read on every send so a reader who
+   * changed language after the edition was published is told in the language
+   * they actually read in.
+   */
+  loadCurrentUserLanguages: (userIds: string[]) => Promise<Map<string, Language>>;
   loadEnabledPushTokens: (userIds: string[]) => Promise<NotificationCandidateToken[]>;
   loadDeliveries: (input: {
     dropDate: string;
@@ -158,6 +164,11 @@ export async function sendEditionNotifications(input: {
   client: ExpoPushClient;
   dropDate: string;
   languages?: Language[];
+  /**
+   * Restrict the send to these readers. Used only by the single-user test
+   * command; omitted, every eligible reader of the edition is announced to.
+   */
+  onlyUserIds?: string[];
   now?: () => string;
   rateLimiter?: PushRateLimiter;
   retry?: RetryOptions;
@@ -166,10 +177,14 @@ export async function sendEditionNotifications(input: {
   const rateLimiter =
     input.rateLimiter ??
     createPushRateLimiter({ messagesPerSecond: EXPO_PUSH_MESSAGES_PER_SECOND });
-  const drops = await input.store.loadEditionDrops({
+  const loadedDrops = await input.store.loadEditionDrops({
     dropDate: input.dropDate,
     languages: input.languages
   });
+  const onlyUserIds = input.onlyUserIds ? new Set(input.onlyUserIds) : null;
+  const drops = onlyUserIds
+    ? loadedDrops.filter((drop) => onlyUserIds.has(drop.userId))
+    : loadedDrops;
 
   const result: SendEditionNotificationsResult = {
     dropDate: input.dropDate,
@@ -191,8 +206,9 @@ export async function sendEditionNotifications(input: {
   }
 
   const userIds = [...new Set(drops.map((drop) => drop.userId))];
-  const [notificationsEnabledUserIds, tokens] = await Promise.all([
+  const [notificationsEnabledUserIds, languagesByUserId, tokens] = await Promise.all([
     input.store.loadNotificationsEnabledUserIds(userIds),
+    input.store.loadCurrentUserLanguages(userIds),
     input.store.loadEnabledPushTokens(userIds)
   ]);
 
@@ -206,10 +222,24 @@ export async function sendEditionNotifications(input: {
     dropDate: input.dropDate,
     drops,
     tokensByUserId,
-    notificationsEnabledUserIds
+    notificationsEnabledUserIds,
+    languagesByUserId
   });
 
   result.skipped = resolved.skipped;
+
+  // A device row Expo cannot accept (a raw APNs token written by an earlier
+  // build) is retired here rather than retried on every edition. Nothing is
+  // sent to it, so this cannot cost the reader a notification they would
+  // otherwise have received on that device.
+  for (const invalidToken of resolved.invalidTokens) {
+    await input.store.disablePushToken(invalidToken.pushTokenId, "not_an_expo_push_token");
+    result.disabledTokens += 1;
+    console.warn("[content-engine] retired a device with a non-Expo push token", {
+      drop_date: input.dropDate,
+      push_token_id: invalidToken.pushTokenId
+    });
+  }
 
   const deliveries = await input.store.loadDeliveries({
     dropDate: input.dropDate,

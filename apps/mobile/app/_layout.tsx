@@ -6,9 +6,17 @@ import { AppErrorBoundary } from "../src/components";
 import { ThemeProvider, useTheme } from "../src/design";
 import { AuthProvider, useAuth } from "../src/features/auth";
 import { LearningPathProvider } from "../src/features/learning";
-import { useNotificationRouting, usePushTokenRefresh } from "../src/features/notifications";
+import {
+  configureNotificationPresentation,
+  useNotificationRouting,
+  usePushTokenRefresh
+} from "../src/features/notifications";
 import { DailyDropProvider } from "../src/features/today";
 import { trackAnalyticsEvent } from "../src/lib/analytics";
+
+// Set once, at module scope: expo-notifications expects the handler to exist
+// before any notification can arrive, including the one that launched the app.
+configureNotificationPresentation();
 
 export default function RootLayout() {
   useEffect(() => {
