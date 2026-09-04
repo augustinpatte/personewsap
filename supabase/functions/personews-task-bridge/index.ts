@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Supabase RPC payloads in this staging bridge are dynamic JSON and are runtime-validated.
 /**
  * personews-task-bridge — STAGING project (kukyotcgbnchsoeriqoz).
  *
@@ -232,7 +234,7 @@ Deno.serve(async (req: Request) => {
       if (kindError) throw kindError;
       const { data: batch, error: batchError } = await supabase.from("automation_batches").select("id,status,expected_jobs,completed_jobs,approved_jobs,updated_at").eq("edition_date", date).eq("edition_kind", kind).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (batchError) throw batchError;
-      let jobCounts: Record<string, number> = {};
+      const jobCounts: Record<string, number> = {};
       if (batch?.id) {
         const { data: jobs, error } = await supabase.from("generation_jobs").select("status").eq("batch_id", batch.id);
         if (error) throw error;
