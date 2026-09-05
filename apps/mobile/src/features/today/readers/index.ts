@@ -9,3 +9,4 @@ export {
 export { MiniCaseReader } from "./MiniCaseReader";
 export { NewsletterReader } from "./NewsletterReader";
 export { ReaderScaffold } from "./ReaderScaffold";
+export { SourceList } from "./SourceList";

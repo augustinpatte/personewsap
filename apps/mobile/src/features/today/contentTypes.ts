@@ -19,8 +19,12 @@ export type ContentDifficulty = "intro" | "intermediate" | "advanced";
 export type SourceMetadata = {
   id: string;
   url: string;
-  title: string;
-  publisher: string;
+  // Nullable because the stored columns are: `public.sources.title` and
+  // `.publisher` both allow NULL, and some cited records have no title. Neither
+  // is ever stood in for — the reading experience shows less rather than
+  // something the source never said.
+  title: string | null;
+  publisher: string | null;
   author: string | null;
   published_at: string | null;
   retrieved_at: string;

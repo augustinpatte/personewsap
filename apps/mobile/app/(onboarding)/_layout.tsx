@@ -1,13 +1,13 @@
 import { Redirect, Stack } from "expo-router";
 
-import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
+import { AppLaunchScreen, useAuth } from "../../src/features/auth";
 import { OnboardingProvider } from "../../src/features/onboarding";
 
 export default function OnboardingLayout() {
   const { profileLanguage, status } = useAuth();
 
   if (status === "loading") {
-    return <AuthLoadingScreen language={profileLanguage} />;
+    return <AppLaunchScreen language={profileLanguage} />;
   }
 
   if (status === "signedOut") {

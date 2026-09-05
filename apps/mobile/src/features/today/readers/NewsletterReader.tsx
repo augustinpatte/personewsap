@@ -14,6 +14,7 @@ import { useDailyDrop } from "../DailyDropContext";
 import { MarkdownBody } from "./MarkdownBody";
 import { stripMarkdownInline } from "./markdown";
 import { ReaderScaffold } from "./ReaderScaffold";
+import { SourceList } from "./SourceList";
 
 export function NewsletterReader({ articleId }: { articleId: string }) {
   const router = useRouter();
@@ -84,6 +85,11 @@ export function NewsletterReader({ articleId }: { articleId: string }) {
         </AppText>
         <AppText variant="pullQuote">{stripMarkdownInline(item.why_it_matters)}</AppText>
       </View>
+
+      {/* Per article, never per edition: each newsletter article is its own
+          content item with its own cited records, so the sources shown here are
+          the ones behind the piece just read and nothing else. */}
+      <SourceList language={language} sources={item.sources} />
     </ReaderScaffold>
   );
 }

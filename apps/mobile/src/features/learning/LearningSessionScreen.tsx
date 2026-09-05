@@ -122,9 +122,16 @@ export function LearningSessionScreen({ language }: { language: Language | null 
       providerId,
       providerUrl: provider.url,
       copyPrompt,
-      // No canOpenURL pre-check: these are plain HTTPS links the OS can always
-      // route (installed app via universal link, otherwise the browser).
-      openUrl: Linking.openURL,
+      // Called through, never passed by reference. `Linking` is a class
+      // instance and `openURL` reads `this` on the way in, so handing over the
+      // bare method detached it from its receiver: every tap threw a TypeError
+      // before it reached the OS, the catch turned that into "could not open",
+      // and all three provider buttons failed 100% of the time while "Copy
+      // prompt" beside them worked.
+      //
+      // Still no canOpenURL pre-check: these are plain HTTPS links the OS can
+      // always route (installed app via universal link, otherwise the browser).
+      openUrl: (url: string) => Linking.openURL(url),
       onPromptReady: (copied) => {
         setPromptUsed(copied.progressRecorded);
         setStatusTone(copied.progressRecorded ? "success" : "danger");

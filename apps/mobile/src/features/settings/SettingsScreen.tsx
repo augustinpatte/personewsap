@@ -326,6 +326,7 @@ export function SettingsScreen() {
               <SettingsRow
                 iconName="mail"
                 label={copy.emailLabel}
+                selectable
                 value={user?.email ?? copy.noActiveUser}
               />
               <View style={styles.linkActions}>
@@ -478,10 +479,18 @@ function AccountIdentityCard({
           </AppText>
         </View>
         <View style={styles.identityCopy}>
-          <AppText numberOfLines={1} variant="subtitle">
+          {/* The canonical answer to "which account am I signed into", so it is
+              never abbreviated. It used to be a 22pt serif subtitle clipped to
+              one line, which turned augustin.patte@gmail.com into
+              "augustin.patte@g…" — the part that identifies the account is
+              exactly the part the ellipsis ate. Set at body weight instead: it
+              still leads the row, and a full address now fits in one or two
+              lines at any Dynamic Type size. Selectable so the reader can copy
+              it into a support message. */}
+          <AppText selectable variant="bodyStrong">
             {email}
           </AppText>
-          <AppText color="muted" variant="body">
+          <AppText color="muted" variant="caption">
             {status}
           </AppText>
         </View>
@@ -530,11 +539,14 @@ function SettingsSection({
 function SettingsRow({
   iconName,
   label,
+  selectable = false,
   tone = "muted",
   value
 }: {
   iconName: IconBadgeName;
   label: string;
+  /** Identity values the reader may need to copy verbatim (the account email). */
+  selectable?: boolean;
   tone?: "muted" | "danger";
   value: string;
 }) {
@@ -547,7 +559,7 @@ function SettingsRow({
         <AppText color={tone === "danger" ? "danger" : "muted"} variant="caption">
           {label}
         </AppText>
-        <AppText style={styles.rowValue} variant="bodyStrong">
+        <AppText selectable={selectable} style={styles.rowValue} variant="bodyStrong">
           {value}
         </AppText>
       </View>
@@ -706,7 +718,9 @@ const createStyles = (c: ThemeColors) =>
       paddingTop: tokens.space.md
     },
     identityTopline: {
-      alignItems: "center",
+      // flex-start, not center: the email is allowed to wrap, and a centred
+      // avatar would drift down the row as it does.
+      alignItems: "flex-start",
       flexDirection: "row",
       gap: tokens.space.md
     },
@@ -744,7 +758,9 @@ const createStyles = (c: ThemeColors) =>
       gap: tokens.space.xs
     },
     settingsRow: {
-      alignItems: "center",
+      // A wrapping value (a long email) grows the row downwards; the badge stays
+      // level with the label rather than sliding to the middle of the block.
+      alignItems: "flex-start",
       flexDirection: "row",
       gap: tokens.space.md
     },

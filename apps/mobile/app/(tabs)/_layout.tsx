@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TabBarBackground } from "../../src/components";
 import { useTheme } from "../../src/design";
 import { ArchiveProvider } from "../../src/features/archive";
-import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
+import { AppLaunchScreen, useAuth } from "../../src/features/auth";
 import { useLearningPath } from "../../src/features/learning";
 import { shouldRedirectToLearningSetup } from "../../src/features/learning/learningPathRouting";
 import { localized } from "../../src/lib/i18n";
@@ -77,7 +77,7 @@ export default function TabsLayout() {
   );
 
   if (status === "loading") {
-    return <AuthLoadingScreen language={profileLanguage} />;
+    return <AppLaunchScreen language={profileLanguage} />;
   }
 
   if (status === "signedOut") {

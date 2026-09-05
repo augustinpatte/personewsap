@@ -35,6 +35,7 @@ import { readMiniCaseResponseAnywhere } from "../miniCaseSync";
 import { MarkdownBody } from "./MarkdownBody";
 import { resolveOptionFeedback } from "./miniCaseFeedback";
 import { ReaderScaffold } from "./ReaderScaffold";
+import { SourceList } from "./SourceList";
 
 type Phase = "decide" | "feedback" | "debrief";
 type ReaderCopy = ReturnType<typeof getReaderCopy>;
@@ -399,6 +400,11 @@ function MiniCaseQuizFlow({
             {challenge.final_takeaway ?? challenge.sample_answer}
           </AppText>
         </View>
+
+        {/* Only on the results screen. A case is a judgement exercise, and a
+            source list sitting above the questions would hand the reader the
+            answer before they have committed to one. */}
+        <SourceList language={language} sources={challenge.sources} />
       </View>
     );
   }
@@ -678,6 +684,10 @@ function MiniCaseReviewFlow({
             {challenge.final_takeaway ?? challenge.sample_answer}
           </AppText>
         </View>
+
+        {/* The case is already answered and scored, so there is nothing left to
+            give away. */}
+        <SourceList language={language} sources={challenge.sources} />
       </View>
     </ReaderScaffold>
   );
@@ -859,6 +869,9 @@ function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
           </AppText>
           <AppText variant="read">{challenge.sample_answer}</AppText>
         </View>
+
+        {/* Debrief phase only — the decide and feedback phases show nothing. */}
+        <SourceList language={language} sources={challenge.sources} />
       </View>
     );
   }

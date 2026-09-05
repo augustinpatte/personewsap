@@ -26,6 +26,7 @@ import {
 } from "../../lib/supabase";
 import { disablePushNotificationsForUser } from "../notifications/pushNotificationPreferences";
 import { trackAnalyticsEvent } from "../../lib/analytics";
+import { rememberBootLanguage } from "../../lib/useBootLanguage";
 import type { Language } from "../../types/domain";
 
 type AuthStatus = "loading" | "signedOut" | "needsOnboarding" | "ready";
@@ -450,6 +451,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     return { error: null };
   }, [applySession, profileLanguage, session?.user.id]);
+
+  // The one place that learns the canonical language remembers it, so the next
+  // cold start can open the launch screen in it instead of in English while the
+  // profile loads. Display only: profiles.language stays the source of truth,
+  // and the cache is never read once profileLanguage is set.
+  useEffect(() => {
+    if (profileLanguage) {
+      rememberBootLanguage(profileLanguage);
+    }
+  }, [profileLanguage]);
 
   useEffect(() => {
     // refreshAuthState normalises every failure internally; the catch is the

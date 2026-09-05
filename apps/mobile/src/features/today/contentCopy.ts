@@ -112,6 +112,35 @@ export function estimateReadMinutes(item: DailyDropContentItem) {
   return Math.max(1, Math.ceil(words / 220));
 }
 
+/**
+ * The Sources section's chrome — and only its chrome.
+ *
+ * Publisher names, article titles and URLs are the source's own and are never
+ * translated: a Reuters headline stays in the language Reuters published it in,
+ * whichever language the app is reading in. Nothing here claims anything about
+ * a source beyond its existence — no "verified", no "fact checked", no "trusted
+ * source" — because the app has no system that would establish such a claim.
+ */
+export function getSourcesCopy(language: ContentLanguage) {
+  return localized(
+    {
+      en: {
+        heading: "Sources",
+        openSource: (name: string) => `Open ${name} source`,
+        openFailed: "This source could not be opened. The link has been copied.",
+        openFailedWithoutCopy: "This source could not be opened."
+      },
+      fr: {
+        heading: "Sources",
+        openSource: (name: string) => `Ouvrir la source ${name}`,
+        openFailed: "Impossible d'ouvrir cette source. Le lien a été copié.",
+        openFailedWithoutCopy: "Impossible d'ouvrir cette source."
+      }
+    },
+    language
+  );
+}
+
 export function getReaderCopy(language: ContentLanguage) {
   return localized(
     {

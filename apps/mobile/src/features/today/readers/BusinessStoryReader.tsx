@@ -9,6 +9,7 @@ import { useDailyDrop } from "../DailyDropContext";
 import { MarkdownBody } from "./MarkdownBody";
 import { stripMarkdownInline } from "./markdown";
 import { ReaderScaffold } from "./ReaderScaffold";
+import { SourceList } from "./SourceList";
 
 export function BusinessStoryReader({ storyId }: { storyId: string }) {
   const router = useRouter();
@@ -92,6 +93,10 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
         </AppText>
         <AppText variant="pullQuote">{stripMarkdownInline(item.lesson)}</AppText>
       </View>
+
+      {/* After the lesson, in secondary type: the story is what the reader came
+          for, and the record it rests on belongs behind it, not beside it. */}
+      <SourceList language={language} sources={item.sources} />
     </ReaderScaffold>
   );
 }

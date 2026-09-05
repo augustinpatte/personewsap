@@ -18,3 +18,4 @@ export { ProgressPill } from "./ProgressPill";
 export { SecondaryButton } from "./SecondaryButton";
 export { SectionHeader } from "./SectionHeader";
 export { TabBarBackground } from "./TabBarBackground";
+export { TemporaryBrandMark } from "./TemporaryBrandMark";

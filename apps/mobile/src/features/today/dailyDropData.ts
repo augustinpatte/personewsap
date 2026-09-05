@@ -694,9 +694,12 @@ function mapSource(source: Source): SourceMetadata {
     content_hash: source.content_hash ?? `supabase:${source.id}`,
     language: source.language ?? "multi",
     published_at: source.published_at,
-    publisher: source.publisher ?? "Unknown publisher",
+    // No stand-ins. These used to become "Unknown publisher" and the raw URL,
+    // which reads as a citation the source record does not actually make; the
+    // Sources UI omits the line instead.
+    publisher: source.publisher,
     retrieved_at: source.retrieved_at,
-    title: source.title ?? source.url,
+    title: source.title,
     url: source.url
   };
 }

@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import { copyLearningPrompt, copyPromptAndOpenProvider } from "./learningPromptCopy";
+import {
+  copyLearningPrompt,
+  copyPromptAndOpenProvider,
+  isOpenableProviderUrl
+} from "./learningPromptCopy";
 import { LEARNING_PROVIDER_LINKS } from "./providerLinks";
 
 /**
@@ -263,5 +267,140 @@ describe("provider destinations", () => {
 
     expect(onOpenSucceeded).toMatch(/learning_provider_opened/);
     expect(onOpenFailed).not.toMatch(/learning_provider_opened/);
+  });
+});
+
+describe("the prompt itself", () => {
+  const prompt = [
+    "Rôle : tu es un professeur d'économie.",
+    "",
+    "Objectif : m'expliquer la « prime de risque » en cinq minutes.",
+    "  • Commence par une définition courte.",
+    "  • Termine par un exemple concret (café à 2,50 €)."
+  ].join("\n");
+
+  it("copies it whole, accents, bullets and line breaks included", async () => {
+    // The prompt is the entire deliverable of this screen: a copy that drops the
+    // accents or flattens the lines hands the reader a broken instruction.
+    const copyToClipboard = vi.fn(async () => undefined);
+
+    const result = await copyLearningPrompt({
+      promptText: prompt,
+      sessionId: "session-fr",
+      copyToClipboard,
+      recordSessionStartedAfterPromptCopy: vi.fn(async () => ({
+        ok: true,
+        error: null,
+        syncPending: false
+      }))
+    });
+
+    expect(result.copied).toBe(true);
+    expect(copyToClipboard).toHaveBeenCalledWith(prompt);
+
+    const [copied] = copyToClipboard.mock.calls[0] as unknown as [string];
+
+    expect(copied).toBe(prompt);
+    expect(copied).toContain("Rôle");
+    expect(copied).toContain("« prime de risque »");
+    expect(copied).toContain("2,50 €");
+    expect(copied.split("\n")).toHaveLength(prompt.split("\n").length);
+  });
+
+  it("is never truncated or re-encoded on the way to the clipboard", async () => {
+    const copyToClipboard = vi.fn(async () => undefined);
+
+    await copyLearningPrompt({
+      promptText: prompt,
+      sessionId: "session-fr",
+      copyToClipboard,
+      recordSessionStartedAfterPromptCopy: vi.fn(async () => ({
+        ok: true,
+        error: null,
+        syncPending: false
+      }))
+    });
+
+    const [copied] = copyToClipboard.mock.calls[0] as unknown as [string];
+
+    expect(copied).not.toContain("%C3%A9");
+    expect(copied).not.toMatch(/…$/);
+  });
+});
+
+describe("what may be handed to the OS", () => {
+  it("accepts the three provider destinations", () => {
+    for (const provider of Object.values(LEARNING_PROVIDER_LINKS)) {
+      expect(isOpenableProviderUrl(provider.url), provider.label).toBe(true);
+    }
+  });
+
+  it("refuses custom schemes and anything that is not plain HTTPS", () => {
+    for (const url of [
+      "chatgpt://chat",
+      "googlegemini://",
+      "claude://new",
+      "http://chatgpt.com/",
+      "javascript:alert(1)",
+      "file:///etc/passwd",
+      "",
+      "   "
+    ]) {
+      expect(isOpenableProviderUrl(url), url).toBe(false);
+    }
+  });
+
+  it("never launches an unsupported scheme, even if one reached the table", async () => {
+    const openUrl = vi.fn(async () => undefined);
+    const events = {
+      onPromptReady: vi.fn(),
+      onCopyFailed: vi.fn(),
+      onOpenFailed: vi.fn(),
+      onOpenSucceeded: vi.fn()
+    };
+
+    const result = await copyPromptAndOpenProvider({
+      providerId: "chatgpt",
+      providerUrl: "chatgpt://chat",
+      copyPrompt: async () => ({
+        copied: true,
+        progressRecorded: true,
+        syncPending: false
+      }),
+      openUrl,
+      ...events
+    });
+
+    expect(openUrl).not.toHaveBeenCalled();
+    // The reader is not left empty-handed: the prompt is copied and the message
+    // is the "open it and paste" one, not an error.
+    expect(result.copied).toBe(true);
+    expect(result.opened).toBe(false);
+    expect(events.onOpenFailed).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the screen that wires it up", () => {
+  const screen = readFileSync(join(__dirname, "LearningSessionScreen.tsx"), "utf8");
+
+  it("calls Linking.openURL through its receiver", () => {
+    // The device bug: `openUrl: Linking.openURL` handed over the bare method.
+    // Linking is a class instance and openURL reads `this` on the first line,
+    // so every tap threw before it reached the OS and all three buttons failed
+    // while "Copy prompt" beside them worked.
+    expect(screen).not.toMatch(/openUrl:\s*Linking\.openURL\s*,/);
+    expect(screen).toMatch(/openUrl:\s*\(url: string\) => Linking\.openURL\(url\)/);
+  });
+
+  it("keeps copy-only and open-and-copy as separate actions", () => {
+    // "Copy prompt" must never depend on an external app being reachable.
+    expect(screen).toMatch(/label=\{copy\.copyPrompt\}/);
+    expect(screen).toMatch(/void copyPrompt\(\)/);
+  });
+
+  it("never shows a raw platform error", () => {
+    for (const raw of ["Unable to open URL", "unsupported URL", "error.message"]) {
+      expect(screen).not.toContain(raw);
+    }
   });
 });

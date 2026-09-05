@@ -1,45 +1,28 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator } from "react-native";
 
 import { AppScreen, AppText, Card, PrimaryButton } from "../../components";
-import { useThemeColors } from "../../design/theme";
 import { localized } from "../../lib/i18n";
+import { useBootLanguage } from "../../lib/useBootLanguage";
 import { getUserFacingError } from "../../lib/userFacingErrors";
 import type { Language } from "../../types/domain";
+import { AppLaunchScreen } from "./AppLaunchScreen";
 import { useAuth } from "./AuthProvider";
-
-export function AuthLoadingScreen({
-  language = null
-}: {
-  language?: Language | null;
-}) {
-  const colors = useThemeColors();
-  const copy = getAuthRedirectCopy(language);
-
-  return (
-    <AppScreen centered>
-      <Card elevated padding="lg">
-        <AppText variant="eyebrow">PersoNewsAP</AppText>
-        <AppText variant="title">{copy.loadingTitle}</AppText>
-        <ActivityIndicator color={colors.accent} />
-        <AppText color="muted" variant="body">
-          {copy.loadingDescription}
-        </AppText>
-      </Card>
-    </AppScreen>
-  );
-}
 
 export function AuthRedirect() {
   const { error, profileLanguage, refreshAuthState, status } = useAuth();
-  const copy = getAuthRedirectCopy(profileLanguage);
+  // The config error below is the one screen here that has real sentences on
+  // it, and it is reached precisely when no profile could be loaded. The last
+  // language this device saw is the only answer available, and it is a far
+  // better one than defaulting to English.
+  const bootLanguage = useBootLanguage(profileLanguage);
+  const copy = getAuthRedirectCopy(bootLanguage);
 
   if (status === "loading") {
-    return <AuthLoadingScreen language={profileLanguage} />;
+    return <AppLaunchScreen language={profileLanguage} />;
   }
 
   if (error?.code === "missing_supabase_config") {
-    const userFacingError = getUserFacingError(error, profileLanguage, "auth");
+    const userFacingError = getUserFacingError(error, bootLanguage, "auth");
 
     return (
       <AppScreen centered>
@@ -71,16 +54,10 @@ function getAuthRedirectCopy(language: Language | null | undefined) {
     {
       en: {
         accountEyebrow: "Account",
-        loadingDescription:
-          "Checking the saved session. If the network is slow, this screen will stay calm instead of flashing the app.",
-        loadingTitle: "Loading your session",
         retry: "Retry"
       },
       fr: {
         accountEyebrow: "Compte",
-        loadingDescription:
-          "Vérification de la session enregistrée. Si le réseau est lent, cet écran reste stable au lieu de faire clignoter l'app.",
-        loadingTitle: "Chargement de ta session",
         retry: "Réessayer"
       }
     },

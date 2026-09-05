@@ -27,3 +27,21 @@ export function formatLanguageName(
 
   return localized({ en: "Not set", fr: "Non défini" }, uiLanguage);
 }
+
+/**
+ * The value for a language only when the language is actually known.
+ *
+ * `localized` exists to always return something, and resolves an unknown
+ * language to English. That is right for a screen the reader reaches after the
+ * app knows who they are, and wrong for the first frames after launch: a French
+ * reader would be shown an English sentence before their profile arrives.
+ *
+ * This returns null instead, so a caller can render nothing — or something
+ * language-neutral — rather than guess.
+ */
+export function localizedOrNull<T>(
+  values: LocalizedValue<T>,
+  language: Language | null | undefined
+): T | null {
+  return language === "fr" || language === "en" ? values[language] : null;
+}

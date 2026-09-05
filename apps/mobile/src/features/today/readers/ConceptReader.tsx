@@ -8,6 +8,7 @@ import { getConceptCategoryLabel, getReaderCopy } from "../contentCopy";
 import { useDailyDrop } from "../DailyDropContext";
 import { MarkdownBody } from "./MarkdownBody";
 import { ReaderScaffold } from "./ReaderScaffold";
+import { SourceList } from "./SourceList";
 
 export function ConceptReader({ conceptId }: { conceptId: string }) {
   const router = useRouter();
@@ -87,6 +88,11 @@ export function ConceptReader({ conceptId }: { conceptId: string }) {
           <AppText variant="pullQuote">{item.why_it_matters}</AppText>
         </View>
       ) : null}
+
+      {/* A concept is a reader like the others and its content item carries the
+          same cited records; there is no reason for it to be the one reading
+          that hides where it came from. */}
+      <SourceList language={language} sources={item.sources} />
     </ReaderScaffold>
   );
 }

@@ -41,6 +41,18 @@ export async function copyLearningPrompt(input: {
 }
 
 /**
+ * Whether a destination may be handed to the OS.
+ *
+ * The three provider URLs are constants in this repo, so today this can only
+ * ever be true — which is the point: it is a standing guarantee that no custom
+ * scheme, and nothing that is not a plain HTTPS address, is ever launched from
+ * here, whatever a future edit to the provider table does.
+ */
+export function isOpenableProviderUrl(url: string): boolean {
+  return /^https:\/\/[^\s]+$/i.test(url.trim());
+}
+
+/**
  * Copy the prompt, record the session as started, then hand the reader to their
  * assistant.
  *
@@ -74,6 +86,14 @@ export async function copyPromptAndOpenProvider(input: {
   }
 
   input.onPromptReady(copyResult);
+
+  if (!isOpenableProviderUrl(input.providerUrl)) {
+    // Same outcome as a refused open, and for the same reason: the prompt is
+    // already on the clipboard, so the reader is told to paste it themselves
+    // rather than shown that anything went wrong.
+    input.onOpenFailed(copyResult);
+    return { ...copyResult, opened: false };
+  }
 
   try {
     await input.openUrl(input.providerUrl);

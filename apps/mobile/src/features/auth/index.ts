@@ -1,3 +1,5 @@
+export { AppLaunchScreen } from "./AppLaunchScreen";
+export { BRAND_NAME, getLaunchCopy } from "./launchCopy";
 export { AuthFormScreen } from "./AuthFormScreen";
 export { AuthProvider, useAuth } from "./AuthProvider";
-export { AuthLoadingScreen, AuthRedirect } from "./AuthRedirect";
+export { AuthRedirect } from "./AuthRedirect";
