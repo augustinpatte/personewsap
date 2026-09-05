@@ -129,20 +129,38 @@ describe("motion stays restrained", () => {
   });
 });
 
-describe("no native dependency was smuggled in", () => {
-  it("keeps the mobile package free of animation, gesture, haptic and blur modules", () => {
-    const manifest = JSON.parse(
-      readFileSync(join(srcDir, "..", "package.json"), "utf8")
-    ) as { dependencies: Record<string, string> };
-    const installed = Object.keys(manifest.dependencies);
+describe("the native surface stays deliberate", () => {
+  const installed = Object.keys(
+    (
+      JSON.parse(readFileSync(join(srcDir, "..", "package.json"), "utf8")) as {
+        dependencies: Record<string, string>;
+      }
+    ).dependencies
+  );
 
-    for (const forbidden of [
-      "react-native-reanimated",
-      "react-native-gesture-handler",
-      "expo-haptics",
-      "expo-blur"
-    ]) {
+  it("never gains an animation or gesture engine", () => {
+    // Animated with the native driver covers every transform and opacity this
+    // product animates, and nothing in it is draggable. Both of these would be
+    // large native additions bought for nothing.
+    for (const forbidden of ["react-native-reanimated", "react-native-gesture-handler"]) {
       expect(installed).not.toContain(forbidden);
     }
+  });
+
+  it("carries exactly the two native modules the P1 pass chose", () => {
+    // Added deliberately: haptics for the moments something is decided, blur
+    // for the one layer that floats. Both are first-party Expo modules pinned
+    // by `expo install`, and both are pinned here so a third cannot arrive
+    // unnoticed.
+    expect(installed).toContain("expo-haptics");
+    expect(installed).toContain("expo-blur");
+
+    const nativeUiModules = installed.filter((name) =>
+      /^(expo-blur|expo-haptics|react-native-(?!safe-area-context|screens|url-polyfill).*)$/.test(
+        name
+      )
+    );
+
+    expect(nativeUiModules.sort()).toEqual(["expo-blur", "expo-haptics"]);
   });
 });

@@ -16,6 +16,7 @@ import {
 import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
+import { useTabBarInset } from "../../design/useTabBarInset";
 import {
   resolveArchiveEmptyState,
   useArchive,
@@ -56,6 +57,7 @@ export function ItemArchiveList({
   renderMeta: (item: LibraryItemSummary) => ReactNode;
 }) {
   const styles = useThemedStyles(createStyles);
+  const tabBarInset = useTabBarInset();
   const colors = useThemeColors();
   const archive = useArchive();
   const copy = getModuleCopy(archive.language);
@@ -148,7 +150,11 @@ export function ItemArchiveList({
         </View>
       }
       ListHeaderComponentStyle={styles.headerSpacing}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        { paddingBottom: tokens.space.xxl + tabBarInset }
+      ]}
+      scrollIndicatorInsets={{ bottom: tabBarInset }}
       data={search.results}
       keyExtractor={(item) => item.id}
       keyboardShouldPersistTaps="handled"
@@ -293,7 +299,7 @@ const createStyles = (c: ThemeColors) =>
       paddingTop: tokens.space.lg
     },
     rowTitle: {
-      lineHeight: 24
+      lineHeight: tokens.typography.lineHeight.subtitleCompact
     },
     rowMeta: {
       minHeight: 18

@@ -13,6 +13,7 @@ import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import type { Language } from "../../types/domain";
+import { sessionCompleted } from "../../lib/haptics";
 import { resolveLearningFeedbackSubmitDecision } from "./learningFeedbackUi";
 import { getLearningCopy } from "./learningCopy";
 import { useLearningPath } from "./LearningPathContext";
@@ -85,10 +86,16 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
     }
 
     if (decision === "syncPending") {
+      // Recorded locally but not yet synced: the session is not finished, so
+      // this is not the moment to congratulate anyone.
       setSyncMessage(copy.syncPending);
       return;
     }
 
+    // The session is genuinely complete: an explicit submission the server
+    // accepted. Fired here, on the causal event, rather than after the
+    // navigation below.
+    sessionCompleted();
     router.replace("/(tabs)/path");
   };
 

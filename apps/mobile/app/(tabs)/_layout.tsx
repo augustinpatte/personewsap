@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { Redirect, Tabs, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TabBarBackground } from "../../src/components";
 import { useTheme } from "../../src/design";
 import { ArchiveProvider } from "../../src/features/archive";
 import { AuthLoadingScreen, useAuth } from "../../src/features/auth";
@@ -108,9 +109,18 @@ export default function TabsLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.ink,
           tabBarInactiveTintColor: colors.muted,
+          // The bar floats over the content instead of reserving a strip of
+          // layout, so a headline scrolls under it and the material has
+          // something to be translucent about. Every scrollable surface inside
+          // the tabs ends above it via useTabBarInset, so nothing actionable
+          // ends up under the bar.
+          tabBarBackground: () => <TabBarBackground />,
           tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
+            position: "absolute",
+            // The colour lives in TabBarBackground now; leaving one here would
+            // paint an opaque sheet over the material.
+            backgroundColor: "transparent",
+            borderTopWidth: 0,
             // minHeight rather than height: at large accessibility text sizes
             // the bar grows with its labels instead of clipping them.
             minHeight: 68 + bottomInset,

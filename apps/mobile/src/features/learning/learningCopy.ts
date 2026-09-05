@@ -119,6 +119,10 @@ export function getLearningCopy(language: Language | null | undefined) {
           hidePrompt: "Hide prompt",
           loading: "Loading the session",
           sessionLabel: (value: number) => `Session ${value}`,
+          // Which session, and how far into the path it sits. One line, so the
+          // header answers "where am I" without growing.
+          sessionPosition: (value: number, completed: number) =>
+            completed > 0 ? `Session ${value} · ${completed} completed` : `Session ${value}`,
           unavailableTitle: "Session unavailable",
           unavailableBody: "This session is no longer available. Return to Today to refresh your path.",
           backToday: "Back to your path"
@@ -300,6 +304,11 @@ export function getLearningCopy(language: Language | null | undefined) {
           hidePrompt: "Masquer le prompt",
           loading: "Chargement de la session",
           sessionLabel: (value: number) => `Session ${value}`,
+          // « terminée » s'accorde avec le nombre de sessions achevées.
+          sessionPosition: (value: number, completed: number) =>
+            completed > 0
+              ? `Session ${value} · ${completed} terminée${completed > 1 ? "s" : ""}`
+              : `Session ${value}`,
           unavailableTitle: "Session indisponible",
           unavailableBody:
             "Cette session n'est plus disponible. Revenez à Aujourd'hui pour actualiser votre parcours.",

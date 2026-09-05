@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { tokens } from "../design/tokens";
 import { useThemeColors } from "../design/theme";
+import { useTabBarInset } from "../design/useTabBarInset";
 
 type AppScreenProps = PropsWithChildren<{
   centered?: boolean;
@@ -31,10 +32,14 @@ function AppScreenRoot({
   children
 }: AppScreenProps) {
   const colors = useThemeColors();
+  // Zero outside the tabs (readers, onboarding, the learning stack); the real
+  // bar height inside them, where the content scrolls under a floating bar.
+  const tabBarInset = useTabBarInset();
   const contentStyles = [
     styles.content,
     padded && styles.padded,
     centered && styles.centered,
+    tabBarInset > 0 ? { paddingBottom: tokens.space.xl + tabBarInset } : null,
     contentStyle
   ];
 
@@ -48,6 +53,7 @@ function AppScreenRoot({
           bounces
           contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
+          scrollIndicatorInsets={{ bottom: tabBarInset }}
           showsVerticalScrollIndicator={false}
           {...scrollViewProps}
           contentContainerStyle={contentStyles}

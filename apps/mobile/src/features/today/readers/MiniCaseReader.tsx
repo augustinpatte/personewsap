@@ -10,6 +10,7 @@ import {
   type ThemeColors
 } from "../../../design/theme";
 import { useReducedMotion } from "../../../design/useReducedMotion";
+import { answerCorrect, answerIncorrect } from "../../../lib/haptics";
 import {
   getDifficultyLabel,
   getReaderCopy,
@@ -46,6 +47,23 @@ const outcomeColors: Record<
   viable: { border: "warning", fill: "warningSoft", ink: "warning" },
   weak: { border: "danger", fill: "dangerSoft", ink: "danger" }
 };
+
+/**
+ * The one haptic a Mini Case fires: the outcome of a committed answer.
+ *
+ * Both flows reveal correctness on the same tap that records the choice, so
+ * this is the causal event for both "registered" and "right/wrong". Success is
+ * restrained and a miss is a Warning, never an Error — a wrong answer in a
+ * learning exercise is a normal move, not a failure.
+ */
+function notifyAnswerOutcome(option: MiniCaseOption): void {
+  if (option.outcome === "best") {
+    answerCorrect();
+    return;
+  }
+
+  answerIncorrect();
+}
 
 export function MiniCaseReader({ caseId }: { caseId: string }) {
   const router = useRouter();
@@ -260,6 +278,10 @@ function MiniCaseQuizFlow({
       return;
     }
     setSelections((current) => ({ ...current, [currentQuestion.id]: option.id }));
+    // One haptic, on the frame the answer is committed and its outcome is
+    // revealed — those are the same event here, so a separate "selected" tick
+    // would be a second buzz for one decision.
+    notifyAnswerOutcome(option);
     // Reduce Motion: show the answer at once instead of fading it in. The state
     // change still happens — only the movement is dropped.
     if (reduceMotion) {
@@ -694,6 +716,7 @@ function MiniCaseLegacyFlow({ challenge }: { challenge: MiniCaseChallenge }) {
     }
     setSelectedId(option.id);
     setPhase("feedback");
+    notifyAnswerOutcome(option);
 
     if (reduceMotion) {
       reveal.setValue(1);

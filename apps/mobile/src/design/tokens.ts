@@ -82,7 +82,14 @@ export const tokens = {
       quote: 34,
       title: 37,
       display: 43,
-      dropCap: 52
+      dropCap: 52,
+      /**
+       * A `subtitle` set as a compact list headline. Two screens tighten the
+       * 29pt subtitle leading to this when the headline is a row rather than a
+       * section opener; identical override, identical reason, so it belongs to
+       * the scale rather than to each file.
+       */
+      subtitleCompact: 24
     },
     weight: {
       regular: "400",

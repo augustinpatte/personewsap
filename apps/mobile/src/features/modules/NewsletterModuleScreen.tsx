@@ -13,6 +13,7 @@ import {
 import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
+import { useTabBarInset } from "../../design/useTabBarInset";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import {
   resolveArchiveEmptyState,
@@ -284,6 +285,7 @@ function ReadStatus({
 
 function NewsletterArchive() {
   const styles = useThemedStyles(createStyles);
+  const tabBarInset = useTabBarInset();
   // Rendering the Editions view is what loads the archive; the app start does
   // not need it.
   const archive = useArchiveData();
@@ -342,7 +344,11 @@ function NewsletterArchive() {
 
   return (
     <FlatList
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        { paddingBottom: tokens.space.xxl + tabBarInset }
+      ]}
+      scrollIndicatorInsets={{ bottom: tabBarInset }}
       data={editions}
       keyExtractor={(edition) => edition.drop_id}
       keyboardShouldPersistTaps="handled"
@@ -543,7 +549,7 @@ const createStyles = (c: ThemeColors) =>
       paddingVertical: tokens.space.sm
     },
     alsoHeadline: {
-      lineHeight: 24
+      lineHeight: tokens.typography.lineHeight.subtitleCompact
     },
     statusRow: {
       alignItems: "center",

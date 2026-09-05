@@ -20,6 +20,7 @@ import {
 import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
+import { useTabBarInset } from "../../design/useTabBarInset";
 import type { EditionProgressState } from "./editionProgress";
 import { getModuleCopy } from "./moduleCopy";
 import type { Language } from "../../types/domain";
@@ -127,13 +128,22 @@ export function ModuleScroll({
   reveal?: boolean;
 }>) {
   const styles = useThemedStyles(createStyles);
+  // The tab bar floats over this scroll, so the content has to end above it.
+  const tabBarInset = useTabBarInset();
 
   return (
     <ScrollView
       automaticallyAdjustKeyboardInsets
-      contentContainerStyle={[styles.scrollContent, contentStyle]}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingBottom: tokens.space.xxl + tabBarInset },
+        contentStyle
+      ]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      // The bar is translucent, so the scroll indicator must stop where the
+      // content does rather than running under it.
+      scrollIndicatorInsets={{ bottom: tabBarInset }}
     >
       {reveal ? <ContentReveal>{children}</ContentReveal> : children}
     </ScrollView>

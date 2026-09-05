@@ -34,15 +34,20 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
   const {
     displayDomain,
-    displayObjective,
     getSessionById,
     markSessionOpened,
     recordSessionStartedAfterPromptCopy,
+    sessions,
     status
   } = useLearningPath();
   const styles = useThemedStyles(createStyles);
   const pressedSurface = usePressedSurfaceStyle();
   const session = sessionId ? getSessionById(sessionId) : undefined;
+  // Where this session sits in the path. Counted from the same rows the Path
+  // tab counts, so the two screens can never disagree.
+  const completedSessionCount = sessions.filter(
+    (entry) => Boolean(entry.completed_at) || entry.status === "completed"
+  ).length;
   // Follows the reader, not the row: title, summary and objectives are stored
   // in both languages, so a session authored in French renders in English the
   // moment the reader switches.
@@ -192,18 +197,19 @@ export function LearningSessionScreen({ language }: { language: Language | null 
   return (
     <AppScreen contentStyle={styles.screen}>
       <View style={styles.header}>
+        {/* Opens on the same three things the card that was just tapped led
+            with — compass, domain, session number — so the reader recognises
+            the session they chose before reading a word. The generic "Learning
+            path" eyebrow and the separate domain·objective caption both went:
+            they said less than the domain alone and cost two lines. */}
         <IconBadge name="compass" tone="accent" />
-        <AppText variant="eyebrow">{copy.eyebrow}</AppText>
-        {displayDomain && displayObjective ? (
-          <AppText color="muted" variant="caption">
-            {`${localizeLearningField(displayDomain, sessionLanguage)} · ${localizeLearningField(
-              displayObjective,
-              sessionLanguage
-            )}`}
-          </AppText>
-        ) : null}
         <AppText color="muted" variant="eyebrow">
-          {copy.sessionLabel(session.session_number)}
+          {displayDomain
+            ? localizeLearningField(displayDomain, sessionLanguage)
+            : copy.eyebrow}
+        </AppText>
+        <AppText color="muted" variant="eyebrow">
+          {copy.sessionPosition(session.session_number, completedSessionCount)}
         </AppText>
         <AppText variant="title">{localizeSessionTitle(session, sessionLanguage)}</AppText>
         <AppText color="muted" variant="read">
