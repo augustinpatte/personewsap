@@ -44,6 +44,26 @@ async function runLocalQa() {
   await runRequired("quality proof", "npm", ["run", "content:quality-proof"]);
   await runRequired("production scale diagnostics", "npm", ["run", "qa:scale"]);
   await runRequired("static supabase doctor", "npm", ["run", "supabase:doctor"]);
+
+  // The check that would have caught the language bug. A reviewed migration
+  // that is never pushed leaves production running the old function while
+  // every local test passes, which is exactly how `update_profile_language`
+  // stayed broken for readers. It needs a token, so it can only be advisory
+  // here — but it is no longer invisible.
+  if (hasEnv(["SUPABASE_ACCESS_TOKEN"])) {
+    // Advisory, not required: the same check also reports staging's 30
+    // pre-existing orphaned migrations, so failing the run on it would leave
+    // local QA permanently red and therefore ignored. It prints what is
+    // pending; acting on it is a deliberate decision, never an automatic one.
+    await runAdvisory("remote migration drift", "npm", ["run", "supabase:migration-check"]);
+    return;
+  }
+
+  record(
+    "SKIP",
+    "remote migration drift",
+    "SUPABASE_ACCESS_TOKEN is not set; skipped the check for local migrations that were never pushed."
+  );
 }
 
 async function runBackendLiveQa() {
@@ -93,6 +113,29 @@ async function runRequired(label, command, args) {
   if (code !== 0) {
     record("FAIL", label, `${prettyCommand} exited ${code}`);
     throw new Error(`${label} failed`);
+  }
+
+  record("PASS", label, prettyCommand);
+}
+
+/**
+ * Runs a check whose failure is information rather than a verdict.
+ *
+ * Reserved for checks about REMOTE state, which a local run can observe but
+ * cannot fix. They must be visible — the language bug survived because nobody
+ * looked at exactly this — without making an unrelated remote condition able
+ * to fail someone's local QA.
+ */
+async function runAdvisory(label, command, args) {
+  const prettyCommand = [command, ...args].join(" ");
+  process.stdout.write(`\n== ${label} (advisory) ==\n`);
+  process.stdout.write(`$ ${prettyCommand}\n`);
+
+  const code = await run(command, args);
+
+  if (code !== 0) {
+    record("WARN", label, `${prettyCommand} exited ${code} — read the output above`);
+    return;
   }
 
   record("PASS", label, prettyCommand);
@@ -206,12 +249,15 @@ function record(status, label, detail) {
 function printHeader() {
   process.stdout.write(`PersoNewsAP QA: ${mode}\n`);
   process.stdout.write(`Working directory: ${ROOT}\n`);
-  process.stdout.write("Policy: required command failures stop the run; optional checks are marked SKIP.\n");
+  process.stdout.write(
+    "Policy: required command failures stop the run; optional checks are marked SKIP, and advisory checks about remote state are marked WARN.\n"
+  );
 }
 
 function printSummary() {
   const failed = steps.filter((step) => step.status === "FAIL").length;
   const skipped = steps.filter((step) => step.status === "SKIP").length;
+  const warned = steps.filter((step) => step.status === "WARN").length;
   const passed = steps.filter((step) => step.status === "PASS").length;
 
   process.stdout.write("\nQA summary\n");
@@ -221,6 +267,8 @@ function printSummary() {
     process.stdout.write(`${step.status} ${step.label}: ${step.detail}\n`);
   }
 
-  process.stdout.write(`\nTotals: ${passed} pass, ${skipped} skip, ${failed} fail\n`);
+  process.stdout.write(
+    `\nTotals: ${passed} pass, ${skipped} skip, ${warned} warn, ${failed} fail\n`
+  );
   process.stdout.write(failed > 0 ? "FAIL\n" : "PASS\n");
 }

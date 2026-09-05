@@ -15,10 +15,13 @@ import {
   exportAuthenticatedUserData,
   requestAuthenticatedAccountDeletion
 } from "../account/privacyData";
+import { useArchive } from "../archive";
 import { useAuth } from "../auth";
+import { useDailyDrop } from "../today";
 import { NotificationPreferencesCard } from "../notifications";
 import { LearningAccountSection } from "../learning";
 import { PreferencesEditor, updateProfileLanguage } from "../preferences";
+import { clearPreferenceSensitiveContentCache } from "../preferences/contentRefresh";
 import { recordLanguageChangeNotice } from "../preferences/languageChangeNotice";
 import { performLanguageChange } from "../preferences/languageSwitch";
 import { LANGUAGE_OPTIONS, localizeOptions, SelectableCard } from "../onboarding";
@@ -40,6 +43,8 @@ export function SettingsScreen() {
     status,
     user
   } = useAuth();
+  const dailyDrop = useDailyDrop();
+  const archive = useArchive();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isExportingData, setIsExportingData] = useState(false);
@@ -104,6 +109,29 @@ export function SettingsScreen() {
     },
     [applyProfileLanguage, profileLanguage, refreshAuthState, user?.id]
   );
+
+  /**
+   * A saved preference change, propagated.
+   *
+   * Every content response is memoised for a minute, so without this the
+   * reader could enable a module and walk straight back into the answer
+   * computed before they did. Clearing the content caches and reloading both
+   * content surfaces makes the next read ask the server with the preferences
+   * that are now stored.
+   *
+   * What this cannot do is rewrite today's edition. `daily_drop_items` is
+   * assigned by the publisher when the edition goes out, and re-reading it
+   * returns the same assignment — which is the point: a new topic takes effect
+   * on the next edition, and nothing is invented in the meantime.
+   */
+  const handlePreferencesSaved = useCallback(async () => {
+    clearPreferenceSensitiveContentCache();
+    await refreshAuthState();
+    // Completion and read state are re-read from content_interactions with the
+    // content, so reloading here cannot cost the reader progress.
+    dailyDrop.reload();
+    archive.reload();
+  }, [archive, dailyDrop, refreshAuthState]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -226,7 +254,7 @@ export function SettingsScreen() {
         >
           <PreferencesEditor
             onLanguageChange={handleLanguageChange}
-            onSaved={refreshAuthState}
+            onSaved={handlePreferencesSaved}
             refreshKey={preferencesRefreshKey}
             showLanguage={false}
             uiLanguage={profileLanguage}
