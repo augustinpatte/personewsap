@@ -24,6 +24,7 @@ pg_cron (staging)                17:00 and 18:00 UTC, every day
             └─ POST personews-task-publisher
                  action=verify  ─▶ verify_scheduled_edition()          (read-only)
                  └─ verification fails ──▶ audit row, NO receipt, done
+                 └─ verification ok ────▶ release_verified_edition_notifications()
             └─ mark_batch_published()                                  (staging SQL)
             └─ audit row: published
 ```
@@ -32,6 +33,19 @@ The order is the safety property. Nothing is written to production until the gat
 passes; **nothing is written to staging until production has been read back and
 found complete**. A receipt is a statement of fact about production, so it is
 never issued on the strength of an RPC's own success message.
+
+The same boundary governs notifications. Publishing writes a
+`notification_outbox` event inside the publishing transaction — so the event
+exists if and only if the edition does — but in a state nothing will act on. It
+is `release_verified_edition_notifications`, called only on a passing
+verification, that makes it dispatchable. An edition that publishes and then
+fails verification announces itself to nobody. See BACKEND_OPERATIONS.md,
+*Push Notifications*.
+
+The release is best-effort and downstream of the commit: if it fails, the
+notification arrives on the recovery schedule instead of within minutes, and the
+verification verdict is unchanged. Publication never depends on Expo, on GitHub,
+or on anything in the notification path.
 
 ## The hard gate
 

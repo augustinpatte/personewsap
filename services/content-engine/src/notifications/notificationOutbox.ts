@@ -32,6 +32,21 @@ export type NotificationOutbox = {
     succeeded: boolean;
     error?: string;
   }) => Promise<void>;
+  /**
+   * True only when this edition is KNOWN to have been written and not yet
+   * verified.
+   *
+   * The event path cannot announce such an edition — `claim_notification_events`
+   * does not see an `awaiting_verification` row — but the fallback schedule
+   * derives its date from the cadence and would announce it anyway, which would
+   * put the same hole back in a different pipe. This is what closes it.
+   *
+   * It answers false whenever it does not know: no row, outbox not deployed,
+   * table unreachable. An edition with no verification record behaves exactly as
+   * it did before this table existed, because the alternative is a sender that
+   * goes silent the day the outbox has a bad afternoon.
+   */
+  isAwaitingVerification: (input: { eventDate: string }) => Promise<boolean>;
 };
 
 /** The outbox has not been deployed to this project yet. */
@@ -92,6 +107,29 @@ export function createSupabaseNotificationOutbox(supabase: SupabaseClient): Noti
           message: error.message
         });
       }
+    },
+
+    async isAwaitingVerification({ eventDate }) {
+      const { data, error } = await supabase
+        .from("notification_outbox")
+        .select("status")
+        .eq("event_type", "edition_published")
+        .eq("event_date", eventDate)
+        .maybeSingle();
+
+      if (error) {
+        if (MISSING_FUNCTION_CODES.has(error.code ?? "")) {
+          return false;
+        }
+
+        console.error("[content-engine] could not read the notification outbox", {
+          code: error.code ?? null,
+          message: error.message
+        });
+        return false;
+      }
+
+      return (data as { status?: string } | null)?.status === "awaiting_verification";
     }
   };
 }

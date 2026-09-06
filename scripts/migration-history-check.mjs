@@ -67,7 +67,42 @@ async function localVersions(dir) {
   );
 }
 
+/**
+ * Why a version string is not just a sort key.
+ *
+ * Supabase migration filenames are `YYYYMMDDHHmmss_description.sql`, and the CLI
+ * parses that timestamp — `supabase migration list` prints it as a date. A
+ * version like `20260906099000` sorts correctly and is not a time: minute 90.
+ * Six local versions were written that way, as a sequence rather than a clock,
+ * and every one of them was renamed before deployment because none had been
+ * applied anywhere. A seventh must not appear unnoticed.
+ *
+ * Returns null when the version is a real UTC timestamp, and why not otherwise.
+ */
+function invalidTimestamp(version) {
+  if (!/^\d{14}$/.test(version)) return "not 14 digits";
+
+  const [year, month, day, hour, minute, second] = [
+    version.slice(0, 4), version.slice(4, 6), version.slice(6, 8),
+    version.slice(8, 10), version.slice(10, 12), version.slice(12, 14),
+  ].map(Number);
+
+  if (month < 1 || month > 12) return `month ${month}`;
+  if (day < 1 || day > 31) return `day ${day}`;
+  if (hour > 23) return `hour ${hour}`;
+  if (minute > 59) return `minute ${minute}`;
+  if (second > 59) return `second ${second}`;
+
+  const parsed = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const round = parsed.getUTCFullYear() === year
+    && parsed.getUTCMonth() === month - 1
+    && parsed.getUTCDate() === day;
+
+  return round ? null : "not a real date";
+}
+
 let replayRisk = 0;
+let malformed = 0;
 
 for (const project of PROJECTS) {
   const [remote, local] = await Promise.all([remoteVersions(project.ref), localVersions(project.dir)]);
@@ -101,6 +136,23 @@ for (const project of PROJECTS) {
     if (orphans.length > 5) console.log(`      \u2026 and ${orphans.length - 5} more`);
   }
 
+  // Filename audit. A version already in the remote history is reported and NOT
+  // renamed: the history records that exact string, and changing it locally
+  // would orphan the remote row — which is the same lie as a migration repair,
+  // told with a `git mv` instead.
+  for (const [version, file] of [...local.entries()].sort()) {
+    const problem = invalidTimestamp(version);
+    if (!problem) continue;
+
+    malformed += 1;
+
+    if (remote.has(version)) {
+      console.log(`    MALFORMED: ${file} (${problem}) \u2014 already applied, so LEAVE IT ALONE`);
+    } else {
+      console.log(`    MALFORMED: ${file} (${problem}) \u2014 unapplied, rename before deploying`);
+    }
+  }
+
   if (pending.length > 0) replayRisk += 1;
 }
 
@@ -110,4 +162,8 @@ console.log(
     : "\nA local migration is missing from a remote history: db push would run it.",
 );
 
-process.exit(replayRisk === 0 ? 0 : 1);
+if (malformed > 0) {
+  console.log(`${malformed} migration filename(s) are not valid UTC timestamps.`);
+}
+
+process.exit(replayRisk === 0 && malformed === 0 ? 0 : 1);

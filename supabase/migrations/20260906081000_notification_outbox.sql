@@ -35,8 +35,28 @@
 -- notification is worth a great deal and it is worth strictly less than the
 -- edition it announces.
 --
+-- PUBLICATION IS NOT THE SAME BOUNDARY AS VERIFICATION
+--
+-- `publish_scheduled_staging_payload` committing means production holds the
+-- edition. It does not yet mean the edition is *correct*: the scheduled
+-- publisher calls `verify_scheduled_edition` afterwards, from staging, in a
+-- separate request, and only a passing verification produces a receipt. An
+-- edition that publishes and then fails verification is a real outcome — that is
+-- why the verify step exists — and readers must not have been told about it.
+--
+-- So the trigger does not create a dispatchable event. It creates the durable
+-- record in the publishing transaction, where it belongs, in a state nothing
+-- will act on: `awaiting_verification`. `release_verified_edition_notifications`
+-- moves it to `pending`, and that call is the verification success boundary.
+--
+--   edition written, not yet verified   → awaiting_verification → nobody woken
+--   edition written and verified        → pending               → dispatchable
+--
+-- Nothing in either step can fail the publication: the enqueue is wrapped, and
+-- the release happens after production has already committed and been read back.
+--
 -- Strictly additive: one new table, its trigger on an existing table's write
--- path, and two service-role functions. No existing column, constraint, policy
+-- path, and three service-role functions. No existing column, constraint, policy
 -- or row is modified.
 
 BEGIN;
@@ -52,12 +72,18 @@ CREATE TABLE IF NOT EXISTS public.notification_outbox (
   -- date, which is what the sender needs to find the drops.
   event_date DATE NOT NULL,
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-  status TEXT NOT NULL DEFAULT 'pending',
+  -- Not 'pending'. A row is born unverified, and only the verification success
+  -- boundary makes it dispatchable. Defaulting the other way would mean any
+  -- future insert that forgets to say so announces an unverified edition.
+  status TEXT NOT NULL DEFAULT 'awaiting_verification',
   attempt_count INTEGER NOT NULL DEFAULT 0,
   claim_id TEXT,
   claimed_at TIMESTAMPTZ,
   claim_expires_at TIMESTAMPTZ,
   processed_at TIMESTAMPTZ,
+  -- When production verification succeeded for this edition. NULL means the
+  -- edition has been written but not yet read back and found complete.
+  verified_at TIMESTAMPTZ,
   -- When a dispatcher last woke a worker for this event. Bounds how often the
   -- same event can be re-announced to the outside world; it says nothing about
   -- whether the work was done, which is what `status` is for.
@@ -68,7 +94,7 @@ CREATE TABLE IF NOT EXISTS public.notification_outbox (
   CONSTRAINT notification_outbox_event_type_check
     CHECK (event_type IN ('edition_published')),
   CONSTRAINT notification_outbox_status_check
-    CHECK (status IN ('pending', 'claimed', 'processed', 'failed')),
+    CHECK (status IN ('awaiting_verification', 'pending', 'claimed', 'processed', 'failed')),
   CONSTRAINT notification_outbox_attempts_check
     CHECK (attempt_count >= 0),
   CONSTRAINT notification_outbox_processed_check
@@ -115,13 +141,16 @@ COMMENT ON TABLE public.notification_outbox IS
   'Durable record that something happened which readers should be told about. Written in the publishing transaction, so an event exists if and only if the edition does.';
 
 -- ---------------------------------------------------------------------------
--- 2. The publication success boundary
+-- 2. The edition-written boundary
 -- ---------------------------------------------------------------------------
--- `daily_drops.status = 'published'` is the boundary, and it is the right one:
--- it is the last thing `publish_scheduled_staging_payload` writes, it is what
--- the sender itself reads to decide who is eligible, and it is what the reader's
--- app reads to show an edition. Anything earlier would announce an edition that
--- can still roll back.
+-- `daily_drops.status = 'published'` is where the DURABLE RECORD is created, and
+-- it is the right place for that: it is the last thing
+-- `publish_scheduled_staging_payload` writes, it is what the sender itself reads
+-- to decide who is eligible, and it is what the reader's app reads to show an
+-- edition. Anything earlier would record an edition that can still roll back.
+--
+-- It is NOT where the notification becomes dispatchable. The row is written
+-- `awaiting_verification`, and section 3 is the only thing that releases it.
 --
 -- A STATEMENT trigger with a transition table, not a row trigger: the publisher
 -- writes one statement per reader, and a row trigger would do this work once per
@@ -138,10 +167,13 @@ SET search_path = public, pg_temp
 AS $enqueue$
 BEGIN
   BEGIN
-    INSERT INTO public.notification_outbox (event_type, event_date, payload)
+    INSERT INTO public.notification_outbox (event_type, event_date, status, payload)
     SELECT
       'edition_published',
       published.drop_date,
+      -- Durable, and deliberately not dispatchable. The edition exists; whether
+      -- it is complete is a question only verification answers.
+      'awaiting_verification',
       jsonb_build_object(
         'edition_date', to_char(published.drop_date, 'YYYY-MM-DD'),
         'source', TG_TABLE_NAME || '.' || lower(TG_OP)
@@ -184,7 +216,74 @@ FOR EACH STATEMENT
 EXECUTE FUNCTION public.enqueue_published_edition_notification_events();
 
 -- ---------------------------------------------------------------------------
--- 3. Draining the outbox
+-- 3. The verification success boundary
+-- ---------------------------------------------------------------------------
+-- Called by `personews-task-publisher` after `verify_scheduled_edition` has read
+-- production back and answered ok. That is the exact moment the product means by
+-- "the edition succeeded", and it is the moment — not one earlier — at which
+-- readers may be told.
+--
+-- It is a promotion, not an insert: the event already exists, written by the
+-- publishing transaction. If verification never passes, the row simply stays
+-- `awaiting_verification` and no dispatcher, no claim and no sender will ever
+-- look at it.
+--
+-- Releasing twice is a no-op. Only `awaiting_verification` moves, so a second
+-- verification of the same edition cannot resurrect an event that has already
+-- been processed, nor reset one a worker currently holds.
+
+CREATE OR REPLACE FUNCTION public.release_verified_edition_notifications(
+  p_edition_date DATE
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $release$
+DECLARE
+  v_now TIMESTAMPTZ := now();
+  v_released INTEGER := 0;
+BEGIN
+  IF p_edition_date IS NULL THEN
+    RAISE EXCEPTION 'edition date is required' USING ERRCODE = '22023';
+  END IF;
+
+  WITH promoted AS (
+    UPDATE public.notification_outbox AS outbox
+    SET
+      status = 'pending',
+      verified_at = v_now,
+      updated_at = v_now
+    WHERE outbox.event_type = 'edition_published'
+      AND outbox.event_date = p_edition_date
+      AND outbox.status = 'awaiting_verification'
+    RETURNING outbox.id
+  )
+  SELECT count(*)::INTEGER INTO v_released FROM promoted;
+
+  RETURN jsonb_build_object(
+    'edition_date', to_char(p_edition_date, 'YYYY-MM-DD'),
+    'released', v_released,
+    -- What the row looks like now, so a caller that released nothing can tell
+    -- "already released" from "no event was ever written".
+    'status', coalesce(
+      (SELECT outbox.status FROM public.notification_outbox AS outbox
+       WHERE outbox.event_type = 'edition_published' AND outbox.event_date = p_edition_date),
+      'no_event')
+  );
+END;
+$release$;
+
+REVOKE ALL ON FUNCTION public.release_verified_edition_notifications(DATE) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.release_verified_edition_notifications(DATE) FROM anon;
+REVOKE ALL ON FUNCTION public.release_verified_edition_notifications(DATE) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.release_verified_edition_notifications(DATE) TO service_role;
+
+COMMENT ON FUNCTION public.release_verified_edition_notifications(DATE) IS
+  'The verification success boundary. Promotes an edition_published event from awaiting_verification to pending, which is the first moment anything may wake a sender for it.';
+
+-- ---------------------------------------------------------------------------
+-- 4. Draining the outbox
 -- ---------------------------------------------------------------------------
 -- Same leasing discipline as the delivery claim, and for the same reason: two
 -- senders may run at once — the event-driven one and a fallback schedule — and
@@ -294,7 +393,7 @@ REVOKE ALL ON FUNCTION public.complete_notification_event(UUID, BOOLEAN, TEXT) F
 GRANT EXECUTE ON FUNCTION public.complete_notification_event(UUID, BOOLEAN, TEXT) TO service_role;
 
 -- ---------------------------------------------------------------------------
--- 4. What operations looks at
+-- 5. What operations looks at
 -- ---------------------------------------------------------------------------
 -- One question, one answer: for a given edition, how many devices were told, how
 -- many are still waiting on a receipt, how many failed and how many were never

@@ -76,7 +76,7 @@ export async function runNotificationHealth(
     p_edition_date: options.editionDate
   });
 
-  // Before 20260906099500 is applied the function does not exist, and a health
+  // Before 20260906081000 is applied the function does not exist, and a health
   // check that cannot run is worth nothing on exactly the night it is needed.
   // The fallback answers the same question from the same tables.
   const row: HealthRow | null =
@@ -108,6 +108,13 @@ export async function runNotificationHealth(
 
   const neverAttempted = Number(row.never_attempted ?? 0);
   const retryable = Number(row.retryable ?? 0);
+  const outboxStatus = row.outbox_status ?? "no_event";
+
+  // An edition that published and then failed verification has no deliveries by
+  // design, and it is still critical — but it is a publication failure, not a
+  // notification one, and saying "nothing was ever attempted" would send an
+  // operator to read the sender's logs for a fault that is not there.
+  const unverified = outboxStatus === "awaiting_verification";
   const status: NotificationHealthOutput["status"] =
     neverAttempted > 0 ? "critical" : retryable > 0 ? "warning" : "ok";
 
@@ -123,13 +130,15 @@ export async function runNotificationHealth(
     retryable,
     terminal: Number(row.terminal ?? 0),
     neverAttempted,
-    outboxStatus: row.outbox_status ?? "no_event",
+    outboxStatus,
     detail:
-      neverAttempted > 0
-        ? `${neverAttempted} eligible device(s) have no delivery row for ${row.edition_date}: nothing was ever attempted for them.`
-        : retryable > 0
-          ? `${retryable} device(s) still to retry for ${row.edition_date}.`
-          : `Every eligible device for ${row.edition_date} has a delivery row.`
+      neverAttempted > 0 && unverified
+        ? `Edition ${row.edition_date} was written to production but never passed verification, so no device was told and none should have been. Look at the publication run, not at the sender.`
+        : neverAttempted > 0
+          ? `${neverAttempted} eligible device(s) have no delivery row for ${row.edition_date}: nothing was ever attempted for them.`
+          : retryable > 0
+            ? `${retryable} device(s) still to retry for ${row.edition_date}.`
+            : `Every eligible device for ${row.edition_date} has a delivery row.`
   };
 }
 

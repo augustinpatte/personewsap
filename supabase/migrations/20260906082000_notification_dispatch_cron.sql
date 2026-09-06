@@ -1,6 +1,6 @@
 -- The clock stops being the trigger — PRODUCTION project (wkbviidrbmehmjbhvpeh).
 --
--- 20260906099500 makes an edition being published write a durable event. This
+-- 20260906081000 makes an edition being published write a durable event. This
 -- file is what turns that event into work being started, so that the thing which
 -- causes readers to be notified is the publication itself and not a cron
 -- expression somebody guessed ten minutes ahead of it.

@@ -374,7 +374,7 @@ describe("the 42702 trap", () => {
         // version of this check wrongly assumed it was. Index inference accepts
         // arbitrary expressions, because a unique index may be partial or on an
         // expression, so it IS an expression context and IS substituted. That
-        // exemption is what let 20260906099000's bug reach production and stay
+        // exemption is what let 20260906080000's bug reach production and stay
         // there: `claim_push_notification_deliveries` failed 42702 on every call
         // it ever received, and no edition notification was ever delivered.
         //

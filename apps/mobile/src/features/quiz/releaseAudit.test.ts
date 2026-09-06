@@ -188,7 +188,7 @@ describe("the data export covers what the feature added", () => {
 
 describe("account deletion cannot be blocked by team ownership", () => {
   const migration = readFileSync(
-    join(src, "..", "..", "..", "supabase", "migrations", "20260906098000_team_ownership_and_deletion.sql"),
+    join(src, "..", "..", "..", "supabase", "migrations", "20260906102000_team_ownership_and_deletion.sql"),
     "utf8"
   );
 

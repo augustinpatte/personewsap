@@ -27,14 +27,21 @@ import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
  * that actually published, written in the publishing transaction, so an event
  * is proof rather than an assumption. Whatever the events name is announced.
  *
- * Then today's cadence date as well, always — unless the operator named a date
- * with `--date`, which is an explicit instruction and is obeyed on its own. The
+ * Then today's cadence date as well — unless the operator named a date with
+ * `--date`, which is an explicit instruction and is obeyed on its own. The
  * outbox being empty never proves nothing published: the migration may not be
  * applied, the trigger may have been rolled back, the row may have been drained
  * by an earlier run that then failed. Sending for today's date costs nothing
  * when there is nothing to send — the delivery rows make it a no-op — and it is
  * what keeps this command working as a fallback while the event path is being
  * rolled out.
+ *
+ * The one thing that withholds the cadence date is a verification boundary this
+ * run can actually see: an outbox row for that date still sitting at
+ * `awaiting_verification` means production holds an edition that has not been
+ * read back and found complete, and an unverified edition is not announced by
+ * any path. Not knowing is not the same as knowing it failed, so an absent row
+ * withholds nothing.
  */
 
 export type PushNotificationsOptions = {
@@ -157,13 +164,32 @@ export async function runPushNotifications(
   // A quiet day publishes nothing under the cadence, so there is nothing to
   // announce — unless an event says otherwise, and an event is a fact about an
   // edition that exists. The cadence check guards the guess, never the fact.
-  const fallbackDate = editionDay || options.force ? options.dropDate : null;
+  let fallbackDate = editionDay || options.force ? options.dropDate : null;
+
+  // The verification boundary applies to this path too. An edition can be
+  // written to production and then fail `verify_scheduled_edition`, and while
+  // the event path physically cannot announce it — the event is still
+  // `awaiting_verification`, which `claim_notification_events` does not see —
+  // the cadence-derived fallback would find the published drops and announce it
+  // anyway. Only a date this run KNOWS is unverified is withheld; an edition
+  // with no outbox row behaves exactly as it did before, and an operator naming
+  // a date or forcing a send is giving an instruction, not a hint.
+  let withheld: string | null = null;
+  if (fallbackDate && !options.explicitDate && !options.force) {
+    if (await outbox.isAwaitingVerification({ eventDate: fallbackDate })) {
+      withheld = fallbackDate;
+      fallbackDate = null;
+    }
+  }
+
   const dates = resolveEditionDatesToAnnounce({ events, fallbackDate });
 
   if (dates.length === 0) {
     return {
       ...empty,
-      note: "Quiet day in the 4x/week cadence: no edition, no notification."
+      note: withheld
+        ? `Edition ${withheld} is published but not yet verified: nothing is announced until verification succeeds.`
+        : "Quiet day in the 4x/week cadence: no edition, no notification."
     };
   }
 

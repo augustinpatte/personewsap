@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
  */
 
 const migration = readFileSync(
-  join(__dirname, "..", "migrations", "20260906096000_publish_scored_questions.sql"),
+  join(__dirname, "..", "migrations", "20260906100000_publish_scored_questions.sql"),
   "utf8"
 );
 

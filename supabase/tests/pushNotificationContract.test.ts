@@ -44,9 +44,9 @@ const stripYamlComments = (yaml: string) =>
   yaml.replace(/^\s*#.*$/gm, "");
 
 const brokenClaim = stripSqlComments(migration("20260818123000_push_receipts_and_atomic_claims.sql"));
-const fixedClaim = stripSqlComments(migration("20260906099000_fix_push_notification_claim_ambiguity.sql"));
-const outbox = stripSqlComments(migration("20260906099500_notification_outbox.sql"));
-const dispatch = stripSqlComments(migration("20260906099700_notification_dispatch_cron.sql"));
+const fixedClaim = stripSqlComments(migration("20260906080000_fix_push_notification_claim_ambiguity.sql"));
+const outbox = stripSqlComments(migration("20260906081000_notification_outbox.sql"));
+const dispatch = stripSqlComments(migration("20260906082000_notification_dispatch_cron.sql"));
 const deliveriesTable = stripSqlComments(migration("20260818100000_push_notification_deliveries.sql"));
 
 const store = read("services", "content-engine", "src", "notifications", "supabasePushStore.ts");
@@ -61,6 +61,7 @@ const mobilePreferences = read(
   "apps", "mobile", "src", "features", "notifications", "pushNotificationPreferences.ts"
 );
 const appConfig = read("apps", "mobile", "app.json");
+const taskPublisher = read("supabase", "functions", "personews-task-publisher", "index.ts");
 
 /**
  * Output columns of a PL/pgSQL `RETURNS TABLE`, which are also variables for the
@@ -131,10 +132,68 @@ describe("the fix", () => {
     );
   });
 
-  it("renames the output column so nothing in the body can collide", () => {
+  it("KEEPS the published response shape: exactly { push_token_id: UUID }", () => {
+    // THE DEPLOYMENT CONTRACT.
+    //
+    // Renaming this output column would fix the ambiguity in one line and make
+    // the migration undeployable on its own: `main`'s sender reads
+    // `row.push_token_id`, and a renamed column does not raise — it yields
+    // `undefined`, the device is never added to the claimed set, and every
+    // reader silently gets nothing. That is the same outage in a new costume,
+    // and it would last exactly as long as the gap between applying the
+    // migration and merging the branch.
+    //
+    // So the shape does not move, and this is the test that stops it moving.
     expect(returnsTableColumns(fixedClaim, "claim_push_notification_deliveries")).toEqual([
-      "claimed_push_token_id"
+      "push_token_id"
     ]);
+    expect(fixedClaim).toContain("RETURNS TABLE(push_token_id UUID)");
+    expect(fixedClaim).not.toContain("claimed_push_token_id");
+  });
+
+  it("replaces the function in place rather than dropping and recreating it", () => {
+    // The return type is unchanged, so CREATE OR REPLACE is legal — which means
+    // no instant exists in which the function is absent, and the existing grants
+    // survive the migration.
+    expect(fixedClaim).toContain(
+      "CREATE OR REPLACE FUNCTION public.claim_push_notification_deliveries"
+    );
+    expect(fixedClaim).not.toMatch(/DROP FUNCTION[^;]*claim_push_notification_deliveries/);
+  });
+
+  it("takes the same arguments under the same names", () => {
+    // Supabase RPC sends named arguments, so a renamed parameter breaks an old
+    // caller just as surely as a renamed output column does.
+    for (const argument of ["p_rows JSONB", "p_claim_id TEXT", "p_claim_ttl_seconds INTEGER"]) {
+      expect(fixedClaim, argument).toContain(argument);
+    }
+  });
+
+  it("states the variable-conflict rule for the whole body", () => {
+    // The output column deliberately shares a name with a column of the table
+    // this function writes, so the collision is structural and permanent. The
+    // resolution is declared once, at the top, instead of depending on nobody
+    // ever adding an unqualified reference again.
+    expect(fixedClaim).toContain("#variable_conflict use_column");
+  });
+
+  it("qualifies every reference to the colliding name", () => {
+    // Layer two. Inside the body `push_token_id` appears only as an INSERT
+    // column list entry, as a jsonb_to_recordset column definition, or behind an
+    // alias. Whether that is exhaustive is not a thing prose can settle — it is
+    // settled by C1 in push_notification_claims.test.sql, which calls the
+    // function against a real PostgreSQL and would raise 42702 if one bare
+    // reference were left.
+    const body = fixedClaim.slice(
+      fixedClaim.indexOf("AS $claim$"),
+      fixedClaim.indexOf("$claim$;")
+    );
+
+    expect(body).toContain("delivery.push_token_id = requested.token_id");
+    expect(body).toContain("RETURNING delivery.push_token_id AS token_id");
+    expect(body).toContain("candidate.push_token_id");
+    expect(body).not.toContain("WHERE push_token_id");
+    expect(body).not.toContain("SET push_token_id");
   });
 
   it("infers the conflict by constraint name, which is not an expression", () => {
@@ -181,9 +240,24 @@ describe("the fix", () => {
     expect(fixedClaim).toContain("SET search_path = public, pg_temp");
   });
 
-  it("is read by the TypeScript caller under its new name", () => {
-    expect(store).toContain("row.claimed_push_token_id");
-    expect(store).not.toMatch(/data \?\? \[\]\) as Array<\{ push_token_id/);
+  it("is read by the TypeScript caller under the name it has always had", () => {
+    expect(store).toContain("row.push_token_id");
+    expect(store).not.toContain("claimed_push_token_id");
+  });
+
+  it("so the migration and the merge can happen in either order", () => {
+    // DB_NEW + MAIN_OLD and DB_OLD + MAIN_NEW both have to work, because there
+    // is no instant at which a database migration and a branch merge are the
+    // same event. The request field names and the response field name are the
+    // whole interface, and neither side moves them.
+    const claimCall = store.slice(
+      store.indexOf('supabase.rpc("claim_push_notification_deliveries"'),
+      store.indexOf("if (failures.length === batches.length)")
+    );
+
+    for (const field of ["p_claim_id", "p_claim_ttl_seconds", "p_rows", "push_token_id"]) {
+      expect(claimCall, field).toContain(field);
+    }
   });
 });
 
@@ -253,6 +327,99 @@ describe("publication is the trigger, and publication is never at risk", () => {
     expect(outbox).toContain("FOR UPDATE SKIP LOCKED");
     expect(outbox).toContain("claim_expires_at");
     expect(outbox).not.toMatch(/DELETE FROM public\.notification_outbox/);
+  });
+});
+
+describe("the verification boundary", () => {
+  /**
+   * The invariant, stated once:
+   *
+   *   EDITION_WRITE_ONLY             => NO_DISPATCHABLE_NOTIFICATION
+   *   EDITION_WRITE_AND_VERIFY_OK    => NOTIFICATION_DISPATCHABLE
+   *
+   * `publish_scheduled_staging_payload` committing and
+   * `verify_scheduled_edition` answering ok are two different events, in two
+   * different requests, from two different projects. An edition can pass the
+   * first and fail the second — that is why the verify step exists at all — and
+   * a reader must never have been told about one that did.
+   *
+   * The behaviour is proved against a real PostgreSQL by V1–V4 in
+   * push_notification_claims.test.sql. What is pinned here is that the pieces
+   * are wired the way that proof assumes.
+   */
+
+  it("writes the event unverified, in the publishing transaction", () => {
+    // Durable at publication time — the outbox is only worth having because the
+    // event exists if and only if the edition does — and not actionable yet.
+    expect(outbox).toContain("status TEXT NOT NULL DEFAULT 'awaiting_verification'");
+    expect(outbox).toContain("notification_outbox (event_type, event_date, status, payload)");
+    expect(outbox).toContain("'awaiting_verification',");
+  });
+
+  it("gives nothing but the release a way out of that state", () => {
+    const release = outbox.slice(
+      outbox.indexOf("CREATE OR REPLACE FUNCTION public.release_verified_edition_notifications"),
+      outbox.indexOf("REVOKE ALL ON FUNCTION public.release_verified_edition_notifications")
+    );
+
+    expect(release).toContain("SET\n      status = 'pending'");
+    expect(release).toContain("AND outbox.status = 'awaiting_verification'");
+    expect(release).toContain("verified_at = v_now");
+
+    // Every other write path in the migration leaves the state alone.
+    const others = outbox.replace(release, "");
+    expect(others).not.toMatch(/SET[\s\S]{0,80}status = 'pending'/);
+  });
+
+  it("cannot be claimed or dispatched before it is released", () => {
+    // Both consumers select on 'pending' and neither knows the word
+    // 'awaiting_verification', so an unreleased event is invisible to the whole
+    // delivery path rather than merely deprioritised by it.
+    expect(outbox).toContain("WHERE outbox.status = 'pending'");
+    expect(dispatch).toContain("WHERE outbox.status = 'pending'");
+    expect(dispatch).not.toContain("awaiting_verification");
+  });
+
+  it("releases from the production verification success, and only from there", () => {
+    expect(taskPublisher).toContain('await supabase.rpc("verify_scheduled_edition"');
+    expect(taskPublisher).toContain('"release_verified_edition_notifications"');
+    expect(taskPublisher).toContain("verification.ok === true");
+
+    // The release is downstream of the verify call in the same branch.
+    expect(taskPublisher.indexOf('rpc("verify_scheduled_edition"')).toBeLessThan(
+      taskPublisher.indexOf('"release_verified_edition_notifications"')
+    );
+  });
+
+  it("never lets the notification path affect the publication verdict", () => {
+    // A failed release is a notification that arrives on the fallback schedule
+    // instead of within minutes. It is not an unverified edition, and it must
+    // not be reported as one.
+    const verifyBranch = taskPublisher.slice(
+      taskPublisher.indexOf('if (action === "verify")'),
+      taskPublisher.lastIndexOf('return json({ error: "unknown_action" }, 404);')
+    );
+
+    expect(verifyBranch).toContain("release_failed");
+    expect(verifyBranch).not.toMatch(/releaseError[\s\S]{0,80}throw/);
+  });
+
+  it("withholds the cadence fallback for an edition it knows is unverified", () => {
+    // The event path physically cannot announce an unreleased edition. The
+    // fallback derives its date from the calendar instead, so without this it
+    // would put the same hole back in a different pipe.
+    expect(pushCli).toContain("outbox.isAwaitingVerification");
+    expect(pushCli).toContain("!options.explicitDate && !options.force");
+    expect(outboxClient).toContain('=== "awaiting_verification"');
+  });
+
+  it("withholds nothing when it does not know", () => {
+    // No row, outbox not deployed, table unreachable: an edition with no
+    // verification record behaves exactly as it did before this table existed.
+    const probe = outboxClient.slice(outboxClient.indexOf("async isAwaitingVerification"));
+
+    expect(probe).toContain("return false;");
+    expect(probe).toContain("MISSING_FUNCTION_CODES");
   });
 });
 

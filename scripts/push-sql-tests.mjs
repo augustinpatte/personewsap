@@ -22,8 +22,14 @@
  */
 
 const MIGRATIONS = [
-  "supabase/migrations/20260906099000_fix_push_notification_claim_ambiguity.sql",
-  "supabase/migrations/20260906099500_notification_outbox.sql",
+  "supabase/migrations/20260906080000_fix_push_notification_claim_ambiguity.sql",
+  "supabase/migrations/20260906081000_notification_outbox.sql",
+  // The dispatcher too: it is the only one of the three that can reach outside
+  // PostgreSQL, so "does it even parse against the real catalog" is worth more
+  // here than anywhere else. Its cron.schedule and any queued net.http_post are
+  // rolled back with everything else, and the suite only ever invokes it when it
+  // can see there is nothing pending for it to do.
+  "supabase/migrations/20260906082000_notification_dispatch_cron.sql",
 ];
 
 const SUITE_FILE = "supabase/tests/push_notification_claims.test.sql";

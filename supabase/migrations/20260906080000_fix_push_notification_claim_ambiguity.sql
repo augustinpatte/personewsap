@@ -13,7 +13,7 @@
 -- WHY POSTGRESQL SAYS THIS
 --
 -- Every output column of a `RETURNS TABLE (...)` is also an in-scope PL/pgSQL
--- variable. The function declared `RETURNS TABLE(push_token_id UUID)`, so
+-- variable. The function declares `RETURNS TABLE(push_token_id UUID)`, so
 -- `push_token_id` names a variable for the whole body.
 --
 -- The `ON CONFLICT (push_token_id, drop_date, notification_kind)` clause is an
@@ -32,23 +32,42 @@
 -- so nothing is inserted and nothing is updated, and the call still fails,
 -- because the statement is planned before any row is seen.
 --
--- THE FIX, IN TWO INDEPENDENT LAYERS
+-- THE FIX IS STRUCTURAL, AND THE PUBLISHED SHAPE DOES NOT MOVE
 --
---  1. No identifier inside the function is spelled the same as a column of the
---     table it writes. The output column is `claimed_push_token_id`, and every
---     intermediate name is distinct from the columns it carries. This removes
---     the collision.
+-- The output column stays `push_token_id`. Renaming it would have been the
+-- shortest way to break the collision, and it would have made this migration
+-- undeployable without a synchronised code release: `main`'s sender reads
+-- `row.push_token_id`, and the moment this function returned
+-- `claimed_push_token_id` instead, the running sender would claim rows and then
+-- announce nothing, silently, because `undefined` is not an error. Between the
+-- migration and the merge there would be a window in which the database and the
+-- deployed code disagree. A P0 fix must not create one.
 --
---  2. `ON CONFLICT ON CONSTRAINT push_notification_deliveries_identity_unique`.
---     A constraint name is not an expression, so it can never be substituted for
---     a variable, whatever anybody names an output column here in future. This
---     removes the *class*.
+-- So the ambiguity is removed without touching the contract, in three layers:
 --
--- Layer 2 needs a named constraint, and the identity key was created as a bare
+--  1. `ON CONFLICT ON CONSTRAINT push_notification_deliveries_identity_unique`.
+--     A constraint name is an identifier looked up in the catalog, not an
+--     expression, so it is never variable-substituted. This is what fixes the
+--     actual defect.
+--
+--  2. Every reference to a column that shares a name with an output column is
+--     alias-qualified — `delivery.push_token_id`, `candidate.push_token_id` —
+--     so no unqualified occurrence is left anywhere in an expression context.
+--
+--  3. `#variable_conflict use_column`. With the output column deliberately
+--     keeping a name the table also uses, the collision is structural and
+--     permanent, so the resolution rule is stated once for the whole body
+--     instead of relying on nobody ever adding an unqualified reference again.
+--     This is safe here because every local and every parameter in this function
+--     is `v_`- or `p_`-prefixed and so cannot collide with a column; that
+--     convention is now load-bearing and must be kept.
+--
+-- Layer 1 needs a named constraint, and the identity key was created as a bare
 -- `CREATE UNIQUE INDEX`. It is promoted in place below.
 --
 -- This migration does NOT edit 20260818123000, which is already applied. It
--- replaces the function it created.
+-- replaces the function it created, with the same name, the same argument types
+-- and the same return type.
 
 BEGIN;
 
@@ -115,29 +134,30 @@ COMMENT ON COLUMN public.push_notification_deliveries.drop_date IS
 -- ---------------------------------------------------------------------------
 -- 3. The claim function
 -- ---------------------------------------------------------------------------
--- Same contract as before — insert the missing rows, lease what may be sent,
--- return only the leased token ids — with the ambiguity removed and the input
--- validated.
+-- Same name, same arguments, same `RETURNS TABLE(push_token_id UUID)` — so
+-- `CREATE OR REPLACE` is legal, no DROP window exists, existing grants survive,
+-- and a sender from either branch reads the same field off the same rows.
 --
--- DROP then CREATE, not CREATE OR REPLACE: renaming a RETURNS TABLE output
--- column changes the function's return type, which REPLACE refuses. Nothing
--- depends on the function in the database (no view, no trigger, no default), so
--- dropping it inside this transaction is invisible to anything but a caller
--- running at this exact moment, and a caller that fails here has been failing
--- on every call since the function was created.
+-- Same contract too: insert the missing rows, lease what may be sent, return
+-- only the leased token ids. What changed is that it can now be called.
 
-DROP FUNCTION IF EXISTS public.claim_push_notification_deliveries(JSONB, TEXT, INTEGER);
-
-CREATE FUNCTION public.claim_push_notification_deliveries(
+CREATE OR REPLACE FUNCTION public.claim_push_notification_deliveries(
   p_rows JSONB,
   p_claim_id TEXT,
   p_claim_ttl_seconds INTEGER DEFAULT 900
 )
-RETURNS TABLE(claimed_push_token_id UUID)
+RETURNS TABLE(push_token_id UUID)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $claim$
+#variable_conflict use_column
+-- Layer 3, and it has to be the first line of the body: PL/pgSQL reads compiler
+-- options before anything else. `push_token_id` is an output column and
+-- therefore a variable, and it is also a column of the table this function
+-- writes. Where the two could be confused the column is meant, always — this
+-- function never reads its own output variable. Every other identifier here is
+-- p_- or v_-prefixed and so cannot collide; that convention is load-bearing now.
 DECLARE
   v_now TIMESTAMPTZ := now();
   v_ttl_seconds INTEGER := greatest(coalesce(p_claim_ttl_seconds, 900), 60);
@@ -238,7 +258,7 @@ REVOKE ALL ON FUNCTION public.claim_push_notification_deliveries(JSONB, TEXT, IN
 GRANT EXECUTE ON FUNCTION public.claim_push_notification_deliveries(JSONB, TEXT, INTEGER) TO service_role;
 
 COMMENT ON FUNCTION public.claim_push_notification_deliveries(JSONB, TEXT, INTEGER) IS
-  'Atomically leases notification delivery rows. Only returned token ids may be sent to Expo; a lease expires so a crashed worker does not strand a device, and a live lease is never stolen.';
+  'Atomically leases notification delivery rows and returns push_token_id per leased row. Only returned token ids may be sent to Expo; a lease expires so a crashed worker does not strand a device, and a live lease is never stolen. The response shape is a published contract: senders on both branches read push_token_id.';
 
 COMMIT;
 

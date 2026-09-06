@@ -274,26 +274,108 @@ in.
 
 ### What triggers a send
 
-The publication itself, not a clock.
+The publication itself, not a clock — and specifically the *verified*
+publication.
 
 ```
 publish_scheduled_staging_payload writes daily_drops.status = 'published'
   └─ statement trigger, same transaction
-       └─ public.notification_outbox row (event_type = 'edition_published')
-            └─ pg_cron: public.dispatch_notification_events()  (every 2 min, 17–22 UTC)
-                 └─ GitHub repository_dispatch: edition_published
-                      └─ npm run content:push-notifications
+       └─ notification_outbox row, status = 'awaiting_verification'   NOT DISPATCHABLE
+                                                                      ▲
+  ── staging publisher's next request ────────────────────────────────┤
+                                                                      │
+personews-task-publisher action=verify                                │
+  └─ verify_scheduled_edition() → ok                                  │
+       └─ release_verified_edition_notifications(edition_date)  ──────┘
+            └─ notification_outbox row, status = 'pending'       DISPATCHABLE
+                 └─ pg_cron: dispatch_notification_events()  (every 2 min, 17–22 UTC)
+                      └─ GitHub repository_dispatch: edition_published
+                           └─ GitHub Actions runner
+                                └─ npm run content:push-notifications
+                                     └─ Expo
 ```
 
+**The boundary.** Production holding the edition and production having been read
+back and found complete are two different events, in two different requests,
+from two different projects. An edition can pass the first and fail the second —
+that is the entire reason the verify step exists — and readers must not have been
+told about one that did.
+
+    edition written only            → awaiting_verification → nobody is woken
+    edition written and verified ok → pending               → dispatchable
+
 The event is written in the publishing transaction, so it exists if and only if
-the edition exists. The trigger body is wrapped in an exception block: if the
-outbox cannot be written the edition still publishes, and the recovery
-schedules below send the notifications late rather than never.
+the edition exists; it is simply not actionable until the release. Neither
+`claim_notification_events` nor `dispatch_notification_events` can see an
+`awaiting_verification` row, and `content:push-notifications` withholds its
+cadence-derived fallback date for an edition it can see is unverified.
+
+Publication never depends on any of it. The trigger body is wrapped in an
+exception block, and the release is best-effort after production has already
+committed: a failed release is a notification that arrives on the recovery
+schedule instead of within minutes, never an edition reported unverified.
 
 `dispatch_notification_events` is inert until two Vault secrets exist in the
 production project — `personews_notification_dispatch_url` and
 `personews_notification_dispatch_token`. It reports `not_configured` and does
 nothing rather than raising every two minutes.
+
+### How fast, honestly
+
+This path is **event-driven, not real-time**. It is worth being exact about it,
+because "the database wakes the sender" reads like "seconds" and it is not:
+
+| step | cost |
+| --- | --- |
+| publish transaction commits → outbox row | same transaction, ~0 |
+| verify request → release | one HTTP round trip, ~1–3 s |
+| release → `dispatch_notification_events` picks it up | **0–120 s** (cron every 2 min) |
+| `repository_dispatch` → runner starts | **~10–60 s**, occasionally minutes when GitHub queues |
+| runner boots, checks out, installs, sends | **~40–90 s** |
+| Expo accepts the ticket → device | seconds, then APNs/FCM |
+
+**Typical: 1–3 minutes after verification. Worst case, with the Actions queue
+backed up: 10 minutes or more.** There is no guarantee tighter than that, and
+none should be quoted to anyone. What this architecture actually bought is not
+latency: it is that the send is now *caused* by the edition rather than guessed
+at by a cron expression ten minutes ahead of it, so a slow publication is still
+announced and a missing one is not.
+
+For the edition notification this is the right trade. A daily edition at 19:00
+is not made worse by arriving at 19:02, and the fallback schedules at 19:15,
+19:30 and 20:00 make a stuck runner recoverable rather than silent.
+
+**EDITION_NOTIFICATION_READY = YES.**
+
+### Friends notifications are not real-time and must not be described as such
+
+`notification_kind` already accepts the Teams kinds, so a Friends notification
+reuses this delivery table, this idempotency key and this claim lease rather than
+growing a second system. That is the delivery half, and it is ready.
+
+The *trigger* half is not. Every event on this path needs a GitHub Actions runner
+to boot before anything is sent, which is fine for one edition a day and wrong
+for "someone joined your league": a minute or more of latency, a runner-minute
+spent per event, and a rate limit on `repository_dispatch` that a social feature
+would reach.
+
+**FRIENDS_REALTIME_NOTIFICATION_READY = NO.**
+
+The smallest thing that would change that, when Friends actually ships — not
+before, and no part of it is built now:
+
+- one Supabase Edge Function in the production project that claims from
+  `notification_outbox` and posts to Expo directly, reusing
+  `claim_push_notification_deliveries` so exactly-once stays where it already is;
+- `dispatch_notification_events` calling that function with `net.http_post`
+  instead of GitHub for the Teams event kinds, leaving `edition_published` on the
+  path described above;
+- a pg_cron tick at a Friends-appropriate interval, or `pg_notify` from the
+  trigger if sub-second ever matters.
+
+That is one function and one branch in an existing dispatcher. It is deliberately
+not built yet: there is no Friends UI, and an unused sender that nobody watches
+is how the 42702 outage stayed invisible for months.
 
 ### Recovery
 
@@ -307,7 +389,10 @@ nothing to do sends nothing. This is never a second reminder.
 - `push_notification_deliveries` is unique by `(push_token_id, drop_date, notification_kind)`,
   now enforced by a named constraint `push_notification_deliveries_identity_unique`.
 - `claim_push_notification_deliveries` atomically leases pending/retryable rows
-  before any worker sends to Expo, and returns `claimed_push_token_id`.
+  before any worker sends to Expo, and returns them as `push_token_id`. That
+  response shape is a deployment contract, not an implementation detail: the
+  sender on `main` and the sender on this branch both read the field by name, so
+  the migration is safe to apply before, during or after the merge.
 - Expired claims are retryable, so a crashed worker does not permanently block a device.
 - Expo push tickets move rows to `awaiting_receipt`.
 - `content:push-receipts` marks receipt `ok` as `sent`, `DeviceNotRegistered`

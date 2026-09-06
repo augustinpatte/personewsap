@@ -740,7 +740,7 @@ BEGIN
     -- and an ON CONFLICT inference list is an expression context, so a bare
     -- column list here raises 42702 on every call. That is exactly the bug that
     -- stopped every edition notification this product ever published
-    -- (20260906099000); it is not repeated here.
+    -- (20260906080000); it is not repeated here.
     ON CONFLICT ON CONSTRAINT team_config_newsletter_topics_pkey
     DO UPDATE SET articles_count = EXCLUDED.articles_count;
   END LOOP;

@@ -99,7 +99,34 @@ Deno.serve(async (req: Request) => {
         p_run_id: runId || null,
       });
       if (error) throw error;
-      return json(data);
+
+      // THE VERIFICATION SUCCESS BOUNDARY.
+      //
+      // Publishing the edition wrote a notification_outbox event in the
+      // publishing transaction, deliberately in a state nothing will act on.
+      // This is the moment the product means by "the edition succeeded":
+      // production has been written, and then read back and found complete. Only
+      // now may readers be told.
+      //
+      // Best-effort on purpose. A failure to release is a notification that
+      // arrives on the fallback schedule instead of within minutes; it is not a
+      // reason to report an edition unverified when it verified, and the
+      // publication path must never acquire a dependency on the notification
+      // path. The result is reported so the release is observable either way.
+      const verification = (data ?? {}) as Record<string, unknown>;
+      let notificationRelease: unknown = { released: 0, status: "not_attempted" };
+
+      if (verification.ok === true) {
+        const { data: released, error: releaseError } = await supabase.rpc(
+          "release_verified_edition_notifications",
+          { p_edition_date: editionDate },
+        );
+        notificationRelease = releaseError
+          ? { released: 0, status: "release_failed", error: releaseError.message }
+          : released;
+      }
+
+      return json({ ...verification, notification_release: notificationRelease });
     }
 
     return json({ error: "unknown_action" }, 404);
