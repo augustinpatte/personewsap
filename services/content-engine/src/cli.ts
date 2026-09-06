@@ -15,6 +15,11 @@ import { parseDryRunOptions, runDryRun } from "./cli/dryRun.js";
 import { parseJobHealthOptions, runJobHealth } from "./cli/jobHealth.js";
 import { parseLearningProofOptions, runLearningProof } from "./cli/learningProof.js";
 import { parseLlmRunOptions, runLlmRun } from "./cli/llmRun.js";
+import {
+  parseNotificationHealthOptions,
+  runNotificationHealth,
+  shouldFailNotificationHealth
+} from "./cli/notificationHealth.js";
 import { parseLlmProofOptions, runLlmProof } from "./cli/llmProof.js";
 import { parsePersonalizeTestOptions, runPersonalizeTest } from "./cli/personalizeTest.js";
 import { parsePersistTestOptions, runPersistTest } from "./cli/persistTest.js";
@@ -100,6 +105,28 @@ async function main(): Promise<void> {
   if (command === "push-notifications") {
     const output = await runPushNotifications(parsePushNotificationsOptions(args));
     writeJson(output, { redactIdentifiers: true });
+
+    if (output.incomplete) {
+      // A run that could not record what it sent must not report success. The
+      // notifications may have gone out; what is missing is the proof, and the
+      // next run would have no way to avoid repeating itself.
+      process.exitCode = 1;
+    }
+
+    return;
+  }
+
+  if (command === "notification-health") {
+    const options = parseNotificationHealthOptions(args);
+    const output = await runNotificationHealth(options);
+    writeJson(output);
+
+    if (shouldFailNotificationHealth(output, options)) {
+      // Eligible devices with no delivery row at all. This is the check the
+      // nightly workflow gates on, and the one that was missing.
+      process.exitCode = 1;
+    }
+
     return;
   }
 

@@ -14,6 +14,14 @@ name: PersoNewsAP Edition Follow-up
 # minutes behind the publisher — so that when it looks for tonight's edition,
 # the edition is already there.
 #
+# THIS IS NO LONGER THE PRIMARY NOTIFICATION TRIGGER. Publishing an edition now
+# writes a row in `public.notification_outbox` inside the publishing transaction,
+# and `public.dispatch_notification_events` wakes the sender within a couple of
+# minutes of the edition actually existing. A clock ten minutes ahead of an
+# unknown duration was always a guess: too early and the readers are told
+# nothing, too late and they are told late, and neither shows up as a failure.
+# This run stays as a safety net for the case where the event path is down.
+#
 # The old `content:staging-publish` step has been removed rather than disabled.
 # The command still exists as a manual break-glass tool (it refuses a batch that
 # already carries a publication receipt), but nothing runs it on a schedule any
@@ -70,16 +78,19 @@ jobs:
       # Deliveries are recorded per device and per edition, so this is safe to
       # re-run and sends nothing twice. If no edition was published tonight there
       # is nothing to announce and the step finds nothing to do.
+      # NOT continue-on-error. A notification step that fails silently is how
+      # this product went months without delivering a single edition
+      # notification while every workflow run stayed green.
       - name: Edition push notifications
-        id: push_notifications
-        continue-on-error: true
         run: npm run content:push-notifications
 
-      - name: Report notification failure
-        if: steps.push_notifications.outcome == 'failure'
-        run: |
-          echo "::warning title=Edition notifications::Notifications did not all go out. Re-run 'npm run content:push-notifications -- --date <YYYY-MM-DD>'; already-notified devices are skipped."
-
-      - name: Strict job health
+      # The gate. `job-health --strict` used to run here; it reads
+      # `content_job_runs`, which nothing has written since publication moved
+      # into Supabase, so it was reporting on a pipeline that no longer exists
+      # and knew nothing about notifications. This asks the only question that
+      # matters after an edition publishes: does every eligible device have a
+      # delivery row? `if: always()` so it still runs — and still fails — when
+      # the send step above failed.
+      - name: Notification health
         if: always()
-        run: npm run content:job-health:strict -- --limit 5
+        run: npm run content:notification-health:strict

@@ -77,7 +77,12 @@
     "publisher:test": "vitest run supabase/functions/personews-scheduled-publisher",
     "edge:deploy:prod": "supabase functions deploy delete-account --project-ref wkbviidrbmehmjbhvpeh && supabase functions deploy personews-task-publisher --project-ref wkbviidrbmehmjbhvpeh --no-verify-jwt",
     "edge:deploy:staging": "supabase functions deploy personews-task-bridge --project-ref kukyotcgbnchsoeriqoz --no-verify-jwt && supabase functions deploy personews-scheduled-publisher --project-ref kukyotcgbnchsoeriqoz --no-verify-jwt",
-    "content:legacy-api-run": "PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic CONTENT_STATUS=published npm --prefix services/content-engine run daily-job --"
+    "content:legacy-api-run": "PRODUCTION_DAILY_JOB=true DRY_RUN=false LIVE_RSS=true LIVE_RSS_ONLY=true USE_LLM=true LEARNING_GENERATION_MODE=deterministic CONTENT_STATUS=published npm --prefix services/content-engine run daily-job --",
+    "push:test:sql": "node scripts/push-sql-tests.mjs",
+    "push:test:sql:dry": "node scripts/push-sql-tests.mjs --with-migrations",
+    "push:test:contract": "vitest run supabase/tests/pushNotificationContract.test.ts",
+    "content:notification-health": "npm --prefix services/content-engine run notification-health --",
+    "content:notification-health:strict": "npm --prefix services/content-engine run notification-health -- --strict"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

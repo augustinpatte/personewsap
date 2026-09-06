@@ -585,7 +585,12 @@ describe("sending", () => {
       client: createClient(() => {
         throw new Error("Expo push request failed with status 503");
       }),
-      dropDate: DROP_DATE
+      dropDate: DROP_DATE,
+      // 503 is retryable, so the sender backs off between its three attempts.
+      // The backoff is asserted elsewhere; here it would only make the suite
+      // depend on wall-clock time, which is how this case became the one test
+      // that timed out under load.
+      retry: { sleep: async () => {} }
     });
 
     expect(result.ticketAccepted).toBe(0);

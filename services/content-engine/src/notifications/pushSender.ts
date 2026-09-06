@@ -134,6 +134,13 @@ export type SendEditionNotificationsResult = {
   permanentFailures: number;
   /** Tokens retired because the device is gone. */
   disabledTokens: number;
+  /**
+   * Devices whose row could not be claimed or recorded because the database
+   * refused. Non-zero means the run is incomplete and the caller should exit
+   * non-zero — the notification may still have been sent, but this process no
+   * longer knows what it did.
+   */
+  bookkeepingFailures: number;
   skipped: Array<{ userId: string; reason: RecipientSkipReason }>;
 };
 
@@ -194,6 +201,7 @@ export async function sendEditionNotifications(input: {
     retryable: 0,
     permanentFailures: 0,
     disabledTokens: 0,
+    bookkeepingFailures: 0,
     skipped: []
   };
 
@@ -232,12 +240,27 @@ export async function sendEditionNotifications(input: {
   // build) is retired here rather than retried on every edition. Nothing is
   // sent to it, so this cannot cost the reader a notification they would
   // otherwise have received on that device.
+  //
+  // ONE BAD DEVICE MUST NOT COST EVERY OTHER READER THEIR NOTIFICATION. Retiring
+  // it is housekeeping; failing to retire it is not a reason to stop announcing
+  // an edition to the readers whose devices are fine.
   for (const invalidToken of resolved.invalidTokens) {
-    await input.store.disablePushToken(invalidToken.pushTokenId, "not_an_expo_push_token");
-    result.disabledTokens += 1;
+    try {
+      await input.store.disablePushToken(invalidToken.pushTokenId, "not_an_expo_push_token");
+      result.disabledTokens += 1;
+    } catch (error) {
+      result.bookkeepingFailures += 1;
+      console.warn("[content-engine] could not retire a non-Expo push token", {
+        drop_date: input.dropDate,
+        push_token_id: redactIdentifier(invalidToken.pushTokenId),
+        error: error instanceof Error ? error.message : String(error)
+      });
+      continue;
+    }
+
     console.warn("[content-engine] retired a device with a non-Expo push token", {
       drop_date: input.dropDate,
-      push_token_id: invalidToken.pushTokenId
+      push_token_id: redactIdentifier(invalidToken.pushTokenId)
     });
   }
 
@@ -304,13 +327,28 @@ export async function sendEditionNotifications(input: {
     for (const [index, outcome] of outcomes.entries()) {
       const recipient = chunk[index];
 
-      await input.store.recordDeliveryResult({
-        pushTokenId: recipient.pushTokenId,
-        dropDate: input.dropDate,
-        notificationKind: EDITION_NOTIFICATION_KIND,
-        outcome,
-        attemptedAt: now()
-      });
+      try {
+        await input.store.recordDeliveryResult({
+          pushTokenId: recipient.pushTokenId,
+          dropDate: input.dropDate,
+          notificationKind: EDITION_NOTIFICATION_KIND,
+          outcome,
+          attemptedAt: now()
+        });
+      } catch (error) {
+        // The message may well have gone out; what failed is writing down that
+        // it did. Stopping here would abandon every remaining device without
+        // undoing anything, so the run continues and the count makes the gap
+        // visible: a non-zero bookkeepingFailures fails the job.
+        result.bookkeepingFailures += 1;
+        console.error("[content-engine] could not record a delivery result", {
+          drop_date: input.dropDate,
+          push_token_id: redactIdentifier(recipient.pushTokenId),
+          outcome: outcome.kind,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        continue;
+      }
 
       if (outcome.kind === "ticket_accepted") {
         result.ticketAccepted += 1;
@@ -346,6 +384,7 @@ export async function sendEditionNotifications(input: {
     retryable: result.retryable,
     permanent_failures: result.permanentFailures,
     disabled_tokens: result.disabledTokens,
+    bookkeeping_failures: result.bookkeepingFailures,
     skipped: result.skipped.length
   });
 

@@ -258,28 +258,93 @@ Stored in `job_runs.operator_summary`:
 ## Edition Notifications
 
 PersoNewsAP sends one notification per published edition, per enabled device,
-on the Monday/Wednesday/Friday/Sunday cadence. The body is intentionally neutral:
+on the Monday/Wednesday/Friday/Sunday cadence. The copy is deliberately short
+and factual, and is defined once in
+`services/content-engine/src/notifications/editionNotification.ts`:
 
-- FR: `Votre nouvelle édition PersoNewsAP est disponible.`
-- EN: `Your new PersoNewsAP edition is ready.`
+- FR — title `Votre édition du jour est arrivée`, body `Venez la découvrir dans PersoNews.`
+- EN — title `Today's edition is here`, body `Come discover it in PersoNews.`
 
 Eligibility is user-specific. A user's edition is complete when the slots they
 enabled in `user_preferences` are present in `daily_drop_items`; a user who
 disabled Mini Cases can still receive a notification for Newsletter + Business
-Story.
+Story. The language is read from `profiles.language` **at send time**, so a
+reader who switches language after 19:00 is told in the language they now read
+in.
 
-Delivery safety:
+### What triggers a send
 
-- `push_notification_deliveries` is unique by `(push_token_id, drop_date, notification_kind)`.
+The publication itself, not a clock.
+
+```
+publish_scheduled_staging_payload writes daily_drops.status = 'published'
+  └─ statement trigger, same transaction
+       └─ public.notification_outbox row (event_type = 'edition_published')
+            └─ pg_cron: public.dispatch_notification_events()  (every 2 min, 17–22 UTC)
+                 └─ GitHub repository_dispatch: edition_published
+                      └─ npm run content:push-notifications
+```
+
+The event is written in the publishing transaction, so it exists if and only if
+the edition exists. The trigger body is wrapped in an exception block: if the
+outbox cannot be written the edition still publishes, and the recovery
+schedules below send the notifications late rather than never.
+
+`dispatch_notification_events` is inert until two Vault secrets exist in the
+production project — `personews_notification_dispatch_url` and
+`personews_notification_dispatch_token`. It reports `not_configured` and does
+nothing rather than raising every two minutes.
+
+### Recovery
+
+`.github/workflows/push-notification-retry.yml` also runs at 19:15, 19:30 and
+20:00 Europe/Paris. These are recovery only. They are safe at any time: a
+delivery already sent, awaiting a receipt or terminal is skipped, so a run with
+nothing to do sends nothing. This is never a second reminder.
+
+### Delivery safety
+
+- `push_notification_deliveries` is unique by `(push_token_id, drop_date, notification_kind)`,
+  now enforced by a named constraint `push_notification_deliveries_identity_unique`.
 - `claim_push_notification_deliveries` atomically leases pending/retryable rows
-  before any worker sends to Expo.
+  before any worker sends to Expo, and returns `claimed_push_token_id`.
 - Expired claims are retryable, so a crashed worker does not permanently block a device.
 - Expo push tickets move rows to `awaiting_receipt`.
 - `content:push-receipts` marks receipt `ok` as `sent`, `DeviceNotRegistered`
   as terminal and disables the token, and leaves transient receipt failures
   retryable.
+- `notification_kind` accepts `edition_ready` plus the Teams kinds, so a Friends
+  notification reuses this whole mechanism instead of growing a second one.
 
 Notification failure must never block publication of the edition.
+
+### Health
+
+```sh
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run content:notification-health
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run content:notification-health -- --date 2026-09-06
+```
+
+It answers, for one edition: eligible devices, delivery rows, sent, awaiting
+receipt, retryable, terminal, and **never attempted** — eligible devices with no
+delivery row at all. `never_attempted > 0` exits non-zero. That is the number
+that was silently equal to the whole audience while
+`claim_push_notification_deliveries` failed 42702 on every call, and it is what
+`.github/workflows/content-daily-job.yml` now gates on instead of
+`content:job-health:strict`, which reads `content_job_runs` — a table nothing
+has written since publication moved into Supabase.
+
+### Single-device production test
+
+```sh
+CONFIRM_SINGLE_USER_PUSH=true \
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+npm run content:push-notifications -- --user <USER_ID> --date <YYYY-MM-DD>
+```
+
+Refused without the confirmation. It reaches one account and cannot reach
+another; token validation, language resolution and delivery tracking all behave
+exactly as in a normal send.
 
 ## Mini-Case Editorial Rotation
 

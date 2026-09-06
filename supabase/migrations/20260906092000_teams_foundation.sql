@@ -735,7 +735,13 @@ BEGIN
       config_version_id, topic_id, articles_count, position
     )
     VALUES (v_config_id, v_topic_id, v_count, v_position)
-    ON CONFLICT (config_version_id, topic_id)
+    -- BY CONSTRAINT NAME, NOT BY COLUMN LIST. `config_version_id` is also a
+    -- RETURNS TABLE output of this function and therefore a PL/pgSQL variable,
+    -- and an ON CONFLICT inference list is an expression context, so a bare
+    -- column list here raises 42702 on every call. That is exactly the bug that
+    -- stopped every edition notification this product ever published
+    -- (20260906099000); it is not repeated here.
+    ON CONFLICT ON CONSTRAINT team_config_newsletter_topics_pkey
     DO UPDATE SET articles_count = EXCLUDED.articles_count;
   END LOOP;
 
@@ -747,7 +753,7 @@ BEGIN
 
     INSERT INTO public.team_config_mini_case_topics (config_version_id, topic_id, position)
     VALUES (v_config_id, v_topic_id, v_position)
-    ON CONFLICT (config_version_id, topic_id) DO NOTHING;
+    ON CONFLICT ON CONSTRAINT team_config_mini_case_topics_pkey DO NOTHING;
   END LOOP;
 
   UPDATE public.teams SET updated_at = now() WHERE id = p_team_id;

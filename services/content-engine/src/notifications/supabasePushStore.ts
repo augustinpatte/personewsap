@@ -278,8 +278,10 @@ export function createSupabasePushNotificationStore(
 
       const claimed = new Set<string>();
       const claimId = crypto.randomUUID();
+      const batches = chunk(rows, USER_ID_FILTER_BATCH_SIZE);
+      const failures: string[] = [];
 
-      for (const batch of chunk(rows, USER_ID_FILTER_BATCH_SIZE)) {
+      for (const batch of batches) {
         const { data, error } = await supabase.rpc("claim_push_notification_deliveries", {
           p_claim_id: claimId,
           p_claim_ttl_seconds: 900,
@@ -292,12 +294,33 @@ export function createSupabasePushNotificationStore(
         });
 
         if (error) {
-          throw new Error(`Could not claim notification deliveries: ${error.message}`);
+          // A batch that cannot be claimed is a hundred devices that will not be
+          // told tonight; it is not a reason to abandon the other batches. The
+          // whole call still fails if NO batch succeeded, because that is a
+          // broken function rather than a bad batch — which is exactly what this
+          // RPC was doing on every call before 20260906099000.
+          failures.push(`${error.code ?? "unknown"}: ${error.message}`);
+          console.error("[content-engine] could not claim a notification batch", {
+            batch_size: batch.length,
+            code: error.code ?? null,
+            message: error.message
+          });
+          continue;
         }
 
-        for (const row of (data ?? []) as Array<{ push_token_id: string }>) {
-          claimed.add(row.push_token_id);
+        // `claimed_push_token_id`, not `push_token_id`: the RPC's output column
+        // was renamed because an output column called `push_token_id` is also a
+        // PL/pgSQL variable, and PostgreSQL refused every call the function ever
+        // received. See 20260906099000.
+        for (const row of (data ?? []) as Array<{ claimed_push_token_id: string }>) {
+          claimed.add(row.claimed_push_token_id);
         }
+      }
+
+      if (failures.length === batches.length) {
+        throw new Error(
+          `Could not claim notification deliveries: ${failures[0]}`
+        );
       }
 
       return claimed;

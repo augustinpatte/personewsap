@@ -367,12 +367,22 @@ describe("the 42702 trap", () => {
     (name, definition) => {
       for (const column of definition.returnsTableColumns) {
         // Positions where a bare column name is unambiguous to the parser and
-        // never variable-substituted: an INSERT column list, an ON CONFLICT
-        // target, and the left-hand side of a SET. Everything else must be
-        // written as alias.column.
+        // never variable-substituted: an INSERT column list and the left-hand
+        // side of a SET. Everything else must be written as alias.column.
+        //
+        // AN `ON CONFLICT (...)` TARGET IS NOT ONE OF THEM, and an earlier
+        // version of this check wrongly assumed it was. Index inference accepts
+        // arbitrary expressions, because a unique index may be partial or on an
+        // expression, so it IS an expression context and IS substituted. That
+        // exemption is what let 20260906099000's bug reach production and stay
+        // there: `claim_push_notification_deliveries` failed 42702 on every call
+        // it ever received, and no edition notification was ever delivered.
+        //
+        // `ON CONFLICT ON CONSTRAINT <name>` is genuinely safe — a constraint
+        // name is not an expression — and is the form to prefer.
         const body = definition.body
           .replace(/INSERT INTO[\s\S]*?\)\s*(?=VALUES|SELECT|ON CONFLICT)/gi, " ")
-          .replace(/ON CONFLICT\s*\([^)]*\)/gi, " ")
+          .replace(/ON CONFLICT\s+ON CONSTRAINT\s+\w+/gi, " ")
           .replace(/\bSET\b[\s\S]*?(?=\bWHERE\b|\bRETURNING\b|;)/gi, " ")
           .replace(/RETURNS TABLE\s*\([^)]*\)/gi, " ");
 
