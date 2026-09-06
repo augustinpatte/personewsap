@@ -58,6 +58,7 @@ export function MiniCasesModuleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.chrome}>
         <ModuleHeader
+          accountLabel={copy.common.accountLabel}
           eyebrow={editionDisplayDate(drop, language) ?? copy.common.undatedEdition}
           iconName="check-square"
           metaItems={[

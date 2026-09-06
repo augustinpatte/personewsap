@@ -32,6 +32,21 @@ export type SourceMetadata = {
   content_hash: string;
 };
 
+/** A question this item carries, by its language-independent id. */
+export type LogicalQuestionRef = {
+  logical_question_id: string;
+  /** 1-based, in the order the reader answers them. */
+  question_sequence: number;
+  question_role: string | null;
+};
+
+/** A Team this item reached the reader through. */
+export type ContentTeamRef = {
+  id: string;
+  /** Null when moderation has hidden the name. */
+  name: string | null;
+};
+
 type BaseContentItem = {
   id: string;
   content_type: ContentType;
@@ -41,6 +56,17 @@ type BaseContentItem = {
   source_ids: string[];
   sources?: SourceMetadata[];
   version: number;
+  /**
+   * The scored questions attached to this item, or absent for the ~2 months of
+   * approved content that predates them. Absent and empty mean the same thing
+   * to every reader: no quiz, original behaviour.
+   */
+  logical_questions?: LogicalQuestionRef[];
+  /**
+   * The Teams that were assigned this content for the current edition. Empty
+   * for a purely personal item.
+   */
+  teams?: ContentTeamRef[];
 };
 
 export type NewsletterArticle = BaseContentItem & {

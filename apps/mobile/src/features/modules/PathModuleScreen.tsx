@@ -44,6 +44,7 @@ export function PathModuleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.chrome}>
         <ModuleHeader
+          accountLabel={copy.common.accountLabel}
           eyebrow={copy.path.eyebrow}
           iconName="compass"
           metaItems={[

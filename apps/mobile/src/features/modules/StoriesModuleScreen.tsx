@@ -46,6 +46,7 @@ export function StoriesModuleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.chrome}>
         <ModuleHeader
+          accountLabel={copy.common.accountLabel}
           eyebrow={editionDisplayDate(drop, language) ?? copy.common.undatedEdition}
           iconName="briefcase"
           metaItems={[

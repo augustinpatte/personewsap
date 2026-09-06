@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 
-import { AppText, EmptyState, PrimaryButton } from "../../../components";
+import { AppText, EmptyState, PrimaryButton, SecondaryButton } from "../../../components";
 import { tokens } from "../../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../../design/theme";
 import { estimateReadMinutes, getReaderCopy } from "../contentCopy";
@@ -9,6 +10,10 @@ import { useDailyDrop } from "../DailyDropContext";
 import { MarkdownBody } from "./MarkdownBody";
 import { stripMarkdownInline } from "./markdown";
 import { ReaderScaffold } from "./ReaderScaffold";
+import { ReadingQuizScreen } from "../../quiz/ReadingQuizScreen";
+import { getQuizCopy } from "../../quiz/quizCopy";
+import { readItemQuestions } from "../../quiz/itemQuestions";
+import { useQuizFlow } from "../../quiz/useQuizFlow";
 import { SourceList } from "./SourceList";
 
 export function BusinessStoryReader({ storyId }: { storyId: string }) {
@@ -18,6 +23,24 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
   const copy = getReaderCopy(language);
 
   const item = getItemById(storyId);
+
+  // Hooks run before the missing-item guard below, unconditionally.
+  // `readItemQuestions` is null-safe and returns an empty block for a
+  // missing or legacy item, so the quiz simply has nothing to do — which
+  // is what lets the hook order stay identical on every render.
+  const { questions, teams } = readItemQuestions(item);
+  const [showQuiz, setShowQuiz] = useState(false);
+  // Was this already read when the screen opened? Captured once, with the other
+  // hooks and before the missing-item guard, because it decides what the footer
+  // button MEANS — and marking it read below must not change that answer
+  // mid-render. `isItemComplete` is safe on an absent id.
+  const [wasAlreadyRead] = useState(() => isItemComplete(item?.id ?? ""));
+  const quiz = useQuizFlow({
+    questions,
+    active: showQuiz,
+    contentType: "business_story",
+    isTeam: false
+  });
 
   if (!item || item.content_type !== "business_story") {
     return (
@@ -45,10 +68,36 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
 
   const onFinish = async () => {
     if (!completed) {
+      // The existing completion semantics, unchanged: the article is read the
+      // moment the reader says so, whatever happens to the questions after.
       await markItemsComplete([item]);
+
+      if (questions.length > 0 && quiz.hasPending) {
+        setShowQuiz(true);
+        return;
+      }
     }
+
+    // A reading that was ALREADY read — including everything completed before
+    // questions existed at all — closes. Its button says "Back", and a button
+    // that says Back must go back. The quiz is offered beside it, never behind
+    // it: nobody who finished an article last month gets a quiz sprung on them
+    // for tapping the thing that used to dismiss the screen.
     router.back();
   };
+
+  if (showQuiz) {
+    return (
+      <ReadingQuizScreen
+        eyebrow={copy.storyEyebrow}
+        language={language}
+        onClose={() => router.back()}
+        quiz={quiz}
+        teams={[]}
+        title={item.title}
+      />
+    );
+  }
 
   return (
     <ReaderScaffold
@@ -56,7 +105,15 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
       eyebrow={copy.storyEyebrow}
       iconName="briefcase"
       footer={
-        <PrimaryButton label={completed ? copy.back : copy.markRead} onPress={onFinish} />
+        <View style={styles.footerActions}>
+          {wasAlreadyRead && questions.length > 0 && quiz.hasPending ? (
+            <SecondaryButton
+              label={getQuizCopy(language).continueChallenge}
+              onPress={() => setShowQuiz(true)}
+            />
+          ) : null}
+          <PrimaryButton label={completed ? copy.back : copy.markRead} onPress={onFinish} />
+        </View>
       }
       onClose={() => router.back()}
     >
@@ -116,6 +173,9 @@ function Monogram({ label }: { label: string }) {
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
+    footerActions: {
+      gap: tokens.space.sm
+    },
     identity: {
       alignItems: "center",
       flexDirection: "row",

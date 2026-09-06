@@ -25,6 +25,76 @@ const baseItemProperties = {
   }
 } as const;
 
+/**
+ * The graded question block, shared by all three surfaces.
+ *
+ * `score_milli` is an enum, not an integer with a range: the four tiers are the
+ * whole scale, and letting the model emit 750 would mean deciding later what
+ * that was supposed to mean. `rationale` is required because it is what the
+ * Reviewer checks the ranking against — a question whose ranking nobody wrote
+ * down is a question nobody can defend.
+ *
+ * `role` is intentionally absent here and supplied per surface, so a Mini Case
+ * cannot be handed newsletter roles or vice versa.
+ */
+const gradedOptionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "text", "score_milli", "feedback"],
+  properties: {
+    id: { type: "string" },
+    text: { type: "string" },
+    score_milli: { type: "integer", enum: [0, 300, 600, 1000] },
+    feedback: { type: "string" }
+  }
+} as const;
+
+const questionRationaleSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "decision_criterion",
+    "excellent_reason",
+    "good_limitation",
+    "average_limitation",
+    "bad_failure"
+  ],
+  properties: {
+    decision_criterion: { type: "string" },
+    excellent_reason: { type: "string" },
+    good_limitation: { type: "string" },
+    average_limitation: { type: "string" },
+    bad_failure: { type: "string" }
+  }
+} as const;
+
+/** Interpretation then application: the two questions a reading carries. */
+export const READING_QUESTIONS_SCHEMA = {
+  type: "array",
+  minItems: 2,
+  maxItems: 2,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["id", "role", "question", "options", "rationale"],
+    properties: {
+      id: { type: "string" },
+      role: {
+        type: "string",
+        enum: ["interpretation", "application_decision"]
+      },
+      question: { type: "string" },
+      options: {
+        type: "array",
+        minItems: 4,
+        maxItems: 4,
+        items: gradedOptionSchema
+      },
+      rationale: questionRationaleSchema
+    }
+  }
+} as const;
+
 // Per-item schemas. Single source of truth: the full daily-drop schema and each
 // per-section schema are both composed from these, so they can never diverge.
 export const NEWSLETTER_ITEM_SCHEMA = {
@@ -40,6 +110,7 @@ export const NEWSLETTER_ITEM_SCHEMA = {
     "summary",
     "body_md",
     "why_it_matters",
+    "questions",
     "source_urls",
     "version"
   ],
@@ -64,7 +135,8 @@ export const NEWSLETTER_ITEM_SCHEMA = {
     },
     why_it_matters: {
       type: "string"
-    }
+    },
+    questions: READING_QUESTIONS_SCHEMA
   }
 } as const;
 
@@ -86,6 +158,7 @@ export const BUSINESS_STORY_ITEM_SCHEMA = {
     "lesson",
     "body_md",
     "editorial_memory",
+    "questions",
     "source_urls",
     "version"
   ],
@@ -159,7 +232,8 @@ export const BUSINESS_STORY_ITEM_SCHEMA = {
         core_takeaway: { type: "string" },
         year_period: { type: "string" }
       }
-    }
+    },
+    questions: READING_QUESTIONS_SCHEMA
   }
 } as const;
 
@@ -246,12 +320,19 @@ export const MINI_CASE_ITEM_SCHEMA = {
     question: {
       type: "string"
     },
+    /**
+     * Still exactly three, still in the same pedagogical order. Only the option
+     * grading changed: `is_correct` became the 0/300/600/1000 scale, so a Mini
+     * Case answer can be nearly right instead of merely wrong.
+     */
     questions: {
       type: "array",
+      minItems: 3,
+      maxItems: 3,
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "role", "question", "options"],
+        required: ["id", "role", "question", "options", "rationale"],
         properties: {
           id: { type: "string" },
           role: {
@@ -261,18 +342,11 @@ export const MINI_CASE_ITEM_SCHEMA = {
           question: { type: "string" },
           options: {
             type: "array",
-            items: {
-              type: "object",
-              additionalProperties: false,
-              required: ["id", "text", "is_correct", "feedback"],
-              properties: {
-                id: { type: "string" },
-                text: { type: "string" },
-                is_correct: { type: "boolean" },
-                feedback: { type: "string" }
-              }
-            }
-          }
+            minItems: 4,
+            maxItems: 4,
+            items: gradedOptionSchema
+          },
+          rationale: questionRationaleSchema
         }
       }
     },

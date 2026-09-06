@@ -100,11 +100,31 @@ describe("haptics stay rare", () => {
     .filter((file) => /from "(\.\.\/)+lib\/haptics"/.test(stripComments(readFileSync(file, "utf8"))))
     .map((file) => file.split("/").pop());
 
-  it("is called from the answer surface and the completion surface only", () => {
+  it("is called from the answer surfaces and the completion surface only", () => {
+    // Three files, and the list is deliberately exhaustive so adding a fourth
+    // has to be an argued decision rather than a drive-by import.
+    //
+    // QuestionCard joined the list with the scored questions: choosing an option
+    // is the same event the Mini Case already fires on — the answer is committed
+    // and its outcome revealed on the same tap — so it is the same haptic for
+    // the same reason, not a new one. A timeout is deliberately silent: nothing
+    // was decided.
     expect(hapticUsers.sort()).toEqual([
       "LearningFeedbackScreen.tsx",
-      "MiniCaseReader.tsx"
+      "MiniCaseReader.tsx",
+      "QuestionCard.tsx"
     ]);
+  });
+
+  it("fires at most one haptic per answered question", () => {
+    const card = stripComments(
+      readFileSync(join(srcDir, "features", "quiz", "QuestionCard.tsx"), "utf8")
+    );
+
+    // Guarded by a ref so a re-render cannot buzz twice for one decision, and
+    // skipped entirely when the question expired.
+    expect(card).toContain("firedRef.current");
+    expect(card).toMatch(/if \(firedRef\.current \|\| expired\)/);
   });
 
   it("never touches ordinary navigation or card presses", () => {

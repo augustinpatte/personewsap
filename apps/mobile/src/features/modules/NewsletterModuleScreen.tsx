@@ -34,6 +34,10 @@ import { useDailyDrop } from "../today/DailyDropContext";
 import { resolveTodayEditionState } from "../today/todayEditionState";
 import { isEditionDay } from "../today/editionCadence";
 import { stripMarkdownInline } from "../today/readers/markdown";
+import { mergeTeamAndPersonalContent, mergedItems } from "../quiz/teamMerge";
+import { TeamBadge } from "../quiz/TeamBadge";
+import { itemHasQuestions } from "../quiz/itemQuestions";
+import { getQuizCopy } from "../quiz/quizCopy";
 import { getModuleCopy } from "./moduleCopy";
 import {
   EditorialRule,
@@ -66,6 +70,7 @@ export function NewsletterModuleScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.chrome}>
         <ModuleHeader
+          accountLabel={copy.common.accountLabel}
           eyebrow={editionDisplayDate(drop, language) ?? copy.common.undatedEdition}
           iconName="file-text"
           metaItems={[
@@ -111,7 +116,31 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
     useDailyDrop();
   const copy = getModuleCopy(language);
   const [showLanguageChangeNotice, setShowLanguageChangeNotice] = useState(false);
-  const articles = drop.items.newsletter;
+  // TEAM FIRST, THEN PERSONAL, DEDUPLICATED BY LOGICAL IDENTITY.
+  //
+  // An article assigned to two of the reader's Teams and also present in their
+  // own edition appears ONCE, badged with both Teams. Deduplicating on the row
+  // id would look correct in a single-language test and ship a duplicate the
+  // day somebody switches language, because the FR and EN renderings are two
+  // rows sharing one content_logical_key.
+  //
+  // Every item already carries its own `teams`, so the merge is over one list
+  // rather than two fetches: an item with teams is a Team assignment, an item
+  // without is personal.
+  const articles = useMemo(() => {
+    const items = drop.items.newsletter;
+
+    return mergedItems(
+      mergeTeamAndPersonalContent({
+        teamAssignments: items
+          .filter((item) => (item.teams ?? []).length > 0)
+          .flatMap((item, position) =>
+            (item.teams ?? []).map((team) => ({ team, item, position }))
+          ),
+        personalItems: items.filter((item) => (item.teams ?? []).length === 0)
+      })
+    );
+  }, [drop.items.newsletter]);
   const editionState = resolveTodayEditionState({
     dropDate: drop.drop_date,
     error,
@@ -211,6 +240,7 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
         style={styles.lead}
       >
         <View style={styles.kicker}>
+          <TeamBadge compact language={language} teams={lead.teams ?? []} />
           <AppText variant="eyebrow">{copy.newsletter.lead}</AppText>
         </View>
         <AppText style={styles.leadHeadline} variant="display">
@@ -246,11 +276,19 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
               <AppText style={styles.alsoHeadline} variant="subtitle">
                 {article.title}
               </AppText>
+              <TeamBadge compact language={language} teams={article.teams ?? []} />
               <MetaLine
                 items={[
                   getTopicLabel(article.topic, language),
                   copy.common.minuteCount(estimateReadMinutes(article)),
-                  isItemComplete(article.id) ? copy.common.read : null
+                  // "Continue challenge" beats "Read" on an article that is
+                  // finished but still owes questions: the reader has something
+                  // left to do, and a plain "Read" would hide it.
+                  isItemComplete(article.id) && itemHasQuestions(article)
+                    ? getQuizCopy(language).continueChallenge
+                    : isItemComplete(article.id)
+                      ? copy.common.read
+                      : null
                 ]}
                 tone={isItemComplete(article.id) ? "accentInk" : "muted"}
               />

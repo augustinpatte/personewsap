@@ -13,6 +13,7 @@ export default defineConfig({
       "services/content-engine/src/**/*.{test,spec}.ts",
       "apps/mobile/src/**/*.{test,spec}.{ts,tsx}",
       "supabase/functions/**/*.{test,spec}.ts",
+      "supabase/tests/**/*.{test,spec}.ts",
     ],
   },
   resolve: {

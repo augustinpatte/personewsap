@@ -20,6 +20,7 @@ import { parsePersonalizeTestOptions, runPersonalizeTest } from "./cli/personali
 import { parsePersistTestOptions, runPersistTest } from "./cli/persistTest.js";
 import { parsePushNotificationsOptions, runPushNotifications } from "./cli/pushNotifications.js";
 import { parsePushReceiptsOptions, runPushReceipts } from "./cli/pushReceipts.js";
+import { parseQuestionBackfillOptions, runQuestionBackfillCli } from "./cli/questionBackfill.js";
 import { runQualityProof } from "./cli/qualityProof.js";
 import { parseRssCheckOptions, runRssCheck } from "./cli/rssCheck.js";
 import { formatPersistenceError } from "./storage/persistenceError.js";
@@ -43,6 +44,12 @@ async function main(): Promise<void> {
   if (command === "llm-proof") {
     const output = await runLlmProof(parseLlmProofOptions(args));
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+
+  if (command === "question-backfill") {
+    const output = await runQuestionBackfillCli(parseQuestionBackfillOptions(args));
+    writeJson(output, { redactIdentifiers: true });
     return;
   }
 

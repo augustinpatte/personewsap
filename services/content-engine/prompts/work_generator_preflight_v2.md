@@ -712,30 +712,70 @@ Avant submit vérifier :
 Mini Case :
 
 - exactement 3 questions ;
-- roles exacts attendus ;
+- roles exacts attendus, dans l'ordre pédagogique ;
 - exactement 4 options/question ;
-- exactement 1 is_correct/question.
+- exactement un `score_milli` 0, un 300, un 600 et un 1000 par question.
+
+Newsletter et Business Story :
+
+- exactement 2 questions ;
+- role 1 = `interpretation`, role 2 = `application_decision` ;
+- exactement 4 options/question ;
+- exactement un `score_milli` 0, un 300, un 600 et un 1000 par question.
+
+TOUS CONTENT TYPES — questions :
+
+- `rationale` complet sur chaque question ;
+- aucune question résoluble en relisant une ligne du contenu ;
+- aucune question exigeant une donnée absente du contenu et du source packet ;
+- la bonne réponse n'est identifiable ni par sa longueur, ni parce qu'elle est
+  la seule à contenir un chiffre, ni parce qu'elle est la seule à poser une
+  condition ;
+- parité FR/EN sur les `id` de question, les `id` d'option et les
+  `score_milli` ; formulations naturelles et différentes dans chaque langue.
 
 ---
 
 # 12. REVISION_REQUIRED
 
+Le verdict du Reviewer nomme désormais des SCOPES :
+
+```
+content
+question_1
+question_2
+question_3   (Mini Case uniquement)
+```
+
 Pour une nouvelle tentative :
 
 1. lire le feedback exact du reviewer ;
-2. lister TOUS les problèmes ;
-3. corriger TOUS les problèmes ;
+2. lister TOUS les problèmes de TOUS les scopes signalés ;
+3. corriger TOUS ces problèmes ;
 4. refaire TOUTE la preflight ;
 5. seulement ensuite submit.
 
-Ne jamais corriger uniquement la longueur en laissant Q3 cassée.
+## RÈGLE DE SCOPE — BLOQUANTE
 
-Ne jamais corriger uniquement l'URL en laissant la longueur hors contrat.
+Ne régénérer QUE les scopes listés dans `SCOPES TO FIX`.
+
+Les scopes listés dans `DO NOT REGENERATE` doivent être resoumis à
+l'identique, octet pour octet.
+
+Un article qui a passé ses gates ne se réécrit pas parce qu'une question a
+échoué. Réécrire un contenu approuvé pour corriger une option est une
+régression : cela détruit un texte déjà validé et relance des gates qui étaient
+PASS.
+
+Inversement : ne jamais corriger uniquement la longueur en laissant Q3 cassée,
+ni uniquement l'URL en laissant la longueur hors contrat. Tous les scopes
+signalés, et seulement eux.
+
+Si `content` est dans les scopes et qu'il faut reconstruire :
+reconstruire le contenu, puis réécrire les questions à partir du nouveau
+contenu — une question rédigée pour l'ancien texte ne tient plus.
 
 Ne jamais patcher superficiellement une dernière tentative.
-
-Si nécessaire :
-reconstruire complètement le contenu.
 
 ---
 

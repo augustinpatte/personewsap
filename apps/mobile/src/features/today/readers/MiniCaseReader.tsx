@@ -35,6 +35,9 @@ import { readMiniCaseResponseAnywhere } from "../miniCaseSync";
 import { MarkdownBody } from "./MarkdownBody";
 import { resolveOptionFeedback } from "./miniCaseFeedback";
 import { ReaderScaffold } from "./ReaderScaffold";
+import { MiniCaseServerQuiz } from "../../quiz/MiniCaseServerQuiz";
+import { readItemQuestions } from "../../quiz/itemQuestions";
+import { isServerScorableMiniCase } from "../../quiz/legacyMiniCaseOptions";
 import { SourceList } from "./SourceList";
 
 type Phase = "decide" | "feedback" | "debrief";
@@ -86,6 +89,26 @@ export function MiniCaseReader({ caseId }: { caseId: string }) {
           title={language === "fr" ? "Introuvable" : "Not found"}
         />
       </ReaderScaffold>
+    );
+  }
+
+  // A case whose options carry real 0/300/600/1000 tiers AND which has logical
+  // questions to score against goes through the server-scored reader. Everything
+  // else — the whole approved launch catalog, written with is_correct or with
+  // best/viable/weak — keeps the existing self-marked flows below, untouched.
+  // The decision lives in one predicate so there is no second place to forget it.
+  if (
+    isServerScorableMiniCase({
+      hasLogicalQuestions: readItemQuestions(item).questions.length > 0,
+      questions: item.questions ?? []
+    })
+  ) {
+    return (
+      <MiniCaseServerQuiz
+        caseIntro={<CaseIntro challenge={item} copy={copy} language={language} />}
+        challenge={item}
+        key={item.id}
+      />
     );
   }
 

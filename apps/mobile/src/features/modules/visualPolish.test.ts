@@ -50,21 +50,30 @@ describe("tab bar", () => {
     expect(tabs).toMatch(/@expo\/vector-icons/);
     expect(tabs).toMatch(/Feather/);
 
-    for (const icon of ["file-text", "check-square", "briefcase", "compass", "sliders"]) {
+    // "users" replaced "sliders" when Teams took the fifth slot from Settings.
+    // Single-weight Feather line glyphs throughout; deliberately no emoji, no
+    // filled shapes, no illustrations.
+    for (const icon of ["file-text", "check-square", "briefcase", "compass", "users"]) {
       expect(tabs).toContain(icon);
     }
+
+    expect(tabs).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
   });
 
-  it("keeps exactly the five launch tabs", () => {
-    expect(tabs.match(/<Tabs\.Screen/g)).toHaveLength(5);
+  it("keeps exactly five destinations, with Settings out of the bar", () => {
+    // Five is the most the bar carries at 10.5pt without the labels becoming
+    // unreadable. Teams earned the fifth slot; Settings stayed in the group as a
+    // route (href: null) so it keeps the bar and its inset, and every module
+    // masthead now carries the way to it.
+    expect(tabs.match(/tabBarIcon:/g)).toHaveLength(5);
 
-    for (const route of ["newsletter", "cases", "stories", "path", "settings"]) {
+    for (const route of ["newsletter", "cases", "stories", "path", "teams"]) {
       expect(tabs).toMatch(new RegExp(`name="${route}"`));
     }
 
     expect(tabs).not.toMatch(/name="account"/);
-    expect(tabs).toMatch(/settings: "Settings"/);
-    expect(tabs).toMatch(/settings: "Réglages"/);
+    expect(tabs).toMatch(/teams: "Teams"/);
+    expect(tabs).toMatch(/href: null/);
   });
 
   it("keeps the legacy account route as a settings redirect only", () => {

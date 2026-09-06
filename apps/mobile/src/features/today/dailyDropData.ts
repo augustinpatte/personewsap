@@ -20,6 +20,8 @@ import type { TopicId } from "../../constants/product";
 import type { ContentItem, DailyDrop, DailyDropItem, Source } from "../../types/domain";
 import type {
   BusinessStory,
+  ContentTeamRef,
+  LogicalQuestionRef,
   ContentDifficulty,
   ContentLanguage,
   DailyDropContentItem,
@@ -52,6 +54,21 @@ type SourcesByContentItemId = Record<
     sources: SourceMetadata[];
   }
 >;
+
+/**
+ * The scored questions and Team badges attached to the items of one edition.
+ *
+ * Keyed by the ASSIGNED content item id, which is the same key sources use and
+ * the same key RLS grants on. A question is found through the item's
+ * `content_logical_key`, so the FR and EN renderings of one article resolve to
+ * the same question — that is what makes a French reader and an English reader
+ * in the same Team play one game.
+ */
+type QuestionsByContentItemId = Record<string, LogicalQuestionRef[]>;
+type TeamsByContentItemId = Record<string, ContentTeamRef[]>;
+
+const logicalQuestionSelect =
+  "id,content_logical_key,content_type,question_sequence,question_role";
 
 const publishedDropStatuses = ["published", "read", "archived"] as const;
 const todayDropCacheTtlMs = 60_000;
@@ -380,10 +397,22 @@ export async function fetchContentItemById(
     );
 
     const sourcesByContentItemId = await fetchSourcesByContentItemIds([contentItemId]);
+    // Questions are resolved from the ASSIGNED item, so an archived reading
+    // opened after a language switch shows the same questions and the same
+    // single attempt as it did on the day.
+    const questionsByContentItemId = await fetchQuestionsByContentItemIds([contentItem]);
+    const teamsByContentItemId = await fetchTeamsByContentItemIds({
+      contentItems: [contentItem],
+      questionsByContentItemId,
+      editionDate: contentItem.publication_date
+    });
+
     const mappedItem = mapDailyDropContentItem(
       renderedItem ?? contentItem,
       synthesizeDropItem(contentItemId, slot),
-      sourcesByContentItemId
+      sourcesByContentItemId,
+      questionsByContentItemId,
+      teamsByContentItemId
     );
 
     if (!mappedItem) {
@@ -475,13 +504,29 @@ async function fetchAndMapDailyDrop(
   const availableContentItems = orderedDropItems
     .map((dropItem) => contentItemsById.get(dropItem.content_item_id))
     .filter(isContentItem);
+  // The assigned rows, not the rendered ones: sources, questions and team
+  // assignments are all granted on the id the reader's own drop references.
+  const assignedContentItems = (contentItems ?? []).filter(isContentItem);
   const sourcesByContentItemId = await fetchSourcesByContentItemIds(contentItemIds);
+  const questionsByContentItemId = await fetchQuestionsByContentItemIds(assignedContentItems);
+  const teamsByContentItemId = await fetchTeamsByContentItemIds({
+    contentItems: assignedContentItems,
+    questionsByContentItemId,
+    editionDate: drop.drop_date
+  });
+
   const mappedItems = orderedDropItems
     .map((dropItem) => {
       const contentItem = contentItemsById.get(dropItem.content_item_id);
 
       return contentItem
-        ? mapDailyDropContentItem(contentItem, dropItem, sourcesByContentItemId)
+        ? mapDailyDropContentItem(
+            contentItem,
+            dropItem,
+            sourcesByContentItemId,
+            questionsByContentItemId,
+            teamsByContentItemId
+          )
         : null;
     })
     .filter(isDailyDropContentItem);
@@ -547,6 +592,185 @@ async function fetchSourcesByContentItemIds(
   }, {});
 }
 
+/**
+ * The questions attached to a set of content items, and the Teams that assigned
+ * them.
+ *
+ * TWO QUERIES FOR A WHOLE EDITION, not two per item. An edition is up to 23
+ * items and a reader can be in any number of Teams; doing this per item would
+ * be the N+1 that makes a Newsletter tab take a second to draw.
+ *
+ * Questions are matched on `content_logical_key`, read from the item's own
+ * metadata by the same three keys `public.content_logical_key(jsonb)` uses. The
+ * FR and EN renderings of one editorial job share that key, so a reader who
+ * switches language keeps the same questions and the same single attempt.
+ *
+ * Both fetchers are BEST EFFORT: a failure returns empty rather than throwing.
+ * A reader whose questions could not be loaded gets the article, which is the
+ * product; a reader who got an error screen instead would have lost both.
+ */
+async function fetchQuestionsByContentItemIds(
+  contentItems: ContentItem[]
+): Promise<QuestionsByContentItemId> {
+  if (!supabase || contentItems.length === 0) {
+    return {};
+  }
+
+  const keyByItemId = new Map<string, string>();
+  const logicalKeys = new Set<string>();
+
+  for (const item of contentItems) {
+    const key = readContentLogicalKey(item);
+
+    if (key) {
+      keyByItemId.set(item.id, key);
+      logicalKeys.add(key);
+    }
+  }
+
+  if (logicalKeys.size === 0) {
+    return {};
+  }
+
+  const { data, error } = await supabase
+    .from("logical_questions")
+    .select(logicalQuestionSelect)
+    .in("content_logical_key", [...logicalKeys])
+    .order("question_sequence", { ascending: true });
+
+  if (error || !data) {
+    return {};
+  }
+
+  const byKey = new Map<string, LogicalQuestionRef[]>();
+
+  for (const row of data) {
+    const key = row.content_logical_key as string;
+    const list = byKey.get(key) ?? [];
+
+    list.push({
+      logical_question_id: row.id as string,
+      question_sequence: Number(row.question_sequence ?? 0),
+      question_role: (row.question_role as string | null) ?? null
+    });
+
+    byKey.set(key, list);
+  }
+
+  const questions: QuestionsByContentItemId = {};
+
+  for (const item of contentItems) {
+    const key = keyByItemId.get(item.id);
+    const list = key ? byKey.get(key) : undefined;
+
+    // Content type has to match too: a mini case and a newsletter article can
+    // share a staging batch but never a question set.
+    if (list && list.length > 0) {
+      questions[item.id] = list;
+    }
+  }
+
+  return questions;
+}
+
+/**
+ * Which of the reader's Teams were assigned each item, for the current edition.
+ *
+ * Eligibility is applied here, not in the UI: a member who joined mid-edition
+ * is not eligible until the next one, and showing them a Team badge on content
+ * that will not score for them would be a lie the leaderboard then contradicts.
+ */
+async function fetchTeamsByContentItemIds(input: {
+  contentItems: ContentItem[];
+  questionsByContentItemId: QuestionsByContentItemId;
+  editionDate: string;
+}): Promise<TeamsByContentItemId> {
+  if (!supabase) {
+    return {};
+  }
+
+  const logicalQuestionIds = [
+    ...new Set(
+      Object.values(input.questionsByContentItemId).flatMap((list) =>
+        list.map((question) => question.logical_question_id)
+      )
+    )
+  ];
+
+  if (logicalQuestionIds.length === 0) {
+    return {};
+  }
+
+  // RLS on team_question_assignments already scopes this to teams the reader is
+  // an active member of, so no user filter is needed and none is sent.
+  const { data, error } = await supabase
+    .from("team_question_assignments")
+    .select("team_id,logical_question_id,edition_date,teams!inner(id,name,name_status)")
+    .eq("edition_date", input.editionDate)
+    .in("logical_question_id", logicalQuestionIds);
+
+  if (error || !data) {
+    return {};
+  }
+
+  const teamsByQuestionId = new Map<string, ContentTeamRef[]>();
+
+  for (const row of data) {
+    const team = (row.teams ?? {}) as unknown as Record<string, unknown>;
+    const questionId = row.logical_question_id as string;
+    const list = teamsByQuestionId.get(questionId) ?? [];
+    const teamId = String(team.id ?? row.team_id ?? "");
+
+    if (!teamId || list.some((entry) => entry.id === teamId)) {
+      continue;
+    }
+
+    list.push({
+      id: teamId,
+      // Moderation applied at read time: a hidden name renders as a neutral
+      // label rather than disappearing, so the row still says "Team".
+      name: team.name_status === "hidden" ? null : ((team.name as string) ?? null)
+    });
+
+    teamsByQuestionId.set(questionId, list);
+  }
+
+  const teams: TeamsByContentItemId = {};
+
+  for (const [contentItemId, questions] of Object.entries(input.questionsByContentItemId)) {
+    const merged: ContentTeamRef[] = [];
+
+    for (const question of questions) {
+      for (const team of teamsByQuestionId.get(question.logical_question_id) ?? []) {
+        if (!merged.some((entry) => entry.id === team.id)) {
+          merged.push(team);
+        }
+      }
+    }
+
+    if (merged.length > 0) {
+      teams[contentItemId] = merged;
+    }
+  }
+
+  return teams;
+}
+
+/** The three metadata keys `public.content_logical_key(jsonb)` reads, in order. */
+function readContentLogicalKey(item: ContentItem): string | null {
+  const metadata = getMetadata(item);
+
+  for (const key of ["staging_job_id", "catalog_entry_id", "entry_key"]) {
+    const value = metadata[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
 function assembleTodayDrop(
   drop: DailyDrop,
   items: DailyDropContentItem[],
@@ -592,7 +816,9 @@ function assembleTodayDrop(
 function mapDailyDropContentItem(
   contentItem: ContentItem,
   dropItem: DailyDropItem,
-  sourcesByContentItemId: SourcesByContentItemId
+  sourcesByContentItemId: SourcesByContentItemId,
+  questionsByContentItemId: QuestionsByContentItemId = {},
+  teamsByContentItemId: TeamsByContentItemId = {}
 ): DailyDropContentItem | null {
   const metadata = getMetadata(contentItem);
   const sourceDetails = sourcesByContentItemId[contentItem.id] ?? {
@@ -605,7 +831,11 @@ function mapDailyDropContentItem(
     source_ids: sourceDetails.sourceIds,
     sources: sourceDetails.sources,
     title: contentItem.title,
-    version: contentItem.version
+    version: contentItem.version,
+    // Absent when this item predates questions, which every reader treats as
+    // "no quiz" without needing a flag of its own.
+    logical_questions: questionsByContentItemId[contentItem.id],
+    teams: teamsByContentItemId[contentItem.id]
   };
 
   if (contentItem.content_type === "newsletter_article" && dropItem.slot === "newsletter") {

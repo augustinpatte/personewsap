@@ -28,20 +28,28 @@ import type { OnboardingModuleId } from "../onboarding";
 
 /**
  * Shared chrome for the four module tabs: masthead, the Today | Archive view
- * switch, and the common loading / error surfaces. Settings is now a permanent
- * tab, so module headers do not carry a second account shortcut.
+ * switch, and the common loading / error surfaces.
+ *
+ * The masthead carries the account affordance. It used to have none, because
+ * Settings was the fifth tab; Teams took that slot, so the way to reach account
+ * settings came back here — top-right of the masthead, the place an iPhone
+ * reader already looks for it, rather than as a sixth tab nobody could read at
+ * 10.5pt.
  */
 
 export function ModuleHeader({
   eyebrow,
   iconName,
   title,
-  metaItems
+  metaItems,
+  accountLabel
 }: {
   eyebrow: string;
   iconName: IconBadgeName;
   title: string;
   metaItems?: Array<string | null | undefined>;
+  /** Localized label for the account button. Omitted hides it. */
+  accountLabel?: string;
 }) {
   const styles = useThemedStyles(createStyles);
 
@@ -55,7 +63,33 @@ export function ModuleHeader({
         <AppText variant="title">{title}</AppText>
         {metaItems ? <MetaLine items={metaItems} /> : null}
       </View>
+      {accountLabel ? <AccountButton label={accountLabel} /> : null}
     </View>
+  );
+}
+
+/**
+ * The way back to Settings now that it is not a tab.
+ *
+ * A 44pt target with a hit slop on top, because the glyph itself is 20pt and a
+ * masthead control that needs a precise tap is a control people stop using.
+ */
+function AccountButton({ label }: { label: string }) {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const pressedSurface = usePressedSurfaceStyle();
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      hitSlop={10}
+      onPress={() => router.push("/(tabs)/settings" as Href)}
+      style={({ pressed }) => [styles.accountButton, pressed ? pressedSurface : null]}
+      testID="module-account-button"
+    >
+      <IconBadge name="sliders" size="sm" tone="muted" />
+    </Pressable>
   );
 }
 
@@ -346,6 +380,16 @@ const createStyles = (c: ThemeColors) =>
       flexDirection: "row",
       gap: tokens.space.md,
       justifyContent: "space-between"
+    },
+    accountButton: {
+      alignItems: "center",
+      borderRadius: tokens.radius.pill,
+      height: 44,
+      justifyContent: "center",
+      // Pulled back so the 44pt target does not push the masthead wider than
+      // the editorial column it sits in.
+      marginRight: -tokens.space.sm,
+      width: 44
     },
     headerCopy: {
       flex: 1,

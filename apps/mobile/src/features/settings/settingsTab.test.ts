@@ -36,26 +36,67 @@ const cases = readFileSync(
 );
 const rootLayout = readFileSync(join(repoRoot, "apps", "mobile", "app", "_layout.tsx"), "utf8");
 
-describe("Settings tab navigation", () => {
-  it("has exactly five stable bottom tabs", () => {
-    expect(tabs.match(/<Tabs\.Screen/g)).toHaveLength(5);
+describe("bottom navigation", () => {
+  // Settings was the fifth tab until Teams arrived. Five is the most a bottom
+  // bar carries at 10.5pt without the labels becoming unreadable, so one had to
+  // go — and between "the private league you check every edition" and "where the
+  // language switch lives", the league is the one that belongs one tap away.
+  // Settings stayed a route inside the tab group (href: null) so it keeps the
+  // bar and its inset, and every module masthead now carries the way to it.
+  it("has exactly five stable bottom tabs, ending with Teams", () => {
+    // Counted by icon, not by <Tabs.Screen>: the settings route is declared in
+    // the same group but has href: null and no icon, so it is a route rather
+    // than a sixth destination.
+    const visibleTabs = tabs.match(/tabBarIcon:/g) ?? [];
 
-    for (const route of ["newsletter", "cases", "stories", "path", "settings"]) {
+    expect(visibleTabs).toHaveLength(5);
+    expect((tabs.match(/<Tabs\.Screen/g) ?? []).length).toBe(6);
+
+    for (const route of ["newsletter", "cases", "stories", "path", "teams"]) {
       expect(tabs).toContain(`name="${route}"`);
     }
 
     expect(tabs).not.toMatch(/enabledModules|newsletter_enabled|mini_cases_enabled/);
   });
 
-  it("uses the required FR and EN Settings labels", () => {
-    expect(tabs).toMatch(/settings: "Settings"/);
-    expect(tabs).toMatch(/settings: "Réglages"/);
+  it("keeps Settings reachable but out of the bar", () => {
+    // href: null is what makes it a route rather than a destination.
+    expect(tabs).toMatch(/<Tabs\.Screen name="settings" options=\{\{ href: null \}\} \/>/);
+    expect(tabs).not.toMatch(/title=\{copy\.settings\}/);
+  });
+
+  it("uses the required FR and EN Teams labels", () => {
+    // The product's own word in both languages: a French reader says "ma team",
+    // and "Équipes" would name something this is not.
+    expect(tabs).toMatch(/teams: "Teams"/);
+    expect((tabs.match(/teams: "Teams"/g) ?? []).length).toBe(2);
   });
 
   it("keeps five-tab touch targets readable", () => {
     expect(tabs).toMatch(/minHeight: 44/);
     expect(tabs).toMatch(/fontSize: 10\.5/);
     expect(tabs).toMatch(/letterSpacing: 0/);
+  });
+
+  it("uses no emoji in the bar", () => {
+    expect(tabs).toMatch(/Feather/);
+    expect(tabs).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+  });
+
+  it("keeps the warm translucent material and its opaque fallback", () => {
+    // The Apple pass's tab bar, unchanged by the Teams addition.
+    expect(tabs).toContain("<TabBarBackground />");
+    expect(tabs).toMatch(/backgroundColor: "transparent"/);
+  });
+
+  it("gives every module masthead a way back to Settings", () => {
+    // It had none while Settings was a tab; it needs one now.
+    expect(moduleChrome).toContain("AccountButton");
+    expect(moduleChrome).toMatch(/\/\(tabs\)\/settings/);
+
+    for (const source of [newsletter, stories, cases]) {
+      expect(source).toContain("accountLabel={copy.common.accountLabel}");
+    }
   });
 
   it("keeps legacy /account safe without duplicating the screen", () => {

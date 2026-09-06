@@ -1,3 +1,19 @@
+import type {
+  GradedQuestion,
+  MiniCaseQuestionRole,
+  QuestionRationale,
+  QuestionScoreTier
+} from "./generation/gradedQuestions.js";
+
+export type {
+  GradedQuestion,
+  GradedQuestionOption,
+  MiniCaseQuestionRole,
+  QuestionRationale,
+  QuestionRole,
+  QuestionScoreTier
+} from "./generation/gradedQuestions.js";
+
 export const TOPIC_IDS = [
   "business",
   "finance",
@@ -145,6 +161,14 @@ export type NewsletterArticle = BaseGeneratedItem & {
   summary: string;
   body_md: string;
   why_it_matters: string;
+  /**
+   * Exactly two graded questions: interpretation, then application.
+   *
+   * Optional on the type because two months of approved articles predate them
+   * and must stay readable. Validation requires them for anything generated
+   * from now on; `questionBackfill` fills the gap for the rest.
+   */
+  questions?: GradedQuestion[];
 };
 
 export type BusinessStory = BaseGeneratedItem & {
@@ -159,6 +183,8 @@ export type BusinessStory = BaseGeneratedItem & {
   lesson: string;
   body_md: string;
   editorial_memory?: BusinessStoryEditorialMemoryFields;
+  /** Exactly two graded questions. Solo only — a Business Story is never a Team surface. */
+  questions?: GradedQuestion[];
 };
 
 export type BusinessStoryEditorialMemoryFields = {
@@ -191,14 +217,27 @@ export type MiniCaseChallenge = BaseGeneratedItem & {
   challenge: string;
   constraints: string[];
   question: string;
+  /**
+   * Exactly three questions, in the fixed pedagogical order
+   * method_framework -> technical_application -> conclusion_decision. That
+   * progression is the exercise and is never reduced to two.
+   *
+   * The options moved from a binary `is_correct` to the graded 0/300/600/1000
+   * scale. Both shapes are typed because ~2 months of approved cases carry the
+   * old one and must keep rendering; `normalizeQuestionOptions` reads either,
+   * and validation requires the graded form for new generations.
+   */
   questions: Array<{
     id: string;
-    role: "method_framework" | "technical_application" | "conclusion_decision";
+    role: MiniCaseQuestionRole;
     question: string;
     options: Array<{
       id: string;
       text: string;
-      is_correct: boolean;
+      /** 0 | 300 | 600 | 1000. Absent on legacy binary cases. */
+      score_milli?: QuestionScoreTier;
+      /** Legacy binary marker. Absent on graded cases. */
+      is_correct?: boolean;
       /**
        * Single instant feedback for this option, aligned with the final Mini Case
        * prompt: when the option is correct it explains why it works, when it is
@@ -207,6 +246,8 @@ export type MiniCaseChallenge = BaseGeneratedItem & {
        */
       feedback: string;
     }>;
+    /** Internal ranking justification for the Reviewer. Never shipped to a client. */
+    rationale?: QuestionRationale;
   }>;
   expected_reasoning: string[];
   sample_answer: string;

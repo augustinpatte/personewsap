@@ -11,7 +11,13 @@ import { shouldRedirectToLearningSetup } from "../../src/features/learning/learn
 import { localized } from "../../src/lib/i18n";
 
 /**
- * Product-oriented bottom navigation: the four content modules plus Settings.
+ * Product-oriented bottom navigation: the four content modules plus Teams.
+ *
+ * Settings left this bar when Teams arrived. Five is the most a bottom bar can
+ * carry at 10.5pt without the labels becoming unreadable, and between "the
+ * private league you check every edition" and "where the language switch
+ * lives", the league is the one that belongs one tap away. Account is reachable
+ * from every module masthead instead, and /account still resolves.
  *
  * One sober line icon per destination, so the tabs are told apart at a glance
  * rather than by reading five short words.
@@ -26,7 +32,7 @@ const TAB_ICONS = {
   cases: "check-square",
   stories: "briefcase",
   path: "compass",
-  settings: "sliders"
+  teams: "users"
 } as const;
 
 function TabIcon({
@@ -63,14 +69,16 @@ export default function TabsLayout() {
         cases: "Mini cases",
         stories: "Stories",
         path: "Path",
-        settings: "Settings"
+        teams: "Teams"
       },
       fr: {
         newsletter: "Newsletter",
         cases: "Mini cas",
         stories: "Stories",
         path: "Parcours",
-        settings: "Réglages"
+        // "Teams" is the product's own word in both languages: a French reader
+        // says "ma team", and "Équipes" would name something this is not.
+        teams: "Teams"
       }
     },
     profileLanguage
@@ -180,14 +188,18 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="settings"
+          name="teams"
           options={{
-            title: copy.settings,
+            title: copy.teams,
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon color={color} focused={focused} name={TAB_ICONS.settings} />
+              <TabIcon color={color} focused={focused} name={TAB_ICONS.teams} />
             )
           }}
         />
+        {/* Settings is a route inside the tab group but not a tab: it keeps the
+            tab bar and its inset while staying out of the five destinations.
+            Reached from the masthead on every module screen. */}
+        <Tabs.Screen name="settings" options={{ href: null }} />
       </Tabs>
     </ArchiveProvider>
   );

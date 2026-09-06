@@ -20,6 +20,17 @@ export const ANALYTICS_EVENTS = [
   "learning_path_replaced",
   "topic_preference_updated",
   "language_updated",
+  // Scored questions. Deliberately six events and no more: enough to see the
+  // funnel (started -> answered/skipped/timed_out -> completed) and whether
+  // Team content is being opened at all. No event here carries a score, a grade
+  // band, an option id or a rationale — the answer key is server-side and must
+  // not leak through an analytics payload.
+  "quiz_started",
+  "quiz_answered",
+  "quiz_timed_out",
+  "quiz_skipped",
+  "quiz_completed",
+  "team_content_opened",
   "auth_signed_in",
   "auth_signed_out",
   "error_viewed"
@@ -41,6 +52,11 @@ export type AnalyticsEventProperties = {
   item_id?: string;
   language?: Language;
   topic?: TopicId;
+  /** 1-based position of the question in its reading. Never the question's id. */
+  question_index?: number;
+  question_count?: number;
+  /** Whether the reading reached the reader through a Team. Never which team. */
+  is_team?: boolean;
 };
 
 type AnalyticsProvider = {

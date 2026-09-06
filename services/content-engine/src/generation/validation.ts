@@ -29,6 +29,13 @@ import {
 import { validateBusinessStorySubstance } from "./businessStorySubstance.js";
 import { validateMiniCaseDistractorQuality } from "../miniCase/distractorQuality.js";
 import {
+  READING_QUESTION_ROLES,
+  normalizeQuestion,
+  validateGradedQuestion,
+  validateQuestionSet,
+  type QuestionRole
+} from "./gradedQuestions.js";
+import {
   miniCaseSemanticText,
   validateMiniCaseTaxonomyCompatibility
 } from "../miniCase/taxonomyCompatibility.js";
@@ -369,6 +376,7 @@ export function validateDailyDropQuality(
     issues.push(...validateUnsupportedSpecificClaims(item, path, sourceByUrl, strict));
     issues.push(...validateItemProductTopicMapping(item, path, options, strict));
     issues.push(...validateMiniCaseUxAndRotation(item, path, payload.drop_date, options, strict));
+    issues.push(...validateItemGradedQuestions(item, path, strict));
     issues.push(...validateBusinessStoryEditorialMemory(item, path, payload.drop_date, options, strict));
 
     // A source-quality refusal must never be published as the story itself.
@@ -1297,6 +1305,54 @@ function validateMiniCaseUxAndRotation(
   return issues;
 }
 
+/**
+ * The graded question block, for whichever surface carries one.
+ *
+ * Newsletter and Business Story get two questions; the Mini Case's three are
+ * checked by validateMiniCaseQuestions, which owns the pedagogical-order rule
+ * and calls into the same deterministic grading checks. Splitting it this way
+ * means the tier/shape rules exist once and the per-surface contracts stay
+ * where a reader of this file would look for them.
+ *
+ * Questions are BLOCKING (strict: true) rather than strict-gated. A question
+ * with two 1000-point answers is unanswerable, and shipping it would put a
+ * broken competitive item in front of a team; a retry is the only correct
+ * response. But note what is NOT blocking here: nothing in this function can
+ * fail an article. A defective question fails the question.
+ */
+function validateItemGradedQuestions(
+  item: GeneratedContentItem,
+  path: string,
+  strict: boolean
+): ValidationIssue[] {
+  if (item.content_type !== "newsletter_article" && item.content_type !== "business_story") {
+    return [];
+  }
+
+  const raw = (item as unknown as Record<string, unknown>).questions;
+
+  // Two months of approved articles predate questions entirely. Absent is not a
+  // defect to retry on — questionBackfill exists for exactly that population —
+  // but a partial block is, because it means the generator tried and stopped.
+  if (raw === undefined || raw === null) {
+    return [];
+  }
+
+  return validateQuestionSet(raw, READING_QUESTION_ROLES).map((issue) =>
+    qualityIssue({
+      path:
+        issue.questionIndex < 0
+          ? `${path}.questions`
+          : issue.optionIndex < 0
+            ? `${path}.questions.${issue.questionIndex}`
+            : `${path}.questions.${issue.questionIndex}.options.${issue.optionIndex}`,
+      code: issue.code,
+      message: issue.message,
+      strict: true
+    })
+  );
+}
+
 const MINI_CASE_FEEDBACK_MAX_CHARS = 320;
 
 function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content_type: "mini_case" }>, path: string, strict: boolean): ValidationIssue[] {
@@ -1322,9 +1378,38 @@ function validateMiniCaseQuestions(item: Extract<GeneratedContentItem, { content
       return;
     }
 
-    const correctCount = question.options.filter((option) => option.is_correct).length;
-    if (correctCount !== 1) {
-      issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options`, code: "mini_case_mcq_correct_count_invalid", message: "Each MCQ question needs exactly one correct answer so score can be computed from 0/3 to 3/3.", strict }));
+    // Grading, in whichever shape this case was authored.
+    //
+    // A graded case must satisfy the full 0/300/600/1000 contract — one option
+    // per tier, a defensible written ranking, and no shape tell. A legacy binary
+    // case keeps the rule it was written under (exactly one is_correct) so the
+    // ~2 months of approved catalog stays valid rather than being retro-failed
+    // by a model it was never generated against.
+    const normalized = normalizeQuestion(question, questionIndex);
+
+    if (normalized.graded) {
+      for (const issue of validateGradedQuestion(normalized, expectedRoles[questionIndex] as QuestionRole)) {
+        // The role is checked above with the mini-case-specific message; do not
+        // report it twice with different wording.
+        if (issue.code === "question_role_invalid") {
+          continue;
+        }
+
+        issues.push(qualityIssue({
+          path:
+            issue.optionIndex < 0
+              ? `${path}.questions.${questionIndex}`
+              : `${path}.questions.${questionIndex}.options.${issue.optionIndex}`,
+          code: issue.code,
+          message: issue.message,
+          strict: true
+        }));
+      }
+    } else {
+      const correctCount = question.options.filter((option) => option.is_correct).length;
+      if (correctCount !== 1) {
+        issues.push(qualityIssue({ path: `${path}.questions.${questionIndex}.options`, code: "mini_case_mcq_correct_count_invalid", message: "Each MCQ question needs exactly one correct answer so score can be computed from 0/3 to 3/3.", strict }));
+      }
     }
 
     issues.push(

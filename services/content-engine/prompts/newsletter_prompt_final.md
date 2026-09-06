@@ -1364,3 +1364,184 @@ Avant de rendre l’item, vérifier silencieusement :
 Si une affirmation ne peut pas être défendue avec `source_material`, la supprimer.
 
 Si l’angle entier ne peut pas être défendu avec `source_material`, ne pas le fabriquer.
+
+---
+
+# QUESTIONS SCORÉES — SECTION AJOUTÉE
+
+Cette section est ADDITIVE.
+
+Elle ne modifie aucune règle éditoriale ci-dessus.
+
+Les gates existants — récence, matérialité, force des sources, topic fit,
+profondeur du mécanisme, first-try quality, grounding, règles de citation —
+restent identiques et prioritaires.
+
+Le contenu se rédige d'abord. Les questions se rédigent ENSUITE, à partir du
+contenu déjà écrit.
+
+Si le contenu ne passe pas ses gates, ne pas écrire les questions : changer de
+sujet.
+
+## PRINCIPE
+
+LE CONTENU FOURNIT LES FAITS.
+LA QUESTION EXIGE LE RAISONNEMENT.
+
+Le lecteur a le contenu sous les yeux. Une question qu'il peut résoudre en
+relisant une ligne ne mesure rien.
+
+## INTERDIT
+
+Ne jamais poser :
+
+« De quel pourcentage l'action a-t-elle baissé ? »
+« Qui a annoncé X ? »
+« À quelle date Y a-t-il eu lieu ? »
+« Selon l'article, qu'a déclaré l'entreprise Z ? »
+
+Aucune question dont la réponse est un chiffre, une date, un nom ou une citation
+présents tels quels dans le texte.
+
+## ÉGALEMENT INTERDIT
+
+La question ne doit jamais exiger une information absente du contenu et du
+source packet.
+
+Une question qui demande de connaître un autre dossier, un autre trimestre, un
+autre pays ou une définition non fournie transforme le produit en concours de
+culture générale.
+
+Frontière exacte :
+
+AUTORISÉ : inférence, mécanisme, conséquence, arbitrage, décision.
+INTERDIT : connaissance préalable, donnée externe, mémorisation.
+
+## NOMBRE ET RÔLES
+
+Newsletter et Business Story : EXACTEMENT 2 questions.
+
+1. `interpretation`
+   Pourquoi l'événement produit-il le résultat observé ?
+   Teste la compréhension du mécanisme.
+
+2. `application_decision`
+   Applique le mécanisme à une décision ou une conséquence légèrement
+   différente de celle du texte.
+
+Mini Case : EXACTEMENT 3 questions, dans l'ordre pédagogique inchangé.
+
+1. `method_framework`
+2. `technical_application`
+3. `conclusion_decision`
+
+Ne jamais réduire un Mini Case à deux questions.
+
+## QUATRE OPTIONS GRADÉES
+
+Chaque question a EXACTEMENT quatre options.
+
+Une seule option par palier :
+
+`score_milli: 1000`  excellent — le meilleur raisonnement disponible
+`score_milli: 600`   good      — bon axe, limite réelle
+`score_milli: 300`   average   — plausible mais rate l'essentiel
+`score_milli: 0`     bad       — raisonnement défaillant
+
+Entiers uniquement. Jamais 0.3, jamais 750, jamais un ratio.
+
+Les quatre options doivent être quatre DÉCISIONS défendables, pas une bonne
+réponse et trois absurdités. Une option à 0 doit être une erreur qu'un lecteur
+pressé commettrait réellement.
+
+## LES OPTIONS NE DOIVENT PAS TRAHIR LA RÉPONSE
+
+La meilleure option ne doit jamais être reconnaissable parce qu'elle est :
+
+- la plus longue ;
+- la plus détaillée ;
+- la plus technique ;
+- la plus nuancée ;
+- la seule à contenir deux propositions ;
+- la seule à contenir un chiffre ;
+- la seule à poser une condition ;
+- la seule à employer un vocabulaire sophistiqué.
+
+Les quatre options doivent avoir :
+
+- une longueur comparable ;
+- une structure grammaticale comparable ;
+- un niveau de précision comparable ;
+- un ton comparable ;
+- une complexité comparable.
+
+Le différentiel vient du RAISONNEMENT, jamais du style.
+
+Contrôle avant submit : masquer les scores et relire les quatre options. Si la
+bonne réponse reste identifiable, réécrire les options.
+
+## RATIONALE INTERNE — OBLIGATOIRE
+
+Chaque question porte un objet `rationale`, destiné au Reviewer.
+
+Il n'est JAMAIS montré au lecteur, ni avant ni après réponse.
+
+```
+decision_criterion   l'axe unique qui sépare les quatre réponses
+excellent_reason     pourquoi 1000 est la meilleure décision
+good_limitation      ce qui manque à 600
+average_limitation   ce qui manque à 300
+bad_failure          pourquoi 0 échoue
+```
+
+`decision_criterion` doit nommer un axe réel.
+
+« Choisir la meilleure réponse » ne sépare rien : c'est un échec.
+
+Deux tests d'auto-contrôle, tous deux bloquants :
+
+- si deux options peuvent honnêtement valoir 1000, la question échoue ;
+- si le critère de décision ne suffit pas à départager les quatre options, la
+  question échoue.
+
+Dans les deux cas : réécrire la question, pas le contenu.
+
+## FEEDBACK PAR OPTION
+
+Chaque option porte un `feedback` court, montré APRÈS la réponse.
+
+Sur l'option correcte : pourquoi elle fonctionne.
+Sur une option fausse : pourquoi elle échoue, sans condescendance.
+
+Maximum 320 caractères.
+
+## PARITÉ FR / EN
+
+Les deux langues portent les MÊMES questions logiques :
+
+- mêmes `id` de question, dans le même ordre ;
+- mêmes `id` d'option ;
+- même `score_milli` sur le même `id` d'option ;
+- même `decision_criterion`.
+
+Les FORMULATIONS diffèrent : français naturel d'un côté, anglais naturel de
+l'autre. Jamais une traduction littérale.
+
+Un texte d'option identique dans les deux langues est une erreur de parité.
+
+## PREFLIGHT QUESTIONS — BLOQUANT
+
+Avant submit, pour chaque question :
+
+- exactement 4 options ;
+- exactement un 0, un 300, un 600, un 1000 ;
+- `id` d'option uniques ;
+- aucun texte d'option dupliqué ;
+- longueurs non asymétriques ;
+- la bonne réponse n'est pas la seule à porter un chiffre ;
+- la bonne réponse n'est pas la seule à poser une condition ;
+- `rationale` complet ;
+- aucune question résoluble en relisant une ligne ;
+- aucune question exigeant une donnée externe.
+
+Si un contrôle échoue : corriger la QUESTION. Ne pas toucher au contenu.

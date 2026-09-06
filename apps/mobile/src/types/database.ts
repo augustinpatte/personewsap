@@ -479,6 +479,102 @@ export type Database = {
           created_at?: string;
         }
       >;
+      /**
+       * Teams. Read-only for a client: every one of these is granted SELECT and
+       * nothing else, except user_blocks and user_reports, which are the two
+       * things a reader genuinely owns. Insert/Update shapes are `never` where
+       * the client must not write, so an accidental `.insert()` is a compile
+       * error rather than a runtime 42501.
+       */
+      logical_questions: TableDefinition<
+        {
+          id: string;
+          content_logical_key: string;
+          content_type: string;
+          question_sequence: number;
+          question_role: string | null;
+          time_limit_seconds: number;
+        },
+        never,
+        never
+      >;
+      team_question_assignments: TableDefinition<
+        {
+          id: string;
+          team_id: string;
+          edition_date: string;
+          logical_question_id: string;
+          content_type: string;
+          position: number;
+        },
+        never,
+        never
+      >;
+      teams: TableDefinition<
+        {
+          id: string;
+          owner_id: string;
+          name: string;
+          name_status: string;
+          status: string;
+          created_at: string;
+        },
+        never,
+        never
+      >;
+      team_members: TableDefinition<
+        {
+          id: string;
+          team_id: string;
+          user_id: string;
+          role: string;
+          joined_at: string;
+          left_at: string | null;
+          eligible_from_edition: string;
+        },
+        never,
+        never
+      >;
+      team_member_edition_scores: TableDefinition<
+        {
+          team_id: string;
+          user_id: string;
+          edition_date: string;
+          score_milli: number;
+          answered_count: number;
+          assigned_count: number;
+          completed: boolean;
+          updated_at: string;
+        },
+        never,
+        never
+      >;
+      user_blocks: TableDefinition<
+        { blocker_id: string; blocked_id: string; created_at: string },
+        { blocker_id: string; blocked_id: string },
+        never
+      >;
+      user_reports: TableDefinition<
+        {
+          id: string;
+          reporter_id: string;
+          reported_user_id: string | null;
+          team_id: string | null;
+          reason: string;
+          details: string | null;
+          status: string;
+          created_at: string;
+        },
+        {
+          reporter_id: string;
+          reported_user_id?: string | null;
+          team_id?: string | null;
+          reason: string;
+          details?: string | null;
+        },
+        // No update: a reporter cannot reopen or reclassify their own report.
+        never
+      >;
       mini_case_responses: TableDefinition<
         {
           id: string;
@@ -778,6 +874,158 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      /**
+       * Scored questions. The client sends a question id, then an option id —
+       * and nothing else. There is deliberately no score, no timestamp and no
+       * duration in any of these signatures: the deadline and the grade are
+       * decided by Postgres, and a client that could send either would be able
+       * to decide its own result.
+       */
+      /**
+       * Teams. Every one of these is server-authoritative: the client sends a
+       * name, a code or an id, and the server decides the invite code, the
+       * eligibility date, the version number and the rank. There is no argument
+       * here through which a score or a standing could be set.
+       */
+      set_player_identity: {
+        Args: {
+          p_username: string | null;
+          p_country_code: string | null;
+          p_avatar_path: string | null;
+        };
+        Returns: {
+          id: string;
+          username: string | null;
+          country_code: string | null;
+          avatar_path: string | null;
+        } | null;
+      };
+      is_username_available: {
+        Args: { p_username: string };
+        Returns: boolean | null;
+      };
+      create_team: {
+        Args: { p_name: string };
+        Returns: {
+          team_id: string;
+          name: string;
+          invite_code: string;
+          config_version_id: string;
+          effective_from_edition: string;
+        } | null;
+      };
+      join_team_with_invite: {
+        Args: { p_invite_code: string };
+        Returns: {
+          team_id: string;
+          name: string;
+          role: string;
+          eligible_from_edition: string;
+          already_member: boolean;
+        } | null;
+      };
+      leave_team: {
+        Args: { p_team_id: string };
+        Returns: { team_id: string; departed_at: string } | null;
+      };
+      rename_team: {
+        Args: { p_team_id: string; p_name: string };
+        Returns: string | null;
+      };
+      rotate_team_invite_code: {
+        Args: { p_team_id: string };
+        Returns: string | null;
+      };
+      update_team_config: {
+        Args: {
+          p_team_id: string;
+          p_newsletter_topics: unknown;
+          p_mini_case_topics: string[];
+        };
+        Returns: {
+          config_version_id: string;
+          version: number;
+          effective_from_edition: string;
+        } | null;
+      };
+      get_team_roster: {
+        Args: { p_team_id: string };
+        Returns: Array<{
+          user_id: string;
+          username: string | null;
+          country_code: string | null;
+          avatar_path: string | null;
+          role: string;
+          joined_at: string;
+          eligible_from_edition: string;
+        }> | null;
+      };
+      get_team_leaderboard: {
+        Args: { p_team_id: string; p_scope: string; p_edition_date: string | null };
+        Returns: Array<{
+          user_id: string;
+          username: string | null;
+          country_code: string | null;
+          avatar_path: string | null;
+          score_milli: number;
+          answered_count: number;
+          assigned_count: number;
+          editions_completed: number;
+        }> | null;
+      };
+      team_member_edition_streak: {
+        Args: { p_team_id: string; p_user_id: string };
+        Returns: number | null;
+      };
+      current_edition_date: {
+        Args: Record<string, never>;
+        Returns: string | null;
+      };
+      start_question_attempt: {
+        Args: { p_logical_question_id: string };
+        Returns: {
+          attempt_id: string;
+          server_now: string;
+          started_at: string;
+          deadline_at: string;
+          time_limit_seconds: number;
+          already_submitted: boolean;
+          language: string;
+          prompt: string | null;
+          question_role: string | null;
+          question_sequence: number;
+          /** [{ option_id, label }] in the attempt's fixed order. Never a score. */
+          options: unknown;
+        } | null;
+      };
+      submit_question_answer: {
+        /** A null option is an explicit skip, worth zero. */
+        Args: { p_attempt_id: string; p_selected_option_id: string | null };
+        Returns: {
+          attempt_id: string;
+          submitted_at: string;
+          server_now: string;
+          expired: boolean;
+          skipped: boolean;
+          score_milli: number;
+          grade_band: string;
+          selected_option_id: string | null;
+          teams_scored: number;
+        } | null;
+      };
+      get_question_feedback: {
+        /** Refused unless the caller has already submitted: before that it is the answer key. */
+        Args: { p_logical_question_id: string };
+        Returns:
+          | Array<{
+              option_id: string;
+              is_selected: boolean;
+              score_milli: number;
+              grade_band: string;
+              feedback_md: string | null;
+            }>
+          | null;
+      };
       start_learning_path: {
         Args: {
           p_domain_id: string;

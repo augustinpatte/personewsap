@@ -117,8 +117,25 @@ const MAX_CORRECT_ANSWER_LENGTH_RATIO = 2;
 /** Below this the ratio is noise: two short options differ by a few words. */
 const MIN_CORRECT_ANSWER_LENGTH_GAP = 40;
 
+/**
+ * The option a reader is meant to land on.
+ *
+ * Read from either shape: `is_correct` on the ~2 months of binary cases already
+ * in the catalog, `score_milli === 1000` on graded ones. The dominance check
+ * below is about the top answer towering over the rest, and that question is the
+ * same whichever way the top answer is marked.
+ */
+function isBestOption(option: { is_correct?: boolean; score_milli?: number }): boolean {
+  return option.is_correct === true || option.score_milli === 1000;
+}
+
 export function validateMiniCaseDistractorQuality(
-  options: ReadonlyArray<{ id: string; text: string; is_correct: boolean }>,
+  options: ReadonlyArray<{
+    id: string;
+    text: string;
+    is_correct?: boolean;
+    score_milli?: number;
+  }>,
   caseText: string
 ): DistractorIssue[] {
   if (options.length < 2) {
@@ -128,7 +145,7 @@ export function validateMiniCaseDistractorQuality(
   const issues: DistractorIssue[] = [];
 
   options.forEach((option, optionIndex) => {
-    if (option.is_correct || typeof option.text !== "string") {
+    if (isBestOption(option) || typeof option.text !== "string") {
       return;
     }
 
@@ -152,8 +169,8 @@ export function validateMiniCaseDistractorQuality(
     }
   });
 
-  const correct = options.find((option) => option.is_correct);
-  const distractors = options.filter((option) => !option.is_correct);
+  const correct = options.find((option) => isBestOption(option));
+  const distractors = options.filter((option) => !isBestOption(option));
 
   if (correct && distractors.length > 0) {
     const correctLength = textLength(correct.text);

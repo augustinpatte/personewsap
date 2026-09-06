@@ -334,6 +334,17 @@ export function SettingsScreen() {
                   label={copy.resetPassword}
                   onPress={() => router.push("/(auth)/reset-password" as Href)}
                 />
+                {/* A scored, competitive product owes its readers the rules,
+                    in the app and in their own language. Kept here rather than
+                    in Teams so there is one place to maintain them. */}
+                <SecondaryButton
+                  label={copy.helpScoring}
+                  onPress={() => router.push("/help-scoring" as Href)}
+                />
+                <SecondaryButton
+                  label={copy.helpTeams}
+                  onPress={() => router.push("/help-teams" as Href)}
+                />
                 <SecondaryButton
                   label={copy.privacyPolicy}
                   onPress={() => router.push("/privacy" as Href)}
@@ -606,6 +617,8 @@ function getAccountCopy(language: string | null) {
         privacyTitle: "Privacy and data",
         privacyDescription:
           "Review privacy information, request a data export, or ask for account deletion.",
+        helpScoring: "How PersoNews scoring works",
+        helpTeams: "How Teams work",
         privacyPolicy: "Privacy policy",
         support: "Support",
         exportData: "Export data",
@@ -658,6 +671,8 @@ function getAccountCopy(language: string | null) {
         privacyTitle: "Confidentialité et données",
         privacyDescription:
           "Consulte les informations de confidentialité, demande un export de données ou une suppression de compte.",
+        helpScoring: "Comment fonctionne le score",
+        helpTeams: "Comment fonctionnent les Teams",
         privacyPolicy: "Politique de confidentialité",
         support: "Support",
         exportData: "Exporter les données",

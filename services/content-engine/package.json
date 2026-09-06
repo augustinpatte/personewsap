@@ -27,6 +27,7 @@
     "job-health": "npm run build && node dist/cli.js job-health",
     "job-health:strict": "npm run job-health -- --strict",
     "business-story-memory": "npm run build && node dist/cli.js business-story-memory",
+    "question-backfill": "npm run build && node dist/cli.js question-backfill",
     "debug-users": "npm run build && node dist/cli.js debug-users",
     "rss-check": "npm run build && node dist/cli.js rss-check",
     "quality-proof": "npm run build && node dist/cli.js quality-proof",
