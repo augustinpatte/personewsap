@@ -60,21 +60,46 @@ export function resizeTargetFor(input: { width: number; height: number }): {
 }
 
 /**
- * Where a user's avatar lives.
+ * Where a user's avatar lives INSIDE the bucket.
  *
- * `avatars/<user id>/<something>.jpg`. The user id as the FIRST path segment is
- * load-bearing: the Storage policy compares it against `auth.uid()`, so the
- * path itself is what makes "you may only write your own avatar" true. A flat
- * `avatars/<random>.jpg` would be unownable and any authenticated user could
- * overwrite any other's.
+ *     <user id>/<file id>.jpg
+ *
+ * THE BUCKET NAME IS NOT PART OF THE PATH. The object is addressed as
+ * `supabase.storage.from("avatars").upload(path)`, so a path of
+ * `avatars/<user id>/<file>.jpg` would create `avatars/avatars/<user id>/...`
+ * — three segments, which `public.avatar_object_owner` returns NULL for, which
+ * makes every storage policy false, which makes every upload a 403 nobody can
+ * interpret. The migration is explicit about it: exactly two segments, the
+ * first one a user id.
+ *
+ * That first segment is load-bearing rather than tidy: the Storage policy
+ * compares it against `auth.uid()`, so the path itself is what makes "you may
+ * only write your own avatar" true. A flat `<random>.jpg` would be unownable
+ * and any authenticated user could overwrite any other's picture — which, on a
+ * leaderboard where the avatar is how people recognise each other, is an
+ * impersonation vector rather than a storage detail.
  */
 export function avatarObjectPath(input: { userId: string; fileId: string }): string {
-  return `avatars/${input.userId}/${input.fileId}.jpg`;
+  return `${input.userId}/${input.fileId}.jpg`;
 }
 
+const AVATAR_PATH_PATTERN = /^([0-9a-fA-F-]{36})\/[^/]+$/;
+
+/**
+ * The owner encoded in a stored path.
+ *
+ * Tolerates a legacy `avatars/`-prefixed value so a row written by an older
+ * build still resolves to its owner and still renders; nothing writes that
+ * shape any more.
+ */
 export function ownerOfAvatarPath(path: string): string | null {
-  const match = /^avatars\/([0-9a-fA-F-]{36})\/[^/]+$/.exec(path.trim());
+  const match = AVATAR_PATH_PATTERN.exec(stripBucketPrefix(path));
   return match ? match[1] : null;
+}
+
+/** `avatars/<uid>/<file>` written by an older build resolves to `<uid>/<file>`. */
+export function stripBucketPrefix(path: string): string {
+  return path.trim().replace(/^avatars\//, "");
 }
 
 /**
@@ -85,7 +110,10 @@ export function ownerOfAvatarPath(path: string): string | null {
  * shows up here rather than as a 403 nobody can interpret.
  */
 export function canWriteAvatarPath(input: { path: string; userId: string }): boolean {
-  return ownerOfAvatarPath(input.path) === input.userId;
+  return (
+    AVATAR_PATH_PATTERN.test(input.path.trim()) &&
+    ownerOfAvatarPath(input.path) === input.userId
+  );
 }
 
 /** Never store a signed URL: it expires, and it is a bearer token in a row. */
@@ -96,4 +124,23 @@ export function isStorablePath(value: string): boolean {
     !/^[a-z][a-z0-9+.-]*:/i.test(value) &&
     !value.includes("..")
   );
+}
+
+/**
+ * The exact byte length a base64 payload decodes to.
+ *
+ * The compression loop needs a size before anything is written to disk or sent,
+ * and `expo-image-manipulator` hands back base64 rather than a byte count. Four
+ * base64 characters carry three bytes; each `=` removes one. Computed rather
+ * than measured so the budget is checked before the upload, not after it.
+ */
+export function base64ByteLength(base64: string): number {
+  const value = base64.replace(/[\r\n]/g, "");
+
+  if (value.length === 0) {
+    return 0;
+  }
+
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+  return Math.floor((value.length * 3) / 4) - padding;
 }

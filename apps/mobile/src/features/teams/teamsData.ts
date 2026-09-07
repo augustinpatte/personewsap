@@ -1,4 +1,5 @@
 import { normalizeSupabaseError, supabase, type NormalizedSupabaseError } from "../../lib/supabase";
+import { stripBucketPrefix } from "./avatarPolicy";
 import type { EditionStatus, LeaderboardMember, LeaderboardRange } from "./leaderboard";
 import type { PlayerProfile } from "./playerProfile";
 
@@ -599,10 +600,381 @@ export async function signAvatarUrl(
   try {
     const { data, error } = await supabase.storage
       .from("avatars")
-      .createSignedUrl(path.replace(/^avatars\//, ""), expiresInSeconds);
+      .createSignedUrl(stripBucketPrefix(path), expiresInSeconds);
 
     return error ? null : (data?.signedUrl ?? null);
   } catch {
     return null;
+  }
+}
+
+/**
+ * One team's header: name, size, the reader's role and eligibility.
+ *
+ * `get_team_detail` rather than three queries, and rather than a read of
+ * `public.teams` — which `authenticated` holds nothing on, because that table
+ * carries the invite code and the unmoderated name in the same row as the
+ * member-safe columns. The membership join inside the function is the
+ * authorisation: a non-member gets no row, not an error.
+ */
+export type TeamDetail = {
+  teamId: string;
+  name: string | null;
+  nameHidden: boolean;
+  status: "active" | "archived";
+  isOwner: boolean;
+  memberCount: number;
+  myRole: "owner" | "member";
+  myEligibleFromEdition: string | null;
+  inviteOpen: boolean;
+};
+
+export async function fetchTeamDetail(teamId: string): Promise<TeamsResult<TeamDetail | null>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("get_team_detail", { p_team_id: teamId }).maybeSingle();
+
+    if (error) {
+      return fail(error);
+    }
+
+    if (!data) {
+      return { ok: true, data: null };
+    }
+
+    const row = data as Record<string, unknown>;
+
+    return {
+      ok: true,
+      data: {
+        teamId: String(row.team_id ?? teamId),
+        name: typeof row.display_name === "string" ? row.display_name : null,
+        nameHidden: row.name_hidden === true,
+        status: row.team_status === "archived" ? "archived" : "active",
+        isOwner: row.is_owner === true,
+        memberCount: Number(row.member_count ?? 1),
+        myRole: row.my_role === "owner" ? "owner" : "member",
+        myEligibleFromEdition: (row.my_eligible_from_edition as string) ?? null,
+        inviteOpen: row.invite_open !== false
+      }
+    };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export type TeamMember = {
+  userId: string;
+  username: string | null;
+  countryCode: string | null;
+  avatarPath: string | null;
+  role: "owner" | "member";
+  joinedAt: string | null;
+  eligibleFromEdition: string | null;
+};
+
+/**
+ * The roster.
+ *
+ * `get_team_roster` returns four identity columns and nothing else — no email,
+ * no other profile field — which is why `public.profiles` keeps its own-row-only
+ * read policy unchanged. Moderation is applied inside it, so a hidden username
+ * arrives as NULL here rather than as a value each screen has to remember to
+ * check.
+ */
+export async function fetchTeamMembers(teamId: string): Promise<TeamsResult<TeamMember[]>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("get_team_roster", { p_team_id: teamId });
+
+    if (error) {
+      return fail(error);
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+
+    return {
+      ok: true,
+      data: rows.map((entry) => {
+        const row = (entry ?? {}) as Record<string, unknown>;
+
+        return {
+          userId: String(row.user_id ?? ""),
+          username: typeof row.username === "string" ? row.username : null,
+          countryCode: typeof row.country_code === "string" ? row.country_code : null,
+          avatarPath: typeof row.avatar_path === "string" ? row.avatar_path : null,
+          role: row.role === "owner" ? "owner" : "member",
+          joinedAt: (row.joined_at as string) ?? null,
+          eligibleFromEdition: (row.eligible_from_edition as string) ?? null
+        };
+      })
+    };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Consecutive editions the reader has finished in this team. */
+export async function fetchMyStreak(input: {
+  teamId: string;
+  userId: string;
+}): Promise<TeamsResult<number>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("team_member_edition_streak", {
+      p_team_id: input.teamId,
+      p_user_id: input.userId
+    });
+
+    return error ? fail(error) : { ok: true, data: Number(data ?? 0) };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function renameTeam(input: {
+  teamId: string;
+  name: string;
+}): Promise<TeamsResult<string>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("rename_team", {
+      p_team_id: input.teamId,
+      p_name: input.name
+    });
+
+    return error ? fail(error) : { ok: true, data: String(data ?? input.name) };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * A team's newsletter and mini-case topics.
+ *
+ * `p_edition_date` decides which version is read: the pending one when the owner
+ * is editing, the effective one when a member is looking. Read through the
+ * member RLS policies on `team_config_versions` and its two topic tables rather
+ * than through an RPC — those policies already say "an active member of this
+ * team", which is exactly the rule, and adding a function would be a second
+ * place for it to drift.
+ */
+export type TeamConfig = {
+  configVersionId: string | null;
+  version: number;
+  effectiveFromEdition: string | null;
+  newsletterTopics: Array<{ topicId: string; articlesCount: number }>;
+  miniCaseTopics: string[];
+};
+
+export const EMPTY_TEAM_CONFIG: TeamConfig = {
+  configVersionId: null,
+  version: 0,
+  effectiveFromEdition: null,
+  newsletterTopics: [],
+  miniCaseTopics: []
+};
+
+export async function fetchTeamConfig(input: {
+  teamId: string;
+  /** "pending" reads the newest version, effective or not. "effective" reads the one governing this edition. */
+  scope: "pending" | "effective";
+  editionDate?: string | null;
+}): Promise<TeamsResult<TeamConfig>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    let query = supabase
+      .from("team_config_versions")
+      .select("id,version,effective_from_edition")
+      .eq("team_id", input.teamId);
+
+    if (input.scope === "effective" && input.editionDate) {
+      query = query.lte("effective_from_edition", input.editionDate);
+    }
+
+    const { data, error } = await query
+      .order("effective_from_edition", { ascending: false })
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      return fail(error);
+    }
+
+    if (!data) {
+      return { ok: true, data: EMPTY_TEAM_CONFIG };
+    }
+
+    const version = data as Record<string, unknown>;
+    const configVersionId = String(version.id ?? "");
+
+    const [newsletter, miniCases] = await Promise.all([
+      supabase
+        .from("team_config_newsletter_topics")
+        .select("topic_id,articles_count,position")
+        .eq("config_version_id", configVersionId)
+        .order("position", { ascending: true }),
+      supabase
+        .from("team_config_mini_case_topics")
+        .select("topic_id,position")
+        .eq("config_version_id", configVersionId)
+        .order("position", { ascending: true })
+    ]);
+
+    return {
+      ok: true,
+      data: {
+        configVersionId,
+        version: Number(version.version ?? 0),
+        effectiveFromEdition: (version.effective_from_edition as string) ?? null,
+        newsletterTopics: ((newsletter.data ?? []) as Array<Record<string, unknown>>).map(
+          (row) => ({
+            topicId: String(row.topic_id ?? ""),
+            // Clamped rather than trusted: a legacy row of 3 must not render a
+            // count the product no longer offers.
+            articlesCount: Math.min(2, Math.max(1, Number(row.articles_count ?? 1)))
+          })
+        ),
+        miniCaseTopics: ((miniCases.data ?? []) as Array<Record<string, unknown>>).map((row) =>
+          String(row.topic_id ?? "")
+        )
+      }
+    };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Write the configuration. Owner only, and never retroactive.
+ *
+ * The server decides the effective date — always the next scoring edition — and
+ * returns it, so the screen reports what actually happened rather than a date it
+ * computed itself and hoped matched.
+ */
+export async function saveTeamConfig(input: {
+  teamId: string;
+  newsletterTopics: Array<{ topicId: string; articlesCount: number }>;
+  miniCaseTopics: string[];
+}): Promise<TeamsResult<{ version: number; effectiveFromEdition: string }>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .rpc("update_team_config", {
+        p_team_id: input.teamId,
+        p_newsletter_topics: input.newsletterTopics.map((topic) => ({
+          topic_id: topic.topicId,
+          // 1 or 2. Three was never a reachable configuration: an edition
+          // publishes at most two articles per topic, and the CHECK constraint
+          // on team_config_newsletter_topics refuses anything else.
+          articles_count: Math.min(2, Math.max(1, topic.articlesCount))
+        })),
+        p_mini_case_topics: input.miniCaseTopics
+      })
+      .maybeSingle();
+
+    if (error) {
+      return fail(error);
+    }
+
+    const row = (data ?? {}) as Record<string, unknown>;
+
+    return {
+      ok: true,
+      data: {
+        version: Number(row.version ?? 0),
+        effectiveFromEdition: String(row.effective_from_edition ?? "")
+      }
+    };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function transferTeamOwnership(input: {
+  teamId: string;
+  newOwnerId: string;
+}): Promise<TeamsResult<null>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { error } = await supabase.rpc("transfer_team_ownership", {
+      p_team_id: input.teamId,
+      p_new_owner_id: input.newOwnerId
+    });
+
+    return error ? fail(error) : { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Remove a member. Owner only, and never the owner themselves.
+ *
+ * A removal closes the stint rather than deleting it, so every point that
+ * member earned stays attached to the editions they earned it in and past
+ * standings do not silently change shape.
+ */
+export async function removeTeamMember(input: {
+  teamId: string;
+  userId: string;
+}): Promise<TeamsResult<null>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { error } = await supabase.rpc("remove_team_member", {
+      p_team_id: input.teamId,
+      p_user_id: input.userId
+    });
+
+    return error ? fail(error) : { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Archive the team. Owner only.
+ *
+ * A soft delete, and deliberately not a DELETE: every scoring table cascades
+ * from the team row, so removing it would erase the recorded history of people
+ * who left months ago. Archiving stops future editions, closes every stint and
+ * kills the invite code, and leaves the past reconstructible.
+ */
+export async function archiveTeam(teamId: string): Promise<TeamsResult<null>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { error } = await supabase.rpc("archive_team", { p_team_id: teamId });
+
+    return error ? fail(error) : { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
   }
 }

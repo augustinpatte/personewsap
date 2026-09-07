@@ -334,6 +334,15 @@ export function SettingsScreen() {
                   label={copy.resetPassword}
                   onPress={() => router.push("/(auth)/reset-password" as Href)}
                 />
+                {/* The player identity lives here rather than in Teams: Teams
+                    is where you manage a league, and "who am I on a
+                    leaderboard" belongs beside the email and the language. It
+                    is the same form the Teams gate uses, so the rules cannot
+                    drift between the two entrances. */}
+                <SecondaryButton
+                  label={copy.editPlayerProfile}
+                  onPress={() => router.push("/player-profile" as Href)}
+                />
                 {/* A scored, competitive product owes its readers the rules,
                     in the app and in their own language. Kept here rather than
                     in Teams so there is one place to maintain them. */}
@@ -617,6 +626,7 @@ function getAccountCopy(language: string | null) {
         privacyTitle: "Privacy and data",
         privacyDescription:
           "Review privacy information, request a data export, or ask for account deletion.",
+        editPlayerProfile: "Edit player profile",
         helpScoring: "How PersoNews scoring works",
         helpTeams: "How Teams work",
         privacyPolicy: "Privacy policy",
@@ -671,6 +681,7 @@ function getAccountCopy(language: string | null) {
         privacyTitle: "Confidentialité et données",
         privacyDescription:
           "Consulte les informations de confidentialité, demande un export de données ou une suppression de compte.",
+        editPlayerProfile: "Modifier le profil joueur",
         helpScoring: "Comment fonctionne le score",
         helpTeams: "Comment fonctionnent les Teams",
         privacyPolicy: "Politique de confidentialité",

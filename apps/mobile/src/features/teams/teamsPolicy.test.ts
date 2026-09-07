@@ -5,13 +5,15 @@ import {
   AVATAR_MAX_DIMENSION,
   AVATAR_TARGET_BYTES,
   avatarObjectPath,
+  base64ByteLength,
   canWriteAvatarPath,
   isAvatarAcceptable,
   isAvatarSmallEnough,
   isStorablePath,
   nextAvatarQuality,
   ownerOfAvatarPath,
-  resizeTargetFor
+  resizeTargetFor,
+  stripBucketPrefix
 } from "./avatarPolicy";
 import {
   LEADERBOARD_REFRESH_DEBOUNCE_MS,
@@ -67,13 +69,24 @@ describe("avatar budget", () => {
 });
 
 describe("avatar ownership", () => {
-  it("puts the user id first in the path", () => {
-    // Load-bearing: the Storage policy compares this segment against auth.uid(),
-    // so the path itself is what makes "only your own avatar" true.
+  it("puts the user id first and leaves the bucket name out", () => {
+    // Two segments exactly. `public.avatar_object_owner` returns NULL for
+    // anything else, which makes every storage policy false — so a path that
+    // repeated the bucket name would be an unreadable 403 on every upload,
+    // because `from("avatars").upload(path)` already supplies it.
     const path = avatarObjectPath({ userId: USER_ID, fileId: "abc123" });
 
-    expect(path).toBe(`avatars/${USER_ID}/abc123.jpg`);
+    expect(path).toBe(`${USER_ID}/abc123.jpg`);
+    expect(path.startsWith("avatars/")).toBe(false);
     expect(ownerOfAvatarPath(path)).toBe(USER_ID);
+  });
+
+  it("still resolves a legacy prefixed path", () => {
+    // Rows written by an earlier build carry `avatars/<uid>/<file>`; they must
+    // keep rendering rather than becoming a hole in a leaderboard.
+    expect(ownerOfAvatarPath(`avatars/${USER_ID}/a.jpg`)).toBe(USER_ID);
+    expect(stripBucketPrefix(`avatars/${USER_ID}/a.jpg`)).toBe(`${USER_ID}/a.jpg`);
+    expect(stripBucketPrefix(`${USER_ID}/a.jpg`)).toBe(`${USER_ID}/a.jpg`);
   });
 
   it("lets a user write only their own path", () => {
@@ -87,22 +100,38 @@ describe("avatar ownership", () => {
     expect(canWriteAvatarPath({ path: theirs, userId: USER_ID })).toBe(false);
   });
 
+  it("refuses to write a legacy prefixed path", () => {
+    // Readable, but never written again: three segments are unownable by the
+    // storage policy, so the client must refuse locally rather than send it.
+    expect(canWriteAvatarPath({ path: `avatars/${USER_ID}/a.jpg`, userId: USER_ID })).toBe(false);
+  });
+
   it("refuses an unownable flat path", () => {
-    // avatars/<random>.jpg would let any authenticated user overwrite any other.
-    expect(ownerOfAvatarPath("avatars/anything.jpg")).toBeNull();
-    expect(canWriteAvatarPath({ path: "avatars/anything.jpg", userId: USER_ID })).toBe(false);
+    // <random>.jpg would let any authenticated user overwrite any other.
+    expect(ownerOfAvatarPath("anything.jpg")).toBeNull();
+    expect(canWriteAvatarPath({ path: "anything.jpg", userId: USER_ID })).toBe(false);
   });
 
   it("refuses traversal and nested paths", () => {
-    expect(ownerOfAvatarPath(`avatars/${USER_ID}/../other/1.jpg`)).toBeNull();
+    expect(ownerOfAvatarPath(`${USER_ID}/../other/1.jpg`)).toBeNull();
+    expect(ownerOfAvatarPath(`${USER_ID}/nested/1.jpg`)).toBeNull();
   });
 
   it("never stores a URL", () => {
     // A signed URL expires and is a bearer token in a row.
-    expect(isStorablePath(`avatars/${USER_ID}/a.jpg`)).toBe(true);
+    expect(isStorablePath(`${USER_ID}/a.jpg`)).toBe(true);
     expect(isStorablePath("https://example.supabase.co/storage/v1/object/sign/x")).toBe(false);
-    expect(isStorablePath("avatars/../../etc/passwd")).toBe(false);
+    expect(isStorablePath("../../etc/passwd")).toBe(false);
     expect(isStorablePath("")).toBe(false);
+  });
+
+  it("sizes a base64 payload without writing it anywhere", () => {
+    // The compression loop needs a byte count before the upload, and the
+    // manipulator hands back base64 rather than a size.
+    expect(base64ByteLength("")).toBe(0);
+    expect(base64ByteLength("QQ==")).toBe(1);
+    expect(base64ByteLength("QUI=")).toBe(2);
+    expect(base64ByteLength("QUJD")).toBe(3);
   });
 });
 

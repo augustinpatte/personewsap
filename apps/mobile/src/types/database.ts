@@ -583,6 +583,46 @@ export type Database = {
         never,
         never
       >;
+      /**
+       * A team's configuration, versioned by the edition it takes effect from.
+       *
+       * Read-only to a client. Writes go through `update_team_config`, which is
+       * what decides the effective date — a client that could insert a version
+       * could make a change retroactive and score people on questions they had
+       * already read.
+       */
+      team_config_versions: TableDefinition<
+        {
+          id: string;
+          team_id: string;
+          version: number;
+          effective_from_edition: string;
+          created_by: string | null;
+          created_at: string;
+        },
+        never,
+        never
+      >;
+      team_config_newsletter_topics: TableDefinition<
+        {
+          config_version_id: string;
+          topic_id: TopicId;
+          /** 1 or 2. An edition publishes at most two articles per topic. */
+          articles_count: number;
+          position: number | null;
+        },
+        never,
+        never
+      >;
+      team_config_mini_case_topics: TableDefinition<
+        {
+          config_version_id: string;
+          topic_id: MiniCaseTopicId;
+          position: number | null;
+        },
+        never,
+        never
+      >;
       user_blocks: TableDefinition<
         { blocker_id: string; blocked_id: string; created_at: string },
         { blocker_id: string; blocked_id: string },
@@ -1109,6 +1149,28 @@ export type Database = {
       team_member_edition_streak: {
         Args: { p_team_id: string; p_user_id: string };
         Returns: number | null;
+      };
+      /** Owner-only. Hands the team to another active member. */
+      transfer_team_ownership: {
+        Args: { p_team_id: string; p_new_owner_id: string };
+        Returns: string | null;
+      };
+      /** Owner-only. Closes a member's stint; every point they earned stays. */
+      remove_team_member: {
+        Args: { p_team_id: string; p_user_id: string };
+        Returns: string | null;
+      };
+      /**
+       * Owner-only. Ends the team: archived, invite dead, every stint closed.
+       * A soft delete — every scoring table cascades from public.teams.
+       */
+      archive_team: {
+        Args: { p_team_id: string };
+        Returns: {
+          team_id: string;
+          closed_at: string;
+          members_closed: number;
+        } | null;
       };
       current_edition_date: {
         Args: Record<string, never>;

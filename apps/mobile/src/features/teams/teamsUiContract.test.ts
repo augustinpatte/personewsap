@@ -28,7 +28,14 @@ const stripComments = (source: string) =>
 const landing = stripComments(read("TeamsLandingScreen.tsx"));
 const detail = stripComments(read("TeamDetailScreen.tsx"));
 const gate = stripComments(read("TeamProfileGate.tsx"));
+const profileForm = stripComments(read("PlayerProfileForm.tsx"));
+const create = stripComments(read("CreateTeamScreen.tsx"));
+const joinScreen = stripComments(read("JoinTeamScreen.tsx"));
+const manage = stripComments(read("TeamManageScreen.tsx"));
+const membersScreen = stripComments(read("TeamMembersScreen.tsx"));
+const invite = stripComments(read("TeamInviteScreen.tsx"));
 const channel = stripComments(read("useTeamLeaderboardChannel.ts"));
+const refetchOnReturn = stripComments(read("useRefetchOnReturn.ts"));
 const data = stripComments(read("teamsData.ts"));
 const countries = stripComments(read("countries.ts"));
 const help = stripComments(read("HelpScreen.tsx"));
@@ -65,33 +72,100 @@ describe("the profile gate is only on Teams", () => {
     }
   });
 
-  it("does not require an avatar to pass", () => {
-    // A photo-library permission prompt in front of somebody joining their
-    // friends' league is a wall, not an onboarding step.
-    expect(gate).not.toMatch(/ImagePicker|requestMediaLibraryPermissions/);
-    expect(gate).toContain("copy.avatarOptional");
+  it("requires all three: photo, username, country", () => {
+    expect(profileForm).toContain("hasPhoto");
+    expect(profileForm).toContain("copy.avatarRequired");
+    // The submit is disabled until all three are there, so the refusal is not
+    // only a message after a failed tap.
+    expect(profileForm).toMatch(/canSubmit\s*=\s*\n?\s*hasPhoto/);
+  });
+
+  it("asks for the photo library only on a tap, never on mount", () => {
+    // A system dialog in front of somebody who has not yet said what they want
+    // makes the refusal reflexive rather than informed, so nothing
+    // picker-shaped may run from an effect.
+    expect(profileForm).toContain("pickAndCompressAvatar");
+    expect(profileForm).not.toMatch(/useEffect\([\s\S]{0,400}?(pickAndCompress|ImagePicker)/);
+    expect(profileForm).not.toContain("requestMediaLibraryPermissionsAsync");
+  });
+
+  it("offers Settings when the refusal can no longer be reversed in-app", () => {
+    // canAskAgain false means the OS will never show the dialog again, so a
+    // Retry button would do nothing at all.
+    expect(profileForm).toContain("canAskAgain");
+    expect(profileForm).toContain("Linking.openSettings");
+    expect(profileForm).toContain("copy.avatarPermissionOpenSettings");
   });
 
   it("treats the server as the authority on uniqueness", () => {
     // The local check is a courtesy; the write is the guard, and 23505 is the
     // race being reported rather than swallowed.
-    expect(gate).toContain("isUsernameAvailable");
-    expect(gate).toContain("savePlayerIdentity");
-    expect(gate).toContain('result.error.code === "23505"');
-    expect(gate).toContain("copy.usernameTaken");
+    expect(profileForm).toContain("isUsernameAvailable");
+    expect(profileForm).toContain("savePlayerIdentity");
+    expect(profileForm).toContain('result.error.code === "23505"');
+    expect(profileForm).toContain("copy.usernameTaken");
   });
 
   it("asks for a country from a list and never from a sensor", () => {
     for (const forbidden of ["Location", "geolocation", "getCurrentPosition", "expo-location"]) {
-      expect(gate, forbidden).not.toContain(forbidden);
+      expect(profileForm, forbidden).not.toContain(forbidden);
       expect(countries, forbidden).not.toContain(forbidden);
     }
 
-    expect(gate).toContain("searchCountries");
+    expect(profileForm).toContain("searchCountries");
+  });
+
+  it("is the same form Account edits, so the rules cannot drift", () => {
+    expect(gate).toContain("PlayerProfileForm");
+    expect(stripComments(read("PlayerProfileScreen.tsx"))).toContain("PlayerProfileForm");
+  });
+});
+
+describe("a screen you came back to is not a screen you left", () => {
+  // Every one of these is a place the reader leaves in order to change
+  // something and then returns to. A mount-only load would show them the world
+  // as it was before they changed it: a Teams list without the Team they just
+  // created, a header with the name they just replaced, a member count that
+  // still includes somebody they just removed.
+  const returners: [string, string][] = [
+    ["the Teams list", landing],
+    ["Team detail", detail],
+    ["Manage", manage],
+    ["Members", membersScreen]
+  ];
+
+  for (const [name, source] of returners) {
+    it(`refetches when ${name} is returned to`, () => {
+      expect(source).toContain("useRefetchOnReturn");
+    });
+  }
+
+  it("does not pay for that with a second fetch on the way in", () => {
+    // useFocusEffect fires on the first focus too, and again whenever its
+    // callback identity changes — which for Team detail is every range switch.
+    // The hook skips the first focus and holds the loader in a ref so its own
+    // dependency list stays empty.
+    expect(refetchOnReturn).toContain("hasFocusedOnce");
+    expect(refetchOnReturn).toMatch(/useCallback\(\s*\(\)\s*=>\s*\{[\s\S]*?\},\s*\[\]\s*\)/);
+    expect(refetchOnReturn).toContain("latest.current");
+  });
+
+  it("returns silently rather than flashing a spinner", () => {
+    // The refetch must not reset the screen to its loading state: replacing a
+    // drawn leaderboard with a spinner on every back tap is worse than a list
+    // that updates a moment later.
+    expect(refetchOnReturn).not.toContain('setStatus("loading")');
   });
 });
 
 describe("the Teams landing", () => {
+  it("shows Your Teams, then Join, then Create", () => {
+    // The returning reader came to see where they stand. The two acquisition
+    // actions sit under a list that is a handful of private leagues and never a
+    // feed, so neither is ever pushed far down the screen.
+    expect(landing.indexOf("copy.yourTeams")).toBeLessThan(landing.indexOf("copy.join"));
+  });
+
   it("shows Join before Create", () => {
     // The overwhelmingly common first action is a code from a friend.
     expect(landing.indexOf("copy.join")).toBeLessThan(landing.indexOf("copy.create"));
@@ -262,7 +336,13 @@ describe("the design system is not duplicated", () => {
     for (const [name, source] of [
       ["landing", landing],
       ["detail", detail],
-      ["gate", gate]
+      ["gate", gate],
+      ["profileForm", profileForm],
+      ["create", create],
+      ["join", joinScreen],
+      ["manage", manage],
+      ["members", membersScreen],
+      ["invite", invite]
     ] as const) {
       expect(source, name).toContain("tokens.space");
       expect(source, name).toMatch(/useThemedStyles|useThemeColors/);
@@ -271,9 +351,37 @@ describe("the design system is not duplicated", () => {
     }
   });
 
+  it("names the member every roster action would act on", () => {
+    // The visible label stays one short verb — four of them under each card is
+    // what keeps the roster readable — but VoiceOver reads the buttons as a
+    // flat list, and "Block, button" repeated once per member says nothing
+    // about whom it would block.
+    for (const action of ["copy.report", "copy.transferOwnership", "copy.removeMember"]) {
+      expect(membersScreen, action).toContain(`copy.actionFor(${action}, name)`);
+    }
+
+    // Block and Unblock are the same button, so its label follows the state.
+    expect(membersScreen).toContain(
+      "copy.actionFor(isBlocked ? copy.unblock : copy.block, name)"
+    );
+
+    for (const language of ["en", "fr"] as const) {
+      expect(getTeamsCopy(language).actionFor("Report", "augustin")).toContain("augustin");
+    }
+  });
+
   it("keeps touch targets at 44pt or more", () => {
     expect(detail).toMatch(/minHeight: 44/);
-    expect(gate).toMatch(/minHeight: 48/);
+    expect(profileForm).toMatch(/minHeight: 48/);
+
+    for (const [name, source] of [
+      ["create", create],
+      ["join", joinScreen],
+      ["manage", manage],
+      ["members", membersScreen]
+    ] as const) {
+      expect(source, name).toMatch(/minHeight: (44|48|56)/);
+    }
   });
 });
 

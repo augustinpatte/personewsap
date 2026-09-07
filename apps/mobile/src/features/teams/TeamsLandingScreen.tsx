@@ -19,6 +19,7 @@ import { resolveReaderEditionDate } from "../today/editionCadence";
 import { formatTeamPoints } from "./leaderboard";
 import { isProfileCompleteForTeams, type PlayerProfile } from "./playerProfile";
 import { fetchMyTeams, fetchPlayerProfile, type TeamSummary } from "./teamsData";
+import { useRefetchOnReturn } from "./useRefetchOnReturn";
 import { getTeamsCopy } from "./teamsCopy";
 import { TeamProfileGate } from "./TeamProfileGate";
 
@@ -93,6 +94,10 @@ export function TeamsLandingScreen() {
     void load();
   }, [load]);
 
+  // Back from Create or Join, where a Team was just made or joined. Without
+  // this the reader returns to the list they saw before they had one.
+  useRefetchOnReturn(useCallback(() => void load(), [load]));
+
   if (status === "loading") {
     return <ModuleLoading label={moduleCopy.common.loading} />;
   }
@@ -116,18 +121,8 @@ export function TeamsLandingScreen() {
     <ModuleScroll contentStyle={styles.content} reveal>
       <ModuteHeaderRow language={language} />
 
-      <View style={styles.actions}>
-        {/* Join leads. The common first action is a code from a friend. */}
-        <PrimaryButton
-          label={copy.join}
-          onPress={() => router.push("/(teams)/join" as Href)}
-        />
-        <SecondaryButton
-          label={copy.create}
-          onPress={() => router.push("/(teams)/create" as Href)}
-        />
-      </View>
-
+      {/* Your Teams first: the reason a returning reader opened this tab is to
+          see where they stand, not to acquire another league. */}
       {teams.length === 0 ? (
         <EmptyState
           description={copy.emptyBody}
@@ -152,6 +147,21 @@ export function TeamsLandingScreen() {
           ))}
         </View>
       )}
+
+      {/* Then Join, then Create — and Join is the primary of the two, because
+          the common first action is a code somebody sent you. Both sit under a
+          list that is a handful of private leagues, never a feed, so neither is
+          ever pushed far down the screen. */}
+      <View style={styles.actions}>
+        <PrimaryButton
+          label={copy.join}
+          onPress={() => router.push("/(teams)/join" as Href)}
+        />
+        <SecondaryButton
+          label={copy.create}
+          onPress={() => router.push("/(teams)/create" as Href)}
+        />
+      </View>
     </ModuleScroll>
   );
 }

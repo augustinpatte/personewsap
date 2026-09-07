@@ -37,6 +37,14 @@
           "icon": "./assets/notification-icon.png",
           "color": "#0F5B5F"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PersoNewsAP uses your photo library only when you choose a player photo for a Team leaderboard.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

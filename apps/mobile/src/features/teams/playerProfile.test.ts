@@ -101,29 +101,39 @@ describe("country", () => {
 });
 
 describe("the Teams gate", () => {
-  it("needs a username and a country", () => {
-    expect(
-      isProfileCompleteForTeams({ username: "augustin", countryCode: "FR", avatarPath: null })
-    ).toBe(true);
+  const complete = {
+    username: "augustin",
+    countryCode: "FR",
+    avatarPath: "aaaa0000-0000-4000-8000-00000000000a/photo.jpg"
+  };
+
+  it("needs a photo, a username and a country", () => {
+    expect(isProfileCompleteForTeams(complete)).toBe(true);
   });
 
-  it("does not require an avatar", () => {
-    // A leaderboard renders initials perfectly well. Forcing a photo upload
-    // before somebody can join their friends' league is a wall in front of the
-    // one screen they were trying to reach.
-    expect(
-      isProfileCompleteForTeams({ username: "augustin", countryCode: "FR", avatarPath: null })
-    ).toBe(true);
+  it("requires the avatar", () => {
+    // A leaderboard is a list of people, and the photo is how you recognise the
+    // friend you are playing against. A Team where half the rows are two grey
+    // letters is a spreadsheet.
+    expect(isProfileCompleteForTeams({ ...complete, avatarPath: null })).toBe(false);
+  });
+
+  it("requires the username", () => {
+    expect(isProfileCompleteForTeams({ ...complete, username: null })).toBe(false);
+  });
+
+  it("requires the country", () => {
+    expect(isProfileCompleteForTeams({ ...complete, countryCode: null })).toBe(false);
   });
 
   it("reports exactly what is missing", () => {
     expect(
       missingProfileFields({ username: null, countryCode: null, avatarPath: null })
-    ).toEqual(["username", "country"]);
+    ).toEqual(["avatar", "username", "country"]);
 
-    expect(
-      missingProfileFields({ username: "augustin", countryCode: null, avatarPath: null })
-    ).toEqual(["country"]);
+    expect(missingProfileFields({ ...complete, countryCode: null })).toEqual(["country"]);
+    expect(missingProfileFields({ ...complete, avatarPath: null })).toEqual(["avatar"]);
+    expect(missingProfileFields(complete)).toEqual([]);
   });
 
   it("treats a reader who never opened Teams as incomplete, not as broken", () => {

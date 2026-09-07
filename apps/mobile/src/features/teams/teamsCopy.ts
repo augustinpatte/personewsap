@@ -32,19 +32,18 @@ export function getTeamsCopy(language: ContentLanguage) {
         // Profile gate
         profileTitle: "Choose your player name",
         profileBody:
-          "Team-mates see this on the leaderboard. Nothing else in PersoNewsAP changes.",
+          "A photo, a name and a country. Team-mates see them on the leaderboard, and nothing else in PersoNewsAP changes.",
         usernameLabel: "Username",
         usernamePlaceholder: "augustin",
         countryLabel: "Country",
         countryPlaceholder: "Search a country",
         avatarLabel: "Photo",
-        avatarOptional: "Optional",
         avatarChoose: "Choose a photo",
         avatarRemove: "Remove",
         avatarTooLarge: "That photo is too large even after compression. Try another one.",
         avatarPermissionTitle: "Photo access is off",
         avatarPermissionBody:
-          "PersoNewsAP needs access to your photo library to set an avatar. You can turn it on in Settings, or skip this step.",
+          "PersoNewsAP needs your photo library to set a player photo. Turn it on in Settings to continue.",
         saveProfile: "Continue",
         savingProfile: "Saving",
         usernameTaken: "That name is taken. Try another one.",
@@ -123,6 +122,11 @@ export function getTeamsCopy(language: ContentLanguage) {
         cancel: "Cancel",
 
         // Moderation
+        //
+        // Names the member an action would act on, for VoiceOver only: the
+        // visible button stays one short verb, because four of them under every
+        // card is what keeps the roster readable.
+        actionFor: (action: string, member: string) => `${action}: ${member}`,
         report: "Report",
         reportProfile: "Report this profile",
         reportTeamName: "Report the Team name",
@@ -135,6 +139,93 @@ export function getTeamsCopy(language: ContentLanguage) {
         reportReasonTeamName: "Inappropriate Team name",
         reportReasonHarassment: "Harassment",
         reportReasonOther: "Something else",
+
+
+        // Profile, continued
+        avatarRequired: "Required",
+        avatarChange: "Change photo",
+        avatarHelp: "A square photo, resized on your phone before it is sent.",
+        avatarPreparing: "Preparing the photo",
+        avatarUploading: "Sending the photo",
+        avatarFailed: "That photo could not be prepared. Try another one.",
+        avatarPermissionOpenSettings: "Open Settings",
+        avatarPermissionRetry: "Try again",
+        countryChange: "Change",
+        countryNoResults: "No country matches that.",
+        countryMoreResults: (count: number) =>
+          count === 1 ? "1 more — keep typing" : `${count} more — keep typing`,
+        countrySelected: "Selected country",
+        profileNeeds: "Teams needs a photo, a name and a country.",
+
+        // Create, continued
+        createIntro: "You choose the topics. Everybody in the Team plays the same ones.",
+        newsletterTopicsHelp: "Pick topics, then how many articles each one contributes.",
+        miniCaseTopicsHelp: "Mini cases everybody in the Team plays.",
+        articlesCount: (count: number) => (count === 1 ? "1 article" : "2 articles"),
+        articlesTotal: (count: number) => (count === 1 ? "1 article" : `${count} articles`),
+        gamesRequired: "Choose at least one newsletter topic or one mini case topic.",
+        topicsChosen: (count: number) => (count === 1 ? "1 topic" : `${count} topics`),
+        noTopicsChosen: "None yet",
+        nameNotSet: "Not set yet",
+        selected: "Selected",
+        createdTitle: "Team created",
+        startsNextEditionCreated: "Your Team starts scoring with the next edition.",
+        effectiveFrom: (date: string) => `From the edition of ${date}`,
+
+        // Invite, continued
+        inviteCopy: "Copy the code",
+        inviteCopied: "Copied",
+        inviteShareMessage: (name: string, code: string) =>
+          `Join my PersoNewsAP Team "${name}". Invite code: ${code}`,
+        inviteDisable: "Turn the code off",
+        inviteEnable: "Turn the code on",
+        inviteDisabledState: "The code is off. Nobody can join with it.",
+        inviteOpenState: "Anybody with the code can join.",
+        inviteRotated: "New code created. The old one stopped working.",
+        openTeam: "Open the Team",
+
+        // Join, continued
+        joinCodeLabel: "Invite code",
+        joinHint: "Eight characters. Upper or lower case, it does not matter.",
+        joinTooShort: "A code is eight characters.",
+        joinedTitle: "You are in",
+
+        // Detail, continued
+        statusStartsNextEdition: "Starts next edition",
+        membersTitle: "Members",
+        viewMembers: "Members",
+        teamArchived: "This Team is archived.",
+        teamArchivedBody: "It receives no new editions. Past results stay available.",
+
+        // Manage, continued
+        manageTitle: "Manage the Team",
+        manageOwnerOnly: "Only the owner can manage this Team.",
+        renameSave: "Save the name",
+        renameSaved: "Name updated.",
+        saveConfig: "Save the topics",
+        configSaved: "Topics updated. They apply from the next edition.",
+        roleOwner: "Owner",
+        roleMember: "Member",
+        removeMemberConfirm: (name: string) =>
+          `Remove ${name} from the Team? The points they already earned stay in the past standings.`,
+        transferConfirmBody: (name: string) =>
+          `Make ${name} the owner? You become an ordinary member, and only they can hand it back.`,
+        transferDone: "Ownership transferred.",
+        archiveTitle: "Archive the Team",
+        leaveTitle: "Leave the Team",
+        leaveAsOwnerAlone: "You are alone in this Team, so leaving archives it.",
+        confirm: "Confirm",
+        memberSince: (date: string) => `Member since ${date}`,
+
+        // Account
+        editProfile: "Edit player profile",
+        editProfileTitle: "Player profile",
+        editProfileBody: "Your photo, name and country, as team-mates see them.",
+        profileSaved: "Profile updated.",
+        save: "Save",
+
+        notOwner: "Only the owner can do that.",
+        actionFailed: "That did not work. Check your connection and try again.",
 
         retry: "Try again",
         loadFailed: "Teams could not be loaded."
@@ -156,19 +247,18 @@ export function getTeamsCopy(language: ContentLanguage) {
 
         profileTitle: "Choisissez votre nom de joueur",
         profileBody:
-          "Vos coéquipiers le verront dans le classement. Rien d'autre ne change dans PersoNewsAP.",
+          "Une photo, un nom et un pays. Vos coéquipiers les voient dans le classement, et rien d'autre ne change dans PersoNewsAP.",
         usernameLabel: "Nom d'utilisateur",
         usernamePlaceholder: "augustin",
         countryLabel: "Pays",
         countryPlaceholder: "Rechercher un pays",
         avatarLabel: "Photo",
-        avatarOptional: "Facultatif",
         avatarChoose: "Choisir une photo",
         avatarRemove: "Retirer",
         avatarTooLarge: "Cette photo reste trop lourde après compression. Essayez-en une autre.",
         avatarPermissionTitle: "Accès aux photos désactivé",
         avatarPermissionBody:
-          "PersoNewsAP a besoin d'accéder à votre photothèque pour définir un avatar. Vous pouvez l'activer dans Réglages, ou passer cette étape.",
+          "PersoNewsAP a besoin de votre photothèque pour définir une photo de joueur. Activez l'accès dans Réglages pour continuer.",
         saveProfile: "Continuer",
         savingProfile: "Enregistrement",
         usernameTaken: "Ce nom est déjà pris. Essayez-en un autre.",
@@ -242,6 +332,7 @@ export function getTeamsCopy(language: ContentLanguage) {
         ownerMustTransfer: "Nommez quelqu'un d'autre propriétaire avant de partir.",
         cancel: "Annuler",
 
+        actionFor: (action: string, member: string) => `${action} : ${member}`,
         report: "Signaler",
         reportProfile: "Signaler ce profil",
         reportTeamName: "Signaler le nom de la Team",
@@ -255,6 +346,86 @@ export function getTeamsCopy(language: ContentLanguage) {
         reportReasonHarassment: "Harcèlement",
         reportReasonOther: "Autre chose",
 
+
+        avatarRequired: "Obligatoire",
+        avatarChange: "Changer la photo",
+        avatarHelp: "Une photo carrée, redimensionnée sur votre téléphone avant l'envoi.",
+        avatarPreparing: "Préparation de la photo",
+        avatarUploading: "Envoi de la photo",
+        avatarFailed: "Cette photo n'a pas pu être préparée. Essayez-en une autre.",
+        avatarPermissionOpenSettings: "Ouvrir les Réglages",
+        avatarPermissionRetry: "Réessayer",
+        countryChange: "Changer",
+        countryNoResults: "Aucun pays ne correspond.",
+        countryMoreResults: (count: number) =>
+          count === 1 ? "1 autre — continuez à taper" : `${count} autres — continuez à taper`,
+        countrySelected: "Pays sélectionné",
+        profileNeeds: "Teams demande une photo, un nom et un pays.",
+
+        createIntro: "Vous choisissez les sujets. Toute la Team joue les mêmes.",
+        newsletterTopicsHelp: "Choisissez les sujets, puis le nombre d'articles de chacun.",
+        miniCaseTopicsHelp: "Les mini cas que toute la Team joue.",
+        articlesCount: (count: number) => (count === 1 ? "1 article" : "2 articles"),
+        articlesTotal: (count: number) => (count === 1 ? "1 article" : `${count} articles`),
+        gamesRequired: "Choisissez au moins un sujet newsletter ou un sujet mini cas.",
+        topicsChosen: (count: number) => (count === 1 ? "1 sujet" : `${count} sujets`),
+        noTopicsChosen: "Aucun pour l'instant",
+        nameNotSet: "Pas encore choisi",
+        selected: "Sélectionné",
+        createdTitle: "Team créée",
+        startsNextEditionCreated: "Les scores commenceront à la prochaine édition.",
+        effectiveFrom: (date: string) => `À partir de l'édition du ${date}`,
+
+        inviteCopy: "Copier le code",
+        inviteCopied: "Copié",
+        inviteShareMessage: (name: string, code: string) =>
+          `Rejoins ma Team PersoNewsAP « ${name} ». Code d'invitation : ${code}`,
+        inviteDisable: "Désactiver le code",
+        inviteEnable: "Réactiver le code",
+        inviteDisabledState: "Le code est désactivé. Personne ne peut rejoindre avec.",
+        inviteOpenState: "Toute personne avec le code peut rejoindre.",
+        inviteRotated: "Nouveau code créé. L'ancien ne fonctionne plus.",
+        openTeam: "Ouvrir la Team",
+
+        joinCodeLabel: "Code d'invitation",
+        joinHint: "Huit caractères. Majuscules ou minuscules, cela n'a pas d'importance.",
+        joinTooShort: "Un code fait huit caractères.",
+        joinedTitle: "Vous êtes dans la Team",
+
+        statusStartsNextEdition: "Démarre à la prochaine édition",
+        membersTitle: "Membres",
+        viewMembers: "Membres",
+        teamArchived: "Cette Team est archivée.",
+        teamArchivedBody: "Elle ne reçoit plus d'éditions. Les résultats passés restent visibles.",
+
+        manageTitle: "Gérer la Team",
+        manageOwnerOnly: "Seul le propriétaire peut gérer cette Team.",
+        renameSave: "Enregistrer le nom",
+        renameSaved: "Nom mis à jour.",
+        saveConfig: "Enregistrer les sujets",
+        configSaved: "Sujets mis à jour. Ils s'appliquent à partir de la prochaine édition.",
+        roleOwner: "Propriétaire",
+        roleMember: "Membre",
+        removeMemberConfirm: (name: string) =>
+          `Retirer ${name} de la Team ? Les points déjà gagnés restent dans les classements passés.`,
+        transferConfirmBody: (name: string) =>
+          `Nommer ${name} propriétaire ? Vous devenez membre ordinaire, et seul ce membre pourra vous rendre le rôle.`,
+        transferDone: "Propriété transférée.",
+        archiveTitle: "Archiver la Team",
+        leaveTitle: "Quitter la Team",
+        leaveAsOwnerAlone: "Vous êtes seul dans cette Team : la quitter l'archive.",
+        confirm: "Confirmer",
+        memberSince: (date: string) => `Membre depuis le ${date}`,
+
+        editProfile: "Modifier le profil joueur",
+        editProfileTitle: "Profil joueur",
+        editProfileBody: "Votre photo, votre nom et votre pays, tels que vos coéquipiers les voient.",
+        profileSaved: "Profil mis à jour.",
+        save: "Enregistrer",
+
+        notOwner: "Seul le propriétaire peut faire cela.",
+        actionFailed: "Cela n'a pas fonctionné. Vérifiez votre connexion et réessayez.",
+
         retry: "Réessayer",
         loadFailed: "Impossible de charger les Teams."
       }
@@ -267,6 +438,14 @@ export function statusLabel(
   status: EditionStatus,
   copy: ReturnType<typeof getTeamsCopy>
 ): string {
+  // "Starts next edition" is not a degree of progress and must never collapse
+  // into "Not started": a reader who joined mid-edition was never given a
+  // question, and accusing them of not having answered one is a lie the row
+  // tells about a rule the product chose.
+  if (status === "starts_next_edition") {
+    return copy.statusStartsNextEdition;
+  }
+
   if (status === "completed") {
     return copy.statusCompleted;
   }

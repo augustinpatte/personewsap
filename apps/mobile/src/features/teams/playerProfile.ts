@@ -141,17 +141,32 @@ export type PlayerProfile = {
 /**
  * Is this profile ready for Teams?
  *
- * The avatar is deliberately NOT required. A leaderboard renders initials
- * perfectly well, and forcing a photo upload before somebody can join their
- * friends' league is a wall in front of the one screen they were trying to
- * reach. Username and country are what a row needs.
+ * Three things, and the avatar is one of them. An earlier version made it
+ * optional on the reasoning that initials render a row perfectly well — true,
+ * and beside the point. A leaderboard is a list of people, and a Team where
+ * half the rows are two grey letters is a spreadsheet; the photo is how you
+ * recognise the friend you are playing against. So Teams asks for all three
+ * once, up front, and never asks again.
+ *
+ * THE GATE IS STILL ONLY ON TEAMS. A reader who never opens the Teams tab never
+ * picks a username and is never shown a photo-library prompt: Newsletter, Mini
+ * Cases, Stories, Path, the archive and Settings all work untouched with
+ * `profiles.username`, `country_code` and `avatar_path` all NULL.
  */
 export function isProfileCompleteForTeams(profile: PlayerProfile): boolean {
-  return Boolean(profile.username) && Boolean(profile.countryCode);
+  return (
+    Boolean(profile.username) && Boolean(profile.countryCode) && Boolean(profile.avatarPath)
+  );
 }
 
-export function missingProfileFields(profile: PlayerProfile): Array<"username" | "country"> {
-  const missing: Array<"username" | "country"> = [];
+export type ProfileField = "username" | "country" | "avatar";
+
+export function missingProfileFields(profile: PlayerProfile): ProfileField[] {
+  const missing: ProfileField[] = [];
+
+  if (!profile.avatarPath) {
+    missing.push("avatar");
+  }
 
   if (!profile.username) {
     missing.push("username");
