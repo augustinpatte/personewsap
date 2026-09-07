@@ -269,7 +269,21 @@ Use [TESTING.md](TESTING.md) before running them. `content:daily-job` is product
 
 ## Supabase
 
-Migrations live in `supabase/migrations`.
+Migrations live in `supabase/migrations`. The staging project is a separate
+history in `supabase-staging/supabase/migrations` — never mix the two.
+
+Both projects can be built from zero on this machine and the whole pipeline
+proven against them, with no access token and nothing touching a hosted
+project:
+
+```
+supabase start
+supabase start --workdir supabase-staging
+npm run local:prove
+```
+
+See [docs/LOCAL_PROOF.md](docs/LOCAL_PROOF.md) for what each suite covers and,
+just as importantly, what a green run still does not.
 
 For tester prep:
 

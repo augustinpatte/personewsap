@@ -21,7 +21,7 @@
 --   3. TEAM NAME, same story: length was enforced server-side, content was not.
 --
 --   4. A HIDDEN TEAM NAME LEAKED THROUGH JOIN. Every read surface built in
---      20260906106000 resolves name_status — the directory, the detail RPC, the
+--      20260906110000 resolves name_status — the directory, the detail RPC, the
 --      badge RPC. join_team_with_invite() did not: it returned t.name raw, so a
 --      name a moderator had taken out of every screen came back the moment
 --      somebody joined with the code.

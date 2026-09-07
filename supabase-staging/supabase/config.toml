@@ -17,3 +17,26 @@
 # supabase/.temp/project-ref (gitignored), written by:
 #   supabase link --workdir supabase-staging --project-ref kukyotcgbnchsoeriqoz
 project_id = "personewsap-staging-local"
+
+# Ports, so the two stacks can be up at the same time.
+#
+# The CLI's defaults are 54321-54327 and the production stack in ./supabase
+# already holds them. Without this, `supabase start --workdir supabase-staging`
+# either collides or — worse — appears to work and hands you a connection to
+# whichever stack claimed the port first, which is exactly the production/staging
+# confusion the directory split exists to prevent.
+[api]
+port = 64321
+
+[db]
+port = 64322
+shadow_port = 64320
+
+[studio]
+port = 64323
+
+[inbucket]
+port = 64324
+
+[analytics]
+port = 64327

@@ -35,7 +35,7 @@ const MIGRATIONS = [
   "20260906095000_realtime_and_moderation.sql",
   "20260906103000_team_content_assignments.sql",
   "20260906104000_edition_assignment_engine.sql",
-  "20260906106000_team_read_surface_and_invite.sql",
+  "20260906110000_team_read_surface_and_invite.sql",
   "20260907120000_team_archive_content.sql",
   "20260907130000_archive_team.sql",
   "20260907140000_teams_security_hardening.sql"
@@ -649,7 +649,7 @@ const scoringRaw = readFileSync(
   "utf8"
 );
 const surfaceRaw = readFileSync(
-  join(migrationsDir, "20260906106000_team_read_surface_and_invite.sql"),
+  join(migrationsDir, "20260906110000_team_read_surface_and_invite.sql"),
   "utf8"
 );
 
@@ -774,7 +774,7 @@ describe("the streak counts editions", () => {
 describe("what a member may read about their team", () => {
   const surface = stripNoise(
     readFileSync(
-      join(migrationsDir, "20260906106000_team_read_surface_and_invite.sql"),
+      join(migrationsDir, "20260906110000_team_read_surface_and_invite.sql"),
       "utf8"
     )
   );
@@ -789,7 +789,15 @@ describe("what a member may read about their team", () => {
   });
 
   it("serves a sanitised projection instead", () => {
-    expect(surface).toContain("CREATE OR REPLACE VIEW public.team_directory");
+    // DROP then CREATE, never CREATE OR REPLACE.
+    //
+    // 20260906095000 created this view with a column called `name`, and
+    // Postgres refuses to rename a view column through CREATE OR REPLACE
+    // (42P16). A database replayed from zero stopped dead on that statement —
+    // `supabase db reset` proved it — so the shape is now dropped and rebuilt.
+    expect(surface).toContain("DROP VIEW IF EXISTS public.team_directory;");
+    expect(surface).toContain("CREATE VIEW public.team_directory");
+    expect(surface).not.toContain("CREATE OR REPLACE VIEW public.team_directory");
     expect(surface).toContain("GRANT SELECT ON public.team_directory TO authenticated");
   });
 
@@ -798,14 +806,19 @@ describe("what a member may read about their team", () => {
     // nothing on `public.teams` and an invoker-rights view would be denied for
     // every caller. That means the teams RLS policy is NOT consulted, so the
     // predicate in the view IS the access rule.
+    //
+    // Stated rather than inherited: the earlier view WAS security_invoker, and
+    // CREATE OR REPLACE would have carried that option forward silently. The
+    // drop above is what makes the option this file's to set, and it sets it.
     expect(surfaceRaw).not.toContain("security_invoker = true");
+    expect(surface).toContain("ALTER VIEW public.team_directory SET (security_invoker = false);");
     expect(surface).toMatch(
-      /CREATE OR REPLACE VIEW public\.team_directory AS[\s\S]*?WHERE public\.is_active_team_member\(t\.id\);/
+      /CREATE VIEW public\.team_directory AS[\s\S]*?WHERE public\.is_active_team_member\(t\.id\);/
     );
   });
 
   it("keeps the invite code out of the projection", () => {
-    const view = /CREATE OR REPLACE VIEW public\.team_directory AS([\s\S]*?);/.exec(surface);
+    const view = /CREATE VIEW public\.team_directory AS([\s\S]*?);/.exec(surface);
 
     expect(view).not.toBeNull();
     expect(view?.[1]).not.toMatch(/invite_code/);

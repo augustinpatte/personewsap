@@ -1,6 +1,6 @@
 # Known Issues
 
-Last reviewed: 2026-08-25 (Supabase security pass)
+Last reviewed: 2026-09-07 (first build of both projects from an empty database)
 
 What a tester may hit, what the coordinator should watch, and what is not
 production-safe yet. Items are removed only when they are genuinely fixed —
@@ -22,9 +22,29 @@ never to make this document read better.
 | Source licensing review missing | open | The ingestion layer reads RSS/feed metadata only. Publisher terms and commercial reuse rights are still unreviewed. Treat sources as internal-test-only until that is settled. |
 | TestFlight operations incomplete | open | Signing, App Store Connect setup, privacy answers and the invite process still need an owner. |
 | Teams assignment engine is not scheduled | open | `public.materialize_edition_assignments(edition_date)` exists (migration `20260906104000`) and is idempotent, but **nothing calls it**. Until the publication pipeline invokes it once an edition's questions have been persisted, `solo_question_assignments`, `team_content_assignments` and `team_question_assignments` stay empty and no reader can reach a question. Deliberately not wired here: a cron entry added in the same pass would run against editions whose questions may not exist yet. |
-| Teams migrations still pending everywhere | open | The thirteen `20260906090000`–`20260906106000` migrations have never been applied to staging or production. Validate them first with `npm run teams:test:sql -- --with-migrations`, which inlines them into a transaction that rolls back. |
+| Teams migrations still pending everywhere | open | The sixteen `20260906090000`–`20260907160000` migrations have never been applied to staging or production. They now replay cleanly from an empty database — `supabase db reset` applies all 62 production migrations and `npm run db:test:sql:local` passes against the result. Before pushing, re-validate against the real remote schema with `npm run teams:test:sql -- --with-migrations`, which inlines them into a transaction that rolls back. |
+| Staging pipeline core is not in version control | open | `refresh_batch_status`, `get_ready_batch_payload`, `mark_batch_published`, `validate_generation_output` and the `trg_enforce_production_batch_mode` trigger exist only inside the staging project and were applied by hand. `supabase-staging/supabase/tests/local_harness.sql` supplies local stand-ins written from their callers so the gate can be run at all; they are NOT the remote definitions and the harness says so on every run. Recover them with `select pg_get_functiondef(oid) …` against staging, commit them as a migration, and delete the harness. |
 | Scored-question preflight not applied to staging | open | `supabase-staging/.../20260906110000_scored_question_preflight.sql` adds the question contract, the legacy cutover and the gate that refuses a batch whose questions are wrong. Until it is applied, `get_scheduled_edition_publish_plan` is the pre-existing editorial gate only, and an edition with no questions still publishes. Validate with `npm run publisher:test:sql:dry`. Note the cutover default (`2026-09-09`): move it with `app.scored_question_cutover_edition` if the generators are not ready by then, or every edition from that date fails the gate. |
 | Generators not yet emitting scored questions | open | The contract now reaches the Scheduled Tasks through the bridge manifest (`scored_question_contract`), and the prompts carry it, but no batch has been generated against it. The first batch after the cutover will fail the gate until the generators are re-run. |
+
+## Resolved on 2026-09-07 — proven from an empty database
+
+Everything below was found by building both projects from zero for the first
+time (`supabase db reset`) and running the suites against the result. Each one
+had been in the repository, unnoticed, because no suite had ever executed
+against a schema that came from the migrations.
+
+| Defect | Where | Fix |
+| --- | --- | --- |
+| A replay from zero died on migration 13 of 16 | `team_directory` renamed a view column through `CREATE OR REPLACE`, which Postgres refuses (42P16) | `20260906110000` drops and recreates the view; it also stops silently inheriting `security_invoker = true` from the earlier definition, which would have returned no rows to any member |
+| One migration filename was not a timestamp | `20260906106000` — minute 60 | renamed to `20260906110000`; `supabase:migration-check` now audits filenames with no token, which is why it went unseen |
+| `authenticated` held INSERT/UPDATE/DELETE/TRUNCATE on all 18 Teams tables | every migration revoked from `PUBLIC, anon` and never from `authenticated`; Supabase's default privileges grant ALL on each new table in `public` | `20260907150000_teams_privilege_hardening` takes them back and grants only what each client surface reads or writes. RLS meant no row was ever exposed, but the migrations' own claim that "`authenticated` holds nothing on `public.teams`" was false |
+| The avatar impersonation guard accepted every malformed path | `is_own_avatar_path` returned NULL, not false, for a path that is not `<uuid>/<file>`, and `NOT NULL` is NULL | `20260907160000_avatar_path_guard_null_fix`: the predicate coalesces to false, and the caller uses `IS NOT TRUE` so an unexpected NULL fails closed |
+| The scored-question preflight reported the wrong reason for a missing question set | four `jsonb_typeof(x) <> 'array'` comparisons went NULL when the key was absent, so the branch written to catch it was skipped | `20260906110000` coalesces all four. One of them let a payload carrying no `jobs` array at all pass the composition check |
+| The Teams SQL suite had never run to completion | it inserted a `question_role` its own migration's CHECK constraint forbids, and stopped on statement 262 | suite corrected; it now runs 184 checks, all passing |
+| The staging project could not be built at all | every staging migration reads `automation_batches`, `generation_jobs`, `generation_outputs`, `generation_reviews`, `publication_receipts`, `automation_health` and `automation_config`, and none of them creates any | `20260901080000_staging_pipeline_baseline` — idempotent, so it is a no-op against the real staging project |
+
+Commands: `docs/LOCAL_PROOF.md`.
 
 ## Resolved On 2026-08-25 — Supabase Permission Hardening
 

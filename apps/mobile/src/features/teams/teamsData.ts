@@ -537,7 +537,15 @@ export async function setBlocked(input: {
     const { error } = input.blocked
       ? await supabase
           .from("user_blocks")
-          .upsert({ blocker_id: input.blockerId, blocked_id: input.blockedId })
+          // ignoreDuplicates, so this compiles to ON CONFLICT DO NOTHING.
+          // The default (DO UPDATE) needs the UPDATE privilege on the table,
+          // and `authenticated` deliberately does not hold one — a block row
+          // has no field worth rewriting. Blocking somebody already blocked is
+          // a no-op, not an error.
+          .upsert(
+            { blocker_id: input.blockerId, blocked_id: input.blockedId },
+            { onConflict: "blocker_id,blocked_id", ignoreDuplicates: true }
+          )
       : await supabase
           .from("user_blocks")
           .delete()

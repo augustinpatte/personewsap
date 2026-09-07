@@ -264,7 +264,16 @@ begin
   loop
     v_questions := p_output_json->v_lang->'questions';
 
-    if jsonb_typeof(v_questions) <> 'array' then
+    -- coalesce, because the case this branch exists for is the one it missed.
+    --
+    -- When the generator emits no `questions` key at all, `->'questions'` is SQL
+    -- NULL, jsonb_typeof(NULL) is NULL, and `NULL <> 'array'` is NULL — so the
+    -- IF was not taken and the absence fell through to the per-question loop,
+    -- which reported question_id_missing and question_prompt_missing instead.
+    -- The edition was still refused, which is why this hid: the verdict was
+    -- right and the reason was wrong, and the reason is what an operator reads
+    -- at 19:05. Gate test Q10 asserts the code, and failed on it.
+    if coalesce(jsonb_typeof(v_questions), 'null') <> 'array' then
       v_errors := v_errors || jsonb_build_array(jsonb_build_object(
         'code', 'questions_missing', 'language', v_lang,
         'detail', format('%s carries no questions array', v_lang)));
@@ -320,7 +329,10 @@ begin
         end if;
       end loop;
 
-      if jsonb_typeof(v_question->'options') <> 'array'
+      -- coalesce for the same reason as `questions_missing` above: a question
+      -- with no `options` key at all makes jsonb_typeof NULL, and `NULL <>
+      -- 'array'` is NULL, so the branch written to catch it was skipped.
+      if coalesce(jsonb_typeof(v_question->'options'), 'null') <> 'array'
          or jsonb_array_length(v_question->'options') <> 4 then
         v_errors := v_errors || jsonb_build_array(jsonb_build_object(
           'code', 'question_option_count_invalid', 'language', v_lang, 'question', v_index,
@@ -428,7 +440,11 @@ begin
             v_index, coalesce(v_fr_q->>'role', '<none>'), coalesce(v_en_q->>'role', '<none>'))));
       end if;
 
-      if jsonb_typeof(v_fr_q->'options') <> 'array' or jsonb_typeof(v_en_q->'options') <> 'array' then
+      -- Skip the parity comparison only when both halves really do carry an
+      -- options array. coalesce, so a MISSING options key skips too instead of
+      -- evaluating to NULL and falling into a loop over nothing.
+      if coalesce(jsonb_typeof(v_fr_q->'options'), 'null') <> 'array'
+         or coalesce(jsonb_typeof(v_en_q->'options'), 'null') <> 'array' then
         continue;
       end if;
 
@@ -683,7 +699,11 @@ begin
         'detail', format('payload targets %s', coalesce(v_payload->'batch'->>'target_project_ref','<null>'))));
     end if;
 
-    if jsonb_typeof(v_jobs) <> 'array' or jsonb_array_length(v_jobs) <> 23 then
+    -- coalesce: a payload with no `jobs` key made this whole condition NULL,
+    -- took the else branch, and then counted composition over zero rows — so
+    -- v_news/v_story/v_mini were NULL, `v_news <> 16` was NULL, and a payload
+    -- carrying no jobs at all reached the publisher with no blocker raised.
+    if coalesce(jsonb_typeof(v_jobs), 'null') <> 'array' or jsonb_array_length(v_jobs) <> 23 then
       v_blockers := v_blockers || jsonb_build_array(jsonb_build_object(
         'code','payload_job_count_mismatch',
         'detail', format('payload carries %s jobs, expected 23',
@@ -704,9 +724,12 @@ begin
 
       if exists (
         select 1 from jsonb_array_elements(v_jobs) j
-        where jsonb_typeof(j->'output_json') <> 'object'
-           or jsonb_typeof(j->'source_records') <> 'array'
-           or jsonb_array_length(j->'source_records') = 0
+        -- Every term coalesced. A WHERE clause that evaluates to NULL does not
+        -- match, so a job missing output_json entirely was the one shape this
+        -- check could not see.
+        where coalesce(jsonb_typeof(j->'output_json'), 'null') <> 'object'
+           or coalesce(jsonb_typeof(j->'source_records'), 'null') <> 'array'
+           or coalesce(jsonb_array_length(j->'source_records'), 0) = 0
            or coalesce(j->'review'->>'verdict','') <> 'approved'
       ) then
         v_blockers := v_blockers || jsonb_build_array(jsonb_build_object(

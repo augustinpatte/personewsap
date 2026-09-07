@@ -13,7 +13,7 @@
 --   20260906095000_realtime_and_moderation
 --   20260906103000_team_content_assignments
 --   20260906104000_edition_assignment_engine
---   20260906106000_team_read_surface_and_invite
+--   20260906110000_team_read_surface_and_invite
 --   20260907140000_teams_security_hardening
 -- to be applied.
 --
@@ -43,6 +43,35 @@ language sql as $$
 $$;
 
 grant execute on function pg_temp.record(int, text, text, text) to public;
+
+-- Fixture surgery, done with definer rights on purpose.
+--
+-- The leaderboard-status checks (H6, H7, H10) need a member sitting on a
+-- half-finished edition and then a finished one. A reader cannot put themselves
+-- there — writing team_member_edition_scores is exactly what check B24 proves
+-- is refused — so the suite cannot plant that state with the role it is testing
+-- under. It used to try, and the UPDATE silently touched zero rows: the checks
+-- then read 'not_started' and failed, which is the honest outcome of asking a
+-- client to do a server's job.
+--
+-- SECURITY DEFINER runs it as the suite's own superuser instead, so the fixture
+-- is planted by the only thing allowed to plant it — the scorer — and the
+-- checks read a state the product can actually produce. Nothing here is
+-- reachable by a client: pg_temp is private to this session and disappears with
+-- it, and the transaction rolls back regardless.
+create or replace function pg_temp.set_edition_score(
+  p_team uuid, p_user uuid, p_edition date,
+  p_answered int, p_score int, p_completed boolean
+) returns void
+language sql security definer as $$
+  update public.team_member_edition_scores
+     set answered_count = p_answered,
+         score_milli = p_score,
+         completed = p_completed
+   where team_id = p_team and user_id = p_user and edition_date = p_edition;
+$$;
+
+grant execute on function pg_temp.set_edition_score(uuid, uuid, date, int, int, boolean) to public;
 
 -- Owner of team 1, member of team 2.
 create or replace function pg_temp.uid_owner() returns uuid
@@ -207,7 +236,7 @@ begin
     (id, content_logical_key, content_type, question_sequence, question_role)
   values
     (pg_temp.lq_shared(), 'teams-suite-job-1', 'mini_case', 1, 'method_framework'),
-    (pg_temp.lq_solo(), 'teams-suite-job-2', 'newsletter_article', 1, 'comprehension'),
+    (pg_temp.lq_solo(), 'teams-suite-job-2', 'newsletter_article', 1, 'interpretation'),
     (pg_temp.lq_unassigned(), 'teams-suite-job-1', 'mini_case', 2, 'technical_application');
 
   insert into public.logical_question_options (id, logical_question_id, option_key) values
@@ -271,7 +300,7 @@ begin
   -- A Business Story question can never be assigned to a Team (§2).
   insert into public.logical_questions
     (id, content_logical_key, content_type, question_sequence, question_role)
-  values ('f0f0f0f0-0000-4000-8000-00000000000b', 'teams-suite-story', 'business_story', 1, 'comprehension');
+  values ('f0f0f0f0-0000-4000-8000-00000000000b', 'teams-suite-story', 'business_story', 1, 'interpretation');
 
   begin
     insert into public.team_question_assignments
@@ -346,7 +375,7 @@ begin
   perform pg_temp.sign_in(pg_temp.uid_outsider());
 
   perform pg_temp.record(10, 'B1 an outsider sees no team', '0',
-    (select count(*)::text from public.teams));
+    (select count(*)::text from public.team_directory));
   perform pg_temp.record(11, 'B2 an outsider sees no membership row', '0',
     (select count(*)::text from public.team_members));
   perform pg_temp.record(12, 'B3 an outsider sees no team config', '0',
@@ -401,7 +430,7 @@ begin
   perform pg_temp.sign_in(pg_temp.uid_late());
 
   perform pg_temp.record(21, 'B12 the late joiner sees the team immediately', '1',
-    (select count(*)::text from public.teams t where t.id = pg_temp.team_one()));
+    (select count(*)::text from public.team_directory t where t.id = pg_temp.team_one()));
   perform pg_temp.record(22, 'B13 the late joiner is not eligible for the edition they joined in', 'false',
     public.was_team_member_eligible_for_edition(
       pg_temp.team_one(), pg_temp.uid_late(), pg_temp.ed('e1'))::text);
@@ -656,7 +685,7 @@ begin
   perform * from public.leave_team(pg_temp.team_one());
 
   perform pg_temp.record(69, 'D10 leaving revokes access to the team', '0',
-    (select count(*)::text from public.teams t where t.id = pg_temp.team_one()));
+    (select count(*)::text from public.team_directory t where t.id = pg_temp.team_one()));
   perform pg_temp.record(70, 'D11 leaving revokes the realtime channel', 'false',
     public.can_read_team_topic(public.team_leaderboard_topic(pg_temp.team_one()))::text);
   perform pg_temp.record(71, 'D12 the membership row is closed, not deleted', 'true',
@@ -1076,13 +1105,13 @@ begin
   perform pg_temp.record(107, 'E28 the founder''s membership starts at that same edition', 'true',
     (select (min(m.eligible_from_edition) = v_effective)::text
      from public.team_members m
-     join public.teams t on t.id = m.team_id
-     where t.name = 'Teams suite delta' and m.user_id = pg_temp.uid_late()));
+     join public.team_directory t on t.id = m.team_id
+     where t.display_name = 'Teams suite delta' and m.user_id = pg_temp.uid_late()));
 
   select min(v.effective_from_edition) into v_config_effective
   from public.team_config_versions v
-  join public.teams t on t.id = v.team_id
-  where t.name = 'Teams suite delta';
+  join public.team_directory t on t.id = v.team_id
+  where t.display_name = 'Teams suite delta';
 
   perform pg_temp.record(84, 'E5 the first configuration takes effect next edition too', 'true',
     (v_config_effective > public.current_edition_date())::text);
@@ -1331,21 +1360,15 @@ begin
      from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l));
 
   -- In progress and completed, on a member with real counts.
-  update public.team_member_edition_scores
-  set answered_count = 1, score_milli = 600, completed = false
-  where team_id = pg_temp.team_three()
-    and user_id = pg_temp.uid_late()
-    and edition_date = pg_temp.ed('e3');
+  perform pg_temp.set_edition_score(
+    pg_temp.team_three(), pg_temp.uid_late(), pg_temp.ed('e3'), 1, 600, false);
 
   perform pg_temp.record(145, 'H6 some but not all reads as in progress', 'in_progress',
     (select l.status from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l
      where l.user_id = pg_temp.uid_late()));
 
-  update public.team_member_edition_scores
-  set answered_count = 4, score_milli = 2400, completed = true
-  where team_id = pg_temp.team_three()
-    and user_id = pg_temp.uid_late()
-    and edition_date = pg_temp.ed('e3');
+  perform pg_temp.set_edition_score(
+    pg_temp.team_three(), pg_temp.uid_late(), pg_temp.ed('e3'), 4, 2400, true);
 
   perform pg_temp.record(146, 'H7 all of them reads as completed', 'completed',
     (select l.status from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l
@@ -1481,12 +1504,27 @@ begin
   -- the row belonging to the reader who merely LEFT, who deleted nothing and is
   -- still using the product. The old DELETE FROM teams would have taken this
   -- row too.
+end $$;
+
+reset role;
+
+-- The same assertion, made where it can be made.
+--
+-- Nobody is left in team_life to make it: uid_gone was removed, and uid_heir
+-- and uid_founder both deleted their accounts. The read policy on
+-- team_member_edition_scores is is_active_team_member(team_id), so every
+-- signed-in reader now sees zero rows there — including an outsider, which is
+-- how this check used to ask the question and why it read 0 and failed.
+--
+-- Zero visible rows is the correct RLS answer and says nothing at all about
+-- whether the row still exists. Whether it exists is the thing being tested, so
+-- it is asked without a policy in the way.
+do $$
+begin
   perform pg_temp.record(163, 'H20 the leaver''s row outlived two account deletions', '1',
     (select count(*)::text from public.team_member_edition_scores s
      where s.team_id = pg_temp.team_life()));
 end $$;
-
-reset role;
 
 -- ---------------------------------------------------------------------------
 -- I. The security pass (20260907140000)
@@ -1552,6 +1590,28 @@ begin
   exception when others then
     perform pg_temp.record(169, 'I3 traversal is refused', 'refused', 'refused');
   end;
+
+  -- The invariant underneath all three, asserted directly.
+  --
+  -- I3 above only fails when the RPC lets a bad path through, and the RPC has a
+  -- CHECK constraint on profiles.avatar_path behind it that catches some of
+  -- them for unrelated reasons. That masked the real defect: is_own_avatar_path
+  -- answered NULL for every malformed path, `NOT NULL` is NULL, and the guard
+  -- never fired. A predicate every caller negates must never have a third
+  -- answer, so that is what is checked — not a symptom of it.
+  perform pg_temp.record(213, 'I3 the ownership predicate is never null', 'false/false/false/false/false/true',
+    concat_ws('/',
+      coalesce(public.is_own_avatar_path(
+        'avatars/' || pg_temp.uid_owner()::text || '/prefixed.jpg', pg_temp.uid_owner())::text, 'NULL'),
+      coalesce(public.is_own_avatar_path('flat.jpg', pg_temp.uid_owner())::text, 'NULL'),
+      coalesce(public.is_own_avatar_path(
+        'https://example.test/x.jpg', pg_temp.uid_owner())::text, 'NULL'),
+      coalesce(public.is_own_avatar_path(
+        pg_temp.uid_owner()::text || '/../x.jpg', pg_temp.uid_owner())::text, 'NULL'),
+      coalesce(public.is_own_avatar_path(
+        pg_temp.uid_late()::text || '/theirs.jpg', pg_temp.uid_owner())::text, 'NULL'),
+      coalesce(public.is_own_avatar_path(
+        pg_temp.uid_owner()::text || '/mine.jpg', pg_temp.uid_owner())::text, 'NULL')));
 
   -- ---- username moderation, server-side ------------------------------------
   begin
@@ -1805,6 +1865,27 @@ begin
 
   perform pg_temp.sign_in(pg_temp.uid_owner());
 
+  -- Storage ships a BEFORE DELETE statement trigger (storage.protect_delete)
+  -- that refuses EVERY direct SQL delete on storage.objects, whoever the caller
+  -- is, unless storage.allow_delete_query is set — the Storage API sets it, and
+  -- nothing else is supposed to. It is a real second lock and it is recorded as
+  -- one below.
+  --
+  -- But it is also a lock that would make the check underneath meaningless: an
+  -- unconditional refusal proves nothing about whether the RLS policy on the
+  -- avatars bucket keeps one reader out of another reader's folder. So the
+  -- trigger is asserted first, then stepped past for the duration of this
+  -- transaction, and the policy is tested on its own.
+  begin
+    delete from storage.objects
+    where bucket_id = 'avatars' and name = pg_temp.uid_late()::text || '/victim.jpg';
+    perform pg_temp.record(206, 'I13 a direct SQL delete on storage is refused', 'refused', 'deleted');
+  exception when others then
+    perform pg_temp.record(206, 'I13 a direct SQL delete on storage is refused', 'refused', 'refused');
+  end;
+
+  perform set_config('storage.allow_delete_query', 'true', true);
+
   delete from storage.objects
   where bucket_id = 'avatars' and name = pg_temp.uid_late()::text || '/victim.jpg';
 
@@ -1835,6 +1916,8 @@ begin
   if to_regclass('storage.objects') is null then
     return;
   end if;
+
+  perform set_config('storage.allow_delete_query', 'true', true);
 
   delete from storage.objects
   where bucket_id = 'avatars'
@@ -1909,6 +1992,87 @@ begin
 end $$;
 
 reset role;
+
+-- ---------------------------------------------------------------------------
+-- G. The grant matrix itself
+-- ---------------------------------------------------------------------------
+-- Every check above tests a policy. These three test the privilege underneath
+-- it, because a policy is only the inner lock.
+--
+-- This exists because the outer lock was missing everywhere. Supabase's default
+-- privileges grant ALL on a new public table to anon and authenticated, and
+-- every Teams migration revoked from `PUBLIC, anon` and forgot authenticated —
+-- so eighteen tables shipped with authenticated holding INSERT, UPDATE, DELETE
+-- and TRUNCATE. 20260907150000 took them back. A regex over the migrations
+-- could not have caught it and cannot catch the next one: the grant that
+-- matters is the one the database ended up with, so it is read from the
+-- database.
+
+do $$
+declare
+  v_offenders text;
+begin
+  -- G1: no client role may write to a Teams table, with the two documented
+  -- exceptions the client's own code needs.
+  select coalesce(string_agg(format('%s:%s:%s', g.grantee, g.table_name, g.privilege_type), ', '
+           order by g.table_name, g.grantee, g.privilege_type), 'none')
+    into v_offenders
+  from information_schema.role_table_grants g
+  where g.table_schema = 'public'
+    and g.grantee in ('anon', 'authenticated', 'PUBLIC')
+    and g.privilege_type in ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER')
+    and g.table_name in (
+      'editions', 'teams', 'team_members', 'team_config_versions',
+      'team_config_newsletter_topics', 'team_config_mini_case_topics',
+      'logical_questions', 'logical_question_options', 'logical_question_locales',
+      'logical_question_option_locales', 'solo_question_assignments',
+      'team_question_assignments', 'team_content_assignments', 'question_attempts',
+      'team_question_scores', 'team_member_edition_scores', 'notification_outbox'
+    );
+
+  perform pg_temp.record(210, 'G1 no client role holds a write privilege on a Teams table',
+    'none', v_offenders);
+
+  -- G2: the two that do take writes take exactly the writes they need.
+  select coalesce(string_agg(format('%s:%s:%s', g.grantee, g.table_name, g.privilege_type), ', '
+           order by g.table_name, g.grantee, g.privilege_type), 'none')
+    into v_offenders
+  from information_schema.role_table_grants g
+  where g.table_schema = 'public'
+    and g.table_name in ('user_blocks', 'user_reports')
+    and g.grantee in ('anon', 'authenticated', 'PUBLIC')
+    and not (
+      g.grantee = 'authenticated'
+      and (
+        (g.table_name = 'user_blocks' and g.privilege_type in ('SELECT', 'INSERT', 'DELETE'))
+        or (g.table_name = 'user_reports' and g.privilege_type in ('SELECT', 'INSERT'))
+      )
+    );
+
+  perform pg_temp.record(211, 'G2 the two writable tables grant nothing beyond their own contract',
+    'none', v_offenders);
+
+  -- G3: anon reaches none of it, read included. Every Teams surface is behind a
+  -- sign-in; anon holding SELECT anywhere here is a mistake whatever the policy
+  -- says.
+  select coalesce(string_agg(format('%s:%s', g.table_name, g.privilege_type), ', '
+           order by g.table_name, g.privilege_type), 'none')
+    into v_offenders
+  from information_schema.role_table_grants g
+  where g.table_schema = 'public'
+    and g.grantee in ('anon', 'PUBLIC')
+    and g.table_name in (
+      'editions', 'teams', 'team_members', 'team_config_versions',
+      'team_config_newsletter_topics', 'team_config_mini_case_topics',
+      'logical_questions', 'logical_question_options', 'logical_question_locales',
+      'logical_question_option_locales', 'solo_question_assignments',
+      'team_question_assignments', 'team_content_assignments', 'question_attempts',
+      'team_question_scores', 'team_member_edition_scores', 'user_blocks',
+      'user_reports', 'notification_outbox'
+    );
+
+  perform pg_temp.record(212, 'G3 anon holds nothing on any Teams table', 'none', v_offenders);
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- Report

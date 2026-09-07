@@ -31,12 +31,30 @@ const PROJECTS = [
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
 
-if (!token) {
-  console.error(
-    "SUPABASE_ACCESS_TOKEN is required.\n" +
-      "Create one at https://supabase.com/dashboard/account/tokens and export it for this command only.",
+/**
+ * Two questions, and only one of them needs the network.
+ *
+ * DRIFT — "would db push replay anything?" — is a comparison against a remote
+ * history and cannot be answered offline.
+ *
+ * FILENAMES — "is every version a real UTC timestamp, unique, and in order?" —
+ * is a property of the files in this repository and needs nothing at all. It
+ * used to be locked behind the token anyway, so the one migration that shipped
+ * with an impossible timestamp (20260906106000: minute 60) sat unnoticed
+ * through every run made without one.
+ *
+ * So --offline answers the second question and says plainly that it did not
+ * answer the first. Passing no token does the same rather than exiting 2: a
+ * check that refuses to run is a check nobody runs.
+ */
+const offline = process.argv.includes("--offline") || !token;
+
+if (offline && !process.argv.includes("--offline")) {
+  console.log(
+    "SUPABASE_ACCESS_TOKEN is not set, so remote drift cannot be checked.\n" +
+      "Auditing migration filenames only. For the full check, export a token from\n" +
+      "https://supabase.com/dashboard/account/tokens for this command only.\n",
   );
-  process.exit(2);
 }
 
 async function remoteVersions(ref) {
@@ -105,16 +123,35 @@ let replayRisk = 0;
 let malformed = 0;
 
 for (const project of PROJECTS) {
-  const [remote, local] = await Promise.all([remoteVersions(project.ref), localVersions(project.dir)]);
+  const local = await localVersions(project.dir);
+  const remote = offline ? new Map() : await remoteVersions(project.ref);
 
-  const pending = [...local.keys()].filter((version) => !remote.has(version)).sort();
-  const orphans = [...remote.keys()].filter((version) => !local.has(version)).sort();
+  const pending = offline ? [] : [...local.keys()].filter((version) => !remote.has(version)).sort();
+  const orphans = offline ? [] : [...remote.keys()].filter((version) => !local.has(version)).sort();
 
   console.log(
-    `${pending.length === 0 ? "\u2713" : "\u2717"} ${project.name} (${project.ref}) \u2014 ` +
-      `${local.size} local, ${remote.size} remote, ` +
-      `${pending.length} pending, ${orphans.length} orphaned`,
+    offline
+      ? `\u2022 ${project.name} (${project.ref}) \u2014 ${local.size} local files, remote not consulted`
+      : `${pending.length === 0 ? "\u2713" : "\u2717"} ${project.name} (${project.ref}) \u2014 ` +
+          `${local.size} local, ${remote.size} remote, ` +
+          `${pending.length} pending, ${orphans.length} orphaned`,
   );
+
+  // Duplicate versions. Two files claiming one version means one of them is
+  // recorded and the other silently is not, whichever way the CLI breaks the
+  // tie — so it is an error here rather than a curiosity.
+  const byVersion = new Map();
+  for (const file of await readdir(project.dir)) {
+    if (!file.endsWith(".sql")) continue;
+    const version = file.slice(0, file.indexOf("_"));
+    byVersion.set(version, [...(byVersion.get(version) ?? []), file]);
+  }
+
+  for (const [version, files] of [...byVersion.entries()].sort()) {
+    if (files.length < 2) continue;
+    malformed += 1;
+    console.log(`    DUPLICATE: ${version} is claimed by ${files.join(" and ")}`);
+  }
 
   // The question that matters: would anything already applied be run again?
   for (const version of pending) {
@@ -157,9 +194,11 @@ for (const project of PROJECTS) {
 }
 
 console.log(
-  replayRisk === 0
-    ? "\nNo migration already applied would be replayed on either project."
-    : "\nA local migration is missing from a remote history: db push would run it.",
+  offline
+    ? "\nFilenames only. Remote drift was NOT checked — export SUPABASE_ACCESS_TOKEN for that."
+    : replayRisk === 0
+      ? "\nNo migration already applied would be replayed on either project."
+      : "\nA local migration is missing from a remote history: db push would run it.",
 );
 
 if (malformed > 0) {

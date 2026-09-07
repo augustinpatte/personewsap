@@ -448,7 +448,7 @@ REVOKE ALL ON TABLE public.team_config_mini_case_topics FROM PUBLIC, anon;
 -- it, including the invite code the owner is supposed to control and the name a
 -- moderator has hidden. Members read `public.team_directory` instead, which is
 -- the same rows with the unsafe columns removed and the name sanitised;
--- 20260906106000 creates it and grants it.
+-- 20260906110000 creates it and grants it.
 GRANT SELECT ON TABLE public.team_members TO authenticated;
 GRANT SELECT ON TABLE public.team_config_versions TO authenticated;
 GRANT SELECT ON TABLE public.team_config_newsletter_topics TO authenticated;

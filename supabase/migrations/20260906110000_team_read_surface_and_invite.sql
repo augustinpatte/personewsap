@@ -54,7 +54,22 @@ BEGIN;
 -- The client renders its own fallback, and a client that forgets renders
 -- nothing — which is the safe failure.
 
-CREATE OR REPLACE VIEW public.team_directory AS
+-- DROP, not CREATE OR REPLACE. Two reasons, both fatal without it.
+--
+-- 1. 20260906095000 created this view with a column called `name`. Postgres
+--    refuses to rename a view column through CREATE OR REPLACE
+--    (42P16: cannot change name of view column "name" to "display_name"), so a
+--    database replayed from zero stops dead on this statement.
+-- 2. That earlier view was security_invoker. CREATE OR REPLACE keeps the option,
+--    and an invoker-rights view over a table `authenticated` holds nothing on
+--    returns no rows to anybody — the exact opposite of the owner-rights
+--    contract the block above describes.
+--
+-- Dropping and recreating settles both: the shape is whatever this file says,
+-- and the rights are owner rights, restated explicitly below.
+DROP VIEW IF EXISTS public.team_directory;
+
+CREATE VIEW public.team_directory AS
 SELECT
   t.id,
   CASE WHEN t.name_status = 'hidden' THEN NULL ELSE t.name END AS display_name,
@@ -67,6 +82,9 @@ SELECT
   t.updated_at
 FROM public.teams t
 WHERE public.is_active_team_member(t.id);
+
+-- Owner rights, stated rather than inherited from the server default.
+ALTER VIEW public.team_directory SET (security_invoker = false);
 
 COMMENT ON VIEW public.team_directory IS
   'The member-safe projection of public.teams: no invite code, no owner id, and a display_name already resolved through moderation. Owner rights, because authenticated holds nothing on public.teams — so the is_active_team_member predicate in the view IS the access rule, not a convenience.';
