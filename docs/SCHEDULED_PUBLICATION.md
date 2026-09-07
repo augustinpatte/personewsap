@@ -17,14 +17,19 @@ pg_cron (staging)                17:00 and 18:00 UTC, every day
        guard: is it 19:00 in Europe/Paris, on a publication day?   ── no ──▶ stop
        └─ net.http_post ──▶ personews-scheduled-publisher   (staging Edge Function)
             └─ get_scheduled_edition_publish_plan(edition_date)     (staging SQL)
-                 = assert_edition_publishable()  +  get_ready_batch_payload()
+                 = assert_edition_publishable()
+                 + assert_edition_questions_publishable()
+                 + get_ready_batch_payload()
                  └─ gate refuses ──▶ audit row, nothing written, done
             └─ POST personews-task-publisher  (production Edge Function)
-                 action=publish ─▶ publish_scheduled_staging_payload()  (one transaction)
+                 action=publish ─▶ 1. publish_scheduled_staging_payload()  (one transaction)
+                                   2. publish_scheduled_batch_questions()  (questions)
+                                   3. materialize_edition_assignments()    (who is asked what)
             └─ POST personews-task-publisher
-                 action=verify  ─▶ verify_scheduled_edition()          (read-only)
-                 └─ verification fails ──▶ audit row, NO receipt, done
-                 └─ verification ok ────▶ release_verified_edition_notifications()
+                 action=verify  ─▶ verify_scheduled_edition()       (content, read-only)
+                                 + verify_scheduled_edition_game()  (questions + assignments)
+                 └─ either fails ──────▶ audit row, NO receipt, done
+                 └─ both ok ───────────▶ release_verified_edition_notifications()
             └─ mark_batch_published()                                  (staging SQL)
             └─ audit row: published
 ```
@@ -83,6 +88,29 @@ every one of these holds:
 - `validate_generation_output(job_id, output_json, source_records)` re-run from
   scratch on the stored bytes returns `valid = true`.
 
+**The questions** (`assert_edition_questions_publishable`, run second)
+
+A batch dated on or after the cutover — or one that declares
+`metadata.scored_questions = true`, or whose `prompt_bundle_version` names the
+contract — must also carry a valid scored-question set on every job:
+
+- 2 questions for a newsletter and a business story
+  (`interpretation`, `application_decision`), 3 for a mini case
+  (`method_framework`, `technical_application`, `conclusion_decision`), pinned to
+  their position;
+- exactly 4 options per question, ids unique, texts distinct, **exactly one
+  option per tier** 0 / 300 / 600 / 1000, feedback on every option, and the five
+  `rationale` fields the Reviewer needs in order to be able to disagree;
+- FR/EN parity: same question ids in the same order, same roles, same option ids,
+  same tier per option id — and different wording, because an option identical
+  across the two languages was copied rather than written.
+
+Batches before the cutover are **legacy** and are never retroactively
+invalidated: two months of approved Premium predates the contract and publishes
+exactly as it always did. The verdict says `legacy_batch` rather than staying
+silent, so an edition going out without questions is something an operator can
+see happening.
+
 If any single condition fails, nothing publishes. 22 of 23 approved is zero
 editions. 23 of 23 approved with one preflight failure is zero editions.
 
@@ -121,7 +149,8 @@ production never holds a staging one.
   Staging holds the token (`PERSONEWS_PRODUCTION_PUBLISH_TOKEN`); production holds
   only its SHA-256 hash (`PERSONEWS_PUBLISH_TOKEN_SHA256`).
 - inside production, `personews-task-publisher` uses that project's own injected
-  service-role key and calls nothing but the two canonical RPCs.
+  service-role key and calls nothing but the canonical RPCs: the three publish
+  stages, the two verifications, and the notification release.
 - pg_cron → the staging Edge Function is authenticated the same way, with the
   token held in Vault (`personews_scheduled_publisher_token`) and its hash in
   `SCHEDULED_PUBLISHER_TOKEN_SHA256`.
@@ -131,6 +160,41 @@ comparing its injected `SUPABASE_URL` against the ref it expects.
 
 No service-role key appears in this repository, in any migration, in any log line,
 or in any client bundle.
+
+## Publishing is three stages
+
+`action=publish` runs three RPCs in order, and the order is forced by the data:
+questions need both language items to exist (so they cannot live inside the
+publishing transaction), and assignments need the questions **and** the daily
+drops — a solo assignment is derived from the reader's own edition, and the
+edition row itself is registered by the drop's publish trigger.
+
+Only the first stage throws. Before it commits, a throw means the database is
+untouched and the scheduler records a clean refusal. After it commits, a throw
+would answer the scheduler HTTP 500 for content that is already on readers'
+phones — so stages 2 and 3 report a receipt instead:
+
+```json
+{ "published": true,
+  "stages": {
+    "content":     { "status": "ok", "result": { … } },
+    "questions":   { "status": "failed", "error": "…" },
+    "assignments": { "status": "ok", "result": { … } } } }
+```
+
+A failed stage is not a silent one. Verification reads the questions and the
+assignments too, so it fails; no receipt is written in staging; the gate offers
+the same batch again; and every stage is idempotent, so the retry completes the
+edition instead of duplicating it.
+
+To retry only the tail, without touching editorial content at all:
+
+```json
+{ "action": "publish", "stages": ["questions", "assignments"], "payload": …, "run_id": … }
+```
+
+That exists so "retry the question pass" never has to be spelled "republish the
+edition".
 
 ## Idempotence
 
@@ -205,6 +269,17 @@ SUPABASE_ACCESS_TOKEN=sbp_… npm run publisher:test:sql   # the real SQL, rolle
 - `supabase/tests/scheduled_edition_publication.test.sql` — production's own
   refusals, proving it is a second independent line of defence rather than a
   restatement of the first.
+- `supabase/functions/personews-task-publisher/core.test.ts` — the three publish
+  stages, including the cases SQL cannot reach: the question pass throwing after
+  the content committed, a tail-only retry, and a verification that is only a
+  verification when both halves pass.
+
+The staging preflight migration is not applied yet, so the gate suite needs it
+inlined:
+
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_… npm run publisher:test:sql:dry   # migrations inlined, rolled back
+```
 
 Neither SQL suite creates, modifies or deletes any editorial content, and neither
 can publish anything: every scenario is a refusal or a read.

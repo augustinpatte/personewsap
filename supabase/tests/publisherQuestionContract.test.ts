@@ -19,12 +19,30 @@ import { describe, expect, it } from "vitest";
  * in the product would be trivially winnable.
  */
 
-const migration = readFileSync(
-  join(__dirname, "..", "migrations", "20260906100000_publish_scored_questions.sql"),
-  "utf8"
-);
+function read(...parts: string[]): string {
+  return readFileSync(join(__dirname, "..", "..", ...parts), "utf8");
+}
 
-const code = migration.replace(/^\s*--.*$/gm, "");
+/** SQL with full-line comments removed, so prose is never a finding. */
+function stripComments(sql: string): string {
+  return sql.replace(/^\s*--.*$/gm, "");
+}
+
+const migration = read("supabase", "migrations", "20260906100000_publish_scored_questions.sql");
+const verification = read("supabase", "migrations", "20260906105000_verify_edition_game.sql");
+const preflight = read(
+  "supabase-staging",
+  "supabase",
+  "migrations",
+  "20260906110000_scored_question_preflight.sql"
+);
+const publisherCore = read("supabase", "functions", "personews-task-publisher", "core.ts");
+const publisherEntry = read("supabase", "functions", "personews-task-publisher", "index.ts");
+const bridge = read("supabase", "functions", "personews-task-bridge", "index.ts");
+
+const code = stripComments(migration);
+const verificationCode = stripComments(verification);
+const preflightCode = stripComments(preflight);
 
 describe("the metadata leak", () => {
   it("strips the question block out of the published metadata", () => {
@@ -183,5 +201,214 @@ describe("what it does not touch", () => {
     ]) {
       expect(code, forbidden).not.toContain(forbidden);
     }
+  });
+});
+
+describe("the staging preflight knows about questions", () => {
+  it("requires the right count and roles per surface", () => {
+    // The three surfaces, and the mini case progression that IS the exercise.
+    expect(preflightCode).toContain("array['interpretation', 'application_decision']");
+    expect(preflightCode).toContain(
+      "array['method_framework', 'technical_application', 'conclusion_decision']"
+    );
+    expect(preflightCode).toContain(
+      "case when v_job.content_type = 'mini_case' then c_case_roles else c_reading_roles end"
+    );
+    // Pinned to the position, not merely constrained to a list.
+    expect(preflightCode).toContain("v_roles[v_index]");
+  });
+
+  it("requires exactly one option per tier", () => {
+    expect(preflightCode).toContain("array[0, 300, 600, 1000]");
+    expect(preflightCode).toContain("question_score_tier_set_invalid");
+    // DISTINCT plus a NULL for anything off-scale, so a repeated tier, a missing
+    // tier and an invented score are one comparison.
+    expect(preflightCode).toMatch(
+      /array_agg\(distinct public\.scored_question_tier\(o\)[\s\S]{0,400}v_tiers is distinct from c_tiers/
+    );
+  });
+
+  it("requires four options, feedback and a defensible rationale", () => {
+    expect(preflightCode).toContain("question_option_count_invalid");
+    expect(preflightCode).toContain("question_feedback_missing");
+    expect(preflightCode).toContain("question_rationale_incomplete");
+
+    for (const field of [
+      "decision_criterion",
+      "excellent_reason",
+      "good_limitation",
+      "average_limitation",
+      "bad_failure"
+    ]) {
+      expect(preflightCode, field).toContain(field);
+    }
+  });
+
+  it("checks FR/EN parity structurally and refuses a copy", () => {
+    expect(preflightCode).toContain("question_parity_id_mismatch");
+    expect(preflightCode).toContain("question_parity_role_mismatch");
+    expect(preflightCode).toContain("question_parity_option_missing");
+    expect(preflightCode).toContain("question_parity_tier_mismatch");
+    // Identical wording is the parity failure that looks like parity.
+    expect(preflightCode).toContain("question_parity_text_identical");
+  });
+
+  it("never invalidates a legacy batch retroactively", () => {
+    expect(preflightCode).toContain("batch_requires_scored_questions");
+    expect(preflightCode).toContain("legacy_batch");
+    // A declaration or a date, never "the field happens to be absent" — absence
+    // is exactly what a broken new generator produces.
+    expect(preflightCode).toContain("metadata->>'scored_questions'");
+    expect(preflightCode).toContain("scored_question_cutover_edition");
+  });
+
+  it("makes the requirement automatic for anything new", () => {
+    expect(preflightCode).toContain(
+      "return v_batch.edition_date >= public.scored_question_cutover_edition();"
+    );
+  });
+
+  it("is wired into the publisher's single entry point", () => {
+    // A gate nothing calls is documentation.
+    expect(preflightCode).toContain("create or replace function public.get_scheduled_edition_publish_plan");
+    expect(preflightCode).toContain("v_questions := public.assert_edition_questions_publishable(p_edition_date);");
+    expect(preflightCode).toMatch(/scored_questions_invalid[\s\S]{0,200}'ready_payload', null/);
+  });
+
+  it("does not blind-replace the editorial validator it cannot see", () => {
+    // `validate_generation_output` has no file in this repository — it is one of
+    // the migrations applied directly to staging. Rewriting it from memory would
+    // risk rejecting every correct article at 19:00 for a reason nobody could
+    // read.
+    expect(preflightCode).not.toMatch(
+      /create or replace function public\.validate_generation_output/i
+    );
+    expect(preflightCode).not.toMatch(
+      /create or replace function public\.get_ready_batch_payload/i
+    );
+    expect(preflightCode).not.toMatch(
+      /create or replace function public\.assert_edition_publishable/i
+    );
+  });
+
+  it("keeps the contract out of every client role", () => {
+    for (const fn of [
+      "scored_question_contract()",
+      "validate_generation_questions(uuid, jsonb)",
+      "assert_edition_questions_publishable(date)"
+    ]) {
+      expect(preflightCode, fn).toContain(
+        `revoke all on function public.${fn} from public, anon, authenticated;`
+      );
+      expect(preflightCode, fn).toContain(`grant execute on function public.${fn} to service_role;`);
+    }
+  });
+});
+
+describe("the generators can actually read the contract", () => {
+  it("travels in the manifest the Scheduled Tasks fetch", () => {
+    // A prompt file in the repository is not reachable from a ChatGPT Scheduled
+    // Task. This manifest is the only thing they read.
+    expect(bridge).toContain("scored_question_contract: questionContract");
+    expect(bridge).toContain('supabase.rpc("scored_question_contract")');
+  });
+
+  it("is fetchable on its own for the reviewer", () => {
+    expect(bridge).toContain('action === "question_contract"');
+  });
+
+  it("degrades instead of blocking an edition", () => {
+    // Losing an edition because a contract could not be read would be worse than
+    // the failure the contract exists to prevent.
+    expect(bridge).toContain("available: false");
+  });
+});
+
+describe("the publisher runs the question and assignment passes", () => {
+  it("calls all three RPCs, in pipeline order", () => {
+    expect(publisherEntry).toContain('supabase.rpc("publish_scheduled_staging_payload"');
+    expect(publisherEntry).toContain('supabase.rpc("publish_scheduled_batch_questions"');
+    expect(publisherEntry).toContain('supabase.rpc("materialize_edition_assignments"');
+    expect(publisherCore).toContain(
+      'export const PUBLISH_STAGES = ["content", "questions", "assignments"] as const;'
+    );
+  });
+
+  it("keys the assignment pass on the payload's edition date, never the request's", () => {
+    expect(publisherEntry).toContain("const editionDate = batch.edition_date;");
+    expect(publisherEntry).toContain("isEditionDate(editionDate)");
+  });
+
+  it("lets only the content stage throw", () => {
+    // Before the publishing transaction commits, a throw means the database is
+    // untouched. After it commits, a throw would report a live edition as failed.
+    expect(publisherCore).toContain("contentResult = await deps.publishContent(payload, runId);");
+    expect(publisherCore).toMatch(
+      /receipts\.questions = \{ status: "ok"[\s\S]{0,200}catch \(error\)[\s\S]{0,120}status: "failed"/
+    );
+    expect(publisherCore).toMatch(
+      /receipts\.assignments = \{[\s\S]{0,220}catch \(error\)[\s\S]{0,120}status: "failed"/
+    );
+  });
+
+  it("verifies both halves before a receipt can be written", () => {
+    expect(publisherEntry).toContain('supabase.rpc(\n          "verify_scheduled_edition_game"');
+    expect(publisherCore).toContain("ok: editorialOk && gameOk");
+  });
+});
+
+describe("verifying that the edition is playable", () => {
+  it("derives the expected question count from the published composition", () => {
+    // 16/32, 1/2, 6/18 are the right numbers for the canonical batch and are
+    // deliberately not written down: a hardcoded total can pass by coincidence
+    // when the composition is wrong.
+    expect(verificationCode).toContain(
+      "case when p.content_type = 'mini_case' then 3 else 2 end as expected"
+    );
+    expect(verificationCode).not.toMatch(/\b32\b/);
+    expect(verificationCode).not.toMatch(/\b18\b/);
+  });
+
+  it("requires both renderings, four options and four private grades", () => {
+    expect(verificationCode).toContain("question_locale_incomplete");
+    expect(verificationCode).toContain("question_option_count_mismatch");
+    expect(verificationCode).toContain("question_grade_count_mismatch");
+  });
+
+  it("counts the private grade rows without returning one", () => {
+    // A verification that returned the answer key to prove the answer key exists
+    // would be the leak it is checking for.
+    expect(verificationCode).toMatch(
+      /select count\(\*\) from private\.logical_question_grades/
+    );
+    expect(verificationCode).not.toMatch(/select\s+g\.score_milli/);
+    expect(verificationCode).not.toMatch(/rationale_md/);
+    expect(verificationCode).not.toMatch(/feedback_md/);
+  });
+
+  it("fails an edition that shipped grading in client-readable metadata", () => {
+    expect(verificationCode).toContain("answer_key_in_metadata");
+    for (const leak of ["score_milli", "is_correct", "grade_band", "decision_criterion"]) {
+      expect(verificationCode, leak).toContain(leak);
+    }
+  });
+
+  it("checks the assignments, and treats no teams as normal", () => {
+    expect(verificationCode).toContain("solo_assignments_missing");
+    expect(verificationCode).toContain("team_roster_missing");
+    expect(verificationCode).toContain("v_active_teams > 0");
+  });
+
+  it("leaves a legacy edition alone", () => {
+    expect(verificationCode).toContain("edition_expects_questions");
+    expect(verificationCode).toContain("questions_not_expected");
+  });
+
+  it("is read-only and server-only", () => {
+    expect(verificationCode).toContain("stable");
+    expect(verificationCode).not.toMatch(/\b(insert into|update |delete from|create temporary)\b/i);
+    expect(verificationCode).toContain(
+      "revoke all on function public.verify_scheduled_edition_game(date, uuid, text) from public, anon, authenticated;"
+    );
   });
 });

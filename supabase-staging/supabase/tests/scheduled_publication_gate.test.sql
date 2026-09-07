@@ -56,7 +56,14 @@ language sql immutable as $$
   select jsonb_agg('https://example.test/article-' || i) from generate_series(1, p_count) i;
 $$;
 
-create or replace function pg_temp.mini_case_questions() returns jsonb
+/**
+ * The LEGACY question block: one `is_correct`, no tiers, no rationale.
+ *
+ * Kept, and kept working, because two months of approved Premium carries exactly
+ * this shape and the gate must never retroactively invalidate it. Used only by
+ * the legacy scenario below; every other fixture carries the scored contract.
+ */
+create or replace function pg_temp.legacy_mini_case_questions() returns jsonb
 language sql immutable as $$
   select jsonb_agg(jsonb_build_object(
     'role', role,
@@ -68,6 +75,69 @@ language sql immutable as $$
       jsonb_build_object('label','Option D','is_correct',false,'feedback','No.'))
   ))
   from (values (1,'method_framework'),(2,'technical_application'),(3,'conclusion_decision')) v(n, role);
+$$;
+
+/**
+ * The SCORED question block, built to satisfy
+ * `validate_generation_questions` exactly.
+ *
+ * Every negative scenario below starts from this and breaks exactly one thing,
+ * so a failure can only mean the preflight reacted to that one thing.
+ *
+ * The FR and EN halves share ids and tiers and differ in wording — which is the
+ * parity contract, not a stylistic choice: identical text across languages is a
+ * copy, and the preflight rejects it.
+ */
+create or replace function pg_temp.scored_questions(
+  p_content_type text,
+  p_language text
+) returns jsonb
+language sql immutable as $$
+  select jsonb_agg(
+    jsonb_build_object(
+      'id', 'q' || n,
+      'role', role,
+      'question', case when p_language = 'fr'
+        then 'Quelle lecture resiste a la contrainte enoncee, question ' || n || ' ?'
+        else 'Which reading survives the stated constraint, question ' || n || '?' end,
+      'rationale', jsonb_build_object(
+        'decision_criterion', 'Which reading survives the constraint stated in the second paragraph.',
+        'excellent_reason', 'Names the mechanism and the constraint that bounded it.',
+        'good_limitation', 'Names the mechanism but not the constraint.',
+        'average_limitation', 'Restates the outcome without naming a mechanism.',
+        'bad_failure', 'Contradicts what the article establishes.'),
+      'options', jsonb_build_array(
+        pg_temp.scored_option('q' || n, 'a', 1000, p_language),
+        pg_temp.scored_option('q' || n, 'b', 600, p_language),
+        pg_temp.scored_option('q' || n, 'c', 300, p_language),
+        pg_temp.scored_option('q' || n, 'd', 0, p_language)))
+    order by n)
+  from (
+    select n, role from (values
+      (1, case when p_content_type = 'mini_case' then 'method_framework' else 'interpretation' end),
+      (2, case when p_content_type = 'mini_case' then 'technical_application' else 'application_decision' end),
+      (3, 'conclusion_decision')
+    ) v(n, role)
+    where p_content_type = 'mini_case' or n <= 2
+  ) q;
+$$;
+
+create or replace function pg_temp.scored_option(
+  p_question text,
+  p_key text,
+  p_tier int,
+  p_language text
+) returns jsonb
+language sql immutable as $$
+  select jsonb_build_object(
+    'id', p_question || '-' || p_key,
+    'text', case when p_language = 'fr'
+      then 'Reponse ' || upper(p_key) || ' en francais pour ' || p_question
+      else 'Answer ' || upper(p_key) || ' in english for ' || p_question end,
+    'score_milli', p_tier,
+    'feedback', case when p_language = 'fr'
+      then 'Pourquoi cette reponse vaut ' || p_tier || ' points.'
+      else 'Why this answer is worth ' || p_tier || ' points.' end);
 $$;
 
 /**
@@ -94,6 +164,7 @@ begin
       'title','Newsletter title','topic',p_topic,'source_urls',v_urls,'version',1,
       'published_date','2027-01-04','summary','A short summary of the article.',
       'body_md', pg_temp.words(coalesce(p_body_words, 240)),
+      'questions', pg_temp.scored_questions('newsletter_article', p_language),
       'why_it_matters','Why this matters to the reader.');
   end if;
 
@@ -106,6 +177,7 @@ begin
       'decision', pg_temp.words(210), 'outcome', pg_temp.words(210),
       'lesson','The lesson of the story.',
       'body_md', pg_temp.words(coalesce(p_body_words, 840)),
+      'questions', pg_temp.scored_questions('business_story', p_language),
       'editorial_memory', jsonb_build_object(
         'entity_name','Example Corp','entity_type','company','main_company','Example Corp',
         'companies_mentioned', jsonb_build_array('Example Corp'),
@@ -126,7 +198,7 @@ begin
     'core_takeaway','Margin structure decides the answer.','difficulty','medium',
     'context','The context of the case.','challenge','The challenge to resolve.',
     'constraints','The binding constraints.','question','The central question.',
-    'questions', pg_temp.mini_case_questions(),
+    'questions', pg_temp.scored_questions('mini_case', p_language),
     'expected_reasoning','The reasoning a strong answer follows.',
     'sample_answer','A model answer.','conclusion','The conclusion.',
     'final_takeaway','The final takeaway.','score_max',3,
@@ -649,6 +721,276 @@ begin
     (v_gate->>'ok') || ':' || (v_gate->>'reason'));
   perform pg_temp.record(14, 'R3 its status was left alone', 'published',
     (select status from public.automation_batches where id = v_batch));
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Test 15 — the scored-question preflight
+-- ---------------------------------------------------------------------------
+-- Every scenario here starts from the same complete, publishable edition and
+-- breaks exactly one thing about one job's questions. The property under test is
+-- that a defective question set stops the edition BEFORE it publishes: after
+-- publication the article is live and a missing question set means a reader
+-- opening a challenge that does not exist.
+
+/** Replace one job's stored output with a mutated copy of itself. */
+create or replace function pg_temp.break_questions(
+  p_batch uuid,
+  p_content_type text,
+  p_mutation text
+) returns uuid
+language plpgsql as $$
+declare
+  v_job uuid;
+  v_output uuid;
+  v_json jsonb;
+  v_questions jsonb;
+begin
+  select j.id, o.id, o.output_json into v_job, v_output, v_json
+  from public.generation_jobs j
+  join public.generation_outputs o on o.job_id = j.id and o.attempt = j.attempt_count
+  where j.batch_id = p_batch and j.content_type = p_content_type
+  order by j.ordinal, j.id
+  limit 1;
+
+  if p_mutation = 'missing_q2' then
+    -- The whole second question is gone from one language only, which is also
+    -- the shape a truncated model response produces.
+    v_json := jsonb_set(v_json, '{en,questions}',
+      jsonb_build_array(v_json->'en'->'questions'->0));
+
+  elsif p_mutation = 'five_options' then
+    v_questions := v_json->'en'->'questions';
+    v_json := jsonb_set(v_json, '{en,questions,1,options}',
+      (v_questions->1->'options') || jsonb_build_array(
+        pg_temp.scored_option('q2', 'e', 600, 'en')));
+
+  elsif p_mutation = 'wrong_tier' then
+    -- 450 is not a tier. The set check catches it as a hole in 0/300/600/1000
+    -- rather than as an unknown number, which is the same finding either way.
+    v_json := jsonb_set(v_json, '{en,questions,0,options,2,score_milli}', to_jsonb(450));
+    v_json := jsonb_set(v_json, '{fr,questions,0,options,2,score_milli}', to_jsonb(450));
+
+  elsif p_mutation = 'duplicate_tier' then
+    v_json := jsonb_set(v_json, '{en,questions,0,options,2,score_milli}', to_jsonb(600));
+    v_json := jsonb_set(v_json, '{fr,questions,0,options,2,score_milli}', to_jsonb(600));
+
+  elsif p_mutation = 'parity_option_mismatch' then
+    -- Same question, a different option id in French: the two languages stop
+    -- being one game and an answer cannot be matched across them.
+    v_json := jsonb_set(v_json, '{fr,questions,0,options,1,id}', to_jsonb('q1-z'::text));
+
+  elsif p_mutation = 'parity_tier_mismatch' then
+    v_json := jsonb_set(v_json, '{fr,questions,0,options,0,score_milli}', to_jsonb(300));
+    v_json := jsonb_set(v_json, '{fr,questions,0,options,2,score_milli}', to_jsonb(1000));
+
+  elsif p_mutation = 'parity_text_identical' then
+    v_json := jsonb_set(v_json, '{fr,questions,0,options,0,text}',
+      v_json->'en'->'questions'->0->'options'->0->'text');
+
+  elsif p_mutation = 'wrong_role_order' then
+    -- The mini-case progression, inverted. It is the exercise, so the position
+    -- of each role is pinned rather than merely constrained to a list.
+    v_json := jsonb_set(v_json, '{en,questions,0,role}', to_jsonb('conclusion_decision'::text));
+    v_json := jsonb_set(v_json, '{en,questions,2,role}', to_jsonb('method_framework'::text));
+    v_json := jsonb_set(v_json, '{fr,questions,0,role}', to_jsonb('conclusion_decision'::text));
+    v_json := jsonb_set(v_json, '{fr,questions,2,role}', to_jsonb('method_framework'::text));
+
+  elsif p_mutation = 'no_questions' then
+    v_json := (v_json #- '{en,questions}') #- '{fr,questions}';
+
+  elsif p_mutation = 'no_feedback' then
+    v_json := jsonb_set(v_json, '{en,questions,0,options,0,feedback}', to_jsonb(''::text));
+
+  elsif p_mutation = 'no_rationale' then
+    v_json := v_json #- '{en,questions,0,rationale}';
+
+  else
+    raise exception 'unknown mutation %', p_mutation;
+  end if;
+
+  update public.generation_outputs set output_json = v_json where id = v_output;
+
+  return v_job;
+end;
+$$;
+
+/** `ok:reason` for the question gate, the same shape pg_temp.verdict uses. */
+create or replace function pg_temp.question_verdict(p_date date) returns text
+language sql as $$
+  select (g->>'ok') || ':' || (g->>'reason')
+  from (select public.assert_edition_questions_publishable(p_date) as g) s;
+$$;
+
+/** Does the question gate report this error code for this edition? */
+create or replace function pg_temp.question_error(p_date date, p_code text) returns text
+language sql as $$
+  select exists (
+    select 1
+    from jsonb_array_elements(public.assert_edition_questions_publishable(p_date)->'blockers') b,
+         jsonb_array_elements(b->'errors') e
+    where e->>'code' = p_code
+  )::text;
+$$;
+
+do $$
+declare v_batch uuid;
+begin
+  -- ---- the happy case ------------------------------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-01'::date, 'daily');          -- Monday
+  perform pg_temp.record(15, 'Q1 a complete scored batch passes the question gate', 'true:ok',
+    pg_temp.question_verdict('2027-03-01'));
+  perform pg_temp.record(15, 'Q1 all 23 jobs carry valid questions', '23:23',
+    (public.assert_edition_questions_publishable('2027-03-01')->>'jobs_checked') || ':' ||
+    (public.assert_edition_questions_publishable('2027-03-01')->>'jobs_with_valid_questions'));
+  perform pg_temp.record(15, 'Q1 the editorial gate still passes too', 'true:ok',
+    pg_temp.verdict('2027-03-01'));
+  perform pg_temp.record(15, 'Q1 the plan carries the contract version', 'scored-questions-v1',
+    public.get_scheduled_edition_publish_plan('2027-03-01')->'gate'->'question_gate'->>'contract_version');
+
+  -- ---- a missing question --------------------------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-03'::date, 'daily');           -- Wednesday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'missing_q2');
+  perform pg_temp.record(15, 'Q2 a missing question refuses the edition',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-03'));
+  perform pg_temp.record(15, 'Q2 the count is what is reported', 'true',
+    pg_temp.question_error('2027-03-03', 'question_count_invalid'));
+  perform pg_temp.record(15, 'Q2 no payload is offered', 'true',
+    (public.get_scheduled_edition_publish_plan('2027-03-03')->'ready_payload' = 'null'::jsonb)::text);
+  perform pg_temp.record(15, 'Q2 the plan names the question gate as the reason',
+    'scored_questions_invalid',
+    public.get_scheduled_edition_publish_plan('2027-03-03')->'gate'->>'reason');
+  -- The editorial gate is untouched by a question defect: the article is fine.
+  perform pg_temp.record(15, 'Q2 the editorial gate still says the content is fine', 'true:ok',
+    pg_temp.verdict('2027-03-03'));
+
+  -- ---- five options --------------------------------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-05'::date, 'daily');           -- Friday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'five_options');
+  perform pg_temp.record(15, 'Q3 a fifth option refuses the edition',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-05'));
+  perform pg_temp.record(15, 'Q3 the option count is what is reported', 'true',
+    pg_temp.question_error('2027-03-05', 'question_option_count_invalid'));
+
+  -- ---- a score outside the four tiers --------------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-08'::date, 'daily');           -- Monday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'wrong_tier');
+  perform pg_temp.record(15, 'Q4 a score outside the four tiers refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-08'));
+  perform pg_temp.record(15, 'Q4 the tier set is what is reported', 'true',
+    pg_temp.question_error('2027-03-08', 'question_score_tier_set_invalid'));
+
+  -- ---- the same tier twice -------------------------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-10'::date, 'daily');           -- Wednesday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'duplicate_tier');
+  perform pg_temp.record(15, 'Q5 two options sharing a tier refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-10'));
+  perform pg_temp.record(15, 'Q5 the tier set is what is reported', 'true',
+    pg_temp.question_error('2027-03-10', 'question_score_tier_set_invalid'));
+
+  -- ---- FR/EN option id mismatch -------------------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-12'::date, 'daily');           -- Friday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'parity_option_mismatch');
+  perform pg_temp.record(15, 'Q6 an option present in one language only refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-12'));
+  perform pg_temp.record(15, 'Q6 parity is what is reported', 'true',
+    pg_temp.question_error('2027-03-12', 'question_parity_option_missing'));
+
+  -- ---- FR/EN grading mismatch ---------------------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-15'::date, 'daily');          -- Monday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'parity_tier_mismatch');
+  perform pg_temp.record(15, 'Q7 the same answer scoring differently by language refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-15'));
+  perform pg_temp.record(15, 'Q7 the tier parity is what is reported', 'true',
+    pg_temp.question_error('2027-03-15', 'question_parity_tier_mismatch'));
+
+  -- ---- one language copied from the other ---------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-17'::date, 'daily');           -- Wednesday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'parity_text_identical');
+  perform pg_temp.record(15, 'Q8 an option copied across languages refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-17'));
+  perform pg_temp.record(15, 'Q8 the copy is what is reported', 'true',
+    pg_temp.question_error('2027-03-17', 'question_parity_text_identical'));
+
+  -- ---- the mini case progression, inverted --------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-19'::date, 'daily');           -- Friday
+  perform pg_temp.break_questions(v_batch, 'mini_case', 'wrong_role_order');
+  perform pg_temp.record(15, 'Q9 a mini case whose roles are out of order refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-19'));
+  perform pg_temp.record(15, 'Q9 the role position is what is reported', 'true',
+    pg_temp.question_error('2027-03-19', 'question_role_invalid'));
+
+  -- ---- no questions at all -------------------------------------------------
+  v_batch := pg_temp.mk_edition('2027-03-22'::date, 'daily');           -- Monday
+  perform pg_temp.break_questions(v_batch, 'business_story', 'no_questions');
+  perform pg_temp.record(15, 'Q10 a job with no questions refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-22'));
+  perform pg_temp.record(15, 'Q10 the absence is what is reported', 'true',
+    pg_temp.question_error('2027-03-22', 'questions_missing'));
+
+  -- ---- an option with nothing to say after the answer ---------------------
+  v_batch := pg_temp.mk_edition('2027-03-24'::date, 'daily');           -- Wednesday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'no_feedback');
+  perform pg_temp.record(15, 'Q11 an option with no feedback refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-24'));
+  perform pg_temp.record(15, 'Q11 the missing feedback is what is reported', 'true',
+    pg_temp.question_error('2027-03-24', 'question_feedback_missing'));
+
+  -- ---- a ranking the reviewer cannot disagree with ------------------------
+  v_batch := pg_temp.mk_edition('2027-03-26'::date, 'daily');           -- Friday
+  perform pg_temp.break_questions(v_batch, 'newsletter_article', 'no_rationale');
+  perform pg_temp.record(15, 'Q12 a question with no rationale refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-03-26'));
+  perform pg_temp.record(15, 'Q12 the rationale is what is reported', 'true',
+    pg_temp.question_error('2027-03-26', 'question_rationale_incomplete'));
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Test 16 — legacy batches are never retroactively invalidated
+-- ---------------------------------------------------------------------------
+-- Two months of approved Premium predates scored questions. A gate that failed
+-- them would refuse to explain editions that are already live, and would turn a
+-- forward-looking contract into a retroactive one.
+
+do $$
+declare v_batch uuid;
+begin
+  -- A batch that declares itself legacy, in a row rather than by staying silent.
+  v_batch := pg_temp.mk_edition('2027-03-29'::date, 'daily');          -- Monday
+  update public.automation_batches
+  set metadata = coalesce(metadata,'{}'::jsonb) || jsonb_build_object('scored_questions', false)
+  where id = v_batch;
+
+  -- Strip the questions entirely: a legacy batch has none, by definition.
+  update public.generation_outputs o
+  set output_json = (o.output_json #- '{en,questions}') #- '{fr,questions}'
+  from public.generation_jobs j
+  where j.id = o.job_id and j.batch_id = v_batch;
+
+  perform pg_temp.record(16, 'L1 a declared legacy batch is not required to carry questions',
+    'true:legacy_batch', pg_temp.question_verdict('2027-03-29'));
+  perform pg_temp.record(16, 'L1 it still publishes', 'true:ok', pg_temp.verdict('2027-03-29'));
+  perform pg_temp.record(16, 'L1 and the plan offers the payload', 'true',
+    (public.get_scheduled_edition_publish_plan('2027-03-29')->'ready_payload' <> 'null'::jsonb)::text);
+
+  -- The legacy mini-case block is still readable material, not a validation error.
+  perform pg_temp.record(16, 'L1 the legacy question shape is still expressible', '3',
+    jsonb_array_length(pg_temp.legacy_mini_case_questions())::text);
+
+  -- ---- and the requirement is automatic for anything new -------------------
+  v_batch := pg_temp.mk_edition('2027-03-31'::date, 'daily');           -- Wednesday
+  perform pg_temp.record(16, 'L2 an undeclared 2027 batch DOES require questions', 'true',
+    public.batch_requires_scored_questions(v_batch)::text);
+
+  -- A batch dated before the cutover does not, without declaring anything.
+  perform pg_temp.record(16, 'L3 the cutover is what makes it automatic', 'true',
+    (public.scored_question_cutover_edition() <= '2027-03-31'::date)::text);
+
+  -- An explicit opt-in via the prompt bundle, for a batch dated before the cutover.
+  update public.automation_batches
+  set prompt_bundle_version = 'scored-questions-v1'
+  where id = v_batch;
+  perform pg_temp.record(16, 'L4 a bundle naming the contract opts in', 'true',
+    public.batch_requires_scored_questions(v_batch)::text);
 end $$;
 
 -- ---------------------------------------------------------------------------

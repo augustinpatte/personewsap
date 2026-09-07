@@ -110,6 +110,7 @@ const EXCLUDED = [
   "20260906102000_team_ownership_and_deletion.sql",
   "20260906103000_team_content_assignments.sql",
   "20260906104000_edition_assignment_engine.sql",
+  "20260906105000_verify_edition_game.sql",
 ];
 
 const outFlag = process.argv.indexOf("--out");

@@ -1383,6 +1383,18 @@ contenu déjà écrit.
 Si le contenu ne passe pas ses gates, ne pas écrire les questions : changer de
 sujet.
 
+## OÙ VIT CE CONTRAT
+
+Ce fichier est la version lisible. La version qui **décide** arrive avec le job,
+dans le manifeste du bridge, sous `scored_question_contract` — et c'est la même
+définition que le préflight de staging applique à 19:00
+(`validate_generation_questions`).
+
+Si les deux divergent, le manifeste gagne : il est ce que la tâche reçoit
+réellement, et ce fichier n'est pas lisible depuis une Scheduled Task. Ne jamais
+recopier ce contrat ailleurs pour l'adapter — le corriger à sa source, dans
+`supabase-staging/.../scored_question_preflight.sql`, et le laisser se propager.
+
 ## PRINCIPE
 
 LE CONTENU FOURNIT LES FAITS.

@@ -291,3 +291,88 @@ describe("the generator preflight", () => {
     expect(preflight).toContain("FIRST SUBMISSION = PUBLISHABLE");
   });
 });
+
+describe("the contract the Scheduled Tasks actually receive", () => {
+  /**
+   * THE THIRD COPY, and the one that decides.
+   *
+   * The prompts in this directory are not reachable from a ChatGPT Scheduled
+   * Task. What a generator actually reads is the manifest served by
+   * `personews-task-bridge`, which now carries `scored_question_contract()` from
+   * the staging preflight migration — and what refuses its work at 19:00 is
+   * `validate_generation_questions` in the same file.
+   *
+   * So the contract exists in three places: this TypeScript, that SQL, and the
+   * prose. The tests above pin the prose to the TypeScript. These pin the SQL to
+   * it too, because a preflight that demanded a different tier set from the one
+   * the generator was handed would reject every correct edition and the prompts
+   * would still look right.
+   */
+  const preflightSql = readFileSync(
+    join(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "..",
+      "supabase-staging",
+      "supabase",
+      "migrations",
+      "20260906110000_scored_question_preflight.sql"
+    ),
+    "utf8"
+  );
+
+  it("is named as the source of truth by every content prompt", () => {
+    // A prompt that reads as the definition invites someone to "fix" the
+    // contract by editing prose the pipeline never loads.
+    for (const name of CONTENT_PROMPTS) {
+      const prompt = read(name);
+      expect(prompt, name).toContain("OÙ VIT CE CONTRAT");
+      expect(prompt, name).toContain("scored_question_contract");
+      expect(prompt, name).toContain("validate_generation_questions");
+    }
+  });
+
+  it("serves the same four tiers the validator enforces", () => {
+    expect(preflightSql).toContain(
+      `'score_tiers', jsonb_build_array(${QUESTION_SCORE_TIERS.join(", ")})`
+    );
+  });
+
+  it("serves the same question counts", () => {
+    expect(preflightSql).toContain("'newsletter_article', 2");
+    expect(preflightSql).toContain("'business_story', 2");
+    expect(preflightSql).toContain("'mini_case', 3");
+  });
+
+  it("serves the same roles, in the same order", () => {
+    expect(preflightSql).toContain(
+      `jsonb_build_array(${READING_QUESTION_ROLES.map((role) => `'${role}'`).join(", ")})`
+    );
+
+    for (const role of MINI_CASE_QUESTION_ROLES) {
+      expect(preflightSql, role).toContain(`'${role}'`);
+    }
+  });
+
+  it("serves the same attempt policy the reviewer scopes describe", () => {
+    expect(preflightSql).toContain("'max_attempts', 3");
+    expect(preflightSql).toContain("There is no attempt 4");
+
+    for (const scope of REVIEW_SCOPES) {
+      expect(preflightSql, scope).toContain(`'${scope}'`);
+    }
+  });
+
+  it("enforces exactly what it serves", () => {
+    // The validator in the same migration, not a second definition of the rule.
+    expect(preflightSql).toContain("c_tiers constant integer[] := array[0, 300, 600, 1000]");
+    expect(preflightSql).toContain(
+      `c_reading_roles constant text[] := array[${READING_QUESTION_ROLES.map((r) => `'${r}'`).join(", ")}]`
+    );
+    expect(preflightSql).toContain(
+      `c_case_roles constant text[] := array[${MINI_CASE_QUESTION_ROLES.map((r) => `'${r}'`).join(", ")}]`
+    );
+  });
+});

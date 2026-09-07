@@ -6,6 +6,12 @@
  * The door the ChatGPT Scheduled Tasks knock on: claim jobs, upload chunked
  * outputs and reviews, read the review queue, read batch status.
  *
+ * It is also the ONLY place the generators can be told what to produce. A prompt
+ * file in the repository is not reachable from a Scheduled Task, so the scored
+ * question contract travels in the `jobs` manifest (and, on its own, through
+ * `action=question_contract`) rather than in a markdown file nobody in the
+ * pipeline opens.
+ *
  * It does NOT publish, and that is the point of this version. Until now,
  * `action=commit` with reviews would notice the batch had become ready and push
  * the edition to production on the spot — which put the final go/no-go inside
@@ -60,6 +66,41 @@ function decodeBase64Url(value: string) {
   return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
 }
 
+/**
+ * The scored-question contract, plus whether this edition's batch is held to it.
+ *
+ * Degrades rather than throws. If the preflight migration has not landed in
+ * staging yet, the generators must still be able to claim their jobs — losing an
+ * edition because a contract could not be read would be a worse failure than the
+ * one this contract exists to prevent. `available: false` says so plainly
+ * instead of pretending there is no contract.
+ */
+async function readQuestionContract(supabase: any, date: string) {
+  try {
+    const { data: contract, error } = await supabase.rpc("scored_question_contract");
+    if (error) throw error;
+
+    const { data: gate } = await supabase.rpc("assert_edition_questions_publishable", {
+      p_edition_date: date,
+    });
+
+    return {
+      available: true,
+      required: gate?.required ?? null,
+      cutover_edition: gate?.cutover_edition ?? null,
+      contract,
+    };
+  } catch (error) {
+    return {
+      available: false,
+      required: null,
+      cutover_edition: null,
+      contract: null,
+      error: String((error as any)?.message ?? error),
+    };
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -91,6 +132,21 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
       const fullJobs = Array.isArray(manifest?.jobs) ? manifest.jobs : [];
       const jobs = fullJobs.filter((ctx: any, index: number) => index % 3 === shard && ["queued", "revision_required"].includes(ctx?.job?.status));
+
+      // THE SCORED-QUESTION CONTRACT, SERVED HERE.
+      //
+      // A markdown file in services/content-engine/prompts is not reachable by a
+      // ChatGPT Scheduled Task. This manifest is the only thing the generators
+      // actually read, so a contract that lives anywhere else is a contract they
+      // do not have — which is how sixteen newsletters get written with no
+      // questions in them and nothing notices until the staging preflight.
+      //
+      // Served from `scored_question_contract()` rather than restated here, so
+      // the generators, the reviewer and the gate that refuses their work all
+      // read one definition. `required` says whether THIS batch must carry it, so
+      // a legacy re-run is not handed a contract it is not held to.
+      const questionContract = await readQuestionContract(supabase, date);
+
       return json({
         bridge_version: "v1",
         edition_date: manifest?.edition_date ?? date,
@@ -102,10 +158,17 @@ Deno.serve(async (req: Request) => {
         source_record_contract: manifest?.source_record_contract ?? null,
         common_runtime_contract: manifest?.common_runtime_contract ?? null,
         review_policy: manifest?.review_policy ?? null,
+        scored_question_contract: questionContract,
         editorial_memory: manifest?.editorial_memory ?? null,
         worker,
         jobs,
       });
+    }
+
+    // The same contract on its own, for the Reviewer task and for anyone
+    // checking what tonight's generators were told.
+    if (action === "question_contract") {
+      return json(await readQuestionContract(supabase, date));
     }
 
     if (action === "chunk") {

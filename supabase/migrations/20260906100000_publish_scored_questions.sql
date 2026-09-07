@@ -95,6 +95,25 @@ BEGIN
     v_en_question := p_en_questions -> v_index;
     v_fr_question := p_fr_questions -> v_index;
 
+    -- EXACTLY ONE OPTION PER TIER. The staging preflight
+    -- (validate_generation_questions) is where this is caught while it is still
+    -- cheap; repeating it here is the last line of defence, because the two
+    -- checks can only disagree if one of them was changed alone — and the one
+    -- that runs after the article is already published is the one that must not
+    -- write a half-graded question set.
+    --
+    -- A question with two 1000s and no 300 is not a scored question: the reader
+    -- cannot lose the points the scale says they can, and the leaderboard stops
+    -- being comparable between two people who answered the same edition.
+    IF (
+      SELECT count(DISTINCT o->>'score_milli')
+      FROM jsonb_array_elements(v_en_question->'options') AS o
+      WHERE o->>'score_milli' IN ('0', '300', '600', '1000')
+    ) <> 4 THEN
+      RAISE EXCEPTION 'question persistence refused: question % must carry exactly one option per tier 0/300/600/1000',
+        v_index + 1;
+    END IF;
+
     -- Parity, checked at the door. The FR and EN renderings must be the same
     -- logical question or a team with readers in both languages is playing two
     -- different games.
@@ -185,8 +204,24 @@ BEGIN
 
       -- The answer key, into the schema PostgREST does not serve. This is the
       -- line that keeps a scored question scoreable and unguessable at once.
+      --
+      -- `->>`, not `->`. `::` binds tighter than `->`, so `x->'rationale'::TEXT`
+      -- parses as `x -> ('rationale'::TEXT)` and yields JSONB — which then
+      -- reaches a TEXT column as its JSON rendering, quotes and escapes and all.
+      -- The rationale is now an object rather than a string, so it is stored as
+      -- pretty JSON: readable to the Reviewer, still private, and no longer a
+      -- double-encoded string nobody can read.
       INSERT INTO private.logical_question_grades (option_id, score_milli, grade_band, rationale_md)
-      VALUES (v_option_id, v_score, v_band, v_en_question->'rationale'::TEXT);
+      VALUES (
+        v_option_id,
+        v_score,
+        v_band,
+        CASE
+          WHEN jsonb_typeof(v_en_question->'rationale') = 'object'
+            THEN jsonb_pretty(v_en_question->'rationale')
+          ELSE v_en_question->>'rationale'
+        END
+      );
 
       IF nullif(btrim(v_en_option->>'feedback'), '') IS NOT NULL THEN
         INSERT INTO private.logical_question_option_feedback (option_id, language, feedback_md)
