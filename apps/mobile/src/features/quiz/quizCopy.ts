@@ -50,7 +50,11 @@ export function getQuizCopy(language: ContentLanguage) {
         completeScore: (earned: string, total: string) => `${earned} of ${total} points`,
         reviewOnly: "Already answered — review only",
         teamBadge: "Team",
+        // Compact on screen; spoken in full, because "plus two" is not a
+        // sentence and a VoiceOver reader gets no other cue.
         teamMore: (count: number) => `+${count}`,
+        teamMoreSpoken: (count: number) =>
+          count === 1 ? "and 1 more team" : `and ${count} more teams`,
         teamHidden: "Team"
       },
       fr: {
@@ -86,6 +90,8 @@ export function getQuizCopy(language: ContentLanguage) {
         reviewOnly: "Déjà répondu — relecture uniquement",
         teamBadge: "Team",
         teamMore: (count: number) => `+${count}`,
+        teamMoreSpoken: (count: number) =>
+          count === 1 ? "et 1 autre team" : `et ${count} autres teams`,
         teamHidden: "Team"
       }
     },

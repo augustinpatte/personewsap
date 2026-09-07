@@ -18,9 +18,18 @@ let hasTwin = true;
 
 vi.stubGlobal("__DEV__", false);
 
+const rpcCalls: string[] = [];
+
 vi.mock("../../lib/supabase", () => ({
   supabase: {
-    from: (table: string) => createQuery(table)
+    from: (table: string) => createQuery(table),
+    // The Team surface, answering "no Team content" — this reader is in none.
+    // Present rather than absent on purpose: a missing `rpc` would make the
+    // loader take its catch-all path and pass for the wrong reason.
+    rpc: async (name: string) => {
+      rpcCalls.push(name);
+      return { data: [], error: null };
+    }
   },
   isLikelyNetworkError: () => false,
   normalizeSupabaseError: (error: unknown, fallback?: string) => ({

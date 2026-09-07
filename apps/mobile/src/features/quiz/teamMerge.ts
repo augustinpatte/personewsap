@@ -35,8 +35,18 @@ export type TeamRef = {
 export type MergeableContent = {
   /** The assigned content_items row id — the anchor every interaction uses. */
   id: string;
-  /** Shared by the FR and EN renderings of one editorial job. */
-  contentLogicalKey?: string | null;
+  /**
+   * Shared by the FR and EN renderings of one editorial job. Named for the
+   * column it comes from, so the content items the readers already hold can be
+   * merged as they are rather than through an adapter that could drop it.
+   */
+  content_logical_key?: string | null;
+  /**
+   * Part of the identity, not decoration: a mini case and a newsletter article
+   * produced by one staging batch can share a logical key, and collapsing them
+   * into one row would lose a reading.
+   */
+  content_type?: string;
 };
 
 export type TeamAssignment<TItem extends MergeableContent> = {
@@ -66,6 +76,10 @@ export type MergedEntry<TItem extends MergeableContent> = {
 /**
  * The identity two routes to the same article must agree on.
  *
+ * It is `content_logical_key` PLUS `content_type`, per the merge rule, and
+ * never the row id — the row id is the translated one, and two readings of one
+ * article in two languages are two row ids.
+ *
  * Falls back to the row id when a logical key is missing — legacy content
  * predates the key, and an item with no key is only ever itself. That fallback
  * is deliberately not silent about what it means: two language renderings of a
@@ -73,8 +87,10 @@ export type MergedEntry<TItem extends MergeableContent> = {
  * same thing.
  */
 export function contentIdentity(item: MergeableContent): string {
-  const key = item.contentLogicalKey?.trim();
-  return key && key.length > 0 ? `logical:${key}` : `item:${item.id}`;
+  const key = item.content_logical_key?.trim();
+  const type = item.content_type ?? "content";
+
+  return key && key.length > 0 ? `logical:${type}:${key}` : `item:${item.id}`;
 }
 
 export function mergeTeamAndPersonalContent<TItem extends MergeableContent>(input: {

@@ -15,12 +15,17 @@ import type { TeamRef } from "./teamMerge";
  * row into a card, and without any of the colour that would make the Newsletter
  * tab look like a game board.
  *
- * The eyebrow reads TEAM and the name reads underneath it in the same muted
- * caption the rest of the masthead uses. When a reader belongs to several Teams
- * that were all assigned the same article, the extra ones are counted rather
- * than listed: two names is a stack, four is a paragraph, and the reader only
- * needs to know it counts for more than one.
+ * NAMES, THEN A COUNT. A reader in two Teams that were both assigned an article
+ * is told which two — "Loyola Finance · Tennis Team" — because that is the
+ * information: it says the article counts twice, and where. Past two the names
+ * stop being information and start being a paragraph in the middle of a
+ * headline, so the rest are counted instead. That is the whole rule, and it is
+ * the reason this never grows to a stack of chips.
  */
+
+/** Names shown before the rest become a count. Two lines is a badge; four is a list. */
+const NAMED_TEAM_LIMIT = 2;
+
 export function TeamBadge({
   language,
   teams,
@@ -28,7 +33,7 @@ export function TeamBadge({
 }: {
   language: ContentLanguage;
   teams: TeamRef[];
-  /** Row context: one line, name only. */
+  /** Row context: one line, names only. */
   compact?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -38,39 +43,44 @@ export function TeamBadge({
     return null;
   }
 
-  const [primary, ...extra] = teams;
   // A moderated name is hidden, never blanked: the row still has to say the
-  // content is a Team item.
-  const name = primary.name ?? copy.teamHidden;
+  // content is a Team item, so the neutral label stands in for the name.
+  const names = teams.map((team) => team.name ?? copy.teamHidden);
+  const named = names.slice(0, NAMED_TEAM_LIMIT);
+  const overflow = names.length - named.length;
+  const label = overflow > 0 ? [...named, copy.teamMore(overflow)] : named;
+  // One string for assistive tech, whatever the layout does with it — and the
+  // overflow spelled out, because "plus two" is not a sentence.
+  const accessibilityLabel = [
+    copy.teamBadge,
+    ...named,
+    ...(overflow > 0 ? [copy.teamMoreSpoken(overflow)] : [])
+  ].join(", ");
 
   if (compact) {
     return (
-      <View style={styles.compact}>
+      <View accessibilityLabel={accessibilityLabel} accessible style={styles.compact}>
         <View style={styles.dot} />
-        <AppText color="accentInk" numberOfLines={1} variant="caption">
-          {extra.length > 0 ? `${name} ${copy.teamMore(extra.length)}` : name}
+        <AppText color="accentInk" numberOfLines={1} style={styles.compactText} variant="caption">
+          {label.join(" · ")}
         </AppText>
       </View>
     );
   }
 
   return (
-    <View
-      accessibilityLabel={[copy.teamBadge, name, ...extra.map((team) => team.name ?? copy.teamHidden)].join(
-        ", "
-      )}
-      accessible
-      style={styles.badge}
-    >
+    <View accessibilityLabel={accessibilityLabel} accessible style={styles.badge}>
       <AppText color="accentInk" variant="eyebrow">
         {copy.teamBadge}
       </AppText>
-      <AppText color="inkSoft" numberOfLines={2} variant="label">
-        {name}
-      </AppText>
-      {extra.length > 0 ? (
+      {named.map((name) => (
+        <AppText color="inkSoft" key={name} numberOfLines={2} variant="label">
+          {name}
+        </AppText>
+      ))}
+      {overflow > 0 ? (
         <AppText color="muted" variant="caption">
-          {copy.teamMore(extra.length)}
+          {copy.teamMore(overflow)}
         </AppText>
       ) : null}
     </View>
@@ -91,6 +101,11 @@ const createStyles = (c: ThemeColors) =>
       alignItems: "center",
       flexDirection: "row",
       gap: tokens.space.sm
+    },
+    // The name line yields before the headline does: a long Team name
+    // truncates rather than pushing the article title off its row.
+    compactText: {
+      flexShrink: 1
     },
     dot: {
       backgroundColor: c.accent,

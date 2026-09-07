@@ -111,7 +111,14 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
 
       if (result.source === "supabase" || result.source === "cache") {
         const snapshot = await readContentInteractionSnapshot(
-          flattenDailyDropItems(result.data).map((item) => item.id)
+          // Translations included. A Team article has no daily_drop_items row
+          // to pin an id to, so the row on screen changes when the reader
+          // switches language — and asking only about the current row would
+          // report an article they read this morning in English as unread.
+          flattenDailyDropItems(result.data).flatMap((item) => [
+            item.id,
+            ...(item.translation_ids ?? [])
+          ])
         );
 
         if (isActive() && snapshot.ok) {
@@ -180,14 +187,25 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
   );
   const totalItemCount = visibleItems.length;
   const completedItemCount = useMemo(
-    () => visibleItems.filter((item) => interactions.completedItemIds.has(item.id)).length,
+    () =>
+      visibleItems.filter(
+        (item) =>
+          interactions.completedItemIds.has(item.id) ||
+          (item.translation_ids ?? []).some((translationId) =>
+            interactions.completedItemIds.has(translationId)
+          )
+      ).length,
     [interactions.completedItemIds, visibleItems]
   );
 
   const markItemsComplete = useCallback(
     async (toComplete: DailyDropContentItem[]) => {
       const pending = toComplete.filter(
-        (item) => !interactions.completedItemIds.has(item.id)
+        (item) =>
+          !interactions.completedItemIds.has(item.id) &&
+          !(item.translation_ids ?? []).some((translationId) =>
+            interactions.completedItemIds.has(translationId)
+          )
       );
 
       if (pending.length === 0) {
@@ -223,7 +241,13 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<DailyDropContextValue>(() => {
     const completedItemIds = interactions.completedItemIds;
-    const isItemComplete = (itemId: string) => completedItemIds.has(itemId);
+    const isItemComplete = (itemId: string) =>
+      completedItemIds.has(itemId) ||
+      // One reading, whichever rendering of it is on screen (see above).
+      (items
+        .find((item) => item.id === itemId)
+        ?.translation_ids?.some((translationId) => completedItemIds.has(translationId)) ??
+        false);
 
     return {
       language,

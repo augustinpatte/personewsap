@@ -25,7 +25,9 @@ import {
   type MiniCaseResponseRecord
 } from "../today/miniCaseResponses";
 import { readMiniCaseResponseAnywhere, syncMiniCaseResponses } from "../today/miniCaseSync";
+import type { MiniCaseChallenge } from "../today/contentTypes";
 import { stripMarkdownInline } from "../today/readers/markdown";
+import { TeamBadge } from "../quiz/TeamBadge";
 import { ItemArchiveList } from "./ItemArchiveList";
 import { getModuleCopy } from "./moduleCopy";
 import {
@@ -64,7 +66,9 @@ export function MiniCasesModuleScreen() {
           metaItems={[
             copy.common.editionRhythm,
             copy.cases.headerMeta,
-            drop.items.mini_case ? getTopicLabel(drop.items.mini_case.topic, language) : null
+            drop.items.mini_cases.length > 0
+              ? copy.cases.caseCount(drop.items.mini_cases.length)
+              : null
           ]}
           title={copy.cases.title}
         />
@@ -96,43 +100,60 @@ export function MiniCasesModuleScreen() {
 }
 
 function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
-  const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { language, drop, status, error, isEmptyDrop, isItemComplete, reload } =
     useDailyDrop();
   const copy = getModuleCopy(language);
-  const miniCase = drop.items.mini_case;
-  // A solved case shows its result here too, so the card is a record of what
-  // you decided rather than just a "done" mark.
-  const [todayScore, setTodayScore] = useState<MiniCaseResponseRecord | null>(null);
-  const caseId = miniCase?.id ?? null;
-  const caseCompleted = caseId ? isItemComplete(caseId) : false;
+  // PLURAL, AND ALREADY TEAM-FIRST. One reader can be handed a Finance case by
+  // one Team, an AI case by another and their own Law case the same morning.
+  // The list arrives merged and deduplicated from the data layer (see
+  // orderEditionItems), so a case two of their Teams chose is one card here.
+  const miniCases = drop.items.mini_cases;
+  // A solved case shows its result on its card, so the card is a record of what
+  // you decided rather than just a "done" mark. One lookup for the whole list,
+  // not one per card.
+  const [scores, setScores] = useState<MiniCaseResponseMap>({});
+  const solvedIds = miniCases
+    .filter((miniCase) => isItemComplete(miniCase.id))
+    .map((miniCase) => miniCase.id);
+  const solvedKey = solvedIds.join(",");
 
   useEffect(() => {
-    if (!caseId || !caseCompleted) {
-      setTodayScore(null);
+    if (solvedIds.length === 0) {
+      setScores({});
       return;
     }
 
     let active = true;
 
     void (async () => {
-      const local = await readMiniCaseResponse(caseId);
-      const record = await readMiniCaseResponseAnywhere(caseId, local);
+      const resolved: MiniCaseResponseMap = {};
+
+      for (const solvedId of solvedIds) {
+        const local = await readMiniCaseResponse(solvedId);
+        const record = await readMiniCaseResponseAnywhere(solvedId, local);
+
+        if (record) {
+          resolved[solvedId] = record;
+        }
+      }
 
       if (active) {
-        setTodayScore(record);
+        setScores(resolved);
       }
     })().catch(() => {
       if (active) {
-        setTodayScore(null);
+        setScores({});
       }
     });
 
     return () => {
       active = false;
     };
-  }, [caseCompleted, caseId]);
+    // Keyed on the solved set rather than the array identity: re-rendering the
+    // list must not re-run the lookup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [solvedKey]);
 
   const editionState = resolveTodayEditionState({
     dropDate: drop.drop_date,
@@ -168,7 +189,7 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
     );
   }
 
-  if (!miniCase) {
+  if (miniCases.length === 0) {
     return (
       <ModuleScroll>
         <AppText color="muted" variant="read">
@@ -178,70 +199,121 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
     );
   }
 
-  const completed = isItemComplete(miniCase.id);
+  const solvedCount = solvedIds.length;
 
   return (
-    <ModuleScroll reveal>
-      <PressableSurface
-        accessibilityHint={copy.common.openHint}
-        onPress={() => router.push(caseHref(miniCase.id))}
-        style={styles.casePress}
-        // The Card paints its own accent surface over the tint, so the
-        // compression is what answers the finger here.
-        pressedStyle={styles.casePressed}
-      >
-        {/* Built to announce a decision, not an article: the framing sits on
-            top, the question is the centre of the card, and the call sits at
-            the bottom where the eye ends. */}
-        <Card padding="lg" style={styles.caseCard} tone="accent">
-          <View style={styles.kicker}>
-            <AppText variant="eyebrow">{copy.cases.kicker}</AppText>
-            <View style={styles.difficultyChip}>
-              <AppText color="accentInk" variant="eyebrow">
-                {getDifficultyLabel(miniCase.difficulty, language)}
-              </AppText>
-            </View>
-          </View>
+    <ModuleScroll contentStyle={styles.todayContent} reveal>
+      {/* Only when there is more than one: a single case needs no tally, and a
+          "1 of 1 solved" line over one card is furniture. */}
+      {miniCases.length > 1 ? (
+        <MetaLine items={[copy.cases.progress(solvedCount, miniCases.length)]} />
+      ) : null}
 
-          <MetaLine
-            items={[
-              getTopicLabel(miniCase.topic, language),
-              getDifficultyLabel(miniCase.difficulty, language),
-              miniCase.questions?.length
-                ? copy.cases.questionCount(miniCase.questions.length)
-                : null
-            ]}
-          />
-          <AppText variant="title">{miniCase.title}</AppText>
+      {miniCases.map((miniCase) => (
+        <MiniCaseCard
+          key={miniCase.id}
+          challenge={miniCase}
+          completed={isItemComplete(miniCase.id)}
+          score={scores[miniCase.id] ?? null}
+        />
+      ))}
+    </ModuleScroll>
+  );
+}
 
-          {/* The accent rail is what makes the question read as the thing being
-              asked of you, rather than as a subtitle. */}
-          <View style={styles.decisionBlock}>
-            <View style={styles.decisionRail} />
-            <View style={styles.decisionCopy}>
-              <AppText color="muted" variant="eyebrow">
-                {copy.cases.decision}
-              </AppText>
-              <AppText variant="lede">{stripMarkdownInline(miniCase.question)}</AppText>
-            </View>
-          </View>
+/**
+ * One case, as a decision to be made.
+ *
+ * Built to announce a decision, not an article: the framing sits on top, the
+ * question is the centre of the card, and the call sits at the bottom where the
+ * eye ends. The Team badge sits in the kicker beside "Mini case" — the same
+ * quiet line the Newsletter uses — so a Team case reads as a case that happens
+ * to be shared, never as a different kind of object.
+ */
+function MiniCaseCard({
+  challenge,
+  completed,
+  score
+}: {
+  challenge: MiniCaseChallenge;
+  completed: boolean;
+  score: MiniCaseResponseRecord | null;
+}) {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const { language } = useDailyDrop();
+  const copy = getModuleCopy(language);
+  const teams = challenge.teams ?? [];
 
-          <View style={styles.statusRow}>
-            {completed ? <View style={styles.statusDot} /> : null}
-            <AppText color="accentInk" variant="label">
-              {completed
-                ? todayScore
-                  ? `${copy.common.solved}  ·  ${copy.cases.score(
-                      todayScore.score,
-                      todayScore.total
-                    )}`
-                  : copy.common.solved
-                : `${copy.cases.decide} →`}
+  const open = () => {
+    if (teams.length > 0) {
+      // Which content is being reached through a Team, and nothing else: no
+      // team id, no title, no score.
+      trackAnalyticsEvent("team_content_opened", {
+        content_type: "mini_case",
+        is_team: true
+      });
+    }
+
+    router.push(caseHref(challenge.id));
+  };
+
+  return (
+    <PressableSurface
+      accessibilityHint={copy.common.openHint}
+      onPress={open}
+      style={styles.casePress}
+      // The Card paints its own accent surface over the tint, so the
+      // compression is what answers the finger here.
+      pressedStyle={styles.casePressed}
+    >
+      <Card padding="lg" style={styles.caseCard} tone="accent">
+        <View style={styles.kicker}>
+          <AppText variant="eyebrow">{copy.cases.kicker}</AppText>
+          <View style={styles.difficultyChip}>
+            <AppText color="accentInk" variant="eyebrow">
+              {getDifficultyLabel(challenge.difficulty, language)}
             </AppText>
           </View>
-        </Card>
-      </PressableSurface>
-    </ModuleScroll>
+        </View>
+
+        <TeamBadge compact language={language} teams={teams} />
+
+        <MetaLine
+          items={[
+            getTopicLabel(challenge.topic, language),
+            getDifficultyLabel(challenge.difficulty, language),
+            challenge.questions?.length
+              ? copy.cases.questionCount(challenge.questions.length)
+              : null
+          ]}
+        />
+        <AppText variant="title">{challenge.title}</AppText>
+
+        {/* The accent rail is what makes the question read as the thing being
+            asked of you, rather than as a subtitle. */}
+        <View style={styles.decisionBlock}>
+          <View style={styles.decisionRail} />
+          <View style={styles.decisionCopy}>
+            <AppText color="muted" variant="eyebrow">
+              {copy.cases.decision}
+            </AppText>
+            <AppText variant="lede">{stripMarkdownInline(challenge.question)}</AppText>
+          </View>
+        </View>
+
+        <View style={styles.statusRow}>
+          {completed ? <View style={styles.statusDot} /> : null}
+          <AppText color="accentInk" variant="label">
+            {completed
+              ? score
+                ? `${copy.common.solved}  ·  ${copy.cases.score(score.score, score.total)}`
+                : copy.common.solved
+              : `${copy.cases.decide} →`}
+          </AppText>
+        </View>
+      </Card>
+    </PressableSurface>
   );
 }
 
@@ -345,6 +417,9 @@ const createStyles = (c: ThemeColors) =>
       gap: tokens.space.lg,
       paddingHorizontal: tokens.space.lg,
       paddingTop: tokens.space.md
+    },
+    todayContent: {
+      gap: tokens.space.lg
     },
     casePress: {
       borderRadius: tokens.radius.lg

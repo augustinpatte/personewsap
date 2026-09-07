@@ -5,7 +5,8 @@ import type { AnalyticsContentType } from "../../lib/analytics";
 import {
   fetchQuestionFeedback,
   startQuestionAttempt,
-  submitAnswerWithRetry
+  submitAnswerWithRetry,
+  submitQuestionAnswer
 } from "./quizData";
 import {
   hasPendingQuestions,
@@ -172,22 +173,78 @@ export function useQuizFlow(input: {
     return () => clearInterval(interval);
   }, [currentIndex, states]);
 
-  // A question that just expired is reported once, from the transition rather
-  // than from a render, so a re-render cannot log it twice.
+  const loadFeedback = useCallback(
+    async (index: number) => {
+      const question = input.questions[index];
+
+      if (!question) {
+        return;
+      }
+
+      const feedback = await fetchQuestionFeedback(question.logicalQuestionId);
+
+      if (feedback.ok) {
+        const chosen = feedback.data.find((entry) => entry.isSelected);
+        setFeedbackByIndex((current) => ({ ...current, [index]: chosen?.feedback ?? null }));
+      }
+    },
+    [input.questions]
+  );
+
+  const settleExpiredAttempt = useCallback(
+    async (index: number, attemptId: string) => {
+      if (!attemptId) {
+        return;
+      }
+
+      const result = await submitQuestionAnswer({ attemptId, selectedOptionId: null });
+
+      // A 23505 here means another device already settled it. Both outcomes are
+      // the same zero, so there is nothing to reconcile.
+      if (result.ok) {
+        await loadFeedback(index);
+      }
+    },
+    [loadFeedback]
+  );
+
+  // A question that just expired is reported — and SETTLED — once, from the
+  // transition rather than from a render, so a re-render cannot do it twice.
   const expiredReportedRef = useRef(new Set<number>());
 
   useEffect(() => {
     states.forEach((state, index) => {
-      if (state.status === "expired" && !expiredReportedRef.current.has(index)) {
-        expiredReportedRef.current.add(index);
-        trackAnalyticsEvent("quiz_timed_out", {
-          content_type: input.contentType,
-          is_team: input.isTeam,
-          question_index: index + 1,
-          question_count: total
-        });
+      if (state.status !== "expired" || expiredReportedRef.current.has(index)) {
+        return;
       }
+
+      expiredReportedRef.current.add(index);
+      trackAnalyticsEvent("quiz_timed_out", {
+        content_type: input.contentType,
+        is_team: input.isTeam,
+        question_index: index + 1,
+        question_count: total
+      });
+
+      // AN EXPIRED ATTEMPT IS STILL SUBMITTED, with no option.
+      //
+      // Not to rescue it — the server compares against the deadline it set and
+      // returns zero, which is the whole point. It is submitted because an
+      // attempt left `in_progress` forever is a hole in the reader's own
+      // record: the team ledger never counts the question as answered, so the
+      // edition never completes and the streak never settles. And because
+      // `get_question_feedback` only opens once an attempt is submitted, an
+      // unsettled timeout is also the one case where the screen says "the
+      // explanation is below" and no explanation ever arrives.
+      //
+      // No retry loop: the deadline has already passed, so there is nothing a
+      // second attempt could win. A failure leaves the reader on the same
+      // honest zero.
+      void settleExpiredAttempt(index, state.attemptId);
     });
+    // `settleExpiredAttempt` is stable for the life of the flow; depending on it
+    // would re-run this on every state change and re-report a settled timeout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input.contentType, input.isTeam, states, total]);
 
   useEffect(() => {
@@ -214,7 +271,6 @@ export function useQuizFlow(input: {
 
       const deadlineAt = state.deadlineAt;
       const attemptId = state.attemptId;
-      const question = input.questions[index];
 
       dispatch({
         index,
@@ -248,14 +304,9 @@ export function useQuizFlow(input: {
       // The explanation is fetched only now: `get_question_feedback` refuses a
       // caller with no submitted attempt, because before submitting it IS the
       // answer key.
-      const feedback = await fetchQuestionFeedback(question.logicalQuestionId);
-
-      if (feedback.ok) {
-        const chosen = feedback.data.find((entry) => entry.isSelected);
-        setFeedbackByIndex((current) => ({ ...current, [index]: chosen?.feedback ?? null }));
-      }
+      await loadFeedback(index);
     },
-    [input.contentType, input.isTeam, input.questions, states, total]
+    [input.contentType, input.isTeam, loadFeedback, states, total]
   );
 
   const select = useCallback(

@@ -106,12 +106,17 @@ function FetchedReaderProvider({
         error: result.error
       });
 
-      // Carry completion across editions so a finished item opens in review mode.
+      // Carry completion across editions so a finished item opens in review
+      // mode — and across renderings, for a Team item, which has no assigned id
+      // and so is displayed under a different row in each language.
       if (result.data && isLiveContentItem(result.source, contentItemId)) {
-        const snapshot = await readContentInteractionSnapshot([contentItemId]);
+        const anchoredIds = [contentItemId, ...(result.data.translation_ids ?? [])];
+        const snapshot = await readContentInteractionSnapshot(anchoredIds);
 
         if (active && snapshot.ok) {
-          setCompleted(snapshot.snapshot.completedItemIds.has(contentItemId));
+          setCompleted(
+            anchoredIds.some((id) => snapshot.snapshot.completedItemIds.has(id))
+          );
         }
       }
     })();
@@ -218,6 +223,7 @@ function buildSingleItemDrop(
     items: {
       newsletter: item?.content_type === "newsletter_article" ? [item] : [],
       business_story: item?.content_type === "business_story" ? item : undefined,
+      mini_cases: item?.content_type === "mini_case" ? [item] : [],
       mini_case: item?.content_type === "mini_case" ? item : undefined,
       concept: item?.content_type === "key_concept" ? item : undefined
     }

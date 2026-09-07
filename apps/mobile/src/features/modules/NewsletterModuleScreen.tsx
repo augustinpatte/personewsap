@@ -23,6 +23,7 @@ import {
   type NewsletterEditionSummary
 } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
+import type { NewsletterArticle } from "../today/contentTypes";
 import { useModulePreferenceState } from "../preferences";
 import { shouldShowStoredLanguageChangeNotice } from "../preferences/languageChangeNotice";
 import {
@@ -34,7 +35,6 @@ import { useDailyDrop } from "../today/DailyDropContext";
 import { resolveTodayEditionState } from "../today/todayEditionState";
 import { isEditionDay } from "../today/editionCadence";
 import { stripMarkdownInline } from "../today/readers/markdown";
-import { mergeTeamAndPersonalContent, mergedItems } from "../quiz/teamMerge";
 import { TeamBadge } from "../quiz/TeamBadge";
 import { itemHasQuestions } from "../quiz/itemQuestions";
 import { getQuizCopy } from "../quiz/quizCopy";
@@ -55,6 +55,24 @@ import { useEditionProgress } from "./useEditionProgress";
 
 function readerHref(kind: "newsletter" | "concept", id: string): Href {
   return { pathname: `/(reader)/${kind}/[id]`, params: { id } } as unknown as Href;
+}
+
+/**
+ * Opening a reading, and saying so when it reached the reader through a Team.
+ *
+ * The payload is deliberately two fields. Whether Team content is being opened
+ * at all is the question this event exists to answer; WHICH team, which
+ * article, and what it scored are not, and none of them are sent.
+ */
+function openArticle(router: ReturnType<typeof useRouter>, article: NewsletterArticle) {
+  if ((article.teams ?? []).length > 0) {
+    trackAnalyticsEvent("team_content_opened", {
+      content_type: "newsletter_article",
+      is_team: true
+    });
+  }
+
+  router.push(readerHref("newsletter", article.id));
 }
 
 export function NewsletterModuleScreen() {
@@ -116,31 +134,14 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
     useDailyDrop();
   const copy = getModuleCopy(language);
   const [showLanguageChangeNotice, setShowLanguageChangeNotice] = useState(false);
-  // TEAM FIRST, THEN PERSONAL, DEDUPLICATED BY LOGICAL IDENTITY.
+  // Already Team-first, already deduplicated on logical identity, already in
+  // the order the edition decided (see orderEditionItems in dailyDropData).
   //
-  // An article assigned to two of the reader's Teams and also present in their
-  // own edition appears ONCE, badged with both Teams. Deduplicating on the row
-  // id would look correct in a single-language test and ship a duplicate the
-  // day somebody switches language, because the FR and EN renderings are two
-  // rows sharing one content_logical_key.
-  //
-  // Every item already carries its own `teams`, so the merge is over one list
-  // rather than two fetches: an item with teams is a Team assignment, an item
-  // without is personal.
-  const articles = useMemo(() => {
-    const items = drop.items.newsletter;
-
-    return mergedItems(
-      mergeTeamAndPersonalContent({
-        teamAssignments: items
-          .filter((item) => (item.teams ?? []).length > 0)
-          .flatMap((item, position) =>
-            (item.teams ?? []).map((team) => ({ team, item, position }))
-          ),
-        personalItems: items.filter((item) => (item.teams ?? []).length === 0)
-      })
-    );
-  }, [drop.items.newsletter]);
+  // Deliberately not merged again here. The provider counts edition progress
+  // over the same list this renders, so a second merge in the screen is how the
+  // two come to disagree — the reader told they have six articles left while
+  // the list shows five.
+  const articles = drop.items.newsletter;
   const editionState = resolveTodayEditionState({
     dropDate: drop.drop_date,
     error,
@@ -236,7 +237,7 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
 
       <PressableSurface
         accessibilityHint={copy.common.openHint}
-        onPress={() => router.push(readerHref("newsletter", lead.id))}
+        onPress={() => openArticle(router, lead)}
         style={styles.lead}
       >
         <View style={styles.kicker}>
@@ -255,7 +256,15 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
         <AppText variant="lede">{stripMarkdownInline(lead.summary)}</AppText>
         <ReadStatus
           completed={isItemComplete(lead.id)}
-          completedLabel={copy.common.read}
+          // Same rule as the secondary rows: an article that is finished but
+          // still owes questions has something left to do, and a plain "Read"
+          // would hide it. The lead is where a reader looks first, so it was
+          // the worst place to leave it out.
+          completedLabel={
+            itemHasQuestions(lead)
+              ? getQuizCopy(language).continueChallenge
+              : copy.common.read
+          }
           openLabel={copy.newsletter.readLead}
         />
       </PressableSurface>
@@ -269,7 +278,7 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
             <PressableSurface
               accessibilityHint={copy.common.openHint}
               key={article.id}
-              onPress={() => router.push(readerHref("newsletter", article.id))}
+              onPress={() => openArticle(router, article)}
               style={styles.alsoItem}
               variant="row"
             >

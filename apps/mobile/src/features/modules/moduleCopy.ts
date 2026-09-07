@@ -138,7 +138,9 @@ export function getModuleCopy(language: Language | null | undefined) {
           archiveEmptyTitle: "Your cases will settle here",
           archiveEmptyBody:
             "Each mini case you work through is kept here with its result, searchable by title and date.",
-          noModuleToday: "Today's edition has no mini case — see the other tabs."
+          noModuleToday: "Today's edition has no mini case — see the other tabs.",
+          caseCount: (count: number) => (count === 1 ? "1 case" : `${count} cases`),
+          progress: (solved: number, total: number) => `${solved} of ${total} solved`
         },
         path: {
           title: "Learning path",
@@ -289,7 +291,9 @@ export function getModuleCopy(language: Language | null | undefined) {
           archiveEmptyBody:
             "Chaque mini cas travaillé est conservé ici avec son résultat, retrouvable par titre et par date.",
           noModuleToday:
-            "L'édition du jour ne contient pas de mini cas — voyez les autres onglets."
+            "L'édition du jour ne contient pas de mini cas — voyez les autres onglets.",
+          caseCount: (count: number) => (count === 1 ? "1 cas" : `${count} cas`),
+          progress: (solved: number, total: number) => `${solved} sur ${total} résolus`
         },
         path: {
           title: "Parcours",

@@ -140,7 +140,13 @@ describe("the source data path", () => {
     expect(dailyDropData).toMatch(
       /fetchSourcesByContentItemIds\(\[contentItemId\]\)/
     );
-    expect(dailyDropData).toMatch(/fetchSourcesByContentItemIds\(contentItemIds\)/);
+    // On the edition path that id set is the personal drop's items PLUS the
+    // Team-only ones, in one query — a Team article shows its sources like any
+    // other article, and it does not cost a second round trip to do it.
+    expect(dailyDropData).toMatch(/fetchSourcesByContentItemIds\(allContentItemIds\)/);
+    expect(dailyDropData).toContain(
+      "const allContentItems = [...assignedContentItems, ...teamOnlyContentItems];"
+    );
   });
 
   it("never invents a publisher or a title for a record that has none", () => {

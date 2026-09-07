@@ -35,6 +35,7 @@ const storyReader = stripComments(read("features", "today", "readers", "Business
 const newsletterModule = stripComments(read("features", "modules", "NewsletterModuleScreen.tsx"));
 const privacyData = stripComments(read("features", "account", "privacyData.ts"));
 const teamDetail = stripComments(read("features", "teams", "TeamDetailScreen.tsx"));
+const teamEditionContent = stripComments(read("features", "today", "teamEditionContent.ts"));
 
 describe("the seam between the data layer and the readers", () => {
   it("carries questions and teams on a content item", () => {
@@ -46,9 +47,15 @@ describe("the seam between the data layer and the readers", () => {
     // The break this whole file exists for: readItemQuestions read fields that
     // nothing wrote, so the feature was dead while its unit tests passed.
     expect(dailyDropData).toContain("fetchQuestionsByContentItemIds");
-    expect(dailyDropData).toContain("fetchTeamsByContentItemIds");
     expect(dailyDropData).toContain('from("logical_questions")');
-    expect(dailyDropData).toContain('rpc("get_my_team_refs_for_questions"');
+    // Teams now come from the CONTENT assignment rather than from the question
+    // assignment. Same eligibility rule, one round trip, and it also answers
+    // for Team content that carries no questions at all — which the
+    // question-keyed lookup could not see, and which is therefore how a
+    // Team-only article used to arrive with no badge.
+    expect(dailyDropData).toContain("fetchTeamContentForEdition");
+    expect(dailyDropData).toContain("indexTeamAssignmentsByIdentity");
+    expect(teamEditionContent).toContain('rpc("get_my_team_edition_content"');
   });
 
   it("never reads the teams table to draw a badge", () => {
@@ -63,7 +70,11 @@ describe("the seam between the data layer and the readers", () => {
 
   it("attaches them to every mapped item", () => {
     expect(dailyDropData).toMatch(/logical_questions: questionsByContentItemId\[contentItem\.id\]/);
-    expect(dailyDropData).toMatch(/teams: teamsByContentItemId\[contentItem\.id\]/);
+    // Badged on LOGICAL identity, not on the row id: that is what puts the
+    // badge on the reader's own copy of an article a Team was also assigned,
+    // and what keeps it there when they switch language.
+    expect(dailyDropData).toMatch(/teamAssignmentsByIdentity\.get\(identity\)/);
+    expect(dailyDropData).toMatch(/teams: teamAssignment && teamAssignment\.teams\.length > 0/);
   });
 
   it("loads them on the archive path too, not only on today's edition", () => {
@@ -81,11 +92,21 @@ describe("the seam between the data layer and the readers", () => {
     expect(dailyDropData).toContain('.in("content_logical_key"');
   });
 
-  it("fetches once per edition, not once per item", () => {
+  it("fetches once per edition, not once per item and not once per team", () => {
     // 23 items × 2 queries each would make the Newsletter tab take a second to
-    // draw. Both fetchers take the whole array.
-    expect(dailyDropData).toMatch(/fetchQuestionsByContentItemIds\(assignedContentItems\)/);
-    expect(dailyDropData).toMatch(/contentItems: assignedContentItems/);
+    // draw, and a reader in four Teams must cost exactly what a reader in none
+    // costs. Every fetcher takes the whole array, and the Team surface is one
+    // RPC with every Team folded into it.
+    expect(dailyDropData).toMatch(/fetchQuestionsByContentItemIds\(allContentItems\)/);
+    expect(dailyDropData).toMatch(/fetchSourcesByContentItemIds\(allContentItemIds\)/);
+    // Exactly two call sites, one per path — the edition, and the single item
+    // an archive or library tap opens. Never one inside a loop.
+    expect((dailyDropData.match(/fetchTeamContentForEdition\(/g) ?? []).length).toBe(2);
+
+    // Concurrent, because neither needs the other's answer.
+    expect(dailyDropData).toMatch(
+      /await Promise\.all\(\[\s*fetchPublishedContentItemsByIds[\s\S]{0,200}fetchTeamContentForEdition/
+    );
   });
 
   it("degrades to no-quiz rather than to an error screen", () => {
@@ -93,7 +114,7 @@ describe("the seam between the data layer and the readers", () => {
     // the product. An error screen would lose both.
     const questionFetcher = dailyDropData.slice(
       dailyDropData.indexOf("async function fetchQuestionsByContentItemIds"),
-      dailyDropData.indexOf("async function fetchTeamsByContentItemIds")
+      dailyDropData.indexOf("function identityOfContentItem")
     );
 
     expect(questionFetcher).toContain("if (error || !data) {");
@@ -144,15 +165,24 @@ describe("nothing is forced on content read before the rollout", () => {
 });
 
 describe("Team-first merge is actually wired", () => {
-  it("runs on the Newsletter list", () => {
-    // Built and tested in an earlier pass, but never called until now.
-    expect(newsletterModule).toContain("mergeTeamAndPersonalContent");
-    expect(newsletterModule).toContain("mergedItems");
+  it("runs in the data layer, so every screen and the progress count agree", () => {
+    // It used to run in the Newsletter screen. Three screens each running their
+    // own merge is three chances for the order to drift — and edition progress
+    // is counted over the provider's item list, so a screen-level merge left
+    // the provider counting an overlapping article twice.
+    expect(dailyDropData).toContain("mergeTeamAndPersonalContent");
+    expect(dailyDropData).toContain("mergedItems");
+    expect(newsletterModule).not.toContain("mergeTeamAndPersonalContent");
   });
 
   it("derives team assignments from the item's own teams", () => {
-    expect(newsletterModule).toMatch(/\(item\.teams \?\? \[\]\)\.length > 0/);
-    expect(newsletterModule).toMatch(/\(item\.teams \?\? \[\]\)\.length === 0/);
+    expect(dailyDropData).toMatch(/\(item\.teams \?\? \[\]\)\.length > 0/);
+    expect(dailyDropData).toMatch(/\(item\.teams \?\? \[\]\)\.length === 0/);
+  });
+
+  it("merges per section, so the Newsletter lead is a Newsletter item", () => {
+    expect(dailyDropData).toContain("function orderEditionItems");
+    expect(dailyDropData).toMatch(/bySlot\.set\(item\.slot/);
   });
 
   it("badges both the lead and the secondary rows", () => {

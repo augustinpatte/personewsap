@@ -19,8 +19,17 @@ import {
 } from "../archive/archiveSearchPaging";
 import type { TopicId } from "../../constants/product";
 import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
-import { resolveContentItemsForLanguage } from "../today/contentTranslations";
-import type { ContentLanguage } from "../today";
+import {
+  fetchContentItemsByLogicalKeys,
+  getContentLogicalKey,
+  resolveContentItemsForLanguage
+} from "../today/contentTranslations";
+import {
+  fetchTeamContentForRange,
+  teamContentIdentity,
+  type TeamContentAssignment
+} from "../today/teamEditionContent";
+import type { ContentLanguage, ContentTeamRef } from "../today";
 import { resolveEditionType } from "../today/editionCadence";
 import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
 
@@ -453,6 +462,25 @@ function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
+/**
+ * A page of the archive, both sources folded in.
+ *
+ * TEAM CONTENT DOES NOT LIVE IN daily_drop_items. It reached the reader through
+ * a Team assignment made on a logical key, so an article a Team gave them —
+ * opened, read, marked — has no row in the table this archive is built from and
+ * would simply vanish the day the edition rolled over.
+ *
+ * It is folded into the edition it belongs to rather than given a feed of its
+ * own, and ONLY into editions that are already on this page. The archive pages
+ * on the reader's own drop_dates; inventing an entry for a date outside the
+ * page would make the next page repeat it or skip it, and paging that
+ * occasionally loses an edition is worse than a Team item that waits for the
+ * page its edition is on. In the 4×/week cadence every edition day has a drop,
+ * so in practice there is nothing to wait for.
+ *
+ * One extra RPC for the whole page, and one extra content query. Not one per
+ * edition — that would be twenty-five round trips to draw one list.
+ */
 async function buildLibraryDropSummaries(
   drops: DailyDrop[],
   userId: string,
@@ -475,16 +503,62 @@ async function buildLibraryDropSummaries(
 
   const contentItemIds = [...new Set((dropItems ?? []).map((item) => item.content_item_id))];
   const contentItemsById = await fetchContentItemsById(contentItemIds, language);
-  const interactions = await fetchLibraryInteractions(userId, contentItemIds);
-  const completedItemIds = getInteractedContentItemIds(interactions, "complete");
-  const savedItemIds = getInteractedContentItemIds(interactions, "save");
   const dropItemsByDropId = groupDropItemsByDropId(dropItems ?? []);
+  const teamContentByDropDate = await fetchTeamArchiveContent({
+    drops,
+    language,
+    // The reader's own copies, by logical identity: an article that reached
+    // them both ways is one row in the archive, badged, exactly as it was one
+    // card in the edition.
+    personalIdentities: identitiesOfContentItems([...contentItemsById.values()])
+  });
+
+  const teamContentItems = [...teamContentByDropDate.values()].flatMap((entries) =>
+    entries.map((entry) => entry.contentItem)
+  );
+  // Interactions over BOTH sources, and over every rendering of the Team ones:
+  // the id a Team article is displayed under changes with the reading language,
+  // so asking only about the current one would show it unread after a switch.
+  const interactions = await fetchLibraryInteractions(userId, [
+    ...contentItemIds,
+    ...teamContentItems.map((contentItem) => contentItem.id),
+    ...[...teamContentByDropDate.values()].flatMap((entries) =>
+      entries.flatMap((entry) => entry.translationIds)
+    )
+  ]);
+  // Resolved across renderings before anything reads them, so every count and
+  // every row below asks one question and gets one answer. A Team reading
+  // completed in French is completed, whichever rendering the archive shows.
+  const translationIds = new Map(
+    [...teamContentByDropDate.values()].flatMap((entries) =>
+      entries.map(
+        (entry) => [entry.contentItem.id, entry.translationIds] as [string, string[]]
+      )
+    )
+  );
+  const completedItemIds = withTranslatedInteractions(
+    getInteractedContentItemIds(interactions, "complete"),
+    translationIds
+  );
+  const savedItemIds = withTranslatedInteractions(
+    getInteractedContentItemIds(interactions, "save"),
+    translationIds
+  );
 
   return drops.map((drop) => {
     const items = sortDropItemsForArchive(dropItemsByDropId[drop.id] ?? []);
-    const contentItems = items
+    const personalContentItems = items
       .map((item) => contentItemsById.get(item.content_item_id))
       .filter(isContentItem);
+    const teamEntries = teamContentByDropDate.get(drop.drop_date) ?? [];
+    // Team first, then the rest — the same order the edition itself used.
+    const contentItems = [
+      ...teamEntries.map((entry) => entry.contentItem),
+      ...personalContentItems
+    ];
+    const teamsByContentItemId = new Map(
+      teamEntries.map((entry) => [entry.contentItem.id, entry.assignment.teams])
+    );
 
     return {
       completed_item_count: countMatchingContentItems(contentItems, completedItemIds),
@@ -493,7 +567,13 @@ async function buildLibraryDropSummaries(
       // editions keep showing their date.
       hide_display_date: drop.hide_display_date === true,
       drop_id: drop.id,
-      items: mapLibraryItems(drop, contentItems, completedItemIds, savedItemIds),
+      items: mapLibraryItems(
+        drop,
+        contentItems,
+        completedItemIds,
+        savedItemIds,
+        teamsByContentItemId
+      ),
       item_count: contentItems.length,
       language: language ?? drop.language,
       saved_item_count: countMatchingContentItems(contentItems, savedItemIds),
@@ -503,14 +583,133 @@ async function buildLibraryDropSummaries(
   });
 }
 
+type ArchivedTeamContent = {
+  assignment: TeamContentAssignment;
+  contentItem: ContentItem;
+  translationIds: string[];
+};
+
+/**
+ * The Team-only content behind a page of editions, grouped by edition date.
+ *
+ * Two calls whatever the page holds: one RPC over the page's whole date range,
+ * and one content query over the logical keys it names. An assignment the
+ * reader already has personally is dropped here rather than deduplicated later,
+ * so nothing downstream has to know the difference.
+ */
+async function fetchTeamArchiveContent(input: {
+  drops: DailyDrop[];
+  language?: ContentLanguage;
+  personalIdentities: Set<string>;
+}): Promise<Map<string, ArchivedTeamContent[]>> {
+  const byDropDate = new Map<string, ArchivedTeamContent[]>();
+  const dropDates = input.drops.map((drop) => drop.drop_date).filter(Boolean).sort();
+
+  if (dropDates.length === 0) {
+    return byDropDate;
+  }
+
+  const assignments = await fetchTeamContentForRange({
+    fromDate: dropDates[0],
+    toDate: dropDates[dropDates.length - 1],
+    language: input.language
+  });
+  // Only editions on this page. See the note on buildLibraryDropSummaries: the
+  // archive pages on the reader's own drop_dates, and inventing an entry
+  // outside the page is how paging comes to repeat or skip one.
+  const pagedDates = new Set(dropDates);
+  const wanted = assignments.filter(
+    (assignment) =>
+      pagedDates.has(assignment.editionDate) &&
+      !input.personalIdentities.has(teamContentIdentity(assignment))
+  );
+
+  if (wanted.length === 0) {
+    return byDropDate;
+  }
+
+  const itemsByLogicalKey = await fetchContentItemsByLogicalKeys(
+    wanted.map((assignment) => assignment.contentLogicalKey)
+  );
+
+  for (const assignment of wanted) {
+    const renderings = (itemsByLogicalKey.get(assignment.contentLogicalKey) ?? []).filter(
+      (contentItem: ContentItem) => contentItem.content_type === assignment.contentType
+    );
+    const displayItem =
+      renderings.find(
+        (contentItem: ContentItem) => contentItem.id === assignment.displayContentItemId
+      ) ?? renderings[0];
+
+    if (!displayItem) {
+      continue;
+    }
+
+    byDropDate.set(assignment.editionDate, [
+      ...(byDropDate.get(assignment.editionDate) ?? []),
+      {
+        assignment,
+        contentItem: displayItem,
+        translationIds: renderings
+          .filter((contentItem: ContentItem) => contentItem.id !== displayItem.id)
+          .map((contentItem: ContentItem) => contentItem.id)
+      }
+    ]);
+  }
+
+  return byDropDate;
+}
+
+/**
+ * The displayed id counts as interacted when any of its other renderings does.
+ *
+ * Only Team content has other renderings to consider: a personal item keeps the
+ * assigned id whatever language it is read in, so its interactions never move.
+ */
+function withTranslatedInteractions(
+  interactedIds: Set<string>,
+  translationIds: Map<string, string[]>
+): Set<string> {
+  const resolved = new Set(interactedIds);
+
+  for (const [contentItemId, siblings] of translationIds) {
+    if (siblings.some((sibling) => interactedIds.has(sibling))) {
+      resolved.add(contentItemId);
+    }
+  }
+
+  return resolved;
+}
+
+/** The logical identities of a set of content rows, for overlap detection. */
+function identitiesOfContentItems(contentItems: ContentItem[]): Set<string> {
+  const identities = new Set<string>();
+
+  for (const contentItem of contentItems) {
+    const key = getContentLogicalKey(contentItem.metadata);
+
+    if (key) {
+      identities.add(
+        teamContentIdentity({
+          contentLogicalKey: key,
+          contentType: contentItem.content_type
+        })
+      );
+    }
+  }
+
+  return identities;
+}
+
 function mapLibraryItems(
   drop: DailyDrop,
   contentItems: ContentItem[],
   completedItemIds: Set<string>,
-  savedItemIds: Set<string>
+  savedItemIds: Set<string>,
+  teamsByContentItemId: Map<string, ContentTeamRef[]> = new Map()
 ): LibraryItemSummary[] {
   return contentItems
-    .map((contentItem) => {
+    .map((contentItem): LibraryItemSummary | null => {
       const contentType = mapLibraryContentType(contentItem);
 
       if (!contentType) {
@@ -527,6 +726,7 @@ function mapLibraryItems(
         is_saved: savedItemIds.has(contentItem.id),
         language: contentItem.language,
         source_count: contentItem.source_count,
+        teams: teamsByContentItemId.get(contentItem.id),
         title: contentItem.title,
         topic: readLibraryTopic(contentItem)
       };

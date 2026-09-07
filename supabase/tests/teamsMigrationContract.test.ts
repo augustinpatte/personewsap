@@ -35,7 +35,8 @@ const MIGRATIONS = [
   "20260906095000_realtime_and_moderation.sql",
   "20260906103000_team_content_assignments.sql",
   "20260906104000_edition_assignment_engine.sql",
-  "20260906106000_team_read_surface_and_invite.sql"
+  "20260906106000_team_read_surface_and_invite.sql",
+  "20260907120000_team_archive_content.sql"
 ] as const;
 
 const sources = new Map(
@@ -976,5 +977,53 @@ describe("realtime", () => {
 
     expect(broadcast).toBeDefined();
     expect(broadcast?.body).not.toMatch(/score/i);
+  });
+});
+
+describe("the Team archive surface", () => {
+  const archive = sources.get("20260907120000_team_archive_content.sql") ?? "";
+
+  it("applies the same eligibility rule as every other Team surface", () => {
+    // A member who joined during edition E1 never sees E1's Team content — in
+    // the archive or anywhere. Comparing against TODAY instead of against the
+    // assignment's edition is the way this goes wrong, and it goes wrong
+    // silently: it only shows up as a reader seeing content from before they
+    // joined.
+    expect(archive).toContain("m.left_at IS NULL");
+    expect(archive).toContain("m.eligible_from_edition <= a.edition_date");
+    expect(archive).toContain("t.status = 'active'");
+  });
+
+  it("grants nothing durable: it lists, and RLS still authorises", () => {
+    // No table, no entitlement row, no INSERT. A reader who leaves a team stops
+    // seeing its content because the membership predicate stops matching, not
+    // because something has to be cleaned up.
+    expect(archive).not.toMatch(/CREATE TABLE/i);
+    expect(archive).not.toMatch(/\bINSERT INTO\b/i);
+    expect(archive).not.toMatch(/\bGRANT (INSERT|UPDATE|DELETE)\b/i);
+  });
+
+  it("bounds the range server-side, so a client cannot ask for everything", () => {
+    expect(archive).toMatch(/least\(greatest\(COALESCE\(p_limit, 200\), 1\), 500\)/);
+    expect(archive).toContain("LIMIT (SELECT b.row_limit FROM bounds b)");
+  });
+
+  it("returns one row per edition and logical content, not one per team", () => {
+    // Two teams assigning one article is the normal case; returning it twice
+    // would push deduplication into every screen that reads it.
+    expect(archive).toContain("GROUP BY a.edition_date, a.content_logical_key, a.content_type");
+    expect(archive).toMatch(
+      /DISTINCT ON \(mine\.assigned_edition, mine\.logical_key, mine\.logical_type\)/
+    );
+  });
+
+  it("applies name moderation at read time, like every other team read", () => {
+    expect(archive).toContain("CASE WHEN t.name_status = 'hidden' THEN NULL ELSE t.name END");
+  });
+
+  it("never selects anything from the private grading schema", () => {
+    expect(archive).not.toMatch(/private\./);
+    expect(archive).not.toMatch(/invite_code/);
+    expect(archive).not.toMatch(/score_milli/);
   });
 });

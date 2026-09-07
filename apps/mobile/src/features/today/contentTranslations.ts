@@ -119,22 +119,12 @@ async function fetchTranslationsByLogicalKey(
   }
 
   // The three key fields are disjoint (an item carries exactly one), so one
-  // OR-query resolves every pending key in a single round trip. Values are
-  // quoted for PostgREST's `in.(...)` list; the keys themselves are UUIDs or
-  // slug-like identifiers, and anything containing a quote is skipped rather
-  // than escaped into a malformed filter.
-  const quotedKeys = logicalKeys
-    .filter((key) => !key.includes('"') && !key.includes("\\"))
-    .map((key) => `"${key}"`)
-    .join(",");
+  // OR-query resolves every pending key in a single round trip.
+  const orFilter = buildLogicalKeyOrFilter(logicalKeys);
 
-  if (quotedKeys.length === 0) {
+  if (!orFilter) {
     return new Map();
   }
-
-  const orFilter = LOGICAL_KEY_FIELDS.map(
-    (field) => `metadata->>${field}.in.(${quotedKeys})`
-  ).join(",");
 
   const { data, error } = await supabase
     .from("content_items")
@@ -164,4 +154,76 @@ async function fetchTranslationsByLogicalKey(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Every published rendering of the given logical keys, in one query.
+ *
+ * Used for content that reaches a reader WITHOUT a daily_drop_items row — Team
+ * assignments, which are made on the logical key rather than on a row. Such an
+ * item has no assigned id to anchor to, so the caller needs to see all of its
+ * renderings: one to display, the rest to look completion up against when the
+ * reader switches language.
+ *
+ * Returns the rows grouped by logical key. Failure is empty, not an exception:
+ * Team content is additive to an edition and must never take it down.
+ */
+export async function fetchContentItemsByLogicalKeys(
+  logicalKeys: string[]
+): Promise<Map<string, ContentItem[]>> {
+  const grouped = new Map<string, ContentItem[]>();
+
+  if (!supabase || logicalKeys.length === 0) {
+    return grouped;
+  }
+
+  const orFilter = buildLogicalKeyOrFilter([...new Set(logicalKeys)]);
+
+  if (!orFilter) {
+    return grouped;
+  }
+
+  const { data, error } = await supabase
+    .from("content_items")
+    .select(contentItemSelect)
+    .eq("status", "published")
+    .or(orFilter);
+
+  if (error) {
+    return grouped;
+  }
+
+  for (const item of (data ?? []) as ContentItem[]) {
+    const logicalKey = getContentLogicalKey(item.metadata);
+
+    if (!logicalKey) {
+      continue;
+    }
+
+    grouped.set(logicalKey, [...(grouped.get(logicalKey) ?? []), item]);
+  }
+
+  return grouped;
+}
+
+/**
+ * The PostgREST `or` filter matching any of the three logical-key fields.
+ *
+ * Keys are quoted for the `in.(…)` list. They are UUIDs or slug-like
+ * identifiers; anything carrying a quote or a backslash is dropped rather than
+ * escaped into a filter that would mean something else.
+ */
+function buildLogicalKeyOrFilter(logicalKeys: string[]): string | null {
+  const quotedKeys = logicalKeys
+    .filter((key) => key.length > 0 && !key.includes('"') && !key.includes("\\"))
+    .map((key) => `"${key}"`)
+    .join(",");
+
+  if (quotedKeys.length === 0) {
+    return null;
+  }
+
+  return LOGICAL_KEY_FIELDS.map(
+    (field) => `metadata->>${field}.in.(${quotedKeys})`
+  ).join(",");
 }

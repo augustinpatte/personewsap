@@ -1043,6 +1043,37 @@ export type Database = {
           teams: Array<{ id: string; name: string | null }>;
         }> | null;
       };
+      /**
+       * The same thing across a span of editions, for the archive.
+       *
+       * A page of the archive is twenty-five editions; asking
+       * `get_my_team_edition_content` once per edition would be twenty-five
+       * round trips to draw one list. Rows carry their own `edition_date` so
+       * the client can group them back onto the editions they belong to. It
+       * grants nothing — it lists assignments that were made while the caller
+       * was an eligible member, and RLS still authorises every read.
+       */
+      get_my_team_archive_content: {
+        Args: {
+          p_from_date: string;
+          p_to_date: string;
+          p_language?: string | null;
+          p_limit?: number | null;
+        };
+        Returns: Array<{
+          content_logical_key: string;
+          content_type: string;
+          display_content_item_id: string;
+          display_language: string;
+          topic_id: string | null;
+          product_topic: string | null;
+          title: string;
+          summary: string | null;
+          edition_date: string;
+          assignment_position: number;
+          teams: Array<{ id: string; name: string | null }>;
+        }> | null;
+      };
       get_team_roster: {
         Args: { p_team_id: string };
         Returns: Array<{

@@ -128,178 +128,180 @@ export const mockTodayDailyDrops = [
         source_ids: ["netflix-q4-2023-letter"],
         version: 1
       },
-      mini_case: {
-        id: "mini-case-2026-04-26-en-ai-notes",
-        content_type: "mini_case",
-        slot: "mini_case",
-        language: "en",
-        title: "Launch an AI study app without stepping into avoidable risk",
-        topic: "tech_ai",
-        difficulty: "intermediate",
-        context:
-          "You are the product lead for a campus app that turns lecture recordings into study notes. A European beta is planned in two weeks. The app uses AI to summarize audio, detect action items, and suggest flashcards. You have one engineer, no in-house lawyer, and a small group of pilot users.",
-        challenge:
-          "Recommend the three launch changes you would make before opening the beta.",
-        constraints: [
-          "Do not add more than one week of engineering work.",
-          "Do not collect biometric or sensitive personal data.",
-          "Keep the beta useful enough for students to test daily."
-        ],
-        question:
-          "What would you change before launch, and what would you postpone?",
-        options: [
-          {
-            id: "ship-core-cut-scoring",
-            label:
-              "Ship summaries and flashcards, add consent and deletion, and cut behavioral scoring from the beta.",
-            outcome: "best",
-            feedback:
-              "This is the strongest call. You keep the product useful, respect the one-week budget, and remove the feature that carries the real risk."
-          },
-          {
-            id: "scoring-behind-flag",
-            label:
-              "Ship everything but hide scoring behind a flag that is off by default.",
-            outcome: "viable",
-            feedback:
-              "Defensible, but an off-by-default flag still ships the riskiest code and the data path behind it. For a two-week beta it is cleaner to remove scoring entirely."
-          },
-          {
-            id: "delay-for-lawyer",
-            label: "Delay the whole beta until you can hire a lawyer.",
-            outcome: "weak",
-            feedback:
-              "Too cautious. You lose weeks of learning for a risk you can largely engineer around now with consent, deletion, and a one-page risk note."
-          },
-          {
-            id: "launch-everything",
-            label:
-              "Launch every feature, collect all the data, and fix compliance only if users complain.",
-            outcome: "weak",
-            feedback:
-              "This is the expensive path. Reacting to complaints about sensitive data is exactly how a small team ends up in real trouble."
-          }
-        ],
-        expected_reasoning: [
-          "Separate low-risk summarization from any feature that profiles students.",
-          "Add clear user consent and recording notices before processing audio.",
-          "Document data retention, model limitations, and human review paths.",
-          "Postpone automated performance scoring until risk classification is clearer."
-        ],
-        sample_answer:
-          "Ship summarization, flashcards, consent screens, and deletion controls. Remove any ranking or behavioral scoring from the beta. Write a one-page risk note that explains the data used, what the model does not decide, and who reviews user complaints.",
-        questions: [
-          {
-            id: "ai-notes-q1-method",
-            role: "method",
-            prompt: "Where should you focus first to lower the real risk before the beta?",
-            options: [
-              {
-                id: "q1-separate-risk",
-                label: "Separate low-risk summaries from any feature that profiles students.",
-                outcome: "best",
-                feedback:
-                  "Right. Isolating the profiling feature is what actually removes the risk, and it costs almost no engineering time."
-              },
-              {
-                id: "q1-policy-link",
-                label: "Add a privacy-policy link and keep every feature on.",
-                outcome: "viable",
-                feedback:
-                  "A policy link helps, but it does not remove the feature that carries the risk. The exposure is still shipping."
-              },
-              {
-                id: "q1-watch-complaints",
-                label: "Ship everything and watch for complaints.",
-                outcome: "weak",
-                feedback:
-                  "Reacting to complaints about sensitive data is exactly how a small team ends up in real trouble."
-              },
-              {
-                id: "q1-pause-project",
-                label: "Pause the whole project until a lawyer is hired.",
-                outcome: "weak",
-                feedback:
-                  "Too cautious. You lose weeks of learning for a risk you can largely engineer around now."
-              }
-            ]
-          },
-          {
-            id: "ai-notes-q2-application",
-            role: "application",
-            prompt: "How do you handle the lecture audio for the beta?",
-            options: [
-              {
-                id: "q2-consent-delete",
-                label: "Ask for consent, show a recording notice, and let users delete their data.",
-                outcome: "best",
-                feedback:
-                  "This is the clean path: clear consent, a visible notice, and deletion give you a defensible beta without slowing it down."
-              },
-              {
-                id: "q2-anon-no-consent",
-                label: "Anonymise recordings after processing but skip consent.",
-                outcome: "viable",
-                feedback:
-                  "Anonymisation helps, but processing identifiable audio without consent is the part that gets you in trouble."
-              },
-              {
-                id: "q2-store-forever",
-                label: "Store all recordings indefinitely to keep improving the model.",
-                outcome: "weak",
-                feedback:
-                  "Indefinite retention of sensitive audio is the opposite of what a small team should commit to."
-              },
-              {
-                id: "q2-policy-later",
-                label: "Email users a policy a few days after the beta starts.",
-                outcome: "weak",
-                feedback:
-                  "Consent after the fact is not consent. The notice has to come before you process the audio."
-              }
-            ]
-          },
-          {
-            id: "ai-notes-q3-conclusion",
-            role: "conclusion",
-            prompt: "What do you postpone until after the beta?",
-            options: [
-              {
-                id: "q3-postpone-scoring",
-                label: "Automated performance scoring, until you can classify its risk.",
-                outcome: "best",
-                feedback:
-                  "Exactly. Scoring is the high-risk, low-urgency feature — it is the right thing to hold back."
-              },
-              {
-                id: "q3-postpone-flashcards",
-                label: "Flashcards, to keep the scope small.",
-                outcome: "viable",
-                feedback:
-                  "Flashcards are useful and low-risk. Cutting them shrinks the product without reducing risk."
-              },
-              {
-                id: "q3-postpone-consent",
-                label: "Consent screens, to move faster.",
-                outcome: "weak",
-                feedback:
-                  "Consent is the one thing you cannot postpone — it is what makes the beta safe to run."
-              },
-              {
-                id: "q3-postpone-beta",
-                label: "The whole beta, to be safe.",
-                outcome: "weak",
-                feedback:
-                  "Postponing everything trades away all the learning for a risk you can already contain."
-              }
-            ]
-          }
-        ],
-        final_takeaway:
-          "Ship the useful, low-risk core with consent and deletion, and postpone profiling until you can classify its risk. Speed and safety are not opposites here.",
-        source_ids: aiActSourceIds,
-        version: 1
-      }
+      mini_cases: [
+        {
+          id: "mini-case-2026-04-26-en-ai-notes",
+          content_type: "mini_case",
+          slot: "mini_case",
+          language: "en",
+          title: "Launch an AI study app without stepping into avoidable risk",
+          topic: "tech_ai",
+          difficulty: "intermediate",
+          context:
+            "You are the product lead for a campus app that turns lecture recordings into study notes. A European beta is planned in two weeks. The app uses AI to summarize audio, detect action items, and suggest flashcards. You have one engineer, no in-house lawyer, and a small group of pilot users.",
+          challenge:
+            "Recommend the three launch changes you would make before opening the beta.",
+          constraints: [
+            "Do not add more than one week of engineering work.",
+            "Do not collect biometric or sensitive personal data.",
+            "Keep the beta useful enough for students to test daily."
+          ],
+          question:
+            "What would you change before launch, and what would you postpone?",
+          options: [
+            {
+              id: "ship-core-cut-scoring",
+              label:
+                "Ship summaries and flashcards, add consent and deletion, and cut behavioral scoring from the beta.",
+              outcome: "best",
+              feedback:
+                "This is the strongest call. You keep the product useful, respect the one-week budget, and remove the feature that carries the real risk."
+            },
+            {
+              id: "scoring-behind-flag",
+              label:
+                "Ship everything but hide scoring behind a flag that is off by default.",
+              outcome: "viable",
+              feedback:
+                "Defensible, but an off-by-default flag still ships the riskiest code and the data path behind it. For a two-week beta it is cleaner to remove scoring entirely."
+            },
+            {
+              id: "delay-for-lawyer",
+              label: "Delay the whole beta until you can hire a lawyer.",
+              outcome: "weak",
+              feedback:
+                "Too cautious. You lose weeks of learning for a risk you can largely engineer around now with consent, deletion, and a one-page risk note."
+            },
+            {
+              id: "launch-everything",
+              label:
+                "Launch every feature, collect all the data, and fix compliance only if users complain.",
+              outcome: "weak",
+              feedback:
+                "This is the expensive path. Reacting to complaints about sensitive data is exactly how a small team ends up in real trouble."
+            }
+          ],
+          expected_reasoning: [
+            "Separate low-risk summarization from any feature that profiles students.",
+            "Add clear user consent and recording notices before processing audio.",
+            "Document data retention, model limitations, and human review paths.",
+            "Postpone automated performance scoring until risk classification is clearer."
+          ],
+          sample_answer:
+            "Ship summarization, flashcards, consent screens, and deletion controls. Remove any ranking or behavioral scoring from the beta. Write a one-page risk note that explains the data used, what the model does not decide, and who reviews user complaints.",
+          questions: [
+            {
+              id: "ai-notes-q1-method",
+              role: "method",
+              prompt: "Where should you focus first to lower the real risk before the beta?",
+              options: [
+                {
+                  id: "q1-separate-risk",
+                  label: "Separate low-risk summaries from any feature that profiles students.",
+                  outcome: "best",
+                  feedback:
+                    "Right. Isolating the profiling feature is what actually removes the risk, and it costs almost no engineering time."
+                },
+                {
+                  id: "q1-policy-link",
+                  label: "Add a privacy-policy link and keep every feature on.",
+                  outcome: "viable",
+                  feedback:
+                    "A policy link helps, but it does not remove the feature that carries the risk. The exposure is still shipping."
+                },
+                {
+                  id: "q1-watch-complaints",
+                  label: "Ship everything and watch for complaints.",
+                  outcome: "weak",
+                  feedback:
+                    "Reacting to complaints about sensitive data is exactly how a small team ends up in real trouble."
+                },
+                {
+                  id: "q1-pause-project",
+                  label: "Pause the whole project until a lawyer is hired.",
+                  outcome: "weak",
+                  feedback:
+                    "Too cautious. You lose weeks of learning for a risk you can largely engineer around now."
+                }
+              ]
+            },
+            {
+              id: "ai-notes-q2-application",
+              role: "application",
+              prompt: "How do you handle the lecture audio for the beta?",
+              options: [
+                {
+                  id: "q2-consent-delete",
+                  label: "Ask for consent, show a recording notice, and let users delete their data.",
+                  outcome: "best",
+                  feedback:
+                    "This is the clean path: clear consent, a visible notice, and deletion give you a defensible beta without slowing it down."
+                },
+                {
+                  id: "q2-anon-no-consent",
+                  label: "Anonymise recordings after processing but skip consent.",
+                  outcome: "viable",
+                  feedback:
+                    "Anonymisation helps, but processing identifiable audio without consent is the part that gets you in trouble."
+                },
+                {
+                  id: "q2-store-forever",
+                  label: "Store all recordings indefinitely to keep improving the model.",
+                  outcome: "weak",
+                  feedback:
+                    "Indefinite retention of sensitive audio is the opposite of what a small team should commit to."
+                },
+                {
+                  id: "q2-policy-later",
+                  label: "Email users a policy a few days after the beta starts.",
+                  outcome: "weak",
+                  feedback:
+                    "Consent after the fact is not consent. The notice has to come before you process the audio."
+                }
+              ]
+            },
+            {
+              id: "ai-notes-q3-conclusion",
+              role: "conclusion",
+              prompt: "What do you postpone until after the beta?",
+              options: [
+                {
+                  id: "q3-postpone-scoring",
+                  label: "Automated performance scoring, until you can classify its risk.",
+                  outcome: "best",
+                  feedback:
+                    "Exactly. Scoring is the high-risk, low-urgency feature — it is the right thing to hold back."
+                },
+                {
+                  id: "q3-postpone-flashcards",
+                  label: "Flashcards, to keep the scope small.",
+                  outcome: "viable",
+                  feedback:
+                    "Flashcards are useful and low-risk. Cutting them shrinks the product without reducing risk."
+                },
+                {
+                  id: "q3-postpone-consent",
+                  label: "Consent screens, to move faster.",
+                  outcome: "weak",
+                  feedback:
+                    "Consent is the one thing you cannot postpone — it is what makes the beta safe to run."
+                },
+                {
+                  id: "q3-postpone-beta",
+                  label: "The whole beta, to be safe.",
+                  outcome: "weak",
+                  feedback:
+                    "Postponing everything trades away all the learning for a risk you can already contain."
+                }
+              ]
+            }
+          ],
+          final_takeaway:
+            "Ship the useful, low-risk core with consent and deletion, and postpone profiling until you can classify its risk. Speed and safety are not opposites here.",
+          source_ids: aiActSourceIds,
+          version: 1
+        }
+      ]
     }
   },
   {
@@ -369,178 +371,180 @@ export const mockTodayDailyDrops = [
         source_ids: ["netflix-q4-2023-letter"],
         version: 1
       },
-      mini_case: {
-        id: "mini-case-2026-04-26-fr-ai-notes",
-        content_type: "mini_case",
-        slot: "mini_case",
-        language: "fr",
-        title: "Lancer une app IA de revision sans prendre un risque inutile",
-        topic: "tech_ai",
-        difficulty: "intermediate",
-        context:
-          "Tu es responsable produit d'une app campus qui transforme des enregistrements de cours en fiches de revision. Une beta europeenne est prevue dans deux semaines. L'app resume l'audio, extrait des actions et propose des flashcards. Tu as un ingenieur, pas de juriste interne et un petit groupe pilote.",
-        challenge:
-          "Recommande les trois changements a faire avant d'ouvrir la beta.",
-        constraints: [
-          "Ne pas ajouter plus d'une semaine de travail technique.",
-          "Ne pas collecter de donnees biometriques ou sensibles.",
-          "Garder une beta assez utile pour etre testee chaque jour."
-        ],
-        question:
-          "Que changes-tu avant le lancement, et que repousses-tu ?",
-        options: [
-          {
-            id: "ship-core-cut-scoring",
-            label:
-              "Lancer le resume et les flashcards, ajouter consentement et suppression, et retirer le scoring comportemental de la beta.",
-            outcome: "best",
-            feedback:
-              "C'est le meilleur choix. Tu gardes un produit utile, tu respectes la semaine de budget et tu retires la fonctionnalite qui porte le vrai risque."
-          },
-          {
-            id: "scoring-behind-flag",
-            label:
-              "Tout lancer mais cacher le scoring derriere un flag desactive par defaut.",
-            outcome: "viable",
-            feedback:
-              "Defendable, mais un flag desactive par defaut embarque quand meme le code le plus risque et son traitement de donnees. Pour une beta de deux semaines, mieux vaut retirer le scoring."
-          },
-          {
-            id: "delay-for-lawyer",
-            label: "Repousser toute la beta jusqu'a pouvoir recruter un juriste.",
-            outcome: "weak",
-            feedback:
-              "Trop prudent. Tu perds des semaines d'apprentissage pour un risque que tu peux largement encadrer maintenant avec consentement, suppression et une note risque d'une page."
-          },
-          {
-            id: "launch-everything",
-            label:
-              "Tout lancer, collecter toutes les donnees, et corriger la conformite seulement si des utilisateurs se plaignent.",
-            outcome: "weak",
-            feedback:
-              "C'est le chemin couteux. Reagir aux plaintes sur des donnees sensibles, c'est exactement ainsi qu'une petite equipe finit dans une vraie difficulte."
-          }
-        ],
-        expected_reasoning: [
-          "Separer le resume a faible risque de toute fonctionnalite qui profilerait les etudiants.",
-          "Ajouter un consentement clair et des notices avant le traitement audio.",
-          "Documenter la retention des donnees, les limites du modele et les recours humains.",
-          "Repousser le scoring automatique de performance tant que la classification du risque n'est pas claire."
-        ],
-        sample_answer:
-          "Je lance le resume, les flashcards, les ecrans de consentement et les controles de suppression. Je retire tout classement ou scoring comportemental de la beta. Je redige une note risque d'une page qui explique les donnees utilisees, ce que le modele ne decide pas, et qui traite les retours utilisateurs.",
-        questions: [
-          {
-            id: "ai-notes-q1-method",
-            role: "method",
-            prompt: "Par où commencer pour réduire le vrai risque avant la beta ?",
-            options: [
-              {
-                id: "q1-separate-risk",
-                label: "Séparer le résumé à faible risque de toute fonctionnalité qui profile les étudiants.",
-                outcome: "best",
-                feedback:
-                  "Exact. Isoler la fonctionnalité de profilage retire réellement le risque, pour presque aucun coût technique."
-              },
-              {
-                id: "q1-policy-link",
-                label: "Ajouter un lien vers la politique de confidentialité et tout garder activé.",
-                outcome: "viable",
-                feedback:
-                  "Un lien aide, mais il ne retire pas la fonctionnalité qui porte le risque. L'exposition reste en production."
-              },
-              {
-                id: "q1-watch-complaints",
-                label: "Tout lancer et surveiller les plaintes.",
-                outcome: "weak",
-                feedback:
-                  "Réagir aux plaintes sur des données sensibles, c'est exactement ainsi qu'une petite équipe finit en difficulté."
-              },
-              {
-                id: "q1-pause-project",
-                label: "Mettre tout le projet en pause jusqu'au recrutement d'un juriste.",
-                outcome: "weak",
-                feedback:
-                  "Trop prudent. Tu perds des semaines d'apprentissage pour un risque que tu peux largement encadrer maintenant."
-              }
-            ]
-          },
-          {
-            id: "ai-notes-q2-application",
-            role: "application",
-            prompt: "Comment gérer l'audio des cours pour la beta ?",
-            options: [
-              {
-                id: "q2-consent-delete",
-                label: "Demander le consentement, afficher une notice d'enregistrement et permettre la suppression.",
-                outcome: "best",
-                feedback:
-                  "C'est la voie propre : consentement clair, notice visible et suppression rendent la beta défendable sans la ralentir."
-              },
-              {
-                id: "q2-anon-no-consent",
-                label: "Anonymiser les enregistrements après traitement mais sauter le consentement.",
-                outcome: "viable",
-                feedback:
-                  "L'anonymisation aide, mais traiter de l'audio identifiable sans consentement reste la partie qui pose problème."
-              },
-              {
-                id: "q2-store-forever",
-                label: "Stocker tous les enregistrements indéfiniment pour améliorer le modèle.",
-                outcome: "weak",
-                feedback:
-                  "Une rétention indéfinie d'audio sensible est l'inverse de ce qu'une petite équipe devrait s'engager à faire."
-              },
-              {
-                id: "q2-policy-later",
-                label: "Envoyer une politique par e-mail quelques jours après le début de la beta.",
-                outcome: "weak",
-                feedback:
-                  "Un consentement après coup n'est pas un consentement. La notice doit précéder le traitement de l'audio."
-              }
-            ]
-          },
-          {
-            id: "ai-notes-q3-conclusion",
-            role: "conclusion",
-            prompt: "Que repousser après la beta ?",
-            options: [
-              {
-                id: "q3-postpone-scoring",
-                label: "Le scoring automatique de performance, jusqu'à pouvoir en classer le risque.",
-                outcome: "best",
-                feedback:
-                  "Exactement. Le scoring est la fonctionnalité à haut risque et faible urgence — c'est la bonne chose à retenir."
-              },
-              {
-                id: "q3-postpone-flashcards",
-                label: "Les flashcards, pour réduire le périmètre.",
-                outcome: "viable",
-                feedback:
-                  "Les flashcards sont utiles et peu risquées. Les couper réduit le produit sans réduire le risque."
-              },
-              {
-                id: "q3-postpone-consent",
-                label: "Les écrans de consentement, pour aller plus vite.",
-                outcome: "weak",
-                feedback:
-                  "Le consentement est la seule chose qu'on ne peut pas repousser — c'est lui qui rend la beta sûre."
-              },
-              {
-                id: "q3-postpone-beta",
-                label: "Toute la beta, par sécurité.",
-                outcome: "weak",
-                feedback:
-                  "Tout repousser sacrifie l'apprentissage pour un risque que tu peux déjà contenir."
-              }
-            ]
-          }
-        ],
-        final_takeaway:
-          "Lance le cœur utile et peu risqué avec consentement et suppression, et repousse le profilage jusqu'à pouvoir en classer le risque. Vitesse et sécurité ne s'opposent pas ici.",
-        source_ids: aiActSourceIds,
-        version: 1
-      }
+      mini_cases: [
+        {
+          id: "mini-case-2026-04-26-fr-ai-notes",
+          content_type: "mini_case",
+          slot: "mini_case",
+          language: "fr",
+          title: "Lancer une app IA de revision sans prendre un risque inutile",
+          topic: "tech_ai",
+          difficulty: "intermediate",
+          context:
+            "Tu es responsable produit d'une app campus qui transforme des enregistrements de cours en fiches de revision. Une beta europeenne est prevue dans deux semaines. L'app resume l'audio, extrait des actions et propose des flashcards. Tu as un ingenieur, pas de juriste interne et un petit groupe pilote.",
+          challenge:
+            "Recommande les trois changements a faire avant d'ouvrir la beta.",
+          constraints: [
+            "Ne pas ajouter plus d'une semaine de travail technique.",
+            "Ne pas collecter de donnees biometriques ou sensibles.",
+            "Garder une beta assez utile pour etre testee chaque jour."
+          ],
+          question:
+            "Que changes-tu avant le lancement, et que repousses-tu ?",
+          options: [
+            {
+              id: "ship-core-cut-scoring",
+              label:
+                "Lancer le resume et les flashcards, ajouter consentement et suppression, et retirer le scoring comportemental de la beta.",
+              outcome: "best",
+              feedback:
+                "C'est le meilleur choix. Tu gardes un produit utile, tu respectes la semaine de budget et tu retires la fonctionnalite qui porte le vrai risque."
+            },
+            {
+              id: "scoring-behind-flag",
+              label:
+                "Tout lancer mais cacher le scoring derriere un flag desactive par defaut.",
+              outcome: "viable",
+              feedback:
+                "Defendable, mais un flag desactive par defaut embarque quand meme le code le plus risque et son traitement de donnees. Pour une beta de deux semaines, mieux vaut retirer le scoring."
+            },
+            {
+              id: "delay-for-lawyer",
+              label: "Repousser toute la beta jusqu'a pouvoir recruter un juriste.",
+              outcome: "weak",
+              feedback:
+                "Trop prudent. Tu perds des semaines d'apprentissage pour un risque que tu peux largement encadrer maintenant avec consentement, suppression et une note risque d'une page."
+            },
+            {
+              id: "launch-everything",
+              label:
+                "Tout lancer, collecter toutes les donnees, et corriger la conformite seulement si des utilisateurs se plaignent.",
+              outcome: "weak",
+              feedback:
+                "C'est le chemin couteux. Reagir aux plaintes sur des donnees sensibles, c'est exactement ainsi qu'une petite equipe finit dans une vraie difficulte."
+            }
+          ],
+          expected_reasoning: [
+            "Separer le resume a faible risque de toute fonctionnalite qui profilerait les etudiants.",
+            "Ajouter un consentement clair et des notices avant le traitement audio.",
+            "Documenter la retention des donnees, les limites du modele et les recours humains.",
+            "Repousser le scoring automatique de performance tant que la classification du risque n'est pas claire."
+          ],
+          sample_answer:
+            "Je lance le resume, les flashcards, les ecrans de consentement et les controles de suppression. Je retire tout classement ou scoring comportemental de la beta. Je redige une note risque d'une page qui explique les donnees utilisees, ce que le modele ne decide pas, et qui traite les retours utilisateurs.",
+          questions: [
+            {
+              id: "ai-notes-q1-method",
+              role: "method",
+              prompt: "Par où commencer pour réduire le vrai risque avant la beta ?",
+              options: [
+                {
+                  id: "q1-separate-risk",
+                  label: "Séparer le résumé à faible risque de toute fonctionnalité qui profile les étudiants.",
+                  outcome: "best",
+                  feedback:
+                    "Exact. Isoler la fonctionnalité de profilage retire réellement le risque, pour presque aucun coût technique."
+                },
+                {
+                  id: "q1-policy-link",
+                  label: "Ajouter un lien vers la politique de confidentialité et tout garder activé.",
+                  outcome: "viable",
+                  feedback:
+                    "Un lien aide, mais il ne retire pas la fonctionnalité qui porte le risque. L'exposition reste en production."
+                },
+                {
+                  id: "q1-watch-complaints",
+                  label: "Tout lancer et surveiller les plaintes.",
+                  outcome: "weak",
+                  feedback:
+                    "Réagir aux plaintes sur des données sensibles, c'est exactement ainsi qu'une petite équipe finit en difficulté."
+                },
+                {
+                  id: "q1-pause-project",
+                  label: "Mettre tout le projet en pause jusqu'au recrutement d'un juriste.",
+                  outcome: "weak",
+                  feedback:
+                    "Trop prudent. Tu perds des semaines d'apprentissage pour un risque que tu peux largement encadrer maintenant."
+                }
+              ]
+            },
+            {
+              id: "ai-notes-q2-application",
+              role: "application",
+              prompt: "Comment gérer l'audio des cours pour la beta ?",
+              options: [
+                {
+                  id: "q2-consent-delete",
+                  label: "Demander le consentement, afficher une notice d'enregistrement et permettre la suppression.",
+                  outcome: "best",
+                  feedback:
+                    "C'est la voie propre : consentement clair, notice visible et suppression rendent la beta défendable sans la ralentir."
+                },
+                {
+                  id: "q2-anon-no-consent",
+                  label: "Anonymiser les enregistrements après traitement mais sauter le consentement.",
+                  outcome: "viable",
+                  feedback:
+                    "L'anonymisation aide, mais traiter de l'audio identifiable sans consentement reste la partie qui pose problème."
+                },
+                {
+                  id: "q2-store-forever",
+                  label: "Stocker tous les enregistrements indéfiniment pour améliorer le modèle.",
+                  outcome: "weak",
+                  feedback:
+                    "Une rétention indéfinie d'audio sensible est l'inverse de ce qu'une petite équipe devrait s'engager à faire."
+                },
+                {
+                  id: "q2-policy-later",
+                  label: "Envoyer une politique par e-mail quelques jours après le début de la beta.",
+                  outcome: "weak",
+                  feedback:
+                    "Un consentement après coup n'est pas un consentement. La notice doit précéder le traitement de l'audio."
+                }
+              ]
+            },
+            {
+              id: "ai-notes-q3-conclusion",
+              role: "conclusion",
+              prompt: "Que repousser après la beta ?",
+              options: [
+                {
+                  id: "q3-postpone-scoring",
+                  label: "Le scoring automatique de performance, jusqu'à pouvoir en classer le risque.",
+                  outcome: "best",
+                  feedback:
+                    "Exactement. Le scoring est la fonctionnalité à haut risque et faible urgence — c'est la bonne chose à retenir."
+                },
+                {
+                  id: "q3-postpone-flashcards",
+                  label: "Les flashcards, pour réduire le périmètre.",
+                  outcome: "viable",
+                  feedback:
+                    "Les flashcards sont utiles et peu risquées. Les couper réduit le produit sans réduire le risque."
+                },
+                {
+                  id: "q3-postpone-consent",
+                  label: "Les écrans de consentement, pour aller plus vite.",
+                  outcome: "weak",
+                  feedback:
+                    "Le consentement est la seule chose qu'on ne peut pas repousser — c'est lui qui rend la beta sûre."
+                },
+                {
+                  id: "q3-postpone-beta",
+                  label: "Toute la beta, par sécurité.",
+                  outcome: "weak",
+                  feedback:
+                    "Tout repousser sacrifie l'apprentissage pour un risque que tu peux déjà contenir."
+                }
+              ]
+            }
+          ],
+          final_takeaway:
+            "Lance le cœur utile et peu risqué avec consentement et suppression, et repousse le profilage jusqu'à pouvoir en classer le risque. Vitesse et sécurité ne s'opposent pas ici.",
+          source_ids: aiActSourceIds,
+          version: 1
+        }
+      ]
     }
   }
 ] satisfies TodayDailyDrop[];
@@ -559,7 +563,10 @@ export function flattenDailyDropItems(
   return [
     ...drop.items.newsletter,
     drop.items.business_story,
-    drop.items.mini_case,
+    // `mini_cases` is the real list; `mini_case` is the legacy alias for its
+    // first entry, so a drop built by older code (or a fixture that predates
+    // the array) still contributes exactly one case rather than none.
+    ...(drop.items.mini_cases ?? (drop.items.mini_case ? [drop.items.mini_case] : [])),
     drop.items.concept
   ].filter((item): item is DailyDropContentItem => Boolean(item));
 }

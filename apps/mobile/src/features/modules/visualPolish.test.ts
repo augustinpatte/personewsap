@@ -106,7 +106,10 @@ describe("each module has its own signature", () => {
 
   it("adds useful header metadata without inventing data", () => {
     expect(newsletter).toMatch(/copy\.newsletter\.articleCount/);
-    expect(cases).toMatch(/miniCase\.questions\?\.length/);
+    expect(cases).toMatch(/challenge\.questions\?\.length/);
+    // Plural: the header counts the cases the reader actually has, which is
+    // more than one as soon as a Team assigns them a case of its own.
+    expect(cases).toMatch(/copy\.cases\.caseCount\(drop\.items\.mini_cases\.length\)/);
     expect(stories).toMatch(/story\.story_date/);
     expect(path).toMatch(/sessionsCompletedCount/);
   });

@@ -7,8 +7,19 @@ import {
 } from "../../lib/dataState";
 import { getUserLocalDateKey } from "../../lib/localDate";
 import { getCachedValue, setCachedValue } from "../../lib/memoryCache";
-import { resolveContentItemsForLanguage } from "./contentTranslations";
+import {
+  fetchContentItemsByLogicalKeys,
+  resolveContentItemsForLanguage
+} from "./contentTranslations";
 import { orderMiniCaseQuestionOptions } from "./miniCaseOptionOrder";
+import {
+  fetchTeamContentForEdition,
+  indexTeamAssignmentsByIdentity,
+  teamContentIdentity,
+  type TeamAssignmentRef,
+  type TeamContentAssignment
+} from "./teamEditionContent";
+import { mergedItems, mergeTeamAndPersonalContent } from "../quiz/teamMerge";
 import { allowMockContent } from "../../lib/mockPolicy";
 import { isLikelyNetworkError, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import {
@@ -24,6 +35,7 @@ import type {
   LogicalQuestionRef,
   ContentDifficulty,
   ContentLanguage,
+  DailyDropSlot,
   DailyDropContentItem,
   KeyConcept,
   MiniCaseChallenge,
@@ -65,7 +77,6 @@ type SourcesByContentItemId = Record<
  * in the same Team play one game.
  */
 type QuestionsByContentItemId = Record<string, LogicalQuestionRef[]>;
-type TeamsByContentItemId = Record<string, ContentTeamRef[]>;
 
 const logicalQuestionSelect =
   "id,content_logical_key,content_type,question_sequence,question_role";
@@ -179,23 +190,27 @@ export async function fetchTodayDrop(
       );
     }
 
-    if (!drop) {
-      logTodayDataProof("no_edition", {
-        drop_date: dropDate,
-        reason: "no_supabase_data",
-        user_id: redactIdentifier(userId)
-      });
+    // A reader with no drop of their own can still have an edition: every
+    // module switched off, or an account created after the personal build ran,
+    // and a Team that was assigned content today. Team content is a second
+    // source, not a decoration on the first, so it is read even when the first
+    // is empty — and a synthetic shell carries it so every screen downstream
+    // keeps working on one TodayDailyDrop.
+    const editionShell = drop ?? buildTeamOnlyDropShell(userId, dropDate, options.language);
 
-      return createSupabaseResult(buildEmptyTodayDrop(options.language ?? "en", dropDate));
-    }
-
-    const mappedDrop = await fetchAndMapDailyDrop(drop, options.language);
+    const mappedDrop = await assembleEditionFromBothSources({
+      drop: editionShell,
+      personalDropItems: drop ? await fetchDropItems(drop.id) : [],
+      language: options.language
+    });
 
     if (!mappedDrop) {
       logTodayDataProof("no_edition", {
-        daily_drop_id: drop.id,
+        daily_drop_id: drop?.id ?? null,
         drop_date: dropDate,
-        reason: "daily_drop_has_no_displayable_items"
+        reason: drop
+          ? "daily_drop_has_no_displayable_items"
+          : "no_personal_or_team_content"
       });
 
       return createSupabaseResult(buildEmptyTodayDrop(options.language ?? "en", dropDate));
@@ -378,13 +393,33 @@ export async function fetchContentItemById(
       return createSupabaseResult(null);
     }
 
-    if (options.userId && !(await isContentItemAssignedToUser(contentItemId, options.userId))) {
-      return createSupabaseResult(null);
-    }
-
     const slot = slotForContentType(contentItem.content_type);
 
     if (!slot) {
+      return createSupabaseResult(null);
+    }
+
+    // BOTH ROUTES, on the archive path too. An item reaches a reader either
+    // through their own drop or through a Team assignment for the edition it
+    // was published in — and a Team-only article they read last week must open
+    // from the archive, not 404 because it was never in a daily_drop_items row.
+    //
+    // The same call answers the entitlement question and supplies the badge, so
+    // there is no second round trip and no way for the two to disagree.
+    const teamAssignments = options.userId
+      ? await fetchTeamContentForEdition(contentItem.publication_date, options.language)
+      : [];
+    const identity = identityOfContentItem(contentItem);
+    const teamAssignmentsByIdentity = indexTeamAssignmentsByIdentity(teamAssignments);
+    const hasTeamEntitlement = identity
+      ? teamAssignmentsByIdentity.has(identity)
+      : false;
+
+    if (
+      options.userId &&
+      !hasTeamEntitlement &&
+      !(await isContentItemAssignedToUser(contentItemId, options.userId))
+    ) {
       return createSupabaseResult(null);
     }
 
@@ -401,18 +436,22 @@ export async function fetchContentItemById(
     // opened after a language switch shows the same questions and the same
     // single attempt as it did on the day.
     const questionsByContentItemId = await fetchQuestionsByContentItemIds([contentItem]);
-    const teamsByContentItemId = await fetchTeamsByContentItemIds({
-      contentItems: [contentItem],
-      questionsByContentItemId,
-      editionDate: contentItem.publication_date
-    });
+
+    // Only for a Team item, and only because it has no assigned id to anchor
+    // to: its row changes with the reading language, so completion has to be
+    // looked up across every rendering. A personal item keeps the id its drop
+    // assigned, so it needs none of this.
+    const translationIds = hasTeamEntitlement
+      ? await fetchTranslationIdsForItem(contentItem)
+      : [];
 
     const mappedItem = mapDailyDropContentItem(
       renderedItem ?? contentItem,
       synthesizeDropItem(contentItemId, slot),
       sourcesByContentItemId,
       questionsByContentItemId,
-      teamsByContentItemId
+      teamAssignmentsByIdentity,
+      translationIds
     );
 
     if (!mappedItem) {
@@ -456,89 +495,316 @@ async function isContentItemAssignedToUser(
   return Boolean(data);
 }
 
-async function fetchAndMapDailyDrop(
-  drop: DailyDrop,
+/** The other published renderings of one item's logical content, by row id. */
+async function fetchTranslationIdsForItem(contentItem: ContentItem): Promise<string[]> {
+  const key = readContentLogicalKey(contentItem);
+
+  if (!key) {
+    return [];
+  }
+
+  const itemsByLogicalKey = await fetchContentItemsByLogicalKeys([key]);
+
+  return (itemsByLogicalKey.get(key) ?? [])
+    .filter(
+      (rendering: ContentItem) =>
+        rendering.content_type === contentItem.content_type &&
+        rendering.id !== contentItem.id
+    )
+    .map((rendering: ContentItem) => rendering.id);
+}
+
+/** The drop's own items, in the order the personal edition put them. */
+async function fetchDropItems(dailyDropId: string): Promise<DailyDropItem[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("daily_drop_items")
+    .select(dailyDropItemSelect)
+    .eq("daily_drop_id", dailyDropId)
+    .order("position", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+/**
+ * The edition row a Team-only edition is hung on.
+ *
+ * Not written anywhere and never confused for one that is: the id is prefixed
+ * so it can never be mistaken for a UUID, and `isSupabaseContentItemId`-style
+ * guards downstream keep working. It exists so that a reader whose only content
+ * today came from a Team still gets a normal edition — same chrome, same
+ * progress line, same readers — instead of the empty-edition screen.
+ */
+function buildTeamOnlyDropShell(
+  userId: string,
+  dropDate: string,
   language?: ContentLanguage
-): Promise<TodayDailyDrop | null> {
+): DailyDrop {
+  return {
+    id: `team-edition:${dropDate}`,
+    user_id: userId,
+    drop_date: dropDate,
+    language: language ?? "en",
+    status: "published",
+    hide_display_date: false,
+    generated_at: dropDate,
+    published_at: null,
+    created_at: "",
+    updated_at: ""
+  };
+}
+
+/**
+ * One edition, assembled from BOTH sources the reader is served by.
+ *
+ * A reader's edition used to be exactly their own daily drop. It is now that
+ * plus whatever their Teams were assigned for the same edition — inside the
+ * same editorial sections, not in a second feed, because "Newsletter" is a
+ * place in the product and a Team article is still a newsletter article.
+ *
+ * FOUR QUERIES FOR A WHOLE EDITION, whatever the reader's life looks like.
+ * Not four per Team and not four per item: a reader in four Teams, each with
+ * six articles and a case, costs exactly the same as a reader in none.
+ *
+ *   1  the drop's items                    (already fetched by the caller)
+ *   2  the content rows for them           one `in (…)`
+ *   3  the Team edition                    one RPC, every Team folded in
+ *   4  the content rows for Team-only work one `or (…)` over logical keys
+ *
+ * plus the two shared fetches for sources and questions, which take the union
+ * of both sources and are therefore still one query each.
+ *
+ * Steps 2 and 3 run concurrently: neither needs the other's answer.
+ */
+async function assembleEditionFromBothSources(input: {
+  drop: DailyDrop;
+  personalDropItems: DailyDropItem[];
+  language?: ContentLanguage;
+}): Promise<TodayDailyDrop | null> {
   if (!supabase) {
     return null;
   }
 
-  const { data: dropItems, error: dropItemsError } = await supabase
-    .from("daily_drop_items")
-    .select(dailyDropItemSelect)
-    .eq("daily_drop_id", drop.id)
-    .order("position", { ascending: true });
-
-  if (dropItemsError) {
-    throw dropItemsError;
-  }
-
-  const orderedDropItems = dropItems ?? [];
-  const contentItemIds = orderedDropItems.map((item) => item.content_item_id);
-
-  if (contentItemIds.length === 0) {
-    return null;
-  }
-
-  const { data: contentItems, error: contentItemsError } = await supabase
-    .from("content_items")
-    .select(contentItemSelect)
-    .in("id", contentItemIds)
-    .eq("status", "published");
-
-  if (contentItemsError) {
-    throw contentItemsError;
-  }
-
-  // Render in the reader's current language: display fields come from the
-  // translation, ids stay the assigned rows' — the anchor for interactions.
-  const renderedContentItems = await resolveContentItemsForLanguage(
-    contentItems ?? [],
-    language
+  const personalContentItemIds = input.personalDropItems.map(
+    (dropItem) => dropItem.content_item_id
   );
 
+  const [assignedContentItems, teamAssignments] = await Promise.all([
+    fetchPublishedContentItemsByIds(personalContentItemIds),
+    // Best effort by construction: a Team fetch that fails returns [], and the
+    // reader still gets their own edition. Losing both would be the worse bug.
+    fetchTeamContentForEdition(input.drop.drop_date, input.language)
+  ]);
+
+  // Render the personal items in the reader's language. Ids stay the assigned
+  // rows' — the anchor every interaction and every RLS check uses.
+  const renderedContentItems = await resolveContentItemsForLanguage(
+    assignedContentItems,
+    input.language
+  );
   const contentItemsById = new Map(
     renderedContentItems.map((contentItem) => [contentItem.id, contentItem])
   );
-  const availableContentItems = orderedDropItems
-    .map((dropItem) => contentItemsById.get(dropItem.content_item_id))
-    .filter(isContentItem);
-  // The assigned rows, not the rendered ones: sources, questions and team
-  // assignments are all granted on the id the reader's own drop references.
-  const assignedContentItems = (contentItems ?? []).filter(isContentItem);
-  const sourcesByContentItemId = await fetchSourcesByContentItemIds(contentItemIds);
-  const questionsByContentItemId = await fetchQuestionsByContentItemIds(assignedContentItems);
-  const teamsByContentItemId = await fetchTeamsByContentItemIds({
-    contentItems: assignedContentItems,
-    questionsByContentItemId,
-    editionDate: drop.drop_date
-  });
 
-  const mappedItems = orderedDropItems
+  // What the reader already has, by LOGICAL identity. An assignment matching
+  // one of these is an overlap: the same article reached them twice, and it is
+  // shown once.
+  const personalIdentities = new Set(
+    assignedContentItems
+      .map((contentItem) => identityOfContentItem(contentItem))
+      .filter((identity): identity is string => identity !== null)
+  );
+  const teamOnlyAssignments = teamAssignments.filter(
+    (assignment) => !personalIdentities.has(teamContentIdentity(assignment))
+  );
+  const teamOnlyItems = await fetchTeamOnlyContentItems(teamOnlyAssignments);
+
+  if (assignedContentItems.length === 0 && teamOnlyItems.length === 0) {
+    return null;
+  }
+
+  const teamOnlyContentItems = teamOnlyItems.map((entry) => entry.contentItem);
+  const allContentItems = [...assignedContentItems, ...teamOnlyContentItems];
+  const allContentItemIds = allContentItems.map((contentItem) => contentItem.id);
+
+  const sourcesByContentItemId = await fetchSourcesByContentItemIds(allContentItemIds);
+  // Questions are resolved from the ASSIGNED rows, never the rendered ones, so
+  // an archived reading opened after a language switch shows the same questions
+  // and the same single attempt as it did on the day.
+  const questionsByContentItemId = await fetchQuestionsByContentItemIds(allContentItems);
+  const teamAssignmentsByIdentity = indexTeamAssignmentsByIdentity(teamAssignments);
+
+  const mapItem = (
+    contentItem: ContentItem,
+    dropItem: DailyDropItem,
+    translationIds: string[] = []
+  ) =>
+    mapDailyDropContentItem(
+      contentItem,
+      dropItem,
+      sourcesByContentItemId,
+      questionsByContentItemId,
+      teamAssignmentsByIdentity,
+      translationIds
+    );
+
+  const personalItems = input.personalDropItems
     .map((dropItem) => {
       const contentItem = contentItemsById.get(dropItem.content_item_id);
 
-      return contentItem
-        ? mapDailyDropContentItem(
-            contentItem,
-            dropItem,
-            sourcesByContentItemId,
-            questionsByContentItemId,
-            teamsByContentItemId
+      return contentItem ? mapItem(contentItem, dropItem) : null;
+    })
+    .filter(isDailyDropContentItem);
+
+  const teamOnlyMapped = teamOnlyItems
+    .map((entry) => {
+      const slot = slotForContentType(entry.contentItem.content_type);
+
+      return slot
+        ? mapItem(
+            entry.contentItem,
+            synthesizeDropItem(entry.contentItem.id, slot, entry.assignment.position),
+            entry.translationIds
           )
         : null;
     })
     .filter(isDailyDropContentItem);
 
-  // The edition's own chrome (title) follows the rendered language, not the
-  // language the drop happened to be published in.
+  const availableContentItems = personalItems
+    .map((item) => contentItemsById.get(item.id))
+    .filter(isContentItem);
+
   return assembleTodayDrop(
-    { ...drop, language: language ?? drop.language },
-    mappedItems,
-    availableContentItems
+    // The edition's own chrome (title) follows the rendered language, not the
+    // language the drop happened to be published in.
+    { ...input.drop, language: input.language ?? input.drop.language },
+    orderEditionItems([...personalItems, ...teamOnlyMapped]),
+    [...availableContentItems, ...teamOnlyContentItems]
   );
 }
+
+/**
+ * TEAM FIRST, THEN PERSONAL, DEDUPLICATED ON LOGICAL IDENTITY.
+ *
+ * Done here rather than in the three module screens, for two reasons that both
+ * bite. Three screens each running their own merge is three chances for the
+ * order to drift apart; and edition PROGRESS is counted over this list, so a
+ * screen-level merge would leave the provider counting an overlapping article
+ * twice — the reader told they had six things to read when they have five.
+ *
+ * Ordering is per section, because the sections are what the reader sees: the
+ * lead of the Newsletter must be a Newsletter item, not whichever mini case
+ * happened to sort first.
+ */
+function orderEditionItems(items: DailyDropContentItem[]): DailyDropContentItem[] {
+  const bySlot = new Map<DailyDropSlot, DailyDropContentItem[]>();
+
+  for (const item of items) {
+    bySlot.set(item.slot, [...(bySlot.get(item.slot) ?? []), item]);
+  }
+
+  return [...bySlot.entries()].flatMap(([, slotItems]) =>
+    mergedItems(
+      mergeTeamAndPersonalContent({
+        // An item with Teams IS a Team assignment, whether or not the reader's
+        // own edition also carries it; one with none is purely personal.
+        teamAssignments: slotItems
+          .filter((item) => (item.teams ?? []).length > 0)
+          .flatMap((item) =>
+            (item.teams ?? []).map((team) => ({
+              team,
+              item,
+              position: item.assignment_position ?? 0
+            }))
+          ),
+        personalItems: slotItems.filter((item) => (item.teams ?? []).length === 0)
+      })
+    )
+  );
+}
+
+/** The published content rows for a set of assigned ids. One query. */
+async function fetchPublishedContentItemsByIds(
+  contentItemIds: string[]
+): Promise<ContentItem[]> {
+  if (!supabase || contentItemIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("content_items")
+    .select(contentItemSelect)
+    .in("id", contentItemIds)
+    .eq("status", "published");
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).filter(isContentItem);
+}
+
+type TeamOnlyContentItem = {
+  assignment: TeamContentAssignment;
+  contentItem: ContentItem;
+  /** The other renderings of the same logical content, by row id. */
+  translationIds: string[];
+};
+
+/**
+ * The content rows behind Team-only assignments — ALL renderings, in one query.
+ *
+ * By logical key rather than by the display id the RPC returned, because Team
+ * content has no daily_drop_items row to pin an id to. The row that is shown
+ * changes when the reader switches language, so completion has to be looked up
+ * across every rendering or a Team article read in English would come back
+ * unread in French. The display row is the one the database already chose;
+ * the rest are carried as `translation_ids`.
+ */
+async function fetchTeamOnlyContentItems(
+  assignments: TeamContentAssignment[]
+): Promise<TeamOnlyContentItem[]> {
+  if (assignments.length === 0) {
+    return [];
+  }
+
+  const itemsByLogicalKey = await fetchContentItemsByLogicalKeys(
+    assignments.map((assignment) => assignment.contentLogicalKey)
+  );
+  const teamOnlyItems: TeamOnlyContentItem[] = [];
+
+  for (const assignment of assignments) {
+    const renderings = (itemsByLogicalKey.get(assignment.contentLogicalKey) ?? []).filter(
+      (contentItem: ContentItem) => contentItem.content_type === assignment.contentType
+    );
+    const displayItem =
+      renderings.find(
+        (contentItem: ContentItem) => contentItem.id === assignment.displayContentItemId
+      ) ?? renderings[0];
+
+    if (!displayItem) {
+      continue;
+    }
+
+    teamOnlyItems.push({
+      assignment,
+      contentItem: displayItem,
+      translationIds: renderings
+        .filter((contentItem: ContentItem) => contentItem.id !== displayItem.id)
+        .map((contentItem: ContentItem) => contentItem.id)
+    });
+  }
+
+  return teamOnlyItems;
+}
+
 
 async function fetchSourcesByContentItemIds(
   contentItemIds: string[]
@@ -674,89 +940,22 @@ async function fetchQuestionsByContentItemIds(
 }
 
 /**
- * Which of the reader's Teams were assigned each item, for the current edition.
+ * The logical identity of a content row: the same `content_type` +
+ * `content_logical_key` pair the Team assignments are written on.
  *
- * Eligibility is applied here, not in the UI: a member who joined mid-edition
- * is not eligible until the next one, and showing them a Team badge on content
- * that will not score for them would be a lie the leaderboard then contradicts.
+ * Null for content that predates the key. Such an item is only ever itself —
+ * it can never be recognised as the other language rendering of anything, and
+ * it can never be matched to a Team assignment, which is the honest answer
+ * rather than a guess.
  */
-async function fetchTeamsByContentItemIds(input: {
-  contentItems: ContentItem[];
-  questionsByContentItemId: QuestionsByContentItemId;
-  editionDate: string;
-}): Promise<TeamsByContentItemId> {
-  if (!supabase) {
-    return {};
-  }
+function identityOfContentItem(contentItem: ContentItem): string | null {
+  const key = readContentLogicalKey(contentItem);
 
-  const logicalQuestionIds = [
-    ...new Set(
-      Object.values(input.questionsByContentItemId).flatMap((list) =>
-        list.map((question) => question.logical_question_id)
-      )
-    )
-  ];
-
-  if (logicalQuestionIds.length === 0) {
-    return {};
-  }
-
-  // Through an RPC rather than a join onto `teams`.
-  //
-  // The client has no SELECT on that table — it carries the invite code and the
-  // unmoderated name — and applying the moderation rule here was a second place
-  // to forget it. The RPC returns `display_name` already resolved, scoped to
-  // teams the reader is an eligible active member of.
-  const { data, error } = await supabase.rpc("get_my_team_refs_for_questions", {
-    p_edition_date: input.editionDate,
-    p_logical_question_ids: logicalQuestionIds
-  });
-
-  if (error || !data) {
-    return {};
-  }
-
-  const teamsByQuestionId = new Map<string, ContentTeamRef[]>();
-
-  for (const row of data as Array<Record<string, unknown>>) {
-    const questionId = row.logical_question_id as string;
-    const list = teamsByQuestionId.get(questionId) ?? [];
-    const teamId = String(row.team_id ?? "");
-
-    if (!teamId || list.some((entry) => entry.id === teamId)) {
-      continue;
-    }
-
-    list.push({
-      id: teamId,
-      // Already null when moderation has hidden it; the badge renders a neutral
-      // label so the row still says "Team".
-      name: (row.display_name as string) ?? null
-    });
-
-    teamsByQuestionId.set(questionId, list);
-  }
-
-  const teams: TeamsByContentItemId = {};
-
-  for (const [contentItemId, questions] of Object.entries(input.questionsByContentItemId)) {
-    const merged: ContentTeamRef[] = [];
-
-    for (const question of questions) {
-      for (const team of teamsByQuestionId.get(question.logical_question_id) ?? []) {
-        if (!merged.some((entry) => entry.id === team.id)) {
-          merged.push(team);
-        }
-      }
-    }
-
-    if (merged.length > 0) {
-      teams[contentItemId] = merged;
-    }
-  }
-
-  return teams;
+  return key
+    ? teamContentIdentity({ contentLogicalKey: key, contentType: contentItem.content_type })
+    : null;
 }
+
 
 /** The three metadata keys `public.content_logical_key(jsonb)` reads, in order. */
 function readContentLogicalKey(item: ContentItem): string | null {
@@ -780,10 +979,13 @@ function assembleTodayDrop(
 ): TodayDailyDrop | null {
   const newsletter = items.filter(isNewsletterArticle);
   const businessStory = items.find(isBusinessStory);
-  const miniCase = items.find(isMiniCaseChallenge);
+  // PLURAL. A reader can be handed a Finance case by one Team, an AI case by
+  // another and their own Law case in the same edition; `find` could only ever
+  // return one of the three, and which one was an accident of ordering.
+  const miniCases = items.filter(isMiniCaseChallenge);
   const concept = items.find(isKeyConcept);
 
-  if (newsletter.length === 0 && !businessStory && !miniCase && !concept) {
+  if (newsletter.length === 0 && !businessStory && miniCases.length === 0 && !concept) {
     return null;
   }
 
@@ -809,7 +1011,9 @@ function assembleTodayDrop(
     items: {
       newsletter,
       business_story: businessStory,
-      mini_case: miniCase,
+      mini_cases: miniCases,
+      // Legacy alias, always mini_cases[0] — never a second source of truth.
+      mini_case: miniCases[0],
       concept
     }
   };
@@ -820,24 +1024,35 @@ function mapDailyDropContentItem(
   dropItem: DailyDropItem,
   sourcesByContentItemId: SourcesByContentItemId,
   questionsByContentItemId: QuestionsByContentItemId = {},
-  teamsByContentItemId: TeamsByContentItemId = {}
+  teamAssignmentsByIdentity: Map<string, TeamAssignmentRef> = new Map(),
+  translationIds: string[] = []
 ): DailyDropContentItem | null {
   const metadata = getMetadata(contentItem);
   const sourceDetails = sourcesByContentItemId[contentItem.id] ?? {
     sourceIds: [],
     sources: []
   };
+  const identity = identityOfContentItem(contentItem);
+  // Badged by LOGICAL identity, not by row id. That is what puts the Team badge
+  // on the reader's own copy of an article their Team was also assigned, and
+  // what keeps it there across a language switch.
+  const teamAssignment = identity ? teamAssignmentsByIdentity.get(identity) : undefined;
   const base = {
     id: contentItem.id,
+    content_logical_key: readContentLogicalKey(contentItem),
     language: contentItem.language,
     source_ids: sourceDetails.sourceIds,
     sources: sourceDetails.sources,
     title: contentItem.title,
+    translation_ids: translationIds.length > 0 ? translationIds : undefined,
     version: contentItem.version,
     // Absent when this item predates questions, which every reader treats as
     // "no quiz" without needing a flag of its own.
     logical_questions: questionsByContentItemId[contentItem.id],
-    teams: teamsByContentItemId[contentItem.id]
+    teams: teamAssignment && teamAssignment.teams.length > 0 ? teamAssignment.teams : undefined,
+    // The Team's own position, never the personal edition's: an article that
+    // reached the reader both ways still leads where its Team put it.
+    assignment_position: teamAssignment?.position ?? dropItem.position
   };
 
   if (contentItem.content_type === "newsletter_article" && dropItem.slot === "newsletter") {
@@ -974,6 +1189,7 @@ export function buildEmptyTodayDrop(
     items: {
       newsletter: [],
       business_story: undefined,
+      mini_cases: [],
       mini_case: undefined,
       concept: undefined
     }
@@ -1006,16 +1222,18 @@ function slotForContentType(
 }
 
 // A standalone content item has no daily_drop_items row; mapDailyDropContentItem
-// only reads the slot, so we provide a minimal one anchored to the right slot.
+// reads the slot and the position, so we provide a minimal one anchored to the
+// right slot and carrying the Team assignment's own position where there is one.
 function synthesizeDropItem(
   contentItemId: string,
-  slot: DailyDropItem["slot"]
+  slot: DailyDropItem["slot"],
+  position = 0
 ): DailyDropItem {
   return {
     daily_drop_id: "",
     content_item_id: contentItemId,
     slot,
-    position: 0,
+    position,
     created_at: ""
   };
 }

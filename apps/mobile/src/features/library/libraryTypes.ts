@@ -1,5 +1,5 @@
 import type { TopicId } from "../../constants/product";
-import type { ContentLanguage, ContentType } from "../today";
+import type { ContentLanguage, ContentTeamRef, ContentType } from "../today";
 
 export type LibraryDropSummary = {
   drop_id: string;
@@ -33,6 +33,13 @@ export type LibraryItemSummary = {
   source_count: number;
   is_saved: boolean;
   is_completed: boolean;
+  /**
+   * The Teams this item reached the reader through, when it reached them that
+   * way. Absent for a purely personal reading — the archive row is badged
+   * exactly as the edition's was, so a Team article stays recognisable as one
+   * long after its edition closed.
+   */
+  teams?: ContentTeamRef[];
 };
 
 export type LibraryFilter = {

@@ -21,7 +21,7 @@ import {
 type Item = MergeableContent & { title: string };
 
 function item(id: string, logicalKey: string | null, title = id): Item {
-  return { id, contentLogicalKey: logicalKey, title };
+  return { id, content_logical_key: logicalKey, title };
 }
 
 const loyola = { id: "team-1", name: "Loyola Finance" };

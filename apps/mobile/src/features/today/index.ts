@@ -2,6 +2,7 @@ export type {
   BusinessStory,
   ContentDifficulty,
   ContentLanguage,
+  ContentTeamRef,
   ContentType,
   DailyDropContentItem,
   DailyDropSlot,

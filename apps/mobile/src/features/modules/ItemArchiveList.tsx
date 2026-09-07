@@ -24,6 +24,7 @@ import {
   type ArchiveSearchState
 } from "../archive";
 import type { LibraryItemSummary } from "../library/libraryTypes";
+import { TeamBadge } from "../quiz/TeamBadge";
 import { editionDisplayDate } from "../today/contentCopy";
 import { getModuleCopy } from "./moduleCopy";
 import { ModuleError, ModuleLoading, ModuleScroll } from "./ModuleChrome";
@@ -257,6 +258,10 @@ function ArchiveRow({
       <AppText numberOfLines={2} style={styles.rowTitle} variant="subtitle">
         {item.title}
       </AppText>
+      {/* A Team reading stays recognisable as one long after its edition
+          closed — the same quiet line the edition used, not a second badge
+          style for the archive. */}
+      <TeamBadge compact language={language} teams={item.teams ?? []} />
       <View style={styles.rowMeta}>{renderMeta(item)}</View>
     </Pressable>
   );
