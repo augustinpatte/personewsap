@@ -13,6 +13,7 @@
 --   20260906095000_realtime_and_moderation
 --   20260906103000_team_content_assignments
 --   20260906104000_edition_assignment_engine
+--   20260906106000_team_read_surface_and_invite
 -- to be applied.
 --
 -- Run it (after applying the migrations):
@@ -668,10 +669,23 @@ begin
   perform pg_temp.record(72, 'D13 the leaver''s historical score survives', '1',
     (select count(*)::text from public.team_question_scores s
      where s.team_id = pg_temp.team_one() and s.user_id = pg_temp.uid_leaver()));
-  perform pg_temp.record(73, 'D14 the leaver is still on the historical leaderboard', 'true',
+  -- THE BOARD IS WHO YOU ARE PLAYING AGAINST, and this expectation changed
+  -- deliberately (Prompt 3 §10). It used to assert the leaver stayed on the
+  -- all-time leaderboard. The displayed board is now the CURRENT ACTIVE ROSTER:
+  -- somebody who left is not a competitor any more, and leaving a former
+  -- member's name at the top of a league they are no longer in reads as a bug
+  -- to everyone still in it.
+  --
+  -- Nothing of theirs is deleted, recomputed or rewritten — D13 above asserts
+  -- the ledger row is untouched — so the decision is reversible and a rejoin
+  -- brings the same person back with their history intact.
+  perform pg_temp.record(73, 'D14 the leaver leaves the board but not the ledger', 'false|1',
     (select (count(*) > 0)::text
      from public.get_team_leaderboard(pg_temp.team_one(), 'all_time') l
-     where l.user_id = pg_temp.uid_leaver()));
+     where l.user_id = pg_temp.uid_leaver())
+    || '|' ||
+    (select count(*)::text from public.team_member_edition_scores s
+     where s.team_id = pg_temp.team_one() and s.user_id = pg_temp.uid_leaver()));
 end $$;
 
 reset role;
@@ -1086,6 +1100,389 @@ begin
   exception when others then
     perform pg_temp.record(108, 'E29 the config RPC refuses three articles', 'refused', 'refused');
   end;
+end $$;
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- G. Lifecycle, and what must survive it
+-- ---------------------------------------------------------------------------
+-- Every case here ends in somebody leaving, being removed, handing over or
+-- deleting their account — and the property under test is always the same one:
+-- HISTORICAL STANDINGS ARE IMMUTABLE RECORDS. A row that was true when it was
+-- written stays true afterwards, whatever anyone does to the team around it.
+--
+-- The failure this guards against is not hypothetical. `resolve_team_ownership_on_profile_delete`
+-- used to DELETE a team nobody was left in, with a comment claiming its scores
+-- belonged only to the departing reader. They do not: every scoring table
+-- cascades from `teams`, so that DELETE erased the history of everybody who had
+-- left earlier — people still using the product, who had nothing to do with the
+-- account being deleted.
+
+create or replace function pg_temp.uid_founder() returns uuid
+language sql immutable as $$ select 'f1f10000-0000-4000-8000-00000000000f'::uuid $$;
+create or replace function pg_temp.uid_heir() returns uuid
+language sql immutable as $$ select 'f2f20000-0000-4000-8000-00000000000e'::uuid $$;
+create or replace function pg_temp.uid_gone() returns uuid
+language sql immutable as $$ select 'f3f30000-0000-4000-8000-00000000000d'::uuid $$;
+create or replace function pg_temp.team_life() returns uuid
+language sql immutable as $$ select 'e5e5e5e5-0000-4000-8000-000000000005'::uuid $$;
+create or replace function pg_temp.team_solo() returns uuid
+language sql immutable as $$ select 'e6e6e6e6-0000-4000-8000-000000000006'::uuid $$;
+
+grant execute on function pg_temp.uid_founder() to public;
+grant execute on function pg_temp.uid_heir() to public;
+grant execute on function pg_temp.uid_gone() to public;
+grant execute on function pg_temp.team_life() to public;
+grant execute on function pg_temp.team_solo() to public;
+
+do $$
+declare
+  v_user uuid;
+  v_owner_after uuid;
+  v_status text;
+begin
+  foreach v_user in array array[pg_temp.uid_founder(), pg_temp.uid_heir(), pg_temp.uid_gone()]
+  loop
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      confirmation_token, recovery_token, email_change, email_change_token_new,
+      raw_app_meta_data, raw_user_meta_data
+    ) values (
+      '00000000-0000-0000-0000-000000000000', v_user, 'authenticated', 'authenticated',
+      'teams-life-' || v_user || '@example.test', 'x', now(), now(), now(),
+      '', '', '', '', '{"provider":"email"}', '{}'
+    );
+
+    insert into public.profiles (id, email, language, timezone)
+    values (v_user, 'teams-life-' || v_user || '@example.test', 'en', 'UTC');
+  end loop;
+
+  update public.profiles set username = 'life_founder' where id = pg_temp.uid_founder();
+  update public.profiles set username = 'life_heir' where id = pg_temp.uid_heir();
+  update public.profiles set username = 'life_gone' where id = pg_temp.uid_gone();
+
+  -- A team with a founder, an heir, and somebody who leaves early and whose
+  -- history must outlive every later event.
+  insert into public.teams (id, owner_id, name, invite_code) values
+    (pg_temp.team_life(), pg_temp.uid_founder(), 'Teams suite life', 'TSUITE05'),
+    (pg_temp.team_solo(), pg_temp.uid_founder(), 'Teams suite solo', 'TSUITE06');
+
+  insert into public.team_members (team_id, user_id, role, eligible_from_edition, joined_at) values
+    (pg_temp.team_life(), pg_temp.uid_founder(), 'owner', pg_temp.ed('e1'), now() - interval '9 days'),
+    (pg_temp.team_life(), pg_temp.uid_heir(), 'member', pg_temp.ed('e1'), now() - interval '8 days'),
+    (pg_temp.team_life(), pg_temp.uid_gone(), 'member', pg_temp.ed('e1'), now() - interval '7 days'),
+    (pg_temp.team_solo(), pg_temp.uid_founder(), 'owner', pg_temp.ed('e1'), now() - interval '9 days');
+
+  -- Everybody scored in E1, including the reader who is about to leave.
+  insert into public.team_member_edition_scores
+    (team_id, user_id, edition_date, score_milli, answered_count, assigned_count, completed)
+  values
+    (pg_temp.team_life(), pg_temp.uid_founder(), pg_temp.ed('e1'), 1600, 2, 2, true),
+    (pg_temp.team_life(), pg_temp.uid_heir(), pg_temp.ed('e1'), 1600, 2, 2, true),
+    (pg_temp.team_life(), pg_temp.uid_gone(), pg_temp.ed('e1'), 1000, 2, 2, true);
+
+  -- ---- remove a member -----------------------------------------------------
+  perform pg_temp.sign_in(pg_temp.uid_founder());
+  perform public.remove_team_member(pg_temp.team_life(), pg_temp.uid_gone());
+
+  perform pg_temp.record(120, 'G1 removal closes the stint instead of deleting it', 'true',
+    (select (count(*) = 1)::text from public.team_members m
+     where m.team_id = pg_temp.team_life()
+       and m.user_id = pg_temp.uid_gone()
+       and m.left_at is not null));
+
+  perform pg_temp.record(121, 'G2 removal keeps every point already earned', '1000',
+    (select s.score_milli::text from public.team_member_edition_scores s
+     where s.team_id = pg_temp.team_life()
+       and s.user_id = pg_temp.uid_gone()
+       and s.edition_date = pg_temp.ed('e1')));
+
+  perform pg_temp.record(122, 'G3 a removed member leaves the board', 'false',
+    (select exists (
+      select 1 from public.get_team_leaderboard(pg_temp.team_life(), 'all_time') l
+      where l.user_id = pg_temp.uid_gone()))::text);
+
+  -- ---- the owner cannot walk out on a team that is still played ------------
+  begin
+    perform * from public.leave_team(pg_temp.team_life());
+    perform pg_temp.record(123, 'G4 an owner with members must transfer first', 'refused', 'left');
+  exception when others then
+    perform pg_temp.record(123, 'G4 an owner with members must transfer first', 'refused', 'refused');
+  end;
+
+  perform pg_temp.record(124, 'G4 and the team is untouched by the refusal', 'active',
+    (select t.status from public.teams t where t.id = pg_temp.team_life()));
+
+  -- ---- an owner alone may archive -----------------------------------------
+  perform * from public.leave_team(pg_temp.team_solo());
+
+  perform pg_temp.record(125, 'G5 an owner alone archives rather than deletes', 'archived:1',
+    (select t.status from public.teams t where t.id = pg_temp.team_solo())
+    || ':' ||
+    (select count(*)::text from public.teams t where t.id = pg_temp.team_solo()));
+
+  -- ---- transfer, then leave ------------------------------------------------
+  perform public.transfer_team_ownership(pg_temp.team_life(), pg_temp.uid_heir());
+
+  perform pg_temp.record(126, 'G6 ownership moves to the named member', 'true',
+    (select (t.owner_id = pg_temp.uid_heir())::text
+     from public.teams t where t.id = pg_temp.team_life()));
+
+  perform * from public.leave_team(pg_temp.team_life());
+
+  perform pg_temp.record(127, 'G7 the former owner leaves without archiving the team', 'active',
+    (select t.status from public.teams t where t.id = pg_temp.team_life()));
+  perform pg_temp.record(128, 'G7 and their own history stays', '1600',
+    (select s.score_milli::text from public.team_member_edition_scores s
+     where s.team_id = pg_temp.team_life()
+       and s.user_id = pg_temp.uid_founder()
+       and s.edition_date = pg_temp.ed('e1')));
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Account deletion: with a successor, and without one
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  v_owner_after uuid;
+begin
+  -- The heir owns team_life and one other reader has already left it. Deleting
+  -- the heir's account must hand the team on, not end it.
+  insert into public.team_members (team_id, user_id, role, eligible_from_edition, joined_at)
+  values (pg_temp.team_life(), pg_temp.uid_founder(), 'member',
+          public.next_scoring_edition_date(), now());
+
+  delete from public.profiles where id = pg_temp.uid_heir();
+
+  select t.owner_id into v_owner_after from public.teams t where t.id = pg_temp.team_life();
+
+  perform pg_temp.record(129, 'G8 deleting the owner hands the team to the remaining member', 'true',
+    (v_owner_after = pg_temp.uid_founder())::text);
+  perform pg_temp.record(130, 'G8 the team stays active and playable', 'active',
+    (select t.status from public.teams t where t.id = pg_temp.team_life()));
+
+  -- And the reader who left long before is STILL in the ledger. This is the
+  -- assertion the old DELETE would have failed.
+  perform pg_temp.record(131, 'G9 an earlier leaver''s history survives the owner deletion', '1000',
+    (select s.score_milli::text from public.team_member_edition_scores s
+     where s.team_id = pg_temp.team_life()
+       and s.user_id = pg_temp.uid_gone()
+       and s.edition_date = pg_temp.ed('e1')));
+
+  -- ---- now delete the last owner, leaving nobody --------------------------
+  delete from public.profiles where id = pg_temp.uid_founder();
+
+  perform pg_temp.record(132, 'G10 a team nobody is left in is archived, not deleted', 'archived',
+    (select t.status from public.teams t where t.id = pg_temp.team_life()));
+  perform pg_temp.record(133, 'G10 and its owner is released', 'true',
+    (select (t.owner_id is null)::text from public.teams t where t.id = pg_temp.team_life()));
+  perform pg_temp.record(134, 'G10 the row still exists', '1',
+    (select count(*)::text from public.teams t where t.id = pg_temp.team_life()));
+
+  -- THE POINT OF ALL OF IT: the reader who left months earlier still has their
+  -- standing, after two account deletions and an archive.
+  perform pg_temp.record(135, 'G11 the earlier leaver''s history survived every deletion', '1000',
+    (select s.score_milli::text from public.team_member_edition_scores s
+     where s.team_id = pg_temp.team_life()
+       and s.user_id = pg_temp.uid_gone()
+       and s.edition_date = pg_temp.ed('e1')));
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- H. The board, the statuses and the invite, read through RLS
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+
+do $$
+declare
+  v_row record;
+  v_streak integer;
+begin
+  perform pg_temp.sign_in(pg_temp.uid_owner());
+
+  -- team_three (section E) assigned 4 questions at E3. uid_owner answered none
+  -- of them, uid_late is eligible, uid_leaver joined too late.
+  perform pg_temp.record(140, 'H1 every active member appears, played or not', '3',
+    (select count(*)::text
+     from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3'))));
+
+  perform pg_temp.record(141, 'H2 a member who has not answered reads as not started',
+    'not_started',
+    (select l.status from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l
+     where l.user_id = pg_temp.uid_late()));
+
+  -- The mid-edition joiner is NOT a zero: they were never allowed to play.
+  perform pg_temp.record(142, 'H3 a joiner who cannot score yet says so',
+    'starts_next_edition',
+    (select l.status from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l
+     where l.user_id = pg_temp.uid_leaver()));
+
+  perform pg_temp.record(143, 'H4 a zero-point member is still on the board', 'true',
+    (select exists (
+      select 1 from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l
+      where l.user_id = pg_temp.uid_owner() and l.score_milli = 0))::text);
+
+  -- Everyone is on 0, so everyone is 1st. Standard competition ranking.
+  perform pg_temp.record(144, 'H5 a shared score is a shared rank', '1',
+    (select count(distinct l.rank)::text
+     from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l));
+
+  -- In progress and completed, on a member with real counts.
+  update public.team_member_edition_scores
+  set answered_count = 1, score_milli = 600, completed = false
+  where team_id = pg_temp.team_three()
+    and user_id = pg_temp.uid_late()
+    and edition_date = pg_temp.ed('e3');
+
+  perform pg_temp.record(145, 'H6 some but not all reads as in progress', 'in_progress',
+    (select l.status from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l
+     where l.user_id = pg_temp.uid_late()));
+
+  update public.team_member_edition_scores
+  set answered_count = 4, score_milli = 2400, completed = true
+  where team_id = pg_temp.team_three()
+    and user_id = pg_temp.uid_late()
+    and edition_date = pg_temp.ed('e3');
+
+  perform pg_temp.record(146, 'H7 all of them reads as completed', 'completed',
+    (select l.status from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l
+     where l.user_id = pg_temp.uid_late()));
+
+  perform pg_temp.record(147, 'H8 and the scorer ranks above the members on zero', '1',
+    (select l.rank::text
+     from public.get_team_leaderboard(pg_temp.team_three(), 'edition', pg_temp.ed('e3')) l
+     where l.user_id = pg_temp.uid_late()));
+
+  -- ---- the week does not depend on anybody's clock ------------------------
+  -- The same call under two wildly different client timezones must agree: the
+  -- boundary comes from edition dates cast to a timestamp with no zone at all.
+  perform set_config('timezone', 'Pacific/Kiritimati', true);
+  select l.score_milli into v_row
+  from public.get_team_leaderboard(pg_temp.team_three(), 'week', pg_temp.ed('e3')) l
+  where l.user_id = pg_temp.uid_late();
+
+  perform set_config('timezone', 'Pacific/Niue', true);
+  perform pg_temp.record(148, 'H9 This Week is the same on both sides of the date line', 'true',
+    (v_row.score_milli = (
+      select l.score_milli
+      from public.get_team_leaderboard(pg_temp.team_three(), 'week', pg_temp.ed('e3')) l
+      where l.user_id = pg_temp.uid_late()))::text);
+  perform set_config('timezone', 'UTC', true);
+
+  -- ---- streak --------------------------------------------------------------
+  perform pg_temp.sign_in(pg_temp.uid_late());
+
+  perform pg_temp.record(149, 'H10 a completed edition counts toward the streak', '1',
+    public.team_member_edition_streak(pg_temp.team_three(), pg_temp.uid_late())::text);
+
+  -- An edition the TEAM was assigned nothing in is neutral: it neither counts
+  -- nor breaks. E1 and E2 have no team_three assignments at all.
+  perform pg_temp.record(150, 'H11 an edition the team did not play is neutral', '1',
+    public.team_member_edition_streak(pg_temp.team_three(), pg_temp.uid_late())::text);
+
+  -- ---- the invite code is the owner's -------------------------------------
+  begin
+    perform * from public.get_team_invite_code(pg_temp.team_three());
+    perform pg_temp.record(151, 'H12 a member cannot read the invite code', 'refused', 'returned');
+  exception when others then
+    perform pg_temp.record(151, 'H12 a member cannot read the invite code', 'refused', 'refused');
+  end;
+
+  begin
+    perform public.set_team_invite_open(pg_temp.team_three(), false);
+    perform pg_temp.record(152, 'H13 a member cannot close the invite', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(152, 'H13 a member cannot close the invite', 'refused', 'refused');
+  end;
+
+  -- And the table itself is unreadable, so there is no way around the RPC.
+  begin
+    perform 1 from public.teams t where t.id = pg_temp.team_three();
+    perform pg_temp.record(153, 'H14 members hold no SELECT on public.teams', 'refused', 'returned');
+  exception when others then
+    perform pg_temp.record(153, 'H14 members hold no SELECT on public.teams', 'refused', 'refused');
+  end;
+
+  perform pg_temp.sign_in(pg_temp.uid_owner());
+
+  perform pg_temp.record(154, 'H15 the owner can read it', 'TSUITE03',
+    (select i.invite_code from public.get_team_invite_code(pg_temp.team_three()) i));
+
+  perform pg_temp.record(155, 'H16 the owner can close it', 'false',
+    (select public.set_team_invite_open(pg_temp.team_three(), false))::text);
+
+  perform pg_temp.record(156, 'H16 and a closed invite is refused', 'refused',
+    (select case when exists (
+      select 1 from public.team_directory d
+      where d.id = pg_temp.team_three() and d.invite_open
+    ) then 'accepted' else 'refused' end));
+
+  perform public.set_team_invite_open(pg_temp.team_three(), true);
+
+  -- ---- a moderated name never reaches a client ----------------------------
+  perform pg_temp.record(157, 'H17 the directory shows the name while it is active',
+    'Teams suite alpha',
+    (select d.display_name from public.team_directory d where d.id = pg_temp.team_three()));
+end $$;
+
+reset role;
+
+-- Moderation, applied the way a moderator applies it: the stored name is left
+-- exactly where it is and only its status changes.
+update public.teams set name_status = 'hidden' where id = pg_temp.team_three();
+
+set local role authenticated;
+
+do $$
+begin
+  perform pg_temp.sign_in(pg_temp.uid_owner());
+
+  perform pg_temp.record(158, 'H18 a hidden name is never returned by the directory', 'true',
+    (select (d.display_name is null)::text
+     from public.team_directory d where d.id = pg_temp.team_three()));
+
+  perform pg_temp.record(159, 'H18 nor by the team detail RPC', 'true',
+    (select (d.display_name is null and d.name_hidden)::text
+     from public.get_team_detail(pg_temp.team_three()) d));
+
+  perform pg_temp.record(160, 'H18 nor by the content badge RPC', '0',
+    (select count(*)::text
+     from public.get_my_team_refs_for_questions(
+       pg_temp.ed('e3'),
+       array(select a.logical_question_id from public.team_question_assignments a
+             where a.team_id = pg_temp.team_three() and a.edition_date = pg_temp.ed('e3'))
+     ) r
+     where r.display_name is not null and r.team_id = pg_temp.team_three()));
+
+  -- The stored value is untouched: moderation hides, it never destroys.
+  perform pg_temp.record(161, 'H19 the name itself is hidden, not deleted', 'true',
+    (select (d.name_status = 'hidden')::text
+     from public.team_directory d where d.id = pg_temp.team_three()));
+
+  -- ---- an archived team is closed for business ----------------------------
+  perform pg_temp.sign_in(pg_temp.uid_outsider());
+
+  begin
+    perform * from public.join_team_with_invite('TSUITE05');
+    perform pg_temp.record(162, 'H20 an archived team cannot be joined', 'refused', 'joined');
+  exception when others then
+    perform pg_temp.record(162, 'H20 an archived team cannot be joined', 'refused', 'refused');
+  end;
+
+  -- Its history is still there to inspect, which is the whole reason it was
+  -- archived instead of deleted.
+  --
+  -- ONE row, not three, and the difference is the point. The two readers who
+  -- deleted their accounts took their OWN rows with them — that is what account
+  -- deletion is for, and the cascade from `profiles` does it. What survives is
+  -- the row belonging to the reader who merely LEFT, who deleted nothing and is
+  -- still using the product. The old DELETE FROM teams would have taken this
+  -- row too.
+  perform pg_temp.record(163, 'H20 the leaver''s row outlived two account deletions', '1',
+    (select count(*)::text from public.team_member_edition_scores s
+     where s.team_id = pg_temp.team_life()));
 end $$;
 
 reset role;

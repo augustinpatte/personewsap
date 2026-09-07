@@ -34,7 +34,8 @@ const MIGRATIONS = [
   "20260906094000_question_attempts_and_scoring.sql",
   "20260906095000_realtime_and_moderation.sql",
   "20260906103000_team_content_assignments.sql",
-  "20260906104000_edition_assignment_engine.sql"
+  "20260906104000_edition_assignment_engine.sql",
+  "20260906106000_team_read_surface_and_invite.sql"
 ] as const;
 
 const sources = new Map(
@@ -632,6 +633,207 @@ describe("the assignment engine", () => {
   });
 });
 
+const ownershipRaw = readFileSync(
+  join(migrationsDir, "20260906102000_team_ownership_and_deletion.sql"),
+  "utf8"
+);
+const scoringRaw = readFileSync(
+  join(migrationsDir, "20260906094000_question_attempts_and_scoring.sql"),
+  "utf8"
+);
+const surfaceRaw = readFileSync(
+  join(migrationsDir, "20260906106000_team_read_surface_and_invite.sql"),
+  "utf8"
+);
+
+describe("historical standings are immutable records", () => {
+  it("never deletes a team", () => {
+    // Every scoring table cascades from `teams`, so a DELETE takes the history
+    // of everybody who left earlier with it. The first version of the
+    // account-deletion trigger did exactly that.
+    expect(allCode).not.toMatch(/DELETE FROM public\.teams/i);
+    expect(allCode).not.toMatch(/DELETE FROM\s+public\.team_member_edition_scores/i);
+    expect(allCode).not.toMatch(/DELETE FROM\s+public\.team_question_scores/i);
+  });
+
+  it("archives and un-owns instead, when nobody is left", () => {
+    const ownership = stripNoise(
+      readFileSync(join(migrationsDir, "20260906102000_team_ownership_and_deletion.sql"), "utf8")
+    );
+
+    expect(ownership).toMatch(/UPDATE public\.teams[\s\S]{0,200}status = ''[\s\S]{0,200}owner_id = NULL/i);
+  });
+
+  it("closes a membership stint rather than removing it", () => {
+    // Leaving and being removed are the same write: left_at. A DELETE would
+    // take the answer to "was this person in the team when that edition was
+    // scored" with it.
+    expect(allCode).not.toMatch(/DELETE FROM public\.team_members/i);
+    expect(allCode).toMatch(/SET left_at = /);
+  });
+
+  it("hands a team on by a deterministic rule", () => {
+    // Two readers deleting their accounts in a different order must not produce
+    // two different teams.
+    expect(allCode).toContain("ORDER BY m.joined_at, m.user_id");
+  });
+
+  it("lets an owner be NULL only on an archived team", () => {
+    expect(allCode).toContain("teams_active_needs_owner_check");
+    expect(allCode).toMatch(
+      /CHECK \(\s*status = ''\s*OR owner_id IS NOT NULL\s*\)/i
+    );
+    expect(allCode).toContain("owner_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL");
+  });
+
+  it("refuses to let an owner walk out on a team that is still played", () => {
+    // Read raw: the message is a SQL string literal, which stripNoise blanks.
+    expect(ownershipRaw + scoringRaw + sources.get("20260906092000_teams_foundation.sql")!).toContain(
+      "Transfer ownership before leaving a team that still has members"
+    );
+  });
+});
+
+describe("the leaderboard shows everyone", () => {
+  const scoring = stripNoise(
+    readFileSync(
+      join(migrationsDir, "20260906094000_question_attempts_and_scoring.sql"),
+      "utf8"
+    )
+  );
+
+  it("starts from the roster, not from the score table", () => {
+    // Reading from team_member_edition_scores alone makes a member with no row
+    // invisible — and that is exactly the person the screen most needs to show.
+    expect(scoring).toMatch(
+      /WITH roster AS \([\s\S]{0,400}FROM public\.team_members m[\s\S]{0,900}LEFT JOIN public\.team_member_edition_scores/
+    );
+  });
+
+  it("never calls an unassigned member completed", () => {
+    // Answering none of nothing is not finishing.
+    expect(scoring).toMatch(/WHEN sc\.total_assigned = 0 THEN ''/);
+  });
+
+  it("says 'starts next edition' instead of a false zero", () => {
+    expect(scoring).toMatch(/sc\.eligible_from > v_edition THEN ''/);
+  });
+
+  it("keeps the ranking convention the client already implements", () => {
+    // apps/mobile/.../leaderboard.ts ranks 1, 2, 2, 4 and its tests assert it.
+    // The two have to agree on one number.
+    expect(scoring).toContain("pg_catalog.rank() OVER (ORDER BY sc.total_score DESC)");
+    expect(scoring).not.toContain("dense_rank()");
+  });
+
+  it("derives the week from edition dates, never from a clock", () => {
+    expect(scoringRaw).toContain("date_trunc('week', s.edition_date::TIMESTAMP)");
+    // A cast to timestamp WITHOUT a zone, so there is no offset to disagree
+    // about between two readers' devices.
+    expect(scoringRaw).not.toMatch(/date_trunc\([^)]*AT TIME ZONE/i);
+  });
+
+  it("shows the current roster and rewrites nobody's history", () => {
+    expect(scoring).toMatch(/FROM public\.team_members m\s*\n\s*WHERE m\.team_id = p_team_id\s*\n\s*AND m\.left_at IS NULL/);
+    expect(scoring).not.toMatch(/UPDATE public\.team_member_edition_scores[\s\S]{0,200}left_at/i);
+  });
+});
+
+describe("the streak counts editions", () => {
+  const scoring = stripNoise(
+    readFileSync(
+      join(migrationsDir, "20260906094000_question_attempts_and_scoring.sql"),
+      "utf8"
+    )
+  );
+
+  it("walks public.editions rather than a calendar", () => {
+    // The cadence is Mon/Wed/Fri/Sun, so a Tuesday is not a missed edition.
+    expect(scoring).toContain("FROM public.editions e");
+    expect(scoring).not.toMatch(/interval ''1 day''/i);
+  });
+
+  it("treats an edition the team did not play as neutral", () => {
+    expect(scoring).toContain("team_was_playing");
+    expect(scoring).toMatch(/IF NOT v_row\.team_was_playing THEN\s*\n\s*CONTINUE;/);
+  });
+
+  it("starts at the current stint, so a rejoin restarts it", () => {
+    expect(scoring).toContain("AND m.left_at IS NULL");
+    expect(scoring).toContain("WHERE e.edition_date >= v_eligible");
+  });
+});
+
+describe("what a member may read about their team", () => {
+  const surface = stripNoise(
+    readFileSync(
+      join(migrationsDir, "20260906106000_team_read_surface_and_invite.sql"),
+      "utf8"
+    )
+  );
+  const foundation = stripNoise(
+    readFileSync(join(migrationsDir, "20260906092000_teams_foundation.sql"), "utf8")
+  );
+
+  it("gives authenticated no SELECT on public.teams", () => {
+    // Row-level security decides WHICH ROWS, never which columns. A policy that
+    // lets a member read their team lets them read the invite code in it.
+    expect(foundation).not.toMatch(/GRANT SELECT ON TABLE public\.teams TO authenticated/i);
+  });
+
+  it("serves a sanitised projection instead", () => {
+    expect(surface).toContain("CREATE OR REPLACE VIEW public.team_directory");
+    expect(surface).toContain("GRANT SELECT ON public.team_directory TO authenticated");
+  });
+
+  it("carries its own access rule, because owner rights skip the policy", () => {
+    // The view runs with owner rights — it has to, since `authenticated` holds
+    // nothing on `public.teams` and an invoker-rights view would be denied for
+    // every caller. That means the teams RLS policy is NOT consulted, so the
+    // predicate in the view IS the access rule.
+    expect(surfaceRaw).not.toContain("security_invoker = true");
+    expect(surface).toMatch(
+      /CREATE OR REPLACE VIEW public\.team_directory AS[\s\S]*?WHERE public\.is_active_team_member\(t\.id\);/
+    );
+  });
+
+  it("keeps the invite code out of the projection", () => {
+    const view = /CREATE OR REPLACE VIEW public\.team_directory AS([\s\S]*?);/.exec(surface);
+
+    expect(view).not.toBeNull();
+    expect(view?.[1]).not.toMatch(/invite_code/);
+    expect(view?.[1]).not.toMatch(/owner_id\s*,/);
+  });
+
+  it("resolves moderation in the database, not in each client", () => {
+    for (const fragment of [
+      "CASE WHEN t.name_status = 'hidden' THEN NULL ELSE t.name END"
+    ]) {
+      // Once in the view, once in the detail RPC, once in the badge RPC.
+      expect(
+        surface.split("CASE WHEN t.name_status = '' THEN NULL ELSE t.name END").length - 1,
+        fragment
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("makes the invite code owner-only", () => {
+    expect(surface).toContain("CREATE OR REPLACE FUNCTION public.get_team_invite_code");
+    expect(surface).toMatch(
+      /get_team_invite_code[\s\S]{0,600}IF NOT public\.is_team_owner\(p_team_id\) THEN/
+    );
+    expect(surface).toMatch(
+      /set_team_invite_open[\s\S]{0,600}IF NOT public\.is_team_owner\(p_team_id\) THEN/
+    );
+  });
+
+  it("lets an archived team close its door but never reopen it", () => {
+    // is_team_owner requires status = 'active', so every owner action is
+    // already unreachable on an archived team.
+    expect(allCode).toContain("AND t.status = ''");
+  });
+});
+
 describe("the SQL suite itself", () => {
   const suite = readFileSync(
     join(root, "supabase", "tests", "teams_and_scored_questions.test.sql"),
@@ -718,7 +920,28 @@ describe("the SQL suite itself", () => {
       ["unassigned interaction denied", "E22 an unassigned article cannot be marked complete"],
       ["no team leak into personal", "E30 team content did not leak into personal assignments"],
       ["team feed is team only", "E31 the team feed carries only team content"],
-      ["language switch is not a new assignment", "E32 both languages resolve to the same logical content"]
+      ["language switch is not a new assignment", "E32 both languages resolve to the same logical content"],
+      ["removal preserves history", "G2 removal keeps every point already earned"],
+      ["owner must transfer before leaving", "G4 an owner with members must transfer first"],
+      ["owner alone archives", "G5 an owner alone archives rather than deletes"],
+      ["transfer owner", "G6 ownership moves to the named member"],
+      ["delete owner with successor", "G8 deleting the owner hands the team"],
+      ["delete owner without successor archives", "G10 a team nobody is left in is archived"],
+      ["history survives every deletion", "G11 the earlier leaver"],
+      ["not started visible", "H2 a member who has not answered reads as not started"],
+      ["next-edition member status", "H3 a joiner who cannot score yet says so"],
+      ["zero point user still visible", "H4 a zero-point member is still on the board"],
+      ["tie ranking", "H5 a shared score is a shared rank"],
+      ["in progress", "H6 some but not all reads as in progress"],
+      ["completed", "H7 all of them reads as completed"],
+      ["week across timezone", "H9 This Week is the same on both sides of the date line"],
+      ["edition streak", "H10 a completed edition counts toward the streak"],
+      ["quiet days do not break streak", "H11 an edition the team did not play is neutral"],
+      ["non-owner cannot read invite code", "H12 a member cannot read the invite code"],
+      ["members hold no select on teams", "H14 members hold no SELECT on public.teams"],
+      ["owner can manage invite", "H15 the owner can read it"],
+      ["hidden name never leaked", "H18 a hidden name is never returned by the directory"],
+      ["archived team cannot join", "H20 an archived team cannot be joined"]
     ] as const) {
       expect(suite, label).toContain(needle);
     }

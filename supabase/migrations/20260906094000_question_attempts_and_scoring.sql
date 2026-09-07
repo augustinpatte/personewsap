@@ -691,11 +691,56 @@ GRANT EXECUTE ON FUNCTION public.get_team_roster(UUID) TO service_role;
 COMMENT ON FUNCTION public.get_team_roster(UUID) IS
   'Public identity of the caller''s team-mates. Returns no email and no other profile column, which is why public.profiles keeps its own-row-only read policy unchanged.';
 
--- Edition / This Week / All Time, from the one aggregate table.
+-- Edition / This Week / All Time.
 --
--- The week is ISO and derived from the EDITION date, never from the caller's
--- device: two members of a team must see the same week boundary whatever
--- timezone their phones are in.
+-- THE BASE IS THE ROSTER, NOT THE SCORE TABLE. Reading from
+-- `team_member_edition_scores` alone means a member with no row is invisible —
+-- and a member with no row is exactly the person the screen most needs to show:
+-- somebody who has not started yet. A four-person team where two have played
+-- rendered as a leaderboard of two, and the other two were indistinguishable
+-- from people who are not in the team.
+--
+-- So: active roster LEFT JOIN the scores in scope. Everyone appears, once, with
+-- zeros when they have nothing, and a status that says which kind of nothing it
+-- is.
+--
+-- STATUS, and the order of the branches is the rule:
+--
+--   starts_next_edition   eligible_from_edition is still ahead of this edition.
+--                         Shown INSTEAD of a zero, because a joiner who cannot
+--                         score yet has not failed to score.
+--   not_started           nothing assigned yet, or nothing answered. An
+--                         assigned_count of 0 is never `completed`: answering
+--                         none of nothing is not finishing.
+--   in_progress           some but not all.
+--   completed             every assigned question answered while the edition
+--                         was open.
+--
+-- THE WEEK is ISO and derived from the EDITION date, never from the caller's
+-- device: `date_trunc('week', edition_date::TIMESTAMP)` runs on a date cast to a
+-- timestamp with no zone at all, so there is no offset to disagree about. Two
+-- members of one team in Paris and in São Paulo get the same week boundary
+-- because neither of their clocks is consulted.
+--
+-- ALL TIME shows the CURRENT ACTIVE ROSTER and their whole history in this team.
+-- A member who left is not on the board any more — the board is who you are
+-- playing against — but nothing of theirs is deleted or recomputed:
+-- `team_question_scores` and `team_member_edition_scores` keep every row, and a
+-- rejoin brings the same person back with their history intact. That is a
+-- product decision and it is the reversible one.
+--
+-- TIES share a rank, and the convention is STANDARD COMPETITION RANKING —
+-- 1, 2, 2, 4. `rank()`, not `dense_rank()`.
+--
+-- That is not a fresh preference: `apps/mobile/src/features/teams/leaderboard.ts`
+-- already ranks this way and its tests assert `[1, 2, 2, 4]` explicitly. The
+-- server and the client have to agree on one number, and changing the
+-- established one to compact the UI would silently renumber every standing
+-- while both sides still looked correct in isolation.
+--
+-- There is no speed bonus and no tie-break: the score is the whole ranking, and
+-- inventing a separator would make the order depend on something the product
+-- never told anyone about.
 CREATE OR REPLACE FUNCTION public.get_team_leaderboard(
   p_team_id UUID,
   p_scope TEXT DEFAULT 'edition',
@@ -706,10 +751,12 @@ RETURNS TABLE (
   username TEXT,
   country_code TEXT,
   avatar_path TEXT,
+  rank INTEGER,
   score_milli BIGINT,
   answered_count BIGINT,
   assigned_count BIGINT,
-  editions_completed BIGINT
+  editions_completed BIGINT,
+  status TEXT
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -729,28 +776,75 @@ BEGIN
   END IF;
 
   RETURN QUERY
+  WITH roster AS (
+    SELECT
+      m.user_id AS member_id,
+      m.eligible_from_edition AS eligible_from
+    FROM public.team_members m
+    WHERE m.team_id = p_team_id
+      AND m.left_at IS NULL
+  ),
+  scoped AS (
+    SELECT
+      r.member_id,
+      r.eligible_from,
+      COALESCE(SUM(s.score_milli), 0)::BIGINT AS total_score,
+      COALESCE(SUM(s.answered_count), 0)::BIGINT AS total_answered,
+      COALESCE(SUM(s.assigned_count), 0)::BIGINT AS total_assigned,
+      COUNT(*) FILTER (WHERE s.completed)::BIGINT AS total_completed
+    FROM roster r
+    LEFT JOIN public.team_member_edition_scores s
+      ON s.team_id = p_team_id
+     AND s.user_id = r.member_id
+     AND (
+       (p_scope = 'edition' AND s.edition_date = v_edition)
+       OR (p_scope = 'week'
+           AND v_edition IS NOT NULL
+           AND date_trunc('week', s.edition_date::TIMESTAMP)
+               = date_trunc('week', v_edition::TIMESTAMP))
+       OR p_scope = 'all_time'
+     )
+    GROUP BY r.member_id, r.eligible_from
+  ),
+  ranked AS (
+    SELECT
+      sc.member_id,
+      sc.total_score,
+      sc.total_answered,
+      sc.total_assigned,
+      sc.total_completed,
+      -- pg_catalog-qualified deliberately. `rank` is also an output column of
+      -- this function and therefore a PL/pgSQL variable; a bare `rank()` reads
+      -- as a function call to the parser but is exactly the shape the 42702
+      -- guard flags, and the guard is right to be suspicious of it.
+      pg_catalog.rank() OVER (ORDER BY sc.total_score DESC)::INTEGER AS member_rank,
+      CASE
+        WHEN v_edition IS NOT NULL AND sc.eligible_from > v_edition THEN 'starts_next_edition'
+        WHEN sc.total_assigned = 0 THEN 'not_started'
+        WHEN sc.total_answered = 0 THEN 'not_started'
+        WHEN sc.total_answered < sc.total_assigned THEN 'in_progress'
+        ELSE 'completed'
+      END AS member_status
+    FROM scoped sc
+  )
   SELECT
-    s.user_id,
+    ranked.member_id,
+    -- Moderation is applied at read time, so hiding a name takes effect
+    -- everywhere at once and never destroys the stored value.
     CASE WHEN p.username_status = 'hidden' THEN NULL ELSE p.username END,
     p.country_code,
     CASE WHEN p.avatar_status = 'hidden' THEN NULL ELSE p.avatar_path END,
-    SUM(s.score_milli)::BIGINT,
-    SUM(s.answered_count)::BIGINT,
-    SUM(s.assigned_count)::BIGINT,
-    COUNT(*) FILTER (WHERE s.completed)::BIGINT
-  FROM public.team_member_edition_scores s
-  JOIN public.profiles p ON p.id = s.user_id
-  WHERE s.team_id = p_team_id
-    AND (
-      (p_scope = 'edition' AND s.edition_date = v_edition)
-      OR (p_scope = 'week'
-          AND v_edition IS NOT NULL
-          AND date_trunc('week', s.edition_date::TIMESTAMP)
-              = date_trunc('week', v_edition::TIMESTAMP))
-      OR p_scope = 'all_time'
-    )
-  GROUP BY s.user_id, p.username, p.username_status, p.country_code, p.avatar_path, p.avatar_status
-  ORDER BY SUM(s.score_milli) DESC, MIN(s.updated_at);
+    ranked.member_rank,
+    ranked.total_score,
+    ranked.total_answered,
+    ranked.total_assigned,
+    ranked.total_completed,
+    ranked.member_status
+  FROM ranked
+  JOIN public.profiles p ON p.id = ranked.member_id
+  -- Within a shared rank the order is stable but carries no meaning: the tie is
+  -- the answer, and the display order must not read as one.
+  ORDER BY ranked.member_rank, p.username NULLS LAST, ranked.member_id;
 END;
 $$;
 
@@ -760,11 +854,29 @@ GRANT EXECUTE ON FUNCTION public.get_team_leaderboard(UUID, TEXT, DATE) TO authe
 GRANT EXECUTE ON FUNCTION public.get_team_leaderboard(UUID, TEXT, DATE) TO service_role;
 
 COMMENT ON FUNCTION public.get_team_leaderboard(UUID, TEXT, DATE) IS
-  'Edition, ISO week or all-time standings, summed from team_member_edition_scores. The week is derived from edition dates, never from the caller''s device clock.';
+  'Edition, ISO week or all-time standings for the CURRENT ACTIVE ROSTER, one row per member whether or not they have played. Ties share a rank (standard competition ranking, 1/2/2/4, matching the mobile client); the week comes from edition dates, never from the caller''s device; a member who has left keeps every stored row but leaves the board.';
 
 -- The streak (§16): consecutive EDITIONS completed, walking the editions table
 -- backwards. Never a count of calendar days — the cadence is Mon/Wed/Fri/Sun,
--- so a 7/7 daily streak would be unwinnable by construction.
+-- so a 7/7 daily streak would be unwinnable by construction, and a Tuesday
+-- cannot break anything because a Tuesday is not an edition.
+--
+-- THREE RULES THAT ARE EASY TO GET WRONG AND ARE THEREFORE WRITTEN DOWN:
+--
+--   1. An edition the TEAM was assigned nothing in is NEUTRAL. It neither
+--      counts nor breaks. `completed` is false on such an edition because
+--      `assigned_count = 0`, so reading it directly would end the streak of
+--      somebody who did everything asked of them — which was nothing. Skipped
+--      instead, and not silently counted either: answering none of nothing is
+--      not a completed edition.
+--
+--   2. The walk starts at the CURRENT stint's eligible_from_edition. Editions
+--      that closed before this reader could play them are not failures.
+--
+--   3. A REJOIN RESTARTS THE STREAK, deterministically. The walk is bounded by
+--      the open stint only, so the editions during a period out of the team are
+--      never visited — a gap is not a run of losses, and it is not a free pass
+--      either. Somebody who leaves at 5 and comes back starts again at 0.
 CREATE OR REPLACE FUNCTION public.team_member_edition_streak(
   p_team_id UUID,
   p_user_id UUID
@@ -777,6 +889,7 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_streak INTEGER := 0;
+  v_eligible DATE;
   v_row RECORD;
 BEGIN
   IF NOT public.is_active_team_member(p_team_id) THEN
@@ -784,27 +897,41 @@ BEGIN
       USING ERRCODE = 'P0002';
   END IF;
 
+  -- The open stint, and only it. A closed stint's eligibility date would drag
+  -- the walk back across a gap the reader was not in the team for.
+  SELECT m.eligible_from_edition INTO v_eligible
+  FROM public.team_members m
+  WHERE m.team_id = p_team_id
+    AND m.user_id = p_user_id
+    AND m.left_at IS NULL;
+
+  IF v_eligible IS NULL THEN
+    RETURN 0;
+  END IF;
+
   FOR v_row IN
     SELECT
       e.edition_date,
-      COALESCE(s.completed, FALSE) AS completed
+      COALESCE(s.completed, FALSE) AS completed,
+      EXISTS (
+        SELECT 1
+        FROM public.team_question_assignments a
+        WHERE a.team_id = p_team_id
+          AND a.edition_date = e.edition_date
+      ) AS team_was_playing
     FROM public.editions e
     LEFT JOIN public.team_member_edition_scores s
       ON s.team_id = p_team_id
      AND s.user_id = p_user_id
      AND s.edition_date = e.edition_date
-    -- Only editions this member could actually have played: an edition that
-    -- closed before they joined must not break a streak they never had a
-    -- chance at.
-    WHERE EXISTS (
-      SELECT 1
-      FROM public.team_members m
-      WHERE m.team_id = p_team_id
-        AND m.user_id = p_user_id
-        AND m.eligible_from_edition <= e.edition_date
-    )
+    WHERE e.edition_date >= v_eligible
     ORDER BY e.published_at DESC
   LOOP
+    -- Rule 1.
+    IF NOT v_row.team_was_playing THEN
+      CONTINUE;
+    END IF;
+
     IF v_row.completed THEN
       v_streak := v_streak + 1;
     ELSE
@@ -828,7 +955,7 @@ GRANT EXECUTE ON FUNCTION public.team_member_edition_streak(UUID, UUID) TO authe
 GRANT EXECUTE ON FUNCTION public.team_member_edition_streak(UUID, UUID) TO service_role;
 
 COMMENT ON FUNCTION public.team_member_edition_streak(UUID, UUID) IS
-  'Consecutive editions in which the member answered every question their team was assigned, counted over public.editions. An edition unit, never a calendar day: the cadence is Mon/Wed/Fri/Sun.';
+  'Consecutive editions in which the member answered every question their team was assigned, counted over public.editions from their current stint''s first eligible edition. An edition unit, never a calendar day. An edition the team was assigned nothing in is neutral; a rejoin restarts the count.';
 
 -- ---------------------------------------------------------------------------
 -- 7. RLS on the scoring tables

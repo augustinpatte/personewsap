@@ -20,8 +20,19 @@ export type LeaderboardRange = "edition" | "week" | "all_time";
 
 export const LEADERBOARD_RANGES: LeaderboardRange[] = ["edition", "week", "all_time"];
 
-/** What a member did with the edition in front of them. */
-export type EditionStatus = "not_started" | "in_progress" | "completed";
+/**
+ * What a member did with the edition in front of them.
+ *
+ * `starts_next_edition` is not a degree of progress, it is the absence of an
+ * opportunity: a reader who joined mid-edition is in the team and on the board
+ * but cannot score until the next one. Rendering that as "Not started" would
+ * accuse them of not having done something they were never allowed to do.
+ */
+export type EditionStatus =
+  | "not_started"
+  | "in_progress"
+  | "completed"
+  | "starts_next_edition";
 
 export type LeaderboardMember = {
   userId: string;
@@ -32,6 +43,14 @@ export type LeaderboardMember = {
   answeredCount: number;
   assignedCount: number;
   editionsCompleted: number;
+  /**
+   * The server's own verdict, when it sent one.
+   *
+   * It knows something this module cannot derive from the counts:
+   * `eligible_from_edition`. So when it is present it wins, and
+   * `editionStatus` is the fallback for callers that build members by hand.
+   */
+  status?: EditionStatus | null;
   /** Consecutive editions finished. Null when not computed for this range. */
   streak?: number | null;
 };
@@ -55,7 +74,17 @@ export type LeaderboardRow = LeaderboardMember & {
 export function editionStatus(input: {
   answeredCount: number;
   assignedCount: number;
+  status?: EditionStatus | null;
 }): EditionStatus {
+  // The server distinguishes "has not started" from "cannot start yet", which
+  // no arithmetic over the counts can recover: both are 0 of 0.
+  if (input.status) {
+    return input.status;
+  }
+
+  // assignedCount === 0 is NOT completed. Answering none of nothing is not
+  // finishing, and a member the team assigned nothing to must not be shown
+  // ahead of the people who actually played.
   if (input.assignedCount <= 0 || input.answeredCount <= 0) {
     return "not_started";
   }

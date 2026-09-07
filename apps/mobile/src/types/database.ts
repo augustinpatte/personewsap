@@ -533,14 +533,25 @@ export type Database = {
         never,
         never
       >;
-      teams: TableDefinition<
+      /**
+       * The member-safe projection of `public.teams`.
+       *
+       * The table itself is NOT readable by a client: it carries the invite
+       * code, the owner id and the raw name, and row-level security cannot hide
+       * a column. `display_name` is already resolved through moderation — null
+       * when hidden — so a screen cannot forget to check `name_status`.
+       */
+      team_directory: TableDefinition<
         {
           id: string;
-          owner_id: string;
-          name: string;
+          display_name: string | null;
           name_status: string;
           status: string;
+          archived_at: string | null;
+          is_owner: boolean;
+          invite_open: boolean;
           created_at: string;
+          updated_at: string;
         },
         never,
         never
@@ -959,6 +970,43 @@ export type Database = {
         Args: { p_team_id: string };
         Returns: string | null;
       };
+      /** Owner-only: the single route to the invite code. */
+      get_team_invite_code: {
+        Args: { p_team_id: string };
+        Returns: {
+          invite_code: string;
+          rotated_at: string | null;
+          invite_open: boolean;
+        } | null;
+      };
+      /** Owner-only: close or reopen the invite without rotating it. */
+      set_team_invite_open: {
+        Args: { p_team_id: string; p_open: boolean };
+        Returns: boolean | null;
+      };
+      get_team_detail: {
+        Args: { p_team_id: string };
+        Returns: {
+          team_id: string;
+          display_name: string | null;
+          name_hidden: boolean;
+          team_status: string;
+          is_owner: boolean;
+          member_count: number;
+          my_role: string;
+          my_eligible_from_edition: string;
+          invite_open: boolean;
+        } | null;
+      };
+      /** Team badges for an edition's questions, already moderated. */
+      get_my_team_refs_for_questions: {
+        Args: { p_edition_date: string; p_logical_question_ids: string[] };
+        Returns: Array<{
+          logical_question_id: string;
+          team_id: string;
+          display_name: string | null;
+        }> | null;
+      };
       update_team_config: {
         Args: {
           p_team_id: string;
@@ -1014,10 +1062,17 @@ export type Database = {
           username: string | null;
           country_code: string | null;
           avatar_path: string | null;
+          /** Ties share a rank (dense_rank): two on 1800 are both 2nd. */
+          rank: number;
           score_milli: number;
           answered_count: number;
           assigned_count: number;
           editions_completed: number;
+          /**
+           * Why this row is where it is. Every active member appears, so a zero
+           * needs to say which kind of zero it is.
+           */
+          status: "not_started" | "in_progress" | "completed" | "starts_next_edition";
         }> | null;
       };
       team_member_edition_streak: {

@@ -1,5 +1,5 @@
 import { normalizeSupabaseError, supabase, type NormalizedSupabaseError } from "../../lib/supabase";
-import { submitWithDeadlineRetry as runSubmitWithDeadlineRetry } from "./quizSubmitPolicy.js";
+import { submitWithDeadlineRetry as runSubmitWithDeadlineRetry } from "./quizSubmitPolicy";
 import type {
   QuestionGradeBand,
   QuestionScoreTier,

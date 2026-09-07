@@ -27,14 +27,34 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  -- NULLABLE, and ON DELETE SET NULL rather than RESTRICT.
+  --
+  -- A team outlives its owner. When the founder deletes their account the team
+  -- is handed to the longest-standing remaining member, and when there is
+  -- nobody left it is ARCHIVED — never deleted, because every historical
+  -- scoring table cascades from this row and deleting it would erase the
+  -- standings of people who left months earlier. An archived team with no owner
+  -- is therefore a real state the model has to be able to express.
+  --
+  -- RESTRICT could not express it: it made deleting a Team owner's account fail
+  -- outright, which is a GDPR obligation failing closed. SET NULL is the safety
+  -- net under the trigger that does the hand-over; the CHECK below is what stops
+  -- it from ever quietly orphaning a team somebody is still playing in.
+  owner_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   name_status TEXT NOT NULL DEFAULT 'active',
   -- The invite mechanism. A short, unguessable, rotatable code — not the team
   -- id, so revoking an invite never invalidates a link a member already has to
   -- the team itself.
+  --
+  -- It is NOT readable by members: `authenticated` has no SELECT privilege on
+  -- this table at all, and the only way to the code is an owner-only RPC. A
+  -- member who was given the code can still pass it on; the API just does not
+  -- make it a secret the whole roster holds by default.
   invite_code TEXT NOT NULL,
   invite_code_rotated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Set by the owner to close the door without rotating. NULL means open.
+  invite_disabled_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'active',
   archived_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -45,6 +65,13 @@ CREATE TABLE IF NOT EXISTS public.teams (
   CONSTRAINT teams_invite_code_format_check CHECK (invite_code ~ '^[A-Z0-9]{8}$'),
   CONSTRAINT teams_archived_at_check CHECK (
     (status = 'archived') = (archived_at IS NOT NULL)
+  ),
+  -- THE INVARIANT that makes a nullable owner safe. An active team always has
+  -- an owner; only an archived one may have none. If a profile delete ever
+  -- reaches the FK without the hand-over trigger having run first, this raises
+  -- instead of leaving a live team nobody can configure.
+  CONSTRAINT teams_active_needs_owner_check CHECK (
+    status = 'archived' OR owner_id IS NOT NULL
   )
 );
 
@@ -54,7 +81,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS teams_invite_code_unique
 CREATE INDEX IF NOT EXISTS idx_teams_owner ON public.teams(owner_id);
 
 COMMENT ON TABLE public.teams IS
-  'A private league between friends, reachable only by invite code. Archived rather than deleted (status/archived_at) so past leaderboards stay reconstructible.';
+  'A private league between friends, reachable only by invite code. Archived rather than deleted (status/archived_at) so past leaderboards stay reconstructible — every scoring table cascades from this row, so a DELETE would erase the history of people who left long before.';
+COMMENT ON COLUMN public.teams.owner_id IS
+  'NULL only on an archived team whose owner deleted their account with nobody left to inherit it. Enforced by teams_active_needs_owner_check.';
+COMMENT ON COLUMN public.teams.invite_code IS
+  'Never readable by members: authenticated holds no SELECT on this table. public.get_team_invite_code() is owner-only.';
 COMMENT ON COLUMN public.teams.name_status IS
   'Moderation flag. ''hidden'' suppresses the name without deleting the team or any score earned in it.';
 
@@ -410,7 +441,14 @@ REVOKE ALL ON TABLE public.team_config_versions FROM PUBLIC, anon;
 REVOKE ALL ON TABLE public.team_config_newsletter_topics FROM PUBLIC, anon;
 REVOKE ALL ON TABLE public.team_config_mini_case_topics FROM PUBLIC, anon;
 
-GRANT SELECT ON TABLE public.teams TO authenticated;
+-- NO SELECT ON public.teams FOR authenticated.
+--
+-- The row carries `invite_code`, `owner_id` and the moderation flags, and RLS is
+-- row-level: a policy that lets a member read their team lets them read all of
+-- it, including the invite code the owner is supposed to control and the name a
+-- moderator has hidden. Members read `public.team_directory` instead, which is
+-- the same rows with the unsafe columns removed and the name sanitised;
+-- 20260906106000 creates it and grants it.
 GRANT SELECT ON TABLE public.team_members TO authenticated;
 GRANT SELECT ON TABLE public.team_config_versions TO authenticated;
 GRANT SELECT ON TABLE public.team_config_newsletter_topics TO authenticated;
@@ -553,11 +591,12 @@ BEGIN
   SELECT * INTO v_team
   FROM public.teams t
   WHERE t.invite_code = v_code
-    AND t.status = 'active';
+    AND t.status = 'active'
+    AND t.invite_disabled_at IS NULL;
 
   IF NOT FOUND THEN
-    -- One message for "no such code" and "archived team" alike: distinguishing
-    -- them would turn this into a code oracle.
+    -- One message for "no such code", "archived team" and "invite closed"
+    -- alike: distinguishing them would turn this into a code oracle.
     RAISE EXCEPTION 'Invite code not found'
       USING ERRCODE = 'P0002';
   END IF;
@@ -578,6 +617,15 @@ BEGIN
   -- and the editions table — never sent by the client.
   v_eligible := public.next_scoring_edition_date();
 
+  -- A REJOIN OPENS A NEW STINT. The closed row is never reopened: its
+  -- joined_at/left_at pair is the record of when this reader was actually in
+  -- the team, and several historical answers depend on it. Reusing it would
+  -- also inherit the OLD eligible_from_edition, which is exactly the hole the
+  -- mid-edition rule exists to close — someone could leave, read an edition's
+  -- questions, rejoin, and be eligible for it because their first stint was.
+  --
+  -- The partial unique index is (team_id, user_id) WHERE left_at IS NULL, so
+  -- any number of closed stints coexist with at most one open one.
   INSERT INTO public.team_members (team_id, user_id, role, eligible_from_edition)
   VALUES (v_team.id, v_user_id, 'member', v_eligible);
 
@@ -626,10 +674,30 @@ BEGIN
       USING ERRCODE = 'P0002';
   END IF;
 
-  -- The owner leaving archives the team rather than orphaning it. Archiving is
-  -- a soft delete on purpose: every past leaderboard, score and streak stays
-  -- reconstructible, and the invite code stops working immediately.
+  -- THE OWNER CANNOT WALK OUT ON A TEAM THAT IS STILL BEING PLAYED.
+  --
+  -- The previous behaviour archived the team and closed everybody's stint, so
+  -- one person leaving ended the league for four other people who had not
+  -- agreed to anything. Leaving, transferring and archiving are three different
+  -- decisions and are no longer taken by one call.
+  --
+  -- An owner with company must hand over first (transfer_team_ownership) and
+  -- then leave as an ordinary member. An owner alone in their own team is
+  -- archiving it, and that is allowed: nobody else loses anything.
   IF v_is_owner THEN
+    IF EXISTS (
+      SELECT 1 FROM public.team_members m
+      WHERE m.team_id = p_team_id
+        AND m.left_at IS NULL
+        AND m.user_id <> v_user_id
+    ) THEN
+      RAISE EXCEPTION 'Transfer ownership before leaving a team that still has members'
+        USING ERRCODE = '42501';
+    END IF;
+
+    -- Alone, so leaving is archiving. Archiving is a soft delete on purpose:
+    -- every past leaderboard, score and streak stays reconstructible, and the
+    -- invite code stops working immediately.
     UPDATE public.teams
     SET status = 'archived', archived_at = v_left_at, updated_at = v_left_at
     WHERE id = p_team_id AND status = 'active';
@@ -660,7 +728,7 @@ GRANT EXECUTE ON FUNCTION public.leave_team(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.leave_team(UUID) TO service_role;
 
 COMMENT ON FUNCTION public.leave_team(UUID) IS
-  'Closes the caller''s membership stint (left_at), revoking future access immediately while leaving every score already earned attached to its edition. An owner leaving archives the team instead of deleting it.';
+  'Closes the caller''s membership stint (left_at), revoking future access immediately while leaving every score already earned attached to its edition. An owner with remaining members must transfer ownership first; an owner alone archives the team.';
 
 -- ---------------------------------------------------------------------------
 -- 7. Configuration RPC

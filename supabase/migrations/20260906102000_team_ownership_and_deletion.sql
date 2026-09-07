@@ -1,18 +1,19 @@
 -- Ownership hand-over, member removal, and the account-deletion blocker.
 --
--- THE BUG THIS FIXES FIRST. `teams.owner_id` references `profiles(id)` with
--- ON DELETE RESTRICT. Every other Teams table cascades, so deleting an account
--- cleans up correctly — except for a reader who owns a Team, where RESTRICT
--- makes the delete fail outright. `delete-account` deletes the auth user and
--- lets the cascade do the rest, so as things stand a Team owner CANNOT DELETE
+-- THE BUG THIS FIXES FIRST. Every other Teams table cascades from a profile, so
+-- deleting an account cleans up correctly — except for a reader who owns a Team,
+-- where the owner foreign key refused outright. `delete-account` deletes the
+-- auth user and lets the cascade do the rest, so a Team owner COULD NOT DELETE
 -- THEIR ACCOUNT AT ALL. That is a GDPR obligation failing closed, and it would
 -- have shipped silently: nothing in the mobile app or the Edge Function reports
 -- which foreign key refused.
 --
--- The fix is a BEFORE DELETE trigger that resolves ownership first. It does not
--- weaken the constraint — RESTRICT stays, and stays useful: it is still
--- impossible to orphan a team by accident, because the only way past it is the
--- deliberate hand-over below.
+-- The fix is a BEFORE DELETE trigger that resolves ownership first, so the
+-- foreign key never gets the chance. `teams.owner_id` is ON DELETE SET NULL
+-- (20260906092000) as the safety net underneath it, and
+-- teams_active_needs_owner_check is what stops that net from quietly orphaning
+-- a team somebody is still playing in: an active team always has an owner, and
+-- only an archived one may have none.
 --
 -- Also here, because the mobile copy already promises both and neither existed:
 -- transfer_team_ownership and remove_team_member.
@@ -132,8 +133,8 @@ COMMENT ON FUNCTION public.remove_team_member(UUID, UUID) IS
 -- ---------------------------------------------------------------------------
 -- 3. The account-deletion path
 -- ---------------------------------------------------------------------------
--- Runs BEFORE the profile row goes, so `teams.owner_id`'s RESTRICT never gets
--- the chance to refuse.
+-- Runs BEFORE the profile row goes, so the owner foreign key never gets the
+-- chance to refuse.
 --
 -- The rule, in order:
 --
@@ -142,10 +143,18 @@ COMMENT ON FUNCTION public.remove_team_member(UUID, UUID) IS
 --      keep playing. This is almost always the right answer for a league of
 --      friends where one person happened to create it.
 --
---   2. If nobody is left, archive it. Not delete: `team_question_scores` and
---      `team_member_edition_scores` cascade from `teams`, so deleting the row
---      would erase other people's history too — and an empty archived team
---      costs one row.
+--   2. If nobody is left, ARCHIVE it and null the owner. Not delete — and the
+--      first version of this function did delete, with a comment claiming the
+--      scores 'belong only to the departing reader and cascade with them
+--      anyway'. That is false, and it is the kind of false that is invisible
+--      until somebody complains their history is gone.
+--
+--      A team with no ACTIVE member can still hold rows for everybody who left
+--      earlier: `team_question_scores` and `team_member_edition_scores` both
+--      cascade from `teams`, so deleting the row erases standings belonging to
+--      readers who are still using the product and had nothing to do with this
+--      deletion. Historical standings are immutable records. An empty archived
+--      team costs one row and keeps them.
 --
 -- The departing reader's own scores still cascade away with their profile,
 -- which is what account deletion is supposed to do.
@@ -163,12 +172,18 @@ BEGIN
   FOR v_team IN
     SELECT t.id FROM public.teams t WHERE t.owner_id = OLD.id
   LOOP
+    -- THE SUCCESSION RULE, and it is deterministic on purpose: the
+    -- longest-standing remaining member, ties broken by user id. Not "a
+    -- member", not the newest, not random — two readers deleting their accounts
+    -- in a different order must not produce two different teams.
+    v_successor := NULL;
+
     SELECT m.user_id INTO v_successor
     FROM public.team_members m
     WHERE m.team_id = v_team.id
       AND m.left_at IS NULL
       AND m.user_id <> OLD.id
-    ORDER BY m.joined_at
+    ORDER BY m.joined_at, m.user_id
     LIMIT 1;
 
     IF v_successor IS NOT NULL THEN
@@ -180,11 +195,17 @@ BEGIN
       SET role = 'owner'
       WHERE team_id = v_team.id AND user_id = v_successor AND left_at IS NULL;
     ELSE
-      -- Nobody left. Archived, and the owner_id is moved to the departing
-      -- reader's successor-less team by pointing it at… nothing available, so
-      -- the row itself has to go. Its scores belong only to the departing
-      -- reader and cascade with them anyway.
-      DELETE FROM public.teams WHERE id = v_team.id;
+      -- Nobody left to inherit it. Archive, and release the owner: an archived
+      -- team is the only state in which teams.owner_id may be NULL, and
+      -- teams_active_needs_owner_check is what makes that safe.
+      --
+      -- Deliberately NOT a DELETE. See the header.
+      UPDATE public.teams
+      SET status = 'archived',
+          archived_at = COALESCE(archived_at, now()),
+          owner_id = NULL,
+          updated_at = now()
+      WHERE id = v_team.id;
     END IF;
   END LOOP;
 
@@ -209,7 +230,7 @@ FOR EACH ROW
 EXECUTE FUNCTION public.resolve_team_ownership_on_profile_delete();
 
 COMMENT ON FUNCTION public.resolve_team_ownership_on_profile_delete() IS
-  'Runs before a profile is deleted so teams.owner_id RESTRICT cannot block account deletion. Hands each owned team to its longest-standing remaining member, or removes a team nobody is left in.';
+  'Runs before a profile is deleted so account deletion is never blocked by team ownership. Hands each owned team to its longest-standing remaining member (ties by user id); archives and un-owns a team nobody is left in. Never deletes a team: every scoring table cascades from it and would take other readers'' history with it.';
 
 -- ---------------------------------------------------------------------------
 -- 4. Indexes for the paths this adds

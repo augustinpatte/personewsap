@@ -48,7 +48,17 @@ describe("the seam between the data layer and the readers", () => {
     expect(dailyDropData).toContain("fetchQuestionsByContentItemIds");
     expect(dailyDropData).toContain("fetchTeamsByContentItemIds");
     expect(dailyDropData).toContain('from("logical_questions")');
-    expect(dailyDropData).toContain('from("team_question_assignments")');
+    expect(dailyDropData).toContain('rpc("get_my_team_refs_for_questions"');
+  });
+
+  it("never reads the teams table to draw a badge", () => {
+    // `public.teams` carries the invite code and the unmoderated name, and
+    // row-level security cannot hide a column — so the client holds no SELECT
+    // on it at all. A join here would both fail and, if it were ever granted,
+    // put the moderation rule back in the client where it was forgotten once.
+    expect(dailyDropData).not.toContain('from("teams")');
+    expect(dailyDropData).not.toContain("teams!inner");
+    expect(dailyDropData).not.toContain("name_status");
   });
 
   it("attaches them to every mapped item", () => {

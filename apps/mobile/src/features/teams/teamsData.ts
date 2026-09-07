@@ -1,5 +1,5 @@
 import { normalizeSupabaseError, supabase, type NormalizedSupabaseError } from "../../lib/supabase";
-import type { LeaderboardMember, LeaderboardRange } from "./leaderboard";
+import type { EditionStatus, LeaderboardMember, LeaderboardRange } from "./leaderboard";
 import type { PlayerProfile } from "./playerProfile";
 
 /**
@@ -168,10 +168,9 @@ export async function fetchMyTeams(input: {
   try {
     const { data, error } = await supabase
       .from("team_members")
-      .select("team_id,role,eligible_from_edition,teams!inner(id,name,owner_id,status)")
+      .select("team_id,role,eligible_from_edition")
       .eq("user_id", input.userId)
       .is("left_at", null)
-      .eq("teams.status", "active")
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -185,8 +184,14 @@ export async function fetchMyTeams(input: {
       return { ok: true, data: [] };
     }
 
-    // Two more queries for the whole list, not two per team.
-    const [{ data: memberRows }, { data: scoreRows }] = await Promise.all([
+    // Three more queries for the whole list, not three per team.
+    //
+    // The teams themselves come from `team_directory` by id rather than through
+    // an embedded join. `public.teams` is unreadable by a client — it carries
+    // the invite code and the unmoderated name — and PostgREST's relationship
+    // inference across a view is not something to bet a screen on. Two explicit
+    // queries always work; an inferred embed either works or fails at runtime.
+    const [{ data: memberRows }, { data: scoreRows }, { data: teamRows }] = await Promise.all([
       supabase.from("team_members").select("team_id").in("team_id", teamIds).is("left_at", null),
       input.editionDate
         ? supabase
@@ -195,8 +200,18 @@ export async function fetchMyTeams(input: {
             .eq("user_id", input.userId)
             .eq("edition_date", input.editionDate)
             .in("team_id", teamIds)
-        : Promise.resolve({ data: [] as unknown[] })
+        : Promise.resolve({ data: [] as unknown[] }),
+      supabase
+        .from("team_directory")
+        .select("id,display_name,is_owner,status")
+        .in("id", teamIds)
+        .eq("status", "active")
     ]);
+
+    const teams = new Map<string, Record<string, unknown>>();
+    for (const row of (teamRows ?? []) as Array<Record<string, unknown>>) {
+      teams.set(row.id as string, row);
+    }
 
     const memberCounts = new Map<string, number>();
     for (const row of (memberRows ?? []) as Array<{ team_id: string }>) {
@@ -210,20 +225,25 @@ export async function fetchMyTeams(input: {
 
     return {
       ok: true,
-      data: rows.map((row) => {
-        // The hand-maintained type map declares no relationships, so the
-        // embedded row has to be read through unknown. The join itself is
-        // real — team_members.team_id references teams.id.
-        const team = ((row.teams ?? {}) as unknown) as Record<string, unknown>;
+      data: rows
+        // An archived team drops out here rather than in the membership query:
+        // the filter lives on the directory row, which is the only thing that
+        // knows the status.
+        .filter((row) => teams.has(row.team_id as string))
+        .map((row) => {
         const teamId = row.team_id as string;
+        const team = teams.get(teamId) ?? {};
         const score = scores.get(teamId);
         const eligibleFrom = (row.eligible_from_edition as string) ?? null;
 
         return {
           teamId,
-          name: typeof team.name === "string" ? team.name : null,
+          // Already null when moderation has hidden it. The screen renders its
+          // own neutral label; a client that forgets renders nothing, which is
+          // the safe failure rather than the old name.
+          name: typeof team.display_name === "string" ? team.display_name : null,
           memberCount: memberCounts.get(teamId) ?? 1,
-          isOwner: team.owner_id === input.userId,
+          isOwner: team.is_owner === true,
           rank: null,
           scoreMilli: Number(score?.score_milli ?? 0),
           answeredCount: Number(score?.answered_count ?? 0),
@@ -236,7 +256,7 @@ export async function fetchMyTeams(input: {
             input.editionDate && eligibleFrom && eligibleFrom > input.editionDate
           )
         };
-      })
+        })
     };
   } catch (error) {
     return fail(error);
@@ -278,7 +298,10 @@ export async function fetchLeaderboard(input: {
           scoreMilli: Number(row.score_milli ?? 0),
           answeredCount: Number(row.answered_count ?? 0),
           assignedCount: Number(row.assigned_count ?? 0),
-          editionsCompleted: Number(row.editions_completed ?? 0)
+          editionsCompleted: Number(row.editions_completed ?? 0),
+          // Carried through rather than recomputed: only the server knows
+          // whether this member's first scoring edition is still ahead of them.
+          status: typeof row.status === "string" ? (row.status as EditionStatus) : null
         };
       })
     };
@@ -367,14 +390,93 @@ export async function joinTeamWithCode(code: string): Promise<JoinOutcome> {
   }
 }
 
-export async function leaveTeam(teamId: string): Promise<TeamsResult<null>> {
+export type LeaveOutcome =
+  | { status: "left" }
+  /**
+   * The owner tried to walk out on a team other people are still playing in.
+   *
+   * Not an error to swallow: leaving, handing over and archiving are three
+   * different decisions, and the server refuses to take all three at once. The
+   * screen offers "transfer ownership, then leave".
+   */
+  | { status: "transfer_required" }
+  | { status: "failed"; error: NormalizedSupabaseError };
+
+export async function leaveTeam(teamId: string): Promise<LeaveOutcome> {
+  if (!supabase) {
+    return { status: "failed", error: configError() };
+  }
+
+  try {
+    const { error } = await supabase.rpc("leave_team", { p_team_id: teamId });
+
+    if (!error) {
+      return { status: "left" };
+    }
+
+    return error.code === "42501" && /transfer ownership/i.test(error.message ?? "")
+      ? { status: "transfer_required" }
+      : { status: "failed", error: normalizeSupabaseError(error) };
+  } catch (error) {
+    return { status: "failed", error: normalizeSupabaseError(error) };
+  }
+}
+
+export type TeamInvite = { code: string; rotatedAt: string | null; open: boolean };
+
+/**
+ * The invite code, for the owner only.
+ *
+ * A member cannot read it — `authenticated` holds no SELECT on `public.teams` —
+ * so this is the single way to it and the server decides who is asking. A
+ * non-owner gets "Team not found" rather than a permission error, because a
+ * distinct refusal would confirm the team exists to anybody who guessed an id.
+ */
+export async function fetchInviteCode(teamId: string): Promise<TeamsResult<TeamInvite>> {
   if (!supabase) {
     return { ok: false, error: configError() };
   }
 
   try {
-    const { error } = await supabase.rpc("leave_team", { p_team_id: teamId });
-    return error ? fail(error) : { ok: true, data: null };
+    const { data, error } = await supabase
+      .rpc("get_team_invite_code", { p_team_id: teamId })
+      .maybeSingle();
+
+    if (error) {
+      return fail(error);
+    }
+
+    const row = (data ?? {}) as Record<string, unknown>;
+
+    return {
+      ok: true,
+      data: {
+        code: String(row.invite_code ?? ""),
+        rotatedAt: (row.rotated_at as string) ?? null,
+        open: row.invite_open !== false
+      }
+    };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Close or reopen the invite without rotating it. Owner only. */
+export async function setInviteOpen(
+  teamId: string,
+  open: boolean
+): Promise<TeamsResult<boolean>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("set_team_invite_open", {
+      p_team_id: teamId,
+      p_open: open
+    });
+
+    return error ? fail(error) : { ok: true, data: data === true };
   } catch (error) {
     return fail(error);
   }

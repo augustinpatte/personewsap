@@ -701,13 +701,16 @@ async function fetchTeamsByContentItemIds(input: {
     return {};
   }
 
-  // RLS on team_question_assignments already scopes this to teams the reader is
-  // an active member of, so no user filter is needed and none is sent.
-  const { data, error } = await supabase
-    .from("team_question_assignments")
-    .select("team_id,logical_question_id,edition_date,teams!inner(id,name,name_status)")
-    .eq("edition_date", input.editionDate)
-    .in("logical_question_id", logicalQuestionIds);
+  // Through an RPC rather than a join onto `teams`.
+  //
+  // The client has no SELECT on that table — it carries the invite code and the
+  // unmoderated name — and applying the moderation rule here was a second place
+  // to forget it. The RPC returns `display_name` already resolved, scoped to
+  // teams the reader is an eligible active member of.
+  const { data, error } = await supabase.rpc("get_my_team_refs_for_questions", {
+    p_edition_date: input.editionDate,
+    p_logical_question_ids: logicalQuestionIds
+  });
 
   if (error || !data) {
     return {};
@@ -715,11 +718,10 @@ async function fetchTeamsByContentItemIds(input: {
 
   const teamsByQuestionId = new Map<string, ContentTeamRef[]>();
 
-  for (const row of data) {
-    const team = (row.teams ?? {}) as unknown as Record<string, unknown>;
+  for (const row of data as Array<Record<string, unknown>>) {
     const questionId = row.logical_question_id as string;
     const list = teamsByQuestionId.get(questionId) ?? [];
-    const teamId = String(team.id ?? row.team_id ?? "");
+    const teamId = String(row.team_id ?? "");
 
     if (!teamId || list.some((entry) => entry.id === teamId)) {
       continue;
@@ -727,9 +729,9 @@ async function fetchTeamsByContentItemIds(input: {
 
     list.push({
       id: teamId,
-      // Moderation applied at read time: a hidden name renders as a neutral
-      // label rather than disappearing, so the row still says "Team".
-      name: team.name_status === "hidden" ? null : ((team.name as string) ?? null)
+      // Already null when moderation has hidden it; the badge renders a neutral
+      // label so the row still says "Team".
+      name: (row.display_name as string) ?? null
     });
 
     teamsByQuestionId.set(questionId, list);
