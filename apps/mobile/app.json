@@ -3,7 +3,7 @@
     "name": "PersoNewsAP",
     "slug": "personewsap-mobile",
     "scheme": "personewsap",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F5F1E8",
