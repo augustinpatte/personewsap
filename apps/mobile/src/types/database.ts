@@ -510,6 +510,29 @@ export type Database = {
         never,
         never
       >;
+      /**
+       * What a Team is reading this edition. Keyed on the LOGICAL content, not
+       * on a content_items row: the FR and EN renderings of one article are one
+       * assignment, and the language is resolved when it is displayed.
+       *
+       * Prefer the `get_my_team_edition_content` RPC over reading this table —
+       * it resolves the rendering, deduplicates content two Teams both assigned,
+       * and returns the Team names in one round trip.
+       */
+      team_content_assignments: TableDefinition<
+        {
+          id: string;
+          team_id: string;
+          edition_date: string;
+          content_logical_key: string;
+          content_type: string;
+          topic_id: string | null;
+          product_topic: string | null;
+          position: number;
+        },
+        never,
+        never
+      >;
       teams: TableDefinition<
         {
           id: string;
@@ -947,6 +970,30 @@ export type Database = {
           version: number;
           effective_from_edition: string;
         } | null;
+      };
+      /**
+       * The caller's Team content for an edition, one row per logical content.
+       *
+       * `teams` carries every Team that assigned it, so an article both Teams
+       * chose arrives once with two badges rather than twice. The language comes
+       * from the profile; passing `p_language` only overrides it with 'fr' or
+       * 'en' and is validated server-side.
+       */
+      get_my_team_edition_content: {
+        Args: { p_edition_date?: string | null; p_language?: string | null };
+        Returns: Array<{
+          content_logical_key: string;
+          content_type: string;
+          display_content_item_id: string;
+          display_language: string;
+          topic_id: string | null;
+          product_topic: string | null;
+          title: string;
+          summary: string | null;
+          edition_date: string;
+          assignment_position: number;
+          teams: Array<{ id: string; name: string | null }>;
+        }> | null;
       };
       get_team_roster: {
         Args: { p_team_id: string };

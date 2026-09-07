@@ -5,9 +5,9 @@ Three migrations repair a P0: `claim_push_notification_deliveries` has answered
 received, so no edition notification this product has published was ever
 attempted.
 
-They must reach production **without** carrying the nine unrelated Teams
-migrations that are also unapplied, and without a window in which the database
-and the deployed sender disagree.
+They must reach production **without** carrying the unrelated Teams migrations
+that are also unapplied, and without a window in which the database and the
+deployed sender disagree.
 
 Everything below was checked against the installed CLI and the real remote
 history on 2026-09-06. Nothing in it was applied.
@@ -24,7 +24,8 @@ $ supabase --version
 `--include <file>` flag.** Any runbook that names one is describing a CLI that
 does not exist. What `db push` pushes is every local migration absent from the
 remote `supabase_migrations.schema_migrations`, so from the repository root it
-would push all twelve pending migrations at once:
+would push every pending migration at once. As recorded on 2026-09-06 that was
+twelve:
 
 ```
 $ supabase db push --dry-run --linked
@@ -42,6 +43,13 @@ Would push these migrations:
  • 20260906101000_avatar_storage.sql
  • 20260906102000_team_ownership_and_deletion.sql
 ```
+
+Two more Teams migrations have been added since that transcript was taken —
+`20260906103000_team_content_assignments.sql` and
+`20260906104000_edition_assignment_engine.sql` — so the list is now fourteen.
+The transcript above is left as it was observed; re-run the dry run before
+acting on it. Nothing about the hotfix procedure changes: the three hotfix
+migrations still sort first, and every Teams migration is still newer.
 
 ## Reading migration history
 
@@ -105,7 +113,7 @@ root sees them as applied and skips them.
 
 ### And why the hotfix sorts first
 
-`20260906080000`–`082000` sort **before** the Teams batch at `090000`–`102000`.
+`20260906080000`–`082000` sort **before** the Teams batch at `090000`–`104000`.
 After the hotfix, the newest applied version is `20260906082000`, every Teams
 migration is still newer, and deploying Teams later is a plain forward push. Had
 the hotfix sorted last, Teams would afterwards be *out of order* and would need

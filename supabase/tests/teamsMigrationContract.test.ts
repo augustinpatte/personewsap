@@ -32,7 +32,9 @@ const MIGRATIONS = [
   "20260906092000_teams_foundation.sql",
   "20260906093000_scored_questions.sql",
   "20260906094000_question_attempts_and_scoring.sql",
-  "20260906095000_realtime_and_moderation.sql"
+  "20260906095000_realtime_and_moderation.sql",
+  "20260906103000_team_content_assignments.sql",
+  "20260906104000_edition_assignment_engine.sql"
 ] as const;
 
 const sources = new Map(
@@ -186,6 +188,7 @@ describe("row level security", () => {
       "public.logical_question_option_locales",
       "public.solo_question_assignments",
       "public.team_question_assignments",
+      "public.team_content_assignments",
       "public.question_attempts",
       "public.team_question_scores",
       "public.team_member_edition_scores",
@@ -231,6 +234,7 @@ describe("privileges", () => {
       "public.logical_question_option_locales",
       "public.solo_question_assignments",
       "public.team_question_assignments",
+      "public.team_content_assignments",
       "public.question_attempts",
       "public.team_question_scores",
       "public.team_member_edition_scores"
@@ -257,6 +261,7 @@ describe("privileges", () => {
       "public.logical_questions",
       "public.logical_question_options",
       "public.team_question_assignments",
+      "public.team_content_assignments",
       "public.solo_question_assignments"
     ]) {
       const policies = [
@@ -308,7 +313,13 @@ describe("SECURITY DEFINER functions", () => {
       "public.teams_scoring_question",
       "public.moderate_player_identity",
       "public.moderate_team_name",
-      "public.generate_team_invite_code"
+      "public.generate_team_invite_code",
+      "public.materialize_solo_question_assignments",
+      "public.materialize_team_content_assignments",
+      "public.materialize_team_question_assignments",
+      "public.initialize_team_edition_roster",
+      "public.materialize_team_edition_assignments",
+      "public.materialize_edition_assignments"
     ]) {
       const escaped = name.replace(".", "\\.");
 
@@ -467,6 +478,160 @@ describe("the product rules that must not be re-litigated in code", () => {
   });
 });
 
+describe("team content entitlement", () => {
+  const entitlement = stripNoise(sources.get("20260906103000_team_content_assignments.sql")!);
+
+  it("anchors a team assignment on the logical content, never on one language's row", () => {
+    // A Team assignment naming a content_items id would hand the French member
+    // the English article or nothing at all. The column is the logical key, and
+    // the entitlement predicate joins on it.
+    expect(entitlement).toMatch(/content_logical_key TEXT NOT NULL/);
+    expect(entitlement).not.toMatch(/content_item_id UUID NOT NULL REFERENCES public\.content_items/);
+    expect(entitlement).toMatch(
+      /a\.content_logical_key = public\.content_logical_key\(ci\.metadata\)/
+    );
+  });
+
+  it("keeps Business Stories and the Learning Path out of Team content", () => {
+    expect(entitlement).toContain("team_content_assignments_type_check");
+    expect(entitlement).toMatch(
+      /team_content_assignments_type_check\s*\n?\s*CHECK \(content_type IN \(\s*''\s*,\s*''\s*\)\)/
+    );
+  });
+
+  it("makes a team entitlement exactly as strict as a personal one", () => {
+    // Every one of these terms is load-bearing: drop any and a Team assignment
+    // starts granting more than the reader is entitled to.
+    for (const term of [
+      "t.status = ''",
+      "m.left_at IS NULL",
+      "m.eligible_from_edition <= a.edition_date",
+      "ci.status = ''"
+    ]) {
+      expect(entitlement, term).toContain(term);
+    }
+  });
+
+  it("never widens assigned content into all published content", () => {
+    // The failure mode this whole file has to avoid: a policy that stops asking
+    // who the item was assigned to. Every SELECT policy it rewrites must still
+    // carry at least one entitlement predicate.
+    const policies = [
+      ...entitlement.matchAll(/CREATE POLICY[\s\S]*?USING \(([\s\S]*?)\n\);/g)
+    ].map((match) => match[1]);
+
+    expect(policies.length).toBeGreaterThan(4);
+
+    for (const policy of policies) {
+      expect(
+        /user_has_assigned_content|user_has_assigned_source|user_has_team_content|user_has_content_entitlement|is_active_team_member|user_id = auth\.uid\(\)/.test(
+          policy
+        ),
+        policy.slice(0, 160)
+      ).toBe(true);
+    }
+  });
+
+  it("does not redefine the historic personal predicates", () => {
+    // user_has_assigned_content answers a narrower question that the archive
+    // view, the write paths and other policies all depend on. It is composed,
+    // never rewritten.
+    expect(entitlement).not.toMatch(
+      /CREATE OR REPLACE FUNCTION public\.user_has_assigned_content\s*\(/i
+    );
+    expect(entitlement).not.toMatch(
+      /CREATE OR REPLACE FUNCTION public\.user_has_assigned_source\s*\(/i
+    );
+    expect(entitlement).not.toMatch(
+      /CREATE OR REPLACE FUNCTION public\.user_has_assigned_content_translation\s*\(/i
+    );
+  });
+
+  it("keeps interactions anchored to the caller", () => {
+    for (const match of entitlement.matchAll(
+      /CREATE POLICY[^;]*?ON public\.(content_interactions|mini_case_responses)[\s\S]*?;/g
+    )) {
+      expect(match[0], match[0].slice(0, 120)).toContain("user_id = auth.uid()");
+    }
+  });
+
+  it("returns no private field from the team content RPC", () => {
+    const rpc = functions.find(
+      (definition) => definition.name === "public.get_my_team_edition_content"
+    );
+
+    expect(rpc).toBeDefined();
+
+    for (const forbidden of ["invite_code", "score_milli", "grade_band", "logical_question_grades"]) {
+      expect(rpc?.body, forbidden).not.toContain(forbidden);
+    }
+
+    // The language is the profile's, or one of the two the product has.
+    expect(rpc?.body).toContain("FROM public.profiles p");
+    expect(rpc?.body).toMatch(/WHEN p_language = ''\s*THEN ''/);
+  });
+});
+
+describe("the assignment engine", () => {
+  const engine = stripNoise(sources.get("20260906104000_edition_assignment_engine.sql")!);
+
+  it("selects deterministically", () => {
+    // Not random, not a clock, not an insertion order. The publisher's ordinal,
+    // with the logical key as the only tie-break.
+    expect(engine).not.toMatch(/\brandom\s*\(/i);
+    expect(engine).not.toMatch(/ORDER BY[^;]*\bnow\s*\(/i);
+    expect(engine).not.toMatch(/ORDER BY[^;]*\bcreated_at\b[^;]*LIMIT/i);
+    expect(engine).toContain("public.content_edition_ordinal");
+    expect(engine).toMatch(/ORDER BY c\.ordinal, c\.logical_key/);
+  });
+
+  it("caps a team newsletter topic at two articles", () => {
+    expect(engine).toMatch(/LIMIT least\(2, greatest\(1, v_topic\.articles_count\)\)/);
+  });
+
+  it("writes nothing twice", () => {
+    // Every INSERT in the engine has to be a no-op on a second run, or
+    // re-materializing an edition doubles a question set somebody is mid-way
+    // through answering.
+    const inserts = [...engine.matchAll(/INSERT INTO public\.\w+[\s\S]*?;/g)];
+
+    expect(inserts.length).toBeGreaterThan(2);
+
+    for (const insert of inserts) {
+      expect(insert[0], insert[0].slice(0, 90)).toMatch(
+        /ON CONFLICT ON CONSTRAINT \w+ DO NOTHING/
+      );
+    }
+  });
+
+  it("snapshots the config version onto every row it writes", () => {
+    expect(engine).toMatch(/config_version_id[\s\S]{0,400}v_config/);
+    expect(engine).toContain("public.team_effective_config_version");
+  });
+
+  it("derives personal assignments from the reader's own edition", () => {
+    const solo = functions.find(
+      (definition) => definition.name === "public.materialize_solo_question_assignments"
+    );
+
+    expect(solo?.body).toContain("public.daily_drops");
+    expect(solo?.body).toContain("public.daily_drop_items");
+    // The logical key, so a language switch does not produce a second assignment.
+    expect(solo?.body).toContain("public.content_logical_key(ci.metadata)");
+  });
+
+  it("pre-populates the roster from the ledger instead of resetting it", () => {
+    const roster = functions.find(
+      (definition) => definition.name === "public.initialize_team_edition_roster"
+    );
+
+    expect(roster?.body).toContain("public.refresh_team_member_edition_score");
+    // A direct write would overwrite a score somebody already earned.
+    expect(roster?.body).not.toMatch(/INSERT INTO public\.team_member_edition_scores/i);
+    expect(roster?.body).toContain("m.eligible_from_edition <= p_edition_date");
+  });
+});
+
 describe("the SQL suite itself", () => {
   const suite = readFileSync(
     join(root, "supabase", "tests", "teams_and_scored_questions.test.sql"),
@@ -488,6 +653,14 @@ describe("the SQL suite itself", () => {
     expect((suite.match(/set local role/gi) ?? []).length).toBe(
       (suite.match(/^reset role;/gim) ?? []).length
     );
+  });
+
+  it("puts the assignment fixture on a quiet day so real content cannot compete", () => {
+    // The engine selects an edition's content by publication_date. A fixture
+    // sharing that date with a real edition would let real articles win the
+    // topic selection and the assertions would be about production data.
+    expect(suite).toContain("public.resolve_edition_kind(d::date) is null");
+    expect(suite).toMatch(/insert into team_editions \(label, edition_date\)\s*\n\s*select 'e3'/);
   });
 
   it("derives its edition dates from now() instead of pinning them", () => {
@@ -514,6 +687,38 @@ describe("the SQL suite itself", () => {
       ["mid-edition join", "B14 the late joiner is eligible for the next edition"],
       ["historical score survives leave", "D13 the leaver"],
       ["non-member cannot subscribe", "B7 an outsider cannot subscribe"]
+    ] as const) {
+      expect(suite, label).toContain(needle);
+    }
+  });
+
+  it("covers every Team content and assignment scenario §19 asked for", () => {
+    for (const [label, needle] of [
+      ["team-only content entitlement", "E1 a team member can read team-only content"],
+      ["non-member denied", "E2 a non-member cannot read team-only content"],
+      ["mid-edition join denied", "E3 a mid-edition joiner is absent"],
+      ["creator starts next edition", "E4 the founder is not score-eligible in the open edition"],
+      ["config effective next edition", "E5 the first configuration takes effect next edition"],
+      ["newsletter count 2", "E6 a topic configured for two articles gets two"],
+      ["newsletter count 1", "E7 a topic configured for one article gets the first ordinal"],
+      ["newsletter count 3 rejected", "E8 a newsletter depth of three is refused"],
+      ["multi-team content dedupe", "E9 content assigned by two teams comes back once"],
+      ["FR/EN logical entitlement", "E10 one logical assignment entitles both renderings"],
+      ["team-only interaction allowed", "E11 a team-only article can be marked complete"],
+      ["unassigned content denied", "E12 content nobody assigned stays unreadable"],
+      ["team source readable", "E13 the sources of team-only content are readable"],
+      ["unrelated source denied", "E14 a source cited only by unassigned content is not"],
+      ["solo assignments materialized", "E15 the reader''s own content produced solo assignments"],
+      ["team assignments materialized", "E16 team assignments were materialized"],
+      ["mini case produces three", "E17 a team mini case produces exactly three questions"],
+      ["business story never team", "E18 a business story cannot be assigned to a team"],
+      ["rerun idempotent", "E19 rerunning the engine changes nothing"],
+      ["zero-score roster", "E20 an eligible member has a zero-score row before playing"],
+      ["config snapshot", "E21 every team assignment records its config version"],
+      ["unassigned interaction denied", "E22 an unassigned article cannot be marked complete"],
+      ["no team leak into personal", "E30 team content did not leak into personal assignments"],
+      ["team feed is team only", "E31 the team feed carries only team content"],
+      ["language switch is not a new assignment", "E32 both languages resolve to the same logical content"]
     ] as const) {
       expect(suite, label).toContain(needle);
     }

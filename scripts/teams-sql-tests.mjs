@@ -11,7 +11,7 @@
  * and attempts, exercises the RLS and scoring contract, and leaves the database
  * byte-for-byte as it found it.
  *
- * --with-migrations prepends the six Teams migrations to the same transaction,
+ * --with-migrations prepends the eight Teams migrations to the same transaction,
  * so the whole thing — schema and contract — is validated against a real
  * Postgres and then rolled back. That is how to check the migrations WITHOUT
  * applying them: nothing is committed, so the database is unchanged whether the
@@ -28,6 +28,8 @@ const MIGRATIONS = [
   "supabase/migrations/20260906093000_scored_questions.sql",
   "supabase/migrations/20260906094000_question_attempts_and_scoring.sql",
   "supabase/migrations/20260906095000_realtime_and_moderation.sql",
+  "supabase/migrations/20260906103000_team_content_assignments.sql",
+  "supabase/migrations/20260906104000_edition_assignment_engine.sql",
 ];
 
 const SUITE_FILE = "supabase/tests/teams_and_scored_questions.test.sql";

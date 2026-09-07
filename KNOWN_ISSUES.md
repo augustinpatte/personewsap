@@ -21,6 +21,8 @@ never to make this document read better.
 | Editorial review gate missing | open | LLM output can be structurally valid and still not be publishable, especially for law, medicine and finance. There is no human review step before production publication. |
 | Source licensing review missing | open | The ingestion layer reads RSS/feed metadata only. Publisher terms and commercial reuse rights are still unreviewed. Treat sources as internal-test-only until that is settled. |
 | TestFlight operations incomplete | open | Signing, App Store Connect setup, privacy answers and the invite process still need an owner. |
+| Teams assignment engine is not scheduled | open | `public.materialize_edition_assignments(edition_date)` exists (migration `20260906104000`) and is idempotent, but **nothing calls it**. Until the publication pipeline invokes it once an edition's questions have been persisted, `solo_question_assignments`, `team_content_assignments` and `team_question_assignments` stay empty and no reader can reach a question. Deliberately not wired here: a cron entry added in the same pass would run against editions whose questions may not exist yet. |
+| Teams migrations still pending everywhere | open | The eleven `20260906090000`–`20260906104000` migrations have never been applied to staging or production. Validate them first with `npm run teams:test:sql -- --with-migrations`, which inlines them into a transaction that rolls back. |
 
 ## Resolved On 2026-08-25 — Supabase Permission Hardening
 

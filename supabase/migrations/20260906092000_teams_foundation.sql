@@ -247,16 +247,23 @@ CREATE INDEX IF NOT EXISTS idx_team_config_versions_lookup
   ON public.team_config_versions (team_id, effective_from_edition DESC);
 
 -- Newsletter: which topics, and how many articles of each. Reuses the newsletter
--- topic vocabulary (public.topics) and the same 1..3 depth as
--- user_topic_preferences.articles_count, so a Team config and a solo config are
--- the same shape of thing.
+-- topic vocabulary (public.topics).
+--
+-- ONE OR TWO ARTICLES PER TOPIC, never three. The editorial calendar publishes
+-- exactly two newsletter articles per topic per edition, so a 3 was never
+-- satisfiable — it silently degraded to whatever existed, which is the kind of
+-- configuration that looks accepted and then under-delivers. The solo pipeline
+-- already clamps to two in both implementations
+-- (services/content-engine/src/domain.ts MAX_NEWSLETTER_ARTICLES_PER_TOPIC, and
+-- the publisher's least(2, greatest(1, articles_count))); this makes the Team
+-- config say the same thing in the schema rather than at selection time.
 CREATE TABLE IF NOT EXISTS public.team_config_newsletter_topics (
   config_version_id UUID NOT NULL REFERENCES public.team_config_versions(id) ON DELETE CASCADE,
   topic_id TEXT NOT NULL REFERENCES public.topics(id) ON DELETE RESTRICT,
   articles_count INTEGER NOT NULL DEFAULT 1,
   position INTEGER,
   PRIMARY KEY (config_version_id, topic_id),
-  CONSTRAINT team_config_newsletter_topics_count_check CHECK (articles_count BETWEEN 1 AND 3)
+  CONSTRAINT team_config_newsletter_topics_count_check CHECK (articles_count BETWEEN 1 AND 2)
 );
 
 -- Mini cases: the six product topics, exactly as
@@ -281,7 +288,7 @@ CREATE TABLE IF NOT EXISTS public.team_config_mini_case_topics (
 COMMENT ON TABLE public.team_config_versions IS
   'Immutable configuration snapshots. A version governs every edition from effective_from_edition until a later version takes over, which is what makes an in-flight edition immune to a config change.';
 COMMENT ON TABLE public.team_config_newsletter_topics IS
-  'Newsletter topics of one config version, with the same 1-3 articles_count depth the solo newsletter preference uses.';
+  'Newsletter topics of one config version. articles_count is 1 or 2 — the edition publishes exactly two articles per topic, so three was never a reachable configuration.';
 COMMENT ON TABLE public.team_config_mini_case_topics IS
   'Mini-case topics of one config version, drawn from the same six product topics as user_mini_case_topic_preferences. Business Stories and Learning Path are never team-configurable.';
 
@@ -473,10 +480,18 @@ DECLARE
   v_name TEXT := nullif(btrim(p_name), '');
   v_team public.teams;
   v_config_id UUID;
-  -- The founder is not joining an edition already in progress; there is nothing
-  -- for them to have peeked at. Their first config takes effect immediately, so
-  -- the team is playable from the edition that is open right now.
-  v_effective DATE := COALESCE(public.current_edition_date(), CURRENT_DATE);
+  -- THE RULE (§5), and it applies to the founder exactly as it applies to a
+  -- joiner. An earlier version of this function started the owner at the
+  -- CURRENTLY OPEN edition, on the reasoning that they had nothing to peek at
+  -- because the team did not exist yet. That reasoning is wrong: the founder is
+  -- a reader first. They can read their personal Finance article, see its two
+  -- questions, and only then create a Team configured for Finance — and would
+  -- have been scored retroactively on questions they had already read.
+  --
+  -- So creating a Team is like joining one. The team is visible and usable at
+  -- once; scoring starts at the next edition, for the owner and for the first
+  -- configuration alike.
+  v_effective DATE := public.next_scoring_edition_date();
 BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'Authentication required to create a team'
@@ -492,8 +507,6 @@ BEGIN
   VALUES (v_user_id, v_name, public.generate_team_invite_code())
   RETURNING * INTO v_team;
 
-  -- The owner is eligible from the currently open edition: they created the
-  -- team, so there is no earlier edition they could be scored in.
   INSERT INTO public.team_members (team_id, user_id, role, eligible_from_edition)
   VALUES (v_team.id, v_user_id, 'owner', v_effective);
 
@@ -509,6 +522,9 @@ REVOKE ALL ON FUNCTION public.create_team(TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.create_team(TEXT) FROM anon;
 GRANT EXECUTE ON FUNCTION public.create_team(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_team(TEXT) TO service_role;
+
+COMMENT ON FUNCTION public.create_team(TEXT) IS
+  'Creates a team, its owner stint and its first configuration version. The owner becomes score-eligible at the NEXT edition, exactly like a joiner: a founder is a reader first, and could otherwise read an edition''s questions and then create a team configured to score them.';
 
 CREATE OR REPLACE FUNCTION public.join_team_with_invite(p_invite_code TEXT)
 RETURNS TABLE (
@@ -726,8 +742,8 @@ BEGIN
         USING ERRCODE = '22023';
     END IF;
 
-    IF v_count NOT BETWEEN 1 AND 3 THEN
-      RAISE EXCEPTION 'articles_count must be between 1 and 3'
+    IF v_count NOT BETWEEN 1 AND 2 THEN
+      RAISE EXCEPTION 'articles_count must be 1 or 2'
         USING ERRCODE = '22023';
     END IF;
 

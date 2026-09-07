@@ -11,6 +11,8 @@
 --   20260906093000_scored_questions
 --   20260906094000_question_attempts_and_scoring
 --   20260906095000_realtime_and_moderation
+--   20260906103000_team_content_assignments
+--   20260906104000_edition_assignment_engine
 -- to be applied.
 --
 -- Run it (after applying the migrations):
@@ -670,6 +672,420 @@ begin
     (select (count(*) > 0)::text
      from public.get_team_leaderboard(pg_temp.team_one(), 'all_time') l
      where l.user_id = pg_temp.uid_leaver()));
+end $$;
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- E. Team content assignment and the assignment engine
+-- ---------------------------------------------------------------------------
+-- The case the product is sold on, and the one that did not work:
+--
+--   PERSONAL   Tech & AI          (the only thing in uid_owner's own drop)
+--   TEAM THREE Finance x2
+--   TEAM FOUR  Finance x1 + Business x1 + Mini case AI
+--
+-- Every Finance, Business and mini-case row below is in NOBODY's daily drop. If
+-- a reader can see one, it is because a Team was assigned it and for no other
+-- reason — which is what has to be true, and what was false before
+-- 20260906103000.
+--
+-- THE FIXTURE EDITION IS A QUIET DAY (E3), and that is not cosmetic. The
+-- assignment engine selects an edition's content by publication_date, so real
+-- published articles sharing that date would compete for the same topics and
+-- silently decide the selection assertions below. The cadence publishes on
+-- Mon/Wed/Fri/Sun only, so a recent Tue/Thu/Sat is a date this database cannot
+-- hold an edition for — no content items, no daily drops, nothing to compete.
+-- E3 is registered with the latest published_at of the three, which is what
+-- makes it the open edition regardless of where its date falls.
+
+create or replace function pg_temp.team_three() returns uuid
+language sql immutable as $$ select 'e3e3e3e3-0000-4000-8000-000000000003'::uuid $$;
+create or replace function pg_temp.team_four() returns uuid
+language sql immutable as $$ select 'e4e4e4e4-0000-4000-8000-000000000004'::uuid $$;
+
+grant execute on function pg_temp.team_three() to public;
+grant execute on function pg_temp.team_four() to public;
+
+do $$
+declare
+  v_drop_id uuid;
+  v_baseline text;
+  v_rerun text;
+begin
+  -- The most recent quiet day in the last week that is not already one of the
+  -- two fixture editions. There are three quiet days in any seven, so this
+  -- always resolves.
+  insert into team_editions (label, edition_date)
+  select 'e3', max(d)::date
+  from generate_series(now()::date - 7, now()::date - 1, interval '1 day') d
+  where public.resolve_edition_kind(d::date) is null
+    and d::date <> pg_temp.ed('e1')
+    and d::date <> pg_temp.ed('e2');
+
+  insert into public.editions (edition_date, edition_kind, published_at)
+  values (pg_temp.ed('e3'), 'daily', now() - interval '1 day');
+
+  -- ---- the edition's content, none of it in anybody's drop -----------------
+  insert into public.content_items
+    (id, content_type, topic_id, language, title, body_md, publication_date, status, metadata)
+  values
+    ('aa010000-0000-4000-8000-000000000001', 'newsletter_article', 'finance', 'en',
+     'Suite finance one EN', 'Body.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-fin-1","staging_ordinal":1}'),
+    ('aa010000-0000-4000-8000-000000000002', 'newsletter_article', 'finance', 'fr',
+     'Suite finance un FR', 'Corps.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-fin-1","staging_ordinal":1}'),
+    ('aa010000-0000-4000-8000-000000000003', 'newsletter_article', 'finance', 'en',
+     'Suite finance two EN', 'Body.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-fin-2","staging_ordinal":2}'),
+    ('aa010000-0000-4000-8000-000000000004', 'newsletter_article', 'finance', 'fr',
+     'Suite finance deux FR', 'Corps.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-fin-2","staging_ordinal":2}'),
+    ('aa010000-0000-4000-8000-000000000005', 'newsletter_article', 'business', 'en',
+     'Suite business EN', 'Body.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-biz-1","staging_ordinal":3}'),
+    ('aa010000-0000-4000-8000-000000000006', 'newsletter_article', 'business', 'fr',
+     'Suite business FR', 'Corps.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-biz-1","staging_ordinal":3}'),
+    -- The personal one: in uid_owner's drop, in no Team configuration.
+    ('aa010000-0000-4000-8000-000000000007', 'newsletter_article', 'tech_ai', 'en',
+     'Suite tech EN', 'Body.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-tech-1","staging_ordinal":4}'),
+    ('aa010000-0000-4000-8000-000000000008', 'mini_case', 'tech_ai', 'en',
+     'Suite case EN', 'Body.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-case-ai","staging_ordinal":5,"product_topic":"ai"}'),
+    ('aa010000-0000-4000-8000-000000000009', 'mini_case', 'tech_ai', 'fr',
+     'Suite cas FR', 'Corps.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-case-ai","staging_ordinal":5,"product_topic":"ai"}'),
+    -- Assigned to nobody, ever. The control every leakage check runs against.
+    ('aa010000-0000-4000-8000-00000000000a', 'business_story', 'business', 'en',
+     'Suite story EN', 'Body.', pg_temp.ed('e3'), 'published',
+     '{"staging_job_id":"ts-story-1","staging_ordinal":6}');
+
+  insert into public.sources (id, url, title, publisher) values
+    ('50000000-0000-4000-8000-000000000001',
+     'https://example.test/teams-suite/finance', 'Finance source', 'Suite'),
+    ('50000000-0000-4000-8000-000000000002',
+     'https://example.test/teams-suite/orphan', 'Orphan source', 'Suite');
+
+  insert into public.content_item_sources (content_item_id, source_id, source_order) values
+    ('aa010000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001', 0),
+    ('aa010000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000001', 0),
+    ('aa010000-0000-4000-8000-00000000000a', '50000000-0000-4000-8000-000000000002', 0);
+
+  -- Questions: two per article, three for the mini case, two for the story.
+  insert into public.logical_questions
+    (content_logical_key, content_type, question_sequence, question_role)
+  values
+    ('ts-fin-1', 'newsletter_article', 1, 'interpretation'),
+    ('ts-fin-1', 'newsletter_article', 2, 'application_decision'),
+    ('ts-fin-2', 'newsletter_article', 1, 'interpretation'),
+    ('ts-fin-2', 'newsletter_article', 2, 'application_decision'),
+    ('ts-biz-1', 'newsletter_article', 1, 'interpretation'),
+    ('ts-biz-1', 'newsletter_article', 2, 'application_decision'),
+    ('ts-tech-1', 'newsletter_article', 1, 'interpretation'),
+    ('ts-tech-1', 'newsletter_article', 2, 'application_decision'),
+    ('ts-case-ai', 'mini_case', 1, 'method_framework'),
+    ('ts-case-ai', 'mini_case', 2, 'technical_application'),
+    ('ts-case-ai', 'mini_case', 3, 'conclusion_decision'),
+    ('ts-story-1', 'business_story', 1, 'interpretation'),
+    ('ts-story-1', 'business_story', 2, 'application_decision');
+
+  -- ---- the two teams ------------------------------------------------------
+  insert into public.teams (id, owner_id, name, invite_code) values
+    (pg_temp.team_three(), pg_temp.uid_owner(), 'Teams suite alpha', 'TSUITE03'),
+    (pg_temp.team_four(), pg_temp.uid_owner(), 'Teams suite beta', 'TSUITE04');
+
+  insert into public.team_members (team_id, user_id, role, eligible_from_edition, joined_at) values
+    (pg_temp.team_three(), pg_temp.uid_owner(), 'owner', pg_temp.ed('e3'),
+     now() - interval '4 days' - interval '1 hour'),
+    (pg_temp.team_three(), pg_temp.uid_late(), 'member', pg_temp.ed('e3'),
+     now() - interval '4 days' - interval '1 hour'),
+    -- Joined during E3: eligible only from the edition AFTER it, so E3's Team
+    -- content must be unreadable to them.
+    (pg_temp.team_three(), pg_temp.uid_leaver(), 'member',
+     public.next_edition_date_after(pg_temp.ed('e3')), now() - interval '1 hour'),
+    (pg_temp.team_four(), pg_temp.uid_owner(), 'owner', pg_temp.ed('e3'),
+     now() - interval '4 days' - interval '1 hour');
+
+  insert into public.team_config_versions (id, team_id, version, effective_from_edition, created_by) values
+    ('a0a0a0a0-0000-4000-8000-000000000003', pg_temp.team_three(), 1, pg_temp.ed('e3'), pg_temp.uid_owner()),
+    ('a0a0a0a0-0000-4000-8000-000000000004', pg_temp.team_four(), 1, pg_temp.ed('e3'), pg_temp.uid_owner());
+
+  insert into public.team_config_newsletter_topics (config_version_id, topic_id, articles_count, position) values
+    ('a0a0a0a0-0000-4000-8000-000000000003', 'finance', 2, 1),
+    ('a0a0a0a0-0000-4000-8000-000000000004', 'finance', 1, 1),
+    ('a0a0a0a0-0000-4000-8000-000000000004', 'business', 1, 2);
+
+  insert into public.team_config_mini_case_topics (config_version_id, topic_id, position) values
+    ('a0a0a0a0-0000-4000-8000-000000000004', 'ai', 1);
+
+  -- ---- uid_owner's own edition: Tech & AI, and nothing else ---------------
+  insert into public.daily_drops (user_id, drop_date, language, status, published_at)
+  values (pg_temp.uid_owner(), pg_temp.ed('e3'), 'en', 'published', now() - interval '1 day')
+  returning id into v_drop_id;
+
+  insert into public.daily_drop_items (daily_drop_id, content_item_id, slot, position)
+  values (v_drop_id, 'aa010000-0000-4000-8000-000000000007', 'newsletter', 0);
+
+  -- A Business Story cannot become Team content, by constraint rather than by
+  -- convention (§10).
+  begin
+    insert into public.team_content_assignments
+      (team_id, edition_date, content_logical_key, content_type, topic_id)
+    values (pg_temp.team_three(), pg_temp.ed('e3'), 'ts-story-1', 'business_story', 'business');
+    perform pg_temp.record(97, 'E18 a business story cannot be assigned to a team', 'refused', 'inserted');
+  exception when others then
+    perform pg_temp.record(97, 'E18 a business story cannot be assigned to a team', 'refused', 'refused');
+  end;
+
+  -- A newsletter depth of three is not a configuration this product has (§9).
+  begin
+    insert into public.team_config_newsletter_topics
+      (config_version_id, topic_id, articles_count)
+    values ('a0a0a0a0-0000-4000-8000-000000000003', 'law', 3);
+    perform pg_temp.record(87, 'E8 a newsletter depth of three is refused by the schema', 'refused', 'inserted');
+  exception when check_violation then
+    perform pg_temp.record(87, 'E8 a newsletter depth of three is refused by the schema', 'refused', 'refused');
+  end;
+
+  -- ---- run the engine -----------------------------------------------------
+  perform public.materialize_edition_assignments(pg_temp.ed('e3'));
+
+  perform pg_temp.record(94, 'E15 the reader''s own content produced solo assignments', '2',
+    (select count(*)::text
+     from public.solo_question_assignments s
+     join public.logical_questions q on q.id = s.logical_question_id
+     where s.user_id = pg_temp.uid_owner()
+       and s.edition_date = pg_temp.ed('e3')
+       and q.content_logical_key = 'ts-tech-1'));
+
+  -- Nothing personal was invented: the Team-only topics stayed out of the
+  -- reader's own assignments.
+  perform pg_temp.record(109, 'E30 team content did not leak into personal assignments', '0',
+    (select count(*)::text
+     from public.solo_question_assignments s
+     join public.logical_questions q on q.id = s.logical_question_id
+     where s.user_id = pg_temp.uid_owner()
+       and s.edition_date = pg_temp.ed('e3')
+       and q.content_logical_key in ('ts-fin-1', 'ts-fin-2', 'ts-biz-1', 'ts-case-ai')));
+
+  perform pg_temp.record(85, 'E6 a topic configured for two articles gets two', '2',
+    (select count(*)::text from public.team_content_assignments a
+     where a.team_id = pg_temp.team_three()
+       and a.edition_date = pg_temp.ed('e3')
+       and a.topic_id = 'finance'));
+
+  perform pg_temp.record(86, 'E7 a topic configured for one article gets the first ordinal', '1|ts-fin-1',
+    (select count(*)::text || '|' || min(a.content_logical_key)
+     from public.team_content_assignments a
+     where a.team_id = pg_temp.team_four()
+       and a.edition_date = pg_temp.ed('e3')
+       and a.topic_id = 'finance'));
+
+  perform pg_temp.record(95, 'E16 team assignments were materialized', '2|4',
+    (select (select count(*) from public.team_content_assignments a
+             where a.team_id = pg_temp.team_three() and a.edition_date = pg_temp.ed('e3'))::text
+            || '|' ||
+            (select count(*) from public.team_question_assignments q
+             where q.team_id = pg_temp.team_three() and q.edition_date = pg_temp.ed('e3'))::text));
+
+  perform pg_temp.record(96, 'E17 a team mini case produces exactly three questions', '3',
+    (select count(*)::text from public.team_question_assignments q
+     where q.team_id = pg_temp.team_four()
+       and q.edition_date = pg_temp.ed('e3')
+       and q.content_type = 'mini_case'));
+
+  perform pg_temp.record(99, 'E20 an eligible member has a zero-score row before playing', '0|0|4|false',
+    (select s.score_milli::text || '|' || s.answered_count::text || '|'
+            || s.assigned_count::text || '|' || s.completed::text
+     from public.team_member_edition_scores s
+     where s.team_id = pg_temp.team_three()
+       and s.user_id = pg_temp.uid_late()
+       and s.edition_date = pg_temp.ed('e3')));
+
+  -- The mid-edition joiner is not on this edition's roster at all.
+  perform pg_temp.record(82, 'E3 a mid-edition joiner is absent from this edition''s roster', '0',
+    (select count(*)::text from public.team_member_edition_scores s
+     where s.team_id = pg_temp.team_three()
+       and s.user_id = pg_temp.uid_leaver()
+       and s.edition_date = pg_temp.ed('e3')));
+
+  -- Every assignment carries the config version that produced it (§11).
+  perform pg_temp.record(100, 'E21 every team assignment records its config version', '0',
+    (select count(*)::text from public.team_content_assignments a
+     where a.edition_date = pg_temp.ed('e3')
+       and a.team_id in (pg_temp.team_three(), pg_temp.team_four())
+       and a.config_version_id is null));
+
+  -- ---- rerun ---------------------------------------------------------------
+  select (select count(*) from public.team_content_assignments)::text || '|' ||
+         (select count(*) from public.team_question_assignments)::text || '|' ||
+         (select count(*) from public.solo_question_assignments)::text
+    into v_baseline;
+
+  perform public.materialize_edition_assignments(pg_temp.ed('e3'));
+  perform public.materialize_edition_assignments(pg_temp.ed('e3'));
+
+  select (select count(*) from public.team_content_assignments)::text || '|' ||
+         (select count(*) from public.team_question_assignments)::text || '|' ||
+         (select count(*) from public.solo_question_assignments)::text
+    into v_rerun;
+
+  perform pg_temp.record(98, 'E19 rerunning the engine changes nothing', v_baseline, v_rerun);
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- F. The same content, read through RLS
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+
+do $$
+declare
+  v_effective date;
+  v_config_effective date;
+begin
+  -- -------------------------------------------------------------------------
+  -- Team-only content is readable, and only by an entitled member
+  -- -------------------------------------------------------------------------
+  perform pg_temp.sign_in(pg_temp.uid_owner());
+
+  perform pg_temp.record(80, 'E1 a team member can read team-only content that is in no drop', '1',
+    (select count(*)::text from public.content_items ci
+     where ci.id = 'aa010000-0000-4000-8000-000000000001'));
+
+  -- The control: published, in this edition, assigned to no team and to no drop.
+  perform pg_temp.record(91, 'E12 content nobody assigned stays unreadable', '0',
+    (select count(*)::text from public.content_items ci
+     where ci.id = 'aa010000-0000-4000-8000-00000000000a'));
+
+  perform pg_temp.record(92, 'E13 the sources of team-only content are readable', '1',
+    (select count(*)::text from public.sources s
+     where s.id = '50000000-0000-4000-8000-000000000001'));
+
+  perform pg_temp.record(93, 'E14 a source cited only by unassigned content is not', '0',
+    (select count(*)::text from public.sources s
+     where s.id = '50000000-0000-4000-8000-000000000002'));
+
+  -- Progress on a Team-only article has to be writable (§7).
+  begin
+    insert into public.content_interactions (user_id, content_item_id, interaction_type)
+    values (pg_temp.uid_owner(), 'aa010000-0000-4000-8000-000000000001', 'complete');
+    perform pg_temp.record(90, 'E11 a team-only article can be marked complete', 'accepted', 'accepted');
+  exception when others then
+    perform pg_temp.record(90, 'E11 a team-only article can be marked complete', 'accepted', 'refused');
+  end;
+
+  begin
+    insert into public.content_interactions (user_id, content_item_id, interaction_type)
+    values (pg_temp.uid_owner(), 'aa010000-0000-4000-8000-00000000000a', 'complete');
+    perform pg_temp.record(101, 'E22 an unassigned article cannot be marked complete', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(101, 'E22 an unassigned article cannot be marked complete', 'refused', 'refused');
+  end;
+
+  -- -------------------------------------------------------------------------
+  -- One content, several teams, one row (§13)
+  -- -------------------------------------------------------------------------
+  perform pg_temp.record(88, 'E9 content assigned by two teams comes back once, with two teams', '1|2',
+    (select count(*)::text || '|' || max(jsonb_array_length(c.teams))::text
+     from public.get_my_team_edition_content(pg_temp.ed('e3')) c
+     where c.content_logical_key = 'ts-fin-1'));
+
+  -- An English reader gets the English rendering of a logical assignment.
+  perform pg_temp.record(102, 'E23 the reader gets the rendering in their own language', 'en',
+    (select c.display_language
+     from public.get_my_team_edition_content(pg_temp.ed('e3')) c
+     where c.content_logical_key = 'ts-fin-1'));
+
+  -- The RPC carries the Team surfaces and nothing else: no business story, no
+  -- personal-only article.
+  perform pg_temp.record(110, 'E31 the team feed carries only team content', '0',
+    (select count(*)::text
+     from public.get_my_team_edition_content(pg_temp.ed('e3')) c
+     where c.content_logical_key in ('ts-tech-1', 'ts-story-1')));
+
+  -- -------------------------------------------------------------------------
+  -- The outsider and the mid-edition joiner
+  -- -------------------------------------------------------------------------
+  perform pg_temp.sign_in(pg_temp.uid_outsider());
+
+  perform pg_temp.record(81, 'E2 a non-member cannot read team-only content', '0',
+    (select count(*)::text from public.content_items ci
+     where ci.id = 'aa010000-0000-4000-8000-000000000001'));
+
+  perform pg_temp.record(103, 'E24 a non-member gets no team content for the edition', '0',
+    (select count(*)::text from public.get_my_team_edition_content(pg_temp.ed('e3'))));
+
+  perform pg_temp.sign_in(pg_temp.uid_leaver());
+
+  perform pg_temp.record(104, 'E25 a mid-edition joiner cannot read this edition''s team content', '0',
+    (select count(*)::text from public.content_items ci
+     where ci.id = 'aa010000-0000-4000-8000-000000000001'));
+
+  perform pg_temp.record(105, 'E26 a mid-edition joiner gets no team content for this edition', '0',
+    (select count(*)::text from public.get_my_team_edition_content(pg_temp.ed('e3'))));
+
+  -- -------------------------------------------------------------------------
+  -- FR and EN are one entitlement (§17)
+  -- -------------------------------------------------------------------------
+  perform pg_temp.sign_in(pg_temp.uid_late());
+
+  perform pg_temp.record(89, 'E10 one logical assignment entitles both renderings', '2',
+    (select count(*)::text from public.content_items ci
+     where ci.id in ('aa010000-0000-4000-8000-000000000001',
+                     'aa010000-0000-4000-8000-000000000002')));
+
+  perform pg_temp.record(106, 'E27 a French reader is served the French rendering', 'fr',
+    (select c.display_language
+     from public.get_my_team_edition_content(pg_temp.ed('e3')) c
+     where c.content_logical_key = 'ts-fin-1'));
+
+  -- Same logical content for both readers: switching language is not a new
+  -- assignment.
+  perform pg_temp.record(111, 'E32 both languages resolve to the same logical content', '1',
+    (select count(*)::text
+     from public.get_my_team_edition_content(pg_temp.ed('e3')) c
+     where c.content_logical_key = 'ts-fin-1'));
+
+  -- -------------------------------------------------------------------------
+  -- Creating a team starts at the NEXT edition, exactly like joining one (§12)
+  -- -------------------------------------------------------------------------
+  select t.effective_from_edition into v_effective
+  from public.create_team('Teams suite delta') t;
+
+  perform pg_temp.record(83, 'E4 the founder is not score-eligible in the open edition', 'true',
+    (v_effective > public.current_edition_date())::text);
+
+  perform pg_temp.record(107, 'E28 the founder''s membership starts at that same edition', 'true',
+    (select (min(m.eligible_from_edition) = v_effective)::text
+     from public.team_members m
+     join public.teams t on t.id = m.team_id
+     where t.name = 'Teams suite delta' and m.user_id = pg_temp.uid_late()));
+
+  select min(v.effective_from_edition) into v_config_effective
+  from public.team_config_versions v
+  join public.teams t on t.id = v.team_id
+  where t.name = 'Teams suite delta';
+
+  perform pg_temp.record(84, 'E5 the first configuration takes effect next edition too', 'true',
+    (v_config_effective > public.current_edition_date())::text);
+
+  -- The owner asking for three articles is refused at the RPC too, not only by
+  -- the constraint underneath it. Signed in as the owner, so a refusal here is
+  -- about the count and not about who is asking.
+  perform pg_temp.sign_in(pg_temp.uid_owner());
+
+  begin
+    perform * from public.update_team_config(
+      pg_temp.team_three(),
+      '[{"topic_id":"finance","articles_count":3}]'::jsonb,
+      array[]::text[]);
+    perform pg_temp.record(108, 'E29 the config RPC refuses three articles', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(108, 'E29 the config RPC refuses three articles', 'refused', 'refused');
+  end;
 end $$;
 
 reset role;

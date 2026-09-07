@@ -11,7 +11,8 @@
  * --include-all, --include-roles, --include-seed, --linked, --local, --db-url
  * and --password; there is no --include <file>, and there never was. What it
  * pushes is "every local migration the remote history table has not recorded",
- * so from this repository it would push twelve migrations, nine of them Teams:
+ * so from this repository it would push every unapplied migration at once, most
+ * of them Teams:
  *
  *   $ supabase db push --dry-run --linked
  *   Would push these migrations:
@@ -19,7 +20,7 @@
  *    • 20260906081000_notification_outbox.sql
  *    • 20260906082000_notification_dispatch_cron.sql
  *    • 20260906090000_edition_registry.sql
- *    • …six more Teams migrations…
+ *    • …the rest of the Teams batch…
  *    • 20260906102000_team_ownership_and_deletion.sql
  *
  * A production notification hotfix must not carry Teams with it. The isolation
@@ -85,10 +86,17 @@ const HOTFIX = [
 ];
 
 /**
- * The nine that must NOT ride along. Named one by one rather than matched by a
- * date prefix: a range would have silently swept up the three above, which carry
- * the same date, and a future migration landing on a Teams-shaped filename must
- * be an explicit decision rather than an accident of pattern matching.
+ * The Teams batch, which must NOT ride along. Named one by one rather than
+ * matched by a date prefix: a range would have silently swept up the three above,
+ * which carry the same date, and a future migration landing on a Teams-shaped
+ * filename must be an explicit decision rather than an accident of pattern
+ * matching.
+ *
+ * Naming them one by one has a cost, and the guard below is what pays it: a new
+ * Teams migration added to supabase/migrations and forgotten here would be
+ * *included*, and the hotfix push would carry it to production. That is the one
+ * outcome this whole script exists to prevent, so it is checked rather than
+ * remembered.
  */
 const EXCLUDED = [
   "20260906090000_edition_registry.sql",
@@ -100,6 +108,8 @@ const EXCLUDED = [
   "20260906100000_publish_scored_questions.sql",
   "20260906101000_avatar_storage.sql",
   "20260906102000_team_ownership_and_deletion.sql",
+  "20260906103000_team_content_assignments.sql",
+  "20260906104000_edition_assignment_engine.sql",
 ];
 
 const outFlag = process.argv.indexOf("--out");
@@ -129,6 +139,21 @@ if (missingExclusions.length > 0) {
   console.error(`✗ these are no longer in supabase/migrations, so excluding them is meaningless:`);
   for (const name of missingExclusions) console.error(`    ${name}`);
   console.error("  Update EXCLUDED in this script before deploying anything.");
+  process.exit(1);
+}
+
+// Anything dated 2026-09-06 or later that is neither the hotfix nor an explicit
+// exclusion. Such a file would be copied in, would be absent from the remote
+// history, and would therefore be pushed alongside the hotfix. Refuse to build
+// the directory at all rather than produce one that looks right.
+const unclassified = all.filter(
+  (name) => name >= "20260906080000" && !HOTFIX.includes(name) && !EXCLUDED.includes(name),
+);
+
+if (unclassified.length > 0) {
+  console.error("✗ these migrations are neither the hotfix nor excluded, so they would be pushed with it:");
+  for (const name of unclassified) console.error(`    ${name}`);
+  console.error("  Add each one to EXCLUDED (or to HOTFIX, deliberately) before deploying anything.");
   process.exit(1);
 }
 
