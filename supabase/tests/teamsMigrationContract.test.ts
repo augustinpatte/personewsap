@@ -36,7 +36,9 @@ const MIGRATIONS = [
   "20260906103000_team_content_assignments.sql",
   "20260906104000_edition_assignment_engine.sql",
   "20260906106000_team_read_surface_and_invite.sql",
-  "20260907120000_team_archive_content.sql"
+  "20260907120000_team_archive_content.sql",
+  "20260907130000_archive_team.sql",
+  "20260907140000_teams_security_hardening.sql"
 ] as const;
 
 const sources = new Map(
@@ -346,7 +348,11 @@ describe("SECURITY DEFINER functions", () => {
       "public.team_member_edition_streak",
       "public.moderate_player_identity",
       "public.shares_active_team_with",
-      "public.broadcast_team_leaderboard_change"
+      "public.broadcast_team_leaderboard_change",
+      // The account-deletion sweep. It answers about somebody else by
+      // definition, and the test below is what keeps that safe: EXECUTE is
+      // revoked from authenticated, so no client can reach it at all.
+      "public.avatar_objects_for_user"
     ]);
 
     for (const definition of definers) {
@@ -1025,5 +1031,262 @@ describe("the Team archive surface", () => {
     expect(archive).not.toMatch(/private\./);
     expect(archive).not.toMatch(/invite_code/);
     expect(archive).not.toMatch(/score_milli/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The security pass (20260907140000)
+// ---------------------------------------------------------------------------
+// Each of these corresponds to something a modified client could do before that
+// migration. They are asserted against the SQL text because the runtime proof
+// lives in supabase/tests/teams_and_scored_questions.test.sql, which needs a
+// real Postgres — and the whole point of the pass is that these must not be
+// able to regress between two runs of that suite.
+
+const hardeningRaw = readFileSync(
+  join(migrationsDir, "20260907140000_teams_security_hardening.sql"),
+  "utf8"
+);
+const hardening = stripNoise(hardeningRaw);
+
+/** The body of one function, from the whole hardened set. */
+function bodyOf(name: string): string {
+  const definition = functionDefinitions(hardening).find((fn) => fn.name === name);
+  expect(definition, `${name} is not defined in the hardening migration`).toBeDefined();
+  return definition!.body;
+}
+
+/**
+ * The same body, string literals intact.
+ *
+ * `stripNoise` blanks every literal so prose in a comment is never a finding —
+ * which is right for most checks and wrong for the ones where the rule IS a
+ * literal, like the regex that refuses a URL.
+ */
+function rawBodyOf(name: string): string {
+  const definition = functionDefinitions(hardeningRaw).find((fn) => fn.name === name);
+  expect(definition, `${name} is not defined in the hardening migration`).toBeDefined();
+  return definition!.body;
+}
+
+describe("an avatar path can only ever name its own owner", () => {
+  it("is checked by set_player_identity, not only by Storage", () => {
+    // Storage RLS governs which object you may WRITE. It has nothing to say
+    // about which object a profile row may POINT AT, and that gap was the
+    // impersonation: `<victim id>/<file>.jpg` in your own profile puts the
+    // victim's face on your leaderboard row, because the read policy allows it
+    // — they are your team-mate.
+    const body = bodyOf("public.set_player_identity");
+
+    expect(body).toMatch(/is_own_avatar_path\s*\(\s*v_avatar\s*,\s*v_user_id\s*\)/i);
+    expect(body).toMatch(/RAISE EXCEPTION[\s\S]{0,120}ERRCODE\s*=\s*''/i);
+  });
+
+  it("compares against auth.uid(), never against an argument", () => {
+    const body = bodyOf("public.set_player_identity");
+
+    expect(body).toMatch(/v_user_id\s+UUID\s*:=\s*auth\.uid\(\)/i);
+    // No caller-supplied user id anywhere in the signature.
+    expect(hardening).not.toMatch(
+      /FUNCTION public\.set_player_identity\([^)]*p_user_id/i
+    );
+  });
+
+  it("shares one definition of ownership with the Storage policies", () => {
+    // Two implementations of "is this yours" is one more than can stay correct.
+    expect(bodyOf("public.is_own_avatar_path")).toMatch(/avatar_object_owner\s*\(\s*p_path\s*\)/i);
+  });
+
+  it("still refuses a URL and a traversal in that same check", () => {
+    // Read from the raw source: stripNoise erases string literals, and these
+    // two rules ARE string literals — the regexes the check compares against.
+    const raw = rawBodyOf("public.is_own_avatar_path");
+
+    expect(raw).toMatch(/\^\[a-z\]\[a-z0-9\+\.-\]\*:/);
+    expect(raw).toContain("\\.\\.");
+  });
+});
+
+describe("moderation is enforced by the database, not by the app bundle", () => {
+  it("refuses a reserved username at the write", () => {
+    const body = bodyOf("public.set_player_identity");
+
+    expect(body).toMatch(/is_reserved_username\s*\(\s*v_username\s*\)/i);
+    expect(body).toMatch(/has_blocked_fragment\s*\(\s*v_username\s*\)/i);
+  });
+
+  it("gives the availability probe the same verdicts as the write", () => {
+    // Otherwise the screen says a name is free and the save then refuses it.
+    const body = bodyOf("public.is_username_available");
+
+    expect(body).toMatch(/is_reserved_username/i);
+    expect(body).toMatch(/has_blocked_fragment/i);
+  });
+
+  it("checks a team name on create and on rename", () => {
+    expect(bodyOf("public.create_team")).toMatch(/has_blocked_fragment\s*\(\s*v_name\s*\)/i);
+    expect(bodyOf("public.rename_team")).toMatch(/has_blocked_fragment\s*\(\s*v_name\s*\)/i);
+  });
+
+  it("normalises before comparing, so punctuation defeats nothing", () => {
+    const body = bodyOf("public.normalize_for_moderation");
+
+    expect(body).toMatch(/normalize\s*\([\s\S]{0,40}NFD\s*\)/i);
+    expect(rawBodyOf("public.normalize_for_moderation")).toMatch(/\[\^a-z0-9\]/);
+  });
+
+  it("still cannot lift a moderation decision by renaming", () => {
+    // `name_status` must not appear in the UPDATE rename_team runs.
+    const update = /UPDATE public\.teams[\s\S]*?WHERE id = p_team_id/i.exec(
+      bodyOf("public.rename_team")
+    );
+
+    expect(update, "rename_team no longer updates public.teams").not.toBeNull();
+    expect(update![0]).not.toMatch(/name_status/i);
+  });
+});
+
+describe("a hidden name reaches no client, through any door", () => {
+  it("including the join response, which was the one that returned it raw", () => {
+    const body = bodyOf("public.join_team_with_invite");
+
+    expect(body).toMatch(/name_status\s*=\s*''\s*THEN NULL/i);
+    // Both exits — already a member, and newly joined — return the resolved
+    // value, not v_team.name.
+    expect(body).not.toMatch(/SELECT v_team\.id,\s*v_team\.name/i);
+    expect((body.match(/v_display/g) ?? []).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("keeps the invite oracle closed while doing it", () => {
+    const body = bodyOf("public.join_team_with_invite");
+
+    // One refusal for missing, archived and disabled alike.
+    expect((body.match(/RAISE EXCEPTION ''/g) ?? []).length).toBeLessThanOrEqual(2);
+    expect(body).toMatch(/status = ''[\s\S]{0,80}invite_disabled_at IS NULL/i);
+  });
+});
+
+describe("the report queue cannot be buried", () => {
+  it("collides on a duplicate that is still open", () => {
+    expect(hardening).toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS user_reports_open_user_unique/i
+    );
+    expect(hardening).toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS user_reports_open_team_unique/i
+    );
+  });
+
+  it("lets a reader file again once the first report is triaged", () => {
+    // The uniqueness is partial on the open states, so a dismissed or actioned
+    // report does not silence someone forever.
+    expect(hardening).toMatch(/WHERE status IN \(''[\s\S]{0,40}reported_user_id IS NOT NULL/i);
+  });
+
+  it("caps the volume as well as the duplicates", () => {
+    const body = bodyOf("public.enforce_user_report_rate_limit");
+
+    expect(body).toMatch(/INTERVAL ''/i);
+    expect(body).toMatch(/v_recent >= 20/);
+    expect(hardening).toMatch(/CREATE TRIGGER trg_user_reports_rate_limit[\s\S]{0,120}BEFORE INSERT/i);
+  });
+
+  it("retires existing duplicates instead of deleting them", () => {
+    // A report is a record of somebody asking for help.
+    expect(hardening).toMatch(/UPDATE public\.user_reports[\s\S]{0,200}SET status = ''/i);
+    expect(hardening).not.toMatch(/DELETE FROM public\.user_reports/i);
+  });
+
+  it("still leaves triage to the service role", () => {
+    expect(hardeningRaw).not.toMatch(/GRANT UPDATE[\s\S]{0,60}user_reports[\s\S]{0,60}authenticated/i);
+  });
+});
+
+describe("account deletion can reach the avatar", () => {
+  it("has a sweep, and it is service-role only", () => {
+    expect(hardening).toMatch(
+      /REVOKE ALL ON FUNCTION public\.avatar_objects_for_user\(UUID\) FROM authenticated/i
+    );
+    expect(hardening).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.avatar_objects_for_user\(UUID\) TO service_role/i
+    );
+    expect(hardening).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.avatar_objects_for_user\(UUID\)[^;]*authenticated/i
+    );
+  });
+
+  it("finds orphans, not just the path the profile names", () => {
+    // A replace is upload-then-update; a crash between the two leaves an object
+    // no row ever named, and this is the only thing that will look for it.
+    const body = bodyOf("public.avatar_objects_for_user");
+
+    expect(body).toMatch(/storage\.objects/i);
+    expect(body).toMatch(/avatar_object_owner\s*\(\s*o\.name\s*\)\s*=\s*p_user_id/i);
+    expect(body).not.toMatch(/profiles/i);
+  });
+
+  it("does not fall over where storage is not provisioned", () => {
+    expect(bodyOf("public.avatar_objects_for_user")).toMatch(/to_regclass\(''\) IS NULL/i);
+  });
+});
+
+describe("the hardening pass grants nothing new away", () => {
+  it("adds no privilege for anon", () => {
+    expect(hardening).not.toMatch(/GRANT[\s\S]{0,120}\bTO\b[\s\S]{0,40}\banon\b/i);
+  });
+
+  it("pins a search_path on every function it defines", () => {
+    for (const definition of functionDefinitions(hardening)) {
+      expect(definition.header, definition.name).toMatch(/SET search_path\s*=/i);
+    }
+  });
+
+  it("revokes PUBLIC on every function it defines", () => {
+    for (const definition of functionDefinitions(hardening)) {
+      // The four it redefines were already revoked by the migration that
+      // created them, and CREATE OR REPLACE does not reset privileges.
+      const alreadyRevoked = [
+        "public.set_player_identity",
+        "public.is_username_available",
+        "public.create_team",
+        "public.rename_team",
+        "public.join_team_with_invite"
+      ].includes(definition.name);
+
+      if (alreadyRevoked) {
+        continue;
+      }
+
+      expect(hardening, definition.name).toMatch(
+        new RegExp(`REVOKE ALL ON FUNCTION ${definition.name.replace(".", "\\.")}\\(`, "i")
+      );
+    }
+  });
+
+  it("redefines only functions that already existed", () => {
+    // A CREATE OR REPLACE that misspells a signature creates a SECOND overload
+    // and leaves the vulnerable one in place, still callable. Every redefined
+    // signature therefore has to match the original byte for byte.
+    const redefined = [
+      ["public.set_player_identity", "20260906091000_player_identity.sql"],
+      ["public.is_username_available", "20260906091000_player_identity.sql"],
+      ["public.create_team", "20260906092000_teams_foundation.sql"],
+      ["public.rename_team", "20260906092000_teams_foundation.sql"],
+      ["public.join_team_with_invite", "20260906092000_teams_foundation.sql"]
+    ] as const;
+
+    for (const [name, origin] of redefined) {
+      const original = functionDefinitions(stripNoise(sources.get(origin)!)).find(
+        (fn) => fn.name === name
+      );
+      const replacement = functionDefinitions(hardening).find((fn) => fn.name === name);
+
+      expect(original, `${name} not found in ${origin}`).toBeDefined();
+      expect(replacement, `${name} not found in the hardening migration`).toBeDefined();
+
+      const signature = (header: string) =>
+        header.slice(header.indexOf("("), header.indexOf(")") + 1).replace(/\s+/g, " ");
+
+      expect(signature(replacement!.header), name).toBe(signature(original!.header));
+    }
   });
 });

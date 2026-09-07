@@ -10,7 +10,8 @@ import {
   isAvatarAcceptable,
   isAvatarSmallEnough,
   nextAvatarQuality,
-  resizeTargetFor
+  resizeTargetFor,
+  stripBucketPrefix
 } from "./avatarPolicy";
 
 /**
@@ -279,5 +280,41 @@ export async function uploadAvatar(input: {
     return error ? { status: "failed" } : { status: "uploaded", path };
   } catch {
     return { status: "failed" };
+  }
+}
+
+/**
+ * Remove an avatar object the reader no longer uses.
+ *
+ * Called AFTER the profile row has been updated to the new path, and never
+ * before: the order is what makes a partial failure survivable. If the delete
+ * fails, the profile already points at the new object and the reader sees their
+ * new photo — the cost is one orphaned file, which account deletion sweeps by
+ * folder. If the order were reversed, a failed profile update would leave the
+ * row pointing at an object that no longer exists, and the reader would lose
+ * their avatar to a network hiccup.
+ *
+ * So this returns void and is deliberately not awaited for correctness: nothing
+ * the reader can see depends on it. It exists because Supabase Free has 1GB of
+ * Storage and an avatar every reader changes a few times would otherwise
+ * accumulate one 200KB object per change, forever.
+ */
+export async function deleteAvatarObject(path: string): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const objectPath = stripBucketPrefix(path);
+
+  if (objectPath.length === 0) {
+    return;
+  }
+
+  try {
+    await supabase.storage.from("avatars").remove([objectPath]);
+  } catch {
+    // Deliberately silent. Storage RLS already guarantees this can only ever
+    // delete the caller's own object, and a failure here costs a file, not the
+    // reader's profile.
   }
 }

@@ -14,6 +14,7 @@
 --   20260906103000_team_content_assignments
 --   20260906104000_edition_assignment_engine
 --   20260906106000_team_read_surface_and_invite
+--   20260907140000_teams_security_hardening
 -- to be applied.
 --
 -- Run it (after applying the migrations):
@@ -1483,6 +1484,428 @@ begin
   perform pg_temp.record(163, 'H20 the leaver''s row outlived two account deletions', '1',
     (select count(*)::text from public.team_member_edition_scores s
      where s.team_id = pg_temp.team_life()));
+end $$;
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- I. The security pass (20260907140000)
+-- ---------------------------------------------------------------------------
+-- Everything below is written from the attacker's side: not "what does the app
+-- send", but "what can a caller with a valid JWT and a rewritten binary send".
+-- Each check corresponds to something that was possible before that migration.
+
+set local role authenticated;
+
+do $$
+declare
+  v_stolen text := pg_temp.uid_late()::text || '/stolen.jpg';
+  v_mine   text := pg_temp.uid_owner()::text || '/mine.jpg';
+begin
+  perform pg_temp.sign_in(pg_temp.uid_owner());
+
+  -- ---- avatar impersonation ------------------------------------------------
+  -- Storage RLS governs which object you may WRITE. It says nothing about which
+  -- object a profile may POINT AT, and that was the hole: a team-mate's path in
+  -- your own row puts their face on your leaderboard entry, and the storage read
+  -- policy allows the fetch because they are your team-mate.
+  begin
+    perform * from public.set_player_identity(null, null, v_stolen);
+    perform pg_temp.record(164, 'I1 a team-mate''s avatar path is refused', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(164, 'I1 a team-mate''s avatar path is refused', 'refused', 'refused');
+  end;
+
+  perform pg_temp.record(165, 'I1 and the profile still holds the old value', 'true',
+    (select (p.avatar_path is distinct from v_stolen)::text
+     from public.profiles p where p.id = pg_temp.uid_owner()));
+
+  -- The same call with the caller's own folder is the normal path and must work,
+  -- or the check above proves nothing.
+  perform * from public.set_player_identity(null, null, v_mine);
+
+  perform pg_temp.record(166, 'I2 the caller''s own path is accepted', v_mine,
+    (select p.avatar_path from public.profiles p where p.id = pg_temp.uid_owner()));
+
+  -- A path carrying the bucket name is three segments, which avatar_object_owner
+  -- returns NULL for, which makes every storage policy false.
+  begin
+    perform * from public.set_player_identity(null, null,
+      'avatars/' || pg_temp.uid_owner()::text || '/prefixed.jpg');
+    perform pg_temp.record(167, 'I3 a bucket-prefixed path is refused', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(167, 'I3 a bucket-prefixed path is refused', 'refused', 'refused');
+  end;
+
+  begin
+    perform * from public.set_player_identity(null, null,
+      'https://example.test/signed?token=abc');
+    perform pg_temp.record(168, 'I3 a signed URL is refused', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(168, 'I3 a signed URL is refused', 'refused', 'refused');
+  end;
+
+  begin
+    perform * from public.set_player_identity(null, null,
+      pg_temp.uid_owner()::text || '/../' || pg_temp.uid_late()::text || '/x.jpg');
+    perform pg_temp.record(169, 'I3 traversal is refused', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(169, 'I3 traversal is refused', 'refused', 'refused');
+  end;
+
+  -- ---- username moderation, server-side ------------------------------------
+  begin
+    perform * from public.set_player_identity('admin', null, null);
+    perform pg_temp.record(170, 'I4 a reserved username is refused', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(170, 'I4 a reserved username is refused', 'refused', 'refused');
+  end;
+
+  -- Punctuated, so the normalisation is what is actually being tested.
+  begin
+    perform * from public.set_player_identity('a.d.m.i.n', null, null);
+    perform pg_temp.record(171, 'I4 punctuation does not unlock it', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(171, 'I4 punctuation does not unlock it', 'refused', 'refused');
+  end;
+
+  perform pg_temp.record(172, 'I4 the probe agrees with the write', 'false',
+    (select public.is_username_available('Admin'))::text);
+
+  perform pg_temp.record(173, 'I4 and still says yes to an ordinary name', 'true',
+    (select public.is_username_available('teamsuite_new'))::text);
+
+  -- ---- team name moderation ------------------------------------------------
+  begin
+    perform * from public.create_team('The nazi club');
+    perform pg_temp.record(174, 'I5 a disallowed team name is refused at create', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(174, 'I5 a disallowed team name is refused at create', 'refused', 'refused');
+  end;
+
+  begin
+    perform public.rename_team(pg_temp.team_three(), 'The nazi club');
+    perform pg_temp.record(175, 'I5 and at rename', 'refused', 'accepted');
+  exception when others then
+    perform pg_temp.record(175, 'I5 and at rename', 'refused', 'refused');
+  end;
+
+  -- ---- the private answer key ----------------------------------------------
+  begin
+    perform 1 from private.logical_question_grades g limit 1;
+    perform pg_temp.record(176, 'I6 the grading schema is unreadable', 'refused', 'returned');
+  exception when others then
+    perform pg_temp.record(176, 'I6 the grading schema is unreadable', 'refused', 'refused');
+  end;
+
+  begin
+    perform 1 from private.logical_question_option_feedback f limit 1;
+    perform pg_temp.record(177, 'I6 so is the explanation table', 'refused', 'returned');
+  exception when others then
+    perform pg_temp.record(177, 'I6 so is the explanation table', 'refused', 'refused');
+  end;
+
+  -- Feedback before submitting IS the answer key.
+  begin
+    perform * from public.get_question_feedback(pg_temp.lq_unassigned());
+    perform pg_temp.record(178, 'I7 feedback before submitting is refused', 'refused', 'returned');
+  exception when others then
+    perform pg_temp.record(178, 'I7 feedback before submitting is refused', 'refused', 'refused');
+  end;
+
+  -- ---- scores are written by the server or not at all ----------------------
+  begin
+    insert into public.question_attempts
+      (user_id, logical_question_id, edition_date, deadline_at, status, score_milli)
+    values (pg_temp.uid_owner(), pg_temp.lq_unassigned(), pg_temp.ed('e1'),
+            now() + interval '1 hour', 'submitted', 1000);
+    perform pg_temp.record(179, 'I8 a hand-written attempt is refused', 'refused', 'inserted');
+  exception when others then
+    perform pg_temp.record(179, 'I8 a hand-written attempt is refused', 'refused', 'refused');
+  end;
+
+  begin
+    update public.question_attempts set score_milli = 1000
+    where user_id = pg_temp.uid_owner();
+    perform pg_temp.record(180, 'I8 rewriting a score is refused', 'refused', 'updated');
+  exception when others then
+    perform pg_temp.record(180, 'I8 rewriting a score is refused', 'refused', 'refused');
+  end;
+
+  begin
+    update public.question_attempts set deadline_at = now() + interval '1 day'
+    where user_id = pg_temp.uid_owner();
+    perform pg_temp.record(181, 'I8 extending the deadline is refused', 'refused', 'updated');
+  exception when others then
+    perform pg_temp.record(181, 'I8 extending the deadline is refused', 'refused', 'refused');
+  end;
+
+  begin
+    delete from public.question_attempts where user_id = pg_temp.uid_owner();
+    perform pg_temp.record(182, 'I8 deleting an attempt is refused', 'refused', 'deleted');
+  exception when others then
+    perform pg_temp.record(182, 'I8 deleting an attempt is refused', 'refused', 'refused');
+  end;
+
+  begin
+    update public.team_member_edition_scores set score_milli = 9999
+    where user_id = pg_temp.uid_owner();
+    perform pg_temp.record(183, 'I9 rewriting a team score is refused', 'refused', 'updated');
+  exception when others then
+    perform pg_temp.record(183, 'I9 rewriting a team score is refused', 'refused', 'refused');
+  end;
+
+  begin
+    insert into public.team_question_scores
+      (team_id, user_id, logical_question_id, edition_date, score_milli)
+    values (pg_temp.team_three(), pg_temp.uid_owner(), pg_temp.lq_unassigned(),
+            pg_temp.ed('e3'), 1000);
+    perform pg_temp.record(184, 'I9 inserting one is refused', 'refused', 'inserted');
+  exception when others then
+    perform pg_temp.record(184, 'I9 inserting one is refused', 'refused', 'refused');
+  end;
+
+  -- ---- a team-mate is a name, a country and a picture, not a row ----------
+  perform pg_temp.record(185, 'I10 a team-mate''s profile row is unreadable', '0',
+    (select count(*)::text from public.profiles p where p.id = pg_temp.uid_late()));
+
+  -- Read from the function's declared result type, not from
+  -- information_schema.columns: a FUNCTION has no rows there, so that query
+  -- would have returned 0 whatever get_team_roster actually exposed.
+  perform pg_temp.record(186, 'I10 and the roster carries no email', 'true',
+    (select (position('email' in pg_get_function_result(p.oid)) = 0)::text
+     from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'get_team_roster'));
+
+  perform pg_temp.record(187, 'I10 while still naming them on the roster', 'true',
+    (select (r.username is not null)::text
+     from public.get_team_roster(pg_temp.team_three()) r
+     where r.user_id = pg_temp.uid_late()));
+
+  -- ---- reports cannot bury a queue ----------------------------------------
+  insert into public.user_reports (reporter_id, reported_user_id, reason)
+  values (pg_temp.uid_owner(), pg_temp.uid_late(), 'harassment');
+
+  begin
+    insert into public.user_reports (reporter_id, reported_user_id, reason)
+    values (pg_temp.uid_owner(), pg_temp.uid_late(), 'harassment');
+    perform pg_temp.record(188, 'I11 a duplicate open report is refused', 'refused', 'inserted');
+  exception when others then
+    perform pg_temp.record(188, 'I11 a duplicate open report is refused', 'refused', 'refused');
+  end;
+
+  -- A different reason is a different complaint and is still allowed.
+  insert into public.user_reports (reporter_id, reported_user_id, reason)
+  values (pg_temp.uid_owner(), pg_temp.uid_late(), 'inappropriate_username');
+
+  perform pg_temp.record(189, 'I11 a different reason still gets through', '2',
+    (select count(*)::text from public.user_reports r
+     where r.reporter_id = pg_temp.uid_owner() and r.reported_user_id = pg_temp.uid_late()));
+
+  -- Reporting a stranger you share nothing with was never allowed and still is
+  -- not: the table would otherwise be an open channel to any account id.
+  begin
+    insert into public.user_reports (reporter_id, reported_user_id, reason)
+    values (pg_temp.uid_owner(), pg_temp.uid_outsider(), 'harassment');
+    perform pg_temp.record(190, 'I11 reporting a stranger is refused', 'refused', 'inserted');
+  exception when others then
+    perform pg_temp.record(190, 'I11 reporting a stranger is refused', 'refused', 'refused');
+  end;
+
+  -- Triage stays with the service role.
+  begin
+    update public.user_reports set status = 'dismissed'
+    where reporter_id = pg_temp.uid_owner();
+    perform pg_temp.record(191, 'I11 a reporter cannot triage their own report', 'refused', 'updated');
+  exception when others then
+    perform pg_temp.record(191, 'I11 a reporter cannot triage their own report', 'refused', 'refused');
+  end;
+end $$;
+
+-- ---- storage: the object half of the same rule -----------------------------
+-- Written as its own block because a failed INSERT aborts the enclosing
+-- subtransaction, and these have to run whether or not the bucket exists here.
+
+do $$
+declare
+  v_has_storage boolean := to_regclass('storage.objects') is not null;
+begin
+  if not v_has_storage then
+    perform pg_temp.record(192, 'I12 storage is present to test', 'present', 'absent');
+    return;
+  end if;
+
+  perform pg_temp.record(192, 'I12 storage is present to test', 'present', 'present');
+
+  perform pg_temp.sign_in(pg_temp.uid_owner());
+
+  -- THE POSITIVE CONTROL, and it is not optional. Every check below records
+  -- 'refused' when the INSERT raises for ANY reason — a missing column default,
+  -- a grant that was never made, a schema that moved. Without proof that the
+  -- same statement succeeds for a legitimate path, three green denials would
+  -- mean nothing at all.
+  begin
+    insert into storage.objects (bucket_id, name)
+    values ('avatars', pg_temp.uid_owner()::text || '/control.jpg');
+    perform pg_temp.record(193, 'I12 the caller can write their own object', 'inserted', 'inserted');
+  exception when others then
+    perform pg_temp.record(193, 'I12 the caller can write their own object', 'inserted', 'refused');
+  end;
+
+  begin
+    insert into storage.objects (bucket_id, name)
+    values ('avatars', pg_temp.uid_late()::text || '/theirs.jpg');
+    perform pg_temp.record(194, 'I12 writing into another folder is refused', 'refused', 'inserted');
+  exception when others then
+    perform pg_temp.record(194, 'I12 writing into another folder is refused', 'refused', 'refused');
+  end;
+
+  begin
+    insert into storage.objects (bucket_id, name)
+    values ('avatars', 'flat.jpg');
+    perform pg_temp.record(195, 'I12 an unownable flat path is refused', 'refused', 'inserted');
+  exception when others then
+    perform pg_temp.record(195, 'I12 an unownable flat path is refused', 'refused', 'refused');
+  end;
+
+  begin
+    insert into storage.objects (bucket_id, name)
+    values ('avatars', 'avatars/' || pg_temp.uid_owner()::text || '/prefixed.jpg');
+    perform pg_temp.record(196, 'I12 so is a bucket-prefixed one', 'refused', 'inserted');
+  exception when others then
+    perform pg_temp.record(196, 'I12 so is a bucket-prefixed one', 'refused', 'refused');
+  end;
+end $$;
+
+reset role;
+
+-- The victim's object, planted with definer rights so the denial checks below
+-- have something real to fail against.
+do $$
+begin
+  if to_regclass('storage.objects') is null then
+    return;
+  end if;
+
+  insert into storage.objects (bucket_id, name)
+  values ('avatars', pg_temp.uid_late()::text || '/victim.jpg')
+  on conflict do nothing;
+end $$;
+
+set local role authenticated;
+
+do $$
+begin
+  if to_regclass('storage.objects') is null then
+    perform pg_temp.record(197, 'I13 another reader''s object cannot be deleted', 'skipped', 'skipped');
+    perform pg_temp.record(198, 'I13 nor overwritten', 'skipped', 'skipped');
+    return;
+  end if;
+
+  perform pg_temp.sign_in(pg_temp.uid_owner());
+
+  delete from storage.objects
+  where bucket_id = 'avatars' and name = pg_temp.uid_late()::text || '/victim.jpg';
+
+  -- RLS makes this a no-op rather than an error: the row is simply not visible
+  -- to the DELETE. Either way the object survives, which is what matters.
+  perform pg_temp.record(197, 'I13 another reader''s object cannot be deleted', 'survives',
+    (select case when exists (
+      select 1 from storage.objects o
+      where o.bucket_id = 'avatars' and o.name = pg_temp.uid_late()::text || '/victim.jpg'
+    ) then 'survives' else 'gone' end));
+
+  update storage.objects set name = pg_temp.uid_owner()::text || '/taken.jpg'
+  where bucket_id = 'avatars' and name = pg_temp.uid_late()::text || '/victim.jpg';
+
+  perform pg_temp.record(198, 'I13 nor overwritten', 'survives',
+    (select case when exists (
+      select 1 from storage.objects o
+      where o.bucket_id = 'avatars' and o.name = pg_temp.uid_late()::text || '/victim.jpg'
+    ) then 'survives' else 'gone' end));
+end $$;
+
+reset role;
+
+-- Undo the plant: this suite rolls back, but leaving it out of the way keeps a
+-- failure report readable.
+do $$
+begin
+  if to_regclass('storage.objects') is null then
+    return;
+  end if;
+
+  delete from storage.objects
+  where bucket_id = 'avatars'
+    and name in (
+      pg_temp.uid_late()::text || '/victim.jpg',
+      pg_temp.uid_owner()::text || '/taken.jpg',
+      pg_temp.uid_owner()::text || '/control.jpg'
+    );
+end $$;
+
+set local role authenticated;
+
+do $$
+declare
+  v_name text;
+begin
+  -- ---- a hidden team name does not come back through the join --------------
+  -- team_three's name was hidden earlier in this suite. Every other read
+  -- surface already resolved it; the join response returned it raw.
+  perform pg_temp.sign_in(pg_temp.uid_outsider());
+
+  select j.name into v_name from public.join_team_with_invite('TSUITE03') j;
+
+  perform pg_temp.record(199, 'I14 joining does not reveal a hidden name', 'true',
+    (v_name is null)::text);
+
+  -- And joining still worked, so the check above is not passing by accident.
+  perform pg_temp.record(200, 'I14 while the join itself succeeded', 'true',
+    (select exists (
+      select 1 from public.team_members m
+      where m.team_id = pg_temp.team_three()
+        and m.user_id = pg_temp.uid_outsider()
+        and m.left_at is null
+    ))::text);
+
+  -- A fresh joiner is a member, so they may listen on the leaderboard channel
+  -- even though they are not score-eligible until the next edition. That is
+  -- correct: the channel carries a nudge, never a score.
+  perform pg_temp.record(201, 'I15 a new member may listen on the team channel', 'true',
+    (select public.can_read_team_topic(
+      'team:' || pg_temp.team_three()::text || ':leaderboard'))::text);
+
+  perform pg_temp.record(202, 'I15 and a malformed topic is false, not an error', 'false',
+    (select public.can_read_team_topic('team:not-a-uuid:leaderboard'))::text);
+end $$;
+
+reset role;
+
+-- Leaving must close the channel too: a former member keeps nothing.
+set local role authenticated;
+
+do $$
+begin
+  perform pg_temp.sign_in(pg_temp.uid_outsider());
+  perform * from public.leave_team(pg_temp.team_three());
+
+  perform pg_temp.record(203, 'I15 a former member is rejected by the channel', 'false',
+    (select public.can_read_team_topic(
+      'team:' || pg_temp.team_three()::text || ':leaderboard'))::text);
+
+  perform pg_temp.record(204, 'I15 and the team vanishes from their directory', 'refused',
+    (select case when exists (
+      select 1 from public.team_directory d where d.id = pg_temp.team_three()
+    ) then 'returned' else 'refused' end));
+
+  begin
+    perform * from public.get_team_invite_code(pg_temp.team_three());
+    perform pg_temp.record(205, 'I15 and the invite code RPC refuses them', 'refused', 'returned');
+  exception when others then
+    perform pg_temp.record(205, 'I15 and the invite code RPC refuses them', 'refused', 'refused');
+  end;
 end $$;
 
 reset role;

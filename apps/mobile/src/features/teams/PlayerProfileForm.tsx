@@ -9,7 +9,7 @@ import { COUNTRIES, countryName, searchCountries, type Country } from "./countri
 import { PlayerAvatar } from "./PlayerAvatar";
 import { normalizeCountryCode, validateUsername } from "./playerProfile";
 import type { PlayerProfile } from "./playerProfile";
-import { pickAndCompressAvatar, uploadAvatar } from "./avatarUpload";
+import { deleteAvatarObject, pickAndCompressAvatar, uploadAvatar } from "./avatarUpload";
 import { getTeamsCopy } from "./teamsCopy";
 import { isUsernameAvailable, savePlayerIdentity } from "./teamsData";
 
@@ -222,6 +222,20 @@ export function PlayerProfileForm({
       // write. Reported as "taken", never swallowed.
       setError(result.error.code === "23505" ? copy.usernameTaken : copy.loadFailed);
       return;
+    }
+
+    // The old object, now that the row no longer points at it. Storage is 1GB
+    // on the plan this runs on, and an avatar every reader changes a few times
+    // would otherwise leave one 200KB file behind per change, forever.
+    //
+    // AFTER the save, never before, and never awaited: if the profile write had
+    // failed we would have deleted the picture the reader still has, and if the
+    // delete fails the only cost is an orphan that account deletion sweeps by
+    // folder.
+    const replaced = avatarPath;
+
+    if (replaced && result.data.avatarPath && replaced !== result.data.avatarPath) {
+      void deleteAvatarObject(replaced);
     }
 
     setAvatarPath(result.data.avatarPath);

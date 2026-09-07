@@ -30,6 +30,11 @@ const MIGRATIONS = [
   "supabase/migrations/20260906095000_realtime_and_moderation.sql",
   "supabase/migrations/20260906103000_team_content_assignments.sql",
   "supabase/migrations/20260906104000_edition_assignment_engine.sql",
+  "supabase/migrations/20260906105000_verify_edition_game.sql",
+  "supabase/migrations/20260906106000_team_read_surface_and_invite.sql",
+  "supabase/migrations/20260907120000_team_archive_content.sql",
+  "supabase/migrations/20260907130000_archive_team.sql",
+  "supabase/migrations/20260907140000_teams_security_hardening.sql",
 ];
 
 const SUITE_FILE = "supabase/tests/teams_and_scored_questions.test.sql";

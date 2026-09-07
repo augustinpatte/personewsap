@@ -58,9 +58,20 @@ export async function exportAuthenticatedUserData(
       blocks,
       reports
     ] = await Promise.all([
+      // The Teams identity columns belong here as much as the email does:
+      // `username` is a name the reader chose, `country_code` a declaration
+      // they made about themselves, and `avatar_path` names a photograph of
+      // them. An export that omitted them would be describing a smaller
+      // account than the one that exists.
+      //
+      // `avatar_path` is the object path, not a signed URL — the same value the
+      // row stores. A URL in an export file expires and turns a data export
+      // into a broken link.
       supabase
         .from("profiles")
-        .select("id,email,legacy_user_id,language,timezone,created_at,updated_at")
+        .select(
+          "id,email,legacy_user_id,language,timezone,username,country_code,avatar_path,username_status,avatar_status,created_at,updated_at"
+        )
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_preferences").select("*").eq("user_id", userId).maybeSingle(),

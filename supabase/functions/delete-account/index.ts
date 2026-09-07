@@ -22,9 +22,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.93.3";
  * DELETE per table would duplicate that contract and silently rot as tables are
  * added.
  *
- * The one thing the cascade does not cover is the legacy web newsletter row
- * (public.users), which profiles references with ON DELETE SET NULL. It holds a
- * name, an email and a phone number, so it is removed explicitly.
+ * Two things the cascade does not cover, and both are removed explicitly
+ * BEFORE the auth user goes:
+ *
+ *  - the legacy web newsletter row (public.users), which profiles references
+ *    with ON DELETE SET NULL. It holds a name, an email and a phone number;
+ *
+ *  - the reader's AVATAR OBJECTS in Storage. A cascade in Postgres cannot reach
+ *    an object in a bucket, so deleting the account used to leave a photograph
+ *    of the person on the server with the row that pointed at it gone — an
+ *    orphan nothing would ever collect, which is precisely the file a deletion
+ *    request is most obviously about.
+ *
+ * BOTH FAIL CLOSED. If Storage refuses, this returns 500 and the auth user is
+ * left untouched, so the reader keeps their session and can retry. That is the
+ * deliberate trade: a deletion that reports success must mean the personal data
+ * is gone, and a retryable failure is a far smaller harm than a silent one. The
+ * alternative — delete the account and log the orphan — makes "deleted" a claim
+ * the server cannot back up.
  *
  * Shared editorial data — content_items, sources, content_item_sources, topics,
  * the learning catalog — is never touched: it belongs to the product, not to a
@@ -61,6 +76,79 @@ function jsonResponse(
     status,
     headers: { "content-type": "application/json", ...corsHeaders(origin) }
   });
+}
+
+type AvatarRemoval =
+  | { ok: true; removed: number }
+  | { ok: false; reason: string };
+
+/**
+ * Take every avatar object this reader owns out of the bucket.
+ *
+ * The listing is the authority, not `profiles.avatar_path`. A replace is two
+ * operations — upload the new object, then point the row at it — and a crash
+ * between them leaves an object the row never named. Those files are the same
+ * person's photograph and nothing else will ever look for them, so the sweep is
+ * by folder, with the stored path folded in as a belt-and-braces entry in case
+ * the listing is stale.
+ *
+ * `list()` returns one page of up to 100 by default; the loop pages until a
+ * short page comes back, so a reader who changed their photo two hundred times
+ * is still cleared completely. An empty folder is a success, not an error: a
+ * reader who never opened Teams has no avatar to delete.
+ */
+async function removeAvatarObjects(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  storedPath: string | null
+): Promise<AvatarRemoval> {
+  const bucket = adminClient.storage.from("avatars");
+  const pageSize = 100;
+  const names = new Set<string>();
+
+  // A path written by an older build may carry the bucket name; the object is
+  // addressed without it. Normalising here means a legacy row still resolves to
+  // a real object instead of being quietly skipped.
+  const normalizedStored = (storedPath ?? "").trim().replace(/^avatars\//, "");
+
+  if (normalizedStored.length > 0 && normalizedStored.startsWith(`${userId}/`)) {
+    names.add(normalizedStored);
+  }
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await bucket.list(userId, { limit: pageSize, offset });
+
+    if (error) {
+      // Fail closed. The caller turns this into a 500 and the auth user is left
+      // alone, so the reader can retry rather than being told their data is
+      // gone when a photograph of them is still on the server.
+      return { ok: false, reason: error.message };
+    }
+
+    const page = data ?? [];
+
+    for (const entry of page) {
+      if (entry?.name) {
+        names.add(`${userId}/${entry.name}`);
+      }
+    }
+
+    if (page.length < pageSize) {
+      break;
+    }
+  }
+
+  if (names.size === 0) {
+    return { ok: true, removed: 0 };
+  }
+
+  const { error: removeError } = await bucket.remove([...names]);
+
+  if (removeError) {
+    return { ok: false, reason: removeError.message };
+  }
+
+  return { ok: true, removed: names.size };
 }
 
 Deno.serve(async (request: Request): Promise<Response> => {
@@ -135,10 +223,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 
-  // Read the legacy link before the cascade removes the profile row.
+  // Read what the cascade cannot reach, before the profile row is gone.
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("legacy_user_id")
+    .select("legacy_user_id,avatar_path")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -156,7 +244,31 @@ Deno.serve(async (request: Request): Promise<Response> => {
     );
   }
 
-  const legacyUserId = (profile as { legacy_user_id: string | null } | null)?.legacy_user_id ?? null;
+  const profileRow = profile as
+    | { legacy_user_id: string | null; avatar_path: string | null }
+    | null;
+
+  const legacyUserId = profileRow?.legacy_user_id ?? null;
+
+  // The whole folder, not just the path the profile happens to point at. An
+  // upload that succeeded while the profile update that followed it failed
+  // leaves an object nothing references; those are this reader's photographs
+  // too, and this is the only moment anything will ever look for them.
+  const avatarRemoval = await removeAvatarObjects(adminClient, user.id, profileRow?.avatar_path ?? null);
+
+  if (!avatarRemoval.ok) {
+    console.error("delete-account could not clear the avatar objects", avatarRemoval.reason);
+
+    return jsonResponse(
+      {
+        ok: false,
+        error: "avatar_cleanup_failed",
+        message: "Your account was not deleted. Please try again."
+      },
+      500,
+      origin
+    );
+  }
 
   let legacyDeleted = false;
 
@@ -207,7 +319,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
     {
       ok: true,
       deleted: true,
-      legacy_newsletter_record_deleted: legacyDeleted
+      legacy_newsletter_record_deleted: legacyDeleted,
+      avatar_objects_deleted: avatarRemoval.removed
     },
     200,
     origin

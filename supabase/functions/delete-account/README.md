@@ -23,10 +23,40 @@ auth.users
        └─ learning_session_feedback
 ```
 
-Plus one row the cascade cannot reach: the legacy web-newsletter subscriber
-(`public.users`, linked from `profiles.legacy_user_id` with `ON DELETE SET
-NULL`), which holds a name, an email and a phone number. It is deleted
-explicitly, and cascades to `user_topics`.
+Plus two things the cascade cannot reach, both removed **before** the auth user:
+
+1. the legacy web-newsletter subscriber (`public.users`, linked from
+   `profiles.legacy_user_id` with `ON DELETE SET NULL`), which holds a name, an
+   email and a phone number. Deleted explicitly, and cascades to `user_topics`;
+
+2. the reader's **avatar objects** in the `avatars` bucket. A Postgres cascade
+   cannot reach an object in Storage, so without this a deleted account left a
+   photograph of the person on the server with the row that named it gone — an
+   orphan nothing would ever collect, and the single most obviously personal
+   file in the account.
+
+   The sweep is by **folder** (`<user id>/`), not by the single
+   `profiles.avatar_path`. Replacing an avatar is upload-then-update, so a crash
+   between the two leaves an object no row ever named; this is the only moment
+   anything looks for those.
+
+### Why avatar cleanup fails the whole request
+
+If Storage refuses — listing or removal — the function returns **500
+`avatar_cleanup_failed` and does not touch the auth user**. The reader keeps
+their session and can retry.
+
+That is deliberate, and it is the stricter of the two available answers. The
+alternative (best-effort: log the orphan, delete the account anyway) makes a
+200 mean *"we tried"*, and there is then no way back — the account that could
+have retried is gone, and so is every record of which object was left behind. A
+retryable failure is a much smaller harm than a deletion that silently was not
+one. A success on this endpoint means the personal data is actually gone.
+
+`public.avatar_objects_for_user(uuid)` (service-role only,
+`20260907140000_teams_security_hardening.sql`) is the net underneath: it lists
+every object a reader owns, so an orphan created by some path nobody
+anticipated is still findable.
 
 Never deleted: `content_items`, `sources`, `content_item_sources`, `topics`,
 `learning_domains`, `learning_objectives`, `learning_catalog_domains`. That is

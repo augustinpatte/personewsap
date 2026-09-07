@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -156,5 +158,62 @@ describe("fallback initials", () => {
   it("survives a missing or moderated name", () => {
     expect(initialsFor(null)).toBe("?");
     expect(initialsFor("   ")).toBe("?");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The client and the server must refuse the same names
+// ---------------------------------------------------------------------------
+// Until 20260907140000 these rules lived only here, so a rewritten binary could
+// claim "admin". Now the database is the authority and this is the courtesy
+// check in front of it — which only works while the two agree. If the client is
+// stricter, it refuses a name the server would have allowed; if it is looser,
+// the reader gets a raw Postgres error instead of a sentence in their language.
+
+describe("the client's moderation rules mirror the database's", () => {
+  const migration = readFileSync(
+    join(__dirname, "..", "..", "..", "..", "..", "supabase", "migrations",
+      "20260907140000_teams_security_hardening.sql"),
+    "utf8"
+  );
+
+  const listIn = (functionName: string): string[] => {
+    const start = migration.indexOf(`FUNCTION public.${functionName}`);
+    expect(start, `${functionName} is not in the migration`).toBeGreaterThan(-1);
+
+    const array = /ARRAY\s*\[([\s\S]*?)\]/.exec(migration.slice(start));
+    expect(array, `${functionName} declares no ARRAY of names`).not.toBeNull();
+
+    return [...array![1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+  };
+
+  it("reserves exactly the same names", () => {
+    const server = listIn("is_reserved_username");
+
+    for (const name of server) {
+      expect(validateUsername(name), `${name} is reserved server-side`).toBe("reserved");
+    }
+
+    // And nothing beyond them: a client-only reservation refuses a name the
+    // server would happily have given away to somebody else.
+    expect(server).toContain("admin");
+    expect(server).toContain("personews");
+    expect(server).toContain("moderator");
+    expect(server).toContain("support");
+    expect(server).toContain("official");
+  });
+
+  it("blocks exactly the same fragments", () => {
+    for (const fragment of listIn("has_blocked_fragment")) {
+      expect(validateUsername(`x${fragment}x`), fragment).toBe("not_allowed");
+      expect(validateTeamName(`The ${fragment} club`), fragment).toBe("not_allowed");
+    }
+  });
+
+  it("normalises the same way, so punctuation defeats neither", () => {
+    // The SQL does lower(normalize(…, NFD)) then strips [^a-z0-9]; this is the
+    // same transformation, and the pair below is what proves it matters.
+    expect(normalizeForModeration("Àd.m_i n")).toBe("admin");
+    expect(validateUsername("a.d.m.i.n")).toBe("reserved");
   });
 });
