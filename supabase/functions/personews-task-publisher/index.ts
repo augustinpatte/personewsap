@@ -117,13 +117,27 @@ Deno.serve(async (req: Request) => {
       let notificationRelease: unknown = { released: 0, status: "not_attempted" };
 
       if (verification.ok === true) {
-        const { data: released, error: releaseError } = await supabase.rpc(
-          "release_verified_edition_notifications",
-          { p_edition_date: editionDate },
-        );
-        notificationRelease = releaseError
-          ? { released: 0, status: "release_failed", error: releaseError.message }
-          : released;
+        // The try/catch is the load-bearing part, not belt and braces. Everything
+        // below it — a missing RPC while the database migration has not landed
+        // yet, a transport fault, a client library that decides to throw where it
+        // used to return — has to end as a reported release failure and never as
+        // a throw, because a throw here reaches the outer catch and answers the
+        // staging scheduler HTTP 500 for an edition that verified.
+        try {
+          const { data: released, error: releaseError } = await supabase.rpc(
+            "release_verified_edition_notifications",
+            { p_edition_date: editionDate },
+          );
+          notificationRelease = releaseError
+            ? { released: 0, status: "release_failed", error: releaseError.message }
+            : released;
+        } catch (releaseThrow) {
+          notificationRelease = {
+            released: 0,
+            status: "release_failed",
+            error: releaseThrow instanceof Error ? releaseThrow.message : String(releaseThrow),
+          };
+        }
       }
 
       return json({ ...verification, notification_release: notificationRelease });

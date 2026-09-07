@@ -38,7 +38,24 @@
 
 BEGIN;
 
+-- ---------------------------------------------------------------------------
+-- The two extensions this file depends on
+-- ---------------------------------------------------------------------------
+-- Neither is installed on the production project. Staging has had both for so
+-- long that it was easy to read `net.http_post` in the function below and assume
+-- production had it too — it does not, and PL/pgSQL would not have said so:
+-- a function body is syntax-checked at CREATE time and its names are resolved
+-- only when it runs. So without this line the migration applies cleanly, the
+-- cron job schedules cleanly, and the first tick with real work to do fails at
+-- runtime with `schema "net" does not exist`.
+--
+-- Both are already in production's shared_preload_libraries and `cron.database_name`
+-- is this database, so both CREATE statements are the whole installation. They
+-- are IF NOT EXISTS because staging already has them and this file must be a
+-- no-op there.
+
 CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- ---------------------------------------------------------------------------
 -- The dispatcher

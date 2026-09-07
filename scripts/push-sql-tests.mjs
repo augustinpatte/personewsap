@@ -75,7 +75,14 @@ if (withMigrations) {
     );
   }
 
-  sql = sql.replace(/^begin;/im, `begin;\n\n${bodies.join("\n\n")}\n`);
+  // A replacer FUNCTION, never a replacement string. `String.replace` treats
+  // `$$`, `$&`, `$1` and friends as substitution patterns in a replacement
+  // string, so inlining a migration that dollar-quotes a function body with a
+  // bare `$$` silently sends `$` to the database and the suite fails on a
+  // syntax error in SQL nobody wrote. The migration text must reach Postgres
+  // byte-for-byte or this harness is proving something other than the migration.
+  const inlined = `begin;\n\n${bodies.join("\n\n")}\n`;
+  sql = sql.replace(/^begin;/im, () => inlined);
 }
 
 const response = await fetch(

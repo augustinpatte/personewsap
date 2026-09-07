@@ -564,6 +564,33 @@ begin
      from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.proname = 'dispatch_notification_events'));
+
+  -- D2-D4: the dispatcher's two feet outside PostgreSQL.
+  --
+  -- 47-50 all pass on a project where `net` does not exist, because a PL/pgSQL
+  -- body is never name-resolved until it runs and the suite deliberately never
+  -- lets it run with work to do. That is exactly the hole a production project
+  -- without pg_net falls through: migration applies, job schedules, first real
+  -- tick fails. These three assert the infrastructure itself rather than the
+  -- source text, so a project missing either extension fails here.
+
+  perform pg_temp.record(51, 'D2 both extensions the dispatcher needs are installed',
+    'pg_cron,pg_net',
+    (select coalesce(string_agg(x.extname, ',' order by x.extname), 'none')
+     from pg_extension x where x.extname in ('pg_cron', 'pg_net')));
+
+  perform pg_temp.record(52, 'D3 and both entry points it calls resolve',
+    'cron.schedule(text,text,text)|net.http_post(text,jsonb,jsonb,jsonb,integer)',
+    concat_ws('|',
+      coalesce(to_regprocedure('cron.schedule(text,text,text)')::text, 'MISSING'),
+      coalesce(to_regprocedure('net.http_post(text,jsonb,jsonb,jsonb,integer)')::text, 'MISSING')));
+
+  perform pg_temp.record(53, 'D4 the wake-up is actually scheduled', '*/2 17-22 * * *',
+    case when to_regclass('cron.job') is null then 'NO CRON SCHEMA'
+      else (select coalesce(max(job.schedule), 'NOT SCHEDULED')
+            from cron.job as job
+            where job.jobname = 'personews-notification-dispatch')
+    end);
 end $$;
 
 -- ---------------------------------------------------------------------------
