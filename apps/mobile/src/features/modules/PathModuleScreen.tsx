@@ -1,7 +1,6 @@
 import { useRouter, type Href } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   AppText,
@@ -18,7 +17,13 @@ import { useLearningPath } from "../learning";
 import { localizeLearningField, localizeSessionTitle } from "../learning/learningTypes";
 import { useDailyDrop } from "../today/DailyDropContext";
 import { getModuleCopy } from "./moduleCopy";
-import { ModuleHeader, ModuleLoading, ModuleScroll, ViewSwitch } from "./ModuleChrome";
+import {
+  ModuleHeader,
+  ModuleLoading,
+  ModuleScroll,
+  ModuleSurface,
+  ViewSwitch
+} from "./ModuleChrome";
 
 /**
  * The Parcours tab is the existing Learning Path product — sessions generated
@@ -41,7 +46,7 @@ export function PathModuleScreen() {
   const copy = getModuleCopy(language);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <ModuleSurface>
       <View style={styles.chrome}>
         <ModuleHeader
           accountLabel={copy.common.accountLabel}
@@ -68,7 +73,7 @@ export function PathModuleScreen() {
         />
       </View>
       {view === "left" ? <PathCurrent /> : <PathHistory />}
-    </SafeAreaView>
+    </ModuleSurface>
   );
 }
 
@@ -380,10 +385,6 @@ function PathHistory() {
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    safeArea: {
-      backgroundColor: c.background,
-      flex: 1
-    },
     chrome: {
       gap: tokens.space.lg,
       paddingHorizontal: tokens.space.lg,

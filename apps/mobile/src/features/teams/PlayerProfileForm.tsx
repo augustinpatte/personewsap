@@ -17,15 +17,18 @@ import { isUsernameAvailable, savePlayerIdentity } from "./teamsData";
  * The player identity form, used both as the Teams gate and as Account's editor.
  *
  * ONE COMPONENT, TWO ENTRANCES. The gate and "Edit player profile" ask for
- * exactly the same three things and enforce exactly the same rules; shipping
- * them as two screens would mean two places for the username regex, the country
- * list and the avatar budget to drift apart, and the one that drifted would be
- * the one a reader edits months later.
+ * exactly the same things and enforce exactly the same rules; shipping them as
+ * two screens would mean two places for the username regex, the country list
+ * and the avatar budget to drift apart, and the one that drifted would be the
+ * one a reader edits months later.
  *
- * ALL THREE ARE REQUIRED. Photo, name, country. The avatar was optional in an
- * earlier version on the reasoning that initials render a row fine — true, and
- * beside the point: a leaderboard is a list of people, and a Team where half
- * the rows are grey letters is a spreadsheet.
+ * TWO ARE REQUIRED, THE PHOTO IS NOT. Name and country gate Teams; the photo is
+ * offered beside them and never blocks Save. It briefly did, and that put a
+ * photo-library permission dialog between somebody and the first Team a friend
+ * invited them to. It can be added now, added later, replaced, or taken off
+ * again — the last of which is a real action here rather than a re-upload of
+ * nothing, because the server's write COALESCEs its arguments and NULL means
+ * "leave it alone".
  *
  * PERMISSION IS ASKED ON THE TAP AND NEVER ON MOUNT. Opening this screen shows
  * no system dialog. The reader reads "Choose a photo", decides, and only then
@@ -73,6 +76,9 @@ export function PlayerProfileForm({
     base64: string;
     bytes: number;
   } | null>(null);
+  // Set by "Remove", cleared by choosing a new photo. It is what turns the save
+  // into an explicit erase rather than a no-op.
+  const [removingAvatar, setRemovingAvatar] = useState(false);
   const [permissionBlocked, setPermissionBlocked] = useState<"retry" | "settings" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
@@ -87,9 +93,10 @@ export function PlayerProfileForm({
   const selectedCountry: Country | null =
     COUNTRIES.find((entry) => entry.code === countryCode) ?? null;
 
-  const hasPhoto = Boolean(pendingAvatar) || Boolean(avatarPath);
-  const canSubmit =
-    hasPhoto && username.trim().length > 0 && Boolean(normalizeCountryCode(countryCode));
+  const hasPhoto = Boolean(pendingAvatar) || (Boolean(avatarPath) && !removingAvatar);
+  // The photo is not in here, and that is the whole change: Teams asks for a
+  // name and a country.
+  const canSubmit = username.trim().length > 0 && Boolean(normalizeCountryCode(countryCode));
 
   const messageFor = (problem: ReturnType<typeof validateUsername>) => {
     switch (problem) {
@@ -139,7 +146,18 @@ export function PlayerProfileForm({
       return;
     }
 
+    setRemovingAvatar(false);
     setPendingAvatar({ uri: outcome.uri, base64: outcome.base64, bytes: outcome.bytes });
+  };
+
+  const onRemovePhoto = () => {
+    setError(null);
+    setPermissionBlocked(null);
+    setPendingAvatar(null);
+    // Nothing is deleted yet. The bucket object goes only after the profile row
+    // has stopped pointing at it, on Save, in that order — so abandoning this
+    // screen leaves the reader's photo exactly where it was.
+    setRemovingAvatar(true);
   };
 
   const onSave = async () => {
@@ -161,11 +179,6 @@ export function PlayerProfileForm({
       return;
     }
 
-    if (!hasPhoto) {
-      setError(copy.profileNeeds);
-      return;
-    }
-
     setError(null);
 
     // A courtesy check so the common case reads well. It is NOT the guard: the
@@ -181,7 +194,7 @@ export function PlayerProfileForm({
       }
     }
 
-    let storedPath = avatarPath;
+    let storedPath = removingAvatar ? null : avatarPath;
 
     if (pendingAvatar) {
       setStage("uploading");
@@ -212,7 +225,8 @@ export function PlayerProfileForm({
     const result = await savePlayerIdentity({
       username: username.trim(),
       countryCode: normalizedCountry,
-      avatarPath: storedPath
+      avatarPath: storedPath,
+      clearAvatar: removingAvatar && !pendingAvatar
     });
 
     setStage("idle");
@@ -234,12 +248,13 @@ export function PlayerProfileForm({
     // folder.
     const replaced = avatarPath;
 
-    if (replaced && result.data.avatarPath && replaced !== result.data.avatarPath) {
+    if (replaced && replaced !== result.data.avatarPath) {
       void deleteAvatarObject(replaced);
     }
 
     setAvatarPath(result.data.avatarPath);
     setPendingAvatar(null);
+    setRemovingAvatar(false);
     onCompleted(result.data);
   };
 
@@ -265,12 +280,18 @@ export function PlayerProfileForm({
             style={styles.pendingImage}
           />
         ) : (
-          <PlayerAvatar avatarPath={avatarPath} name={username || null} size="hero" />
+          // removingAvatar shows the grey placeholder immediately, so "Remove"
+          // is visibly answered before the save rather than after it.
+          <PlayerAvatar
+            avatarPath={removingAvatar ? null : avatarPath}
+            name={username || null}
+            size="hero"
+          />
         )}
 
         <View style={styles.avatarMeta}>
           <AppText color="muted" variant="caption">
-            {`${copy.avatarLabel} · ${copy.avatarRequired}`}
+            {`${copy.avatarLabel} · ${copy.avatarOptional}`}
           </AppText>
           <AppText color="mutedSoft" variant="caption">
             {copy.avatarHelp}
@@ -282,6 +303,10 @@ export function PlayerProfileForm({
           label={stage === "preparing" ? copy.avatarPreparing : hasPhoto ? copy.avatarChange : copy.avatarChoose}
           onPress={() => void onChoosePhoto()}
         />
+
+        {hasPhoto ? (
+          <SecondaryButton disabled={busy} label={copy.avatarRemove} onPress={onRemovePhoto} />
+        ) : null}
 
         {permissionBlocked === "settings" ? (
           <SecondaryButton

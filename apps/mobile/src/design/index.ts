@@ -9,5 +9,7 @@ export {
   darkColors
 } from "./theme";
 export type { Theme, ThemeColors, ThemeColorToken, ColorScheme } from "./theme";
+export { navigationPaletteFor } from "./navigationTheme";
+export type { NavigationPalette } from "./navigationTheme";
 export { useReducedMotion } from "./useReducedMotion";
 export { usePressedSurfaceStyle } from "./usePressedSurfaceStyle";

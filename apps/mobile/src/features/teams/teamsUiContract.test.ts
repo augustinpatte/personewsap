@@ -39,6 +39,9 @@ const refetchOnReturn = stripComments(read("useRefetchOnReturn.ts"));
 const data = stripComments(read("teamsData.ts"));
 const countries = stripComments(read("countries.ts"));
 const help = stripComments(read("HelpScreen.tsx"));
+const avatar = stripComments(read("PlayerAvatar.tsx"));
+const teamAvatarPolicy = stripComments(read("teamAvatarPolicy.ts"));
+const teamAvatarUpload = stripComments(read("teamAvatarUpload.ts"));
 
 const appDir = join(teamsDir, "..", "..", "..", "app");
 const settings = readFileSync(
@@ -72,12 +75,29 @@ describe("the profile gate is only on Teams", () => {
     }
   });
 
-  it("requires all three: photo, username, country", () => {
-    expect(profileForm).toContain("hasPhoto");
-    expect(profileForm).toContain("copy.avatarRequired");
-    // The submit is disabled until all three are there, so the refusal is not
-    // only a message after a failed tap.
-    expect(profileForm).toMatch(/canSubmit\s*=\s*\n?\s*hasPhoto/);
+  it("requires a username and a country, and never a photo", () => {
+    // OBJECTIVE 2. Save is gated on the two fields Teams actually needs. The
+    // photo is offered on the same card, labelled optional, and is absent from
+    // canSubmit — so a reader who declines the photo library still reaches
+    // their leaderboard.
+    expect(profileForm).toMatch(/canSubmit\s*=\s*username\.trim\(\)\.length > 0/);
+    expect(profileForm).not.toMatch(/canSubmit[\s\S]{0,120}hasPhoto/);
+    expect(profileForm).toContain("copy.avatarOptional");
+    expect(profileForm).not.toContain("copy.avatarRequired");
+    // And the save path itself refuses nothing for a missing photo.
+    expect(profileForm).not.toMatch(/if \(!hasPhoto\)/);
+  });
+
+  it("lets a reader take a photo off again, not only replace it", () => {
+    // Removal is its own intent on the wire. The RPC COALESCEs its arguments so
+    // that a partial update cannot erase a username, which means NULL says
+    // "leave it alone" and cannot also say "remove it".
+    expect(profileForm).toContain("copy.avatarRemove");
+    expect(profileForm).toContain("removingAvatar");
+    expect(profileForm).toContain("clearAvatar:");
+    expect(data).toContain("p_clear_avatar");
+    // And the bucket object goes only after the row has stopped pointing at it.
+    expect(profileForm).toMatch(/savePlayerIdentity[\s\S]*deleteAvatarObject/);
   });
 
   it("asks for the photo library only on a tap, never on mount", () => {
@@ -425,5 +445,175 @@ describe("the client cannot write a score", () => {
   it("never stores a signed URL as an avatar path", () => {
     expect(data).toContain("createSignedUrl");
     expect(data).not.toMatch(/avatar_path:\s*signed/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A photo is optional, everywhere, for people and for Teams
+// ---------------------------------------------------------------------------
+
+describe("the avatar placeholder", () => {
+  it("is one component, and both kinds of avatar are drawn by it", () => {
+    // The same disc for a person and for a Team, so "no picture" cannot come to
+    // mean two different things on two screens.
+    expect(avatar).toMatch(/function AvatarFrame\(/);
+    expect(avatar).toMatch(/export function PlayerAvatar\(/);
+    expect(avatar).toMatch(/export function TeamAvatar\(/);
+    expect(avatar).toMatch(/<AvatarFrame glyph="user"/);
+    expect(avatar).toMatch(/<AvatarFrame glyph="users"/);
+  });
+
+  it("always renders something, and never a broken image", () => {
+    // A signed URL that has not arrived, a moderated avatar, a blocked member
+    // and a reader who simply never chose a photo all land on the same branch.
+    expect(avatar).toMatch(/if \(url\) \{[\s\S]*?<Image/);
+    expect(avatar).toMatch(/return \(\s*\n\s*<View accessible=\{false\} style=\{frame\}>/);
+    expect(avatar).toContain("<Feather");
+  });
+
+  it("is a neutral disc from the palette, in both schemes", () => {
+    expect(avatar).toContain("backgroundColor: c.surfaceMuted");
+    expect(avatar).toContain("borderColor: c.border");
+    expect(avatar).toContain("color={colors.mutedSoft}");
+    expect(avatar).not.toMatch(/#[0-9a-fA-F]{3,8}\b|\brgba?\(/);
+  });
+
+  it("draws no initials", () => {
+    // Two grey letters announce that something is missing, are unreadable at
+    // 36pt for a name in a non-Latin script, and made a photo feel compulsory.
+    // The name is beside the avatar in text on every surface that uses it.
+    expect(avatar).not.toContain("initialsFor");
+
+    const playerProfile = stripComments(read("playerProfile.ts"));
+
+    expect(playerProfile).not.toContain("initialsFor");
+  });
+
+  it("is what every avatar surface in the app renders", () => {
+    for (const [name, source] of [
+      ["members", membersScreen],
+      ["leaderboard", detail],
+      ["profile form", profileForm]
+    ] as const) {
+      expect(source, name).toContain("<PlayerAvatar");
+    }
+
+    for (const [name, source] of [
+      ["teams landing", landing],
+      ["team detail", detail],
+      ["manage", manage],
+      ["invite", invite],
+      ["create", create]
+    ] as const) {
+      expect(source, name).toContain("<TeamAvatar");
+    }
+  });
+});
+
+describe("a Team may have a photo, and usually will not", () => {
+  it("never blocks creating a Team on one", () => {
+    // Create sends the photo AFTER the team exists, because the storage path is
+    // keyed by the team id — and a failure there leaves a working Team with no
+    // picture rather than no Team.
+    expect(create).toMatch(/createTeam\(name\.trim\(\)\)/);
+    expect(create).toMatch(/createTeam[\s\S]*uploadTeamAvatar/);
+    expect(create).toContain("copy.avatarOptional");
+    // The create button is gated on the name and the games, never on a photo.
+    expect(create).not.toMatch(/pendingPhoto[\s\S]{0,80}setError\(copy\.(gamesRequired|nameTooShort)\)/);
+  });
+
+  it("lets an owner add, replace and remove it from Manage", () => {
+    expect(manage).toContain("copy.teamPhotoChoose");
+    expect(manage).toContain("copy.teamPhotoChange");
+    expect(manage).toContain("copy.teamPhotoRemove");
+    expect(manage).toMatch(/onChooseTeamPhoto/);
+    expect(manage).toMatch(/onRemoveTeamPhoto/);
+    expect(manage).toContain("setTeamAvatar({ teamId, clear: true })");
+    // The object is deleted only after the row has stopped pointing at it.
+    expect(manage).toMatch(/setTeamAvatar[\s\S]*deleteTeamAvatarObject/);
+  });
+
+  it("shows the photo section to the owner only", () => {
+    // The server refuses a member either way (42501); the screen does not offer
+    // them a button that cannot work.
+    expect(manage).toMatch(/team\.isOwner \? \(\s*\n\s*<>\s*\n\s*<Card padding="lg" style=\{styles\.card\}>\s*\n\s*<AppText color="muted" variant="caption">\s*\n\s*\{copy\.teamPhotoLabel\}/);
+  });
+
+  it("carries a null path through every read without special-casing it", () => {
+    expect(data).toContain("avatarPath: typeof team.avatar_path === \"string\" ? team.avatar_path : null");
+    expect(data).toContain("avatarPath: typeof row.avatar_path === \"string\" ? row.avatar_path : null");
+    expect(data).toContain("avatar_path,is_owner,status");
+  });
+});
+
+describe("a team avatar and a player avatar are different permissions", () => {
+  it("live in different buckets", () => {
+    expect(teamAvatarPolicy).toContain('export const TEAM_AVATAR_BUCKET = "team-avatars"');
+    expect(teamAvatarUpload).toContain("from(TEAM_AVATAR_BUCKET)");
+
+    const upload = stripComments(read("avatarUpload.ts"));
+
+    expect(upload).toContain('from("avatars")');
+    expect(upload).not.toContain("team-avatars");
+  });
+
+  it("key the path on the thing that owns the object", () => {
+    // The first path segment IS the permission: Storage compares it against
+    // auth.uid() for a person and against is_team_owner() for a Team.
+    expect(teamAvatarPolicy).toContain("`${input.teamId}/${input.fileId}.jpg`");
+    expect(teamAvatarPolicy).toContain("teamOfAvatarPath(input.path) === input.teamId");
+  });
+
+  it("share the size budget rather than restating it", () => {
+    // One answer to "how many bytes may a 40pt disc cost", not two that drift.
+    expect(teamAvatarPolicy).toContain('} from "./avatarPolicy"');
+    expect(teamAvatarPolicy).not.toMatch(/=\s*\d+\s*\*\s*1024/);
+  });
+
+  it("never reach for the service role from the phone", () => {
+    for (const [name, source] of [
+      ["team avatar upload", teamAvatarUpload],
+      ["team avatar policy", teamAvatarPolicy],
+      ["teams data", data]
+    ] as const) {
+      expect(source, name).not.toMatch(/service_role|SERVICE_ROLE|serviceRole/);
+    }
+  });
+
+  it("cache signed URLs per bucket, so one cannot serve the other", () => {
+    const urls = stripComments(read("useAvatarUrl.ts"));
+
+    expect(urls).toContain("function keyFor(bucket: Bucket, path: string)");
+    expect(urls).toContain("`${bucket}:${path}`");
+  });
+});
+
+describe("the identity RPC call is unambiguous", () => {
+  it("always sends all four arguments, including p_clear_avatar: false", () => {
+    // The database serves two overloads — the canonical four and a three-
+    // argument wrapper kept alive for the build already on people's phones —
+    // and PostgREST picks between them by the set of argument NAMES in the
+    // body. Omitting p_clear_avatar when it is false would silently route the
+    // call to the old wrapper, which cannot remove a photo, and "Remove" would
+    // do nothing with no error to show for it.
+    expect(data).toMatch(
+      /\.rpc\("set_player_identity", \{[\s\S]*?p_username:[\s\S]*?p_country_code:[\s\S]*?p_avatar_path:[\s\S]*?p_clear_avatar: input\.clearAvatar === true[\s\S]*?\}\)/
+    );
+    // Never conditional, never spread: a key that can be absent is the bug.
+    expect(data).not.toMatch(/\.\.\.\([\s\S]{0,80}p_clear_avatar/);
+  });
+
+  it("is typed so omitting the flag cannot compile", () => {
+    const types = readFileSync(
+      join(teamsDir, "..", "..", "types", "database.ts"),
+      "utf8"
+    );
+    const signature = types.slice(
+      types.indexOf("set_player_identity: {"),
+      types.indexOf("is_username_available")
+    );
+
+    expect(signature).toContain("p_clear_avatar: boolean;");
+    expect(signature).not.toContain("p_clear_avatar?:");
   });
 });

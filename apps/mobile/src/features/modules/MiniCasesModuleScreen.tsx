@@ -1,7 +1,6 @@
 import { useRouter, type Href } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText, Card, PressableSurface } from "../../components";
 import { tokens } from "../../design/tokens";
@@ -38,6 +37,7 @@ import {
   ModuleLoading,
   MetaLine,
   ModuleScroll,
+  ModuleSurface,
   ViewSwitch
 } from "./ModuleChrome";
 import { useEditionProgress } from "./useEditionProgress";
@@ -57,7 +57,7 @@ export function MiniCasesModuleScreen() {
   const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <ModuleSurface>
       <View style={styles.chrome}>
         <ModuleHeader
           accountLabel={copy.common.accountLabel}
@@ -95,7 +95,7 @@ export function MiniCasesModuleScreen() {
       ) : (
         <MiniCaseArchive />
       )}
-    </SafeAreaView>
+    </ModuleSurface>
   );
 }
 
@@ -409,10 +409,6 @@ function MiniCaseArchive() {
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    safeArea: {
-      backgroundColor: c.background,
-      flex: 1
-    },
     chrome: {
       gap: tokens.space.lg,
       paddingHorizontal: tokens.space.lg,

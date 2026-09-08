@@ -18,7 +18,6 @@ export {
 } from "./leaderboard";
 export type { EditionStatus, LeaderboardMember, LeaderboardRange, LeaderboardRow } from "./leaderboard";
 export {
-  initialsFor,
   isProfileCompleteForTeams,
   missingProfileFields,
   normalizeCountryCode,
@@ -44,8 +43,23 @@ export {
 } from "./teamConfigOptions";
 export { inviteDeepLink, inviteShareText } from "./inviteLink";
 export { getTeamsCopy, rangeLabel, statusLabel } from "./teamsCopy";
-export { clearAvatarUrlCache, resolveAvatarUrl, useAvatarUrl } from "./useAvatarUrl";
-export { PlayerAvatar } from "./PlayerAvatar";
+export {
+  clearAvatarUrlCache,
+  resolveAvatarUrl,
+  resolveTeamAvatarUrl,
+  useAvatarUrl,
+  useTeamAvatarUrl
+} from "./useAvatarUrl";
+export { PlayerAvatar, TeamAvatar } from "./PlayerAvatar";
+export type { AvatarSize } from "./PlayerAvatar";
+export {
+  TEAM_AVATAR_BUCKET,
+  isTeamAvatarPathFor,
+  stripTeamBucketPrefix,
+  teamAvatarObjectPath,
+  teamOfAvatarPath
+} from "./teamAvatarPolicy";
+export { deleteTeamAvatarObject, uploadTeamAvatar } from "./teamAvatarUpload";
 export { PlayerProfileForm } from "./PlayerProfileForm";
 export { PlayerProfileScreen } from "./PlayerProfileScreen";
 export { TeamsLandingScreen } from "./TeamsLandingScreen";

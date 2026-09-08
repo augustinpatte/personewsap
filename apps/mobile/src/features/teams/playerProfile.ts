@@ -141,12 +141,19 @@ export type PlayerProfile = {
 /**
  * Is this profile ready for Teams?
  *
- * Three things, and the avatar is one of them. An earlier version made it
- * optional on the reasoning that initials render a row perfectly well — true,
- * and beside the point. A leaderboard is a list of people, and a Team where
- * half the rows are two grey letters is a spreadsheet; the photo is how you
- * recognise the friend you are playing against. So Teams asks for all three
- * once, up front, and never asks again.
+ * TWO THINGS: a username and a country. The photo is NOT one of them.
+ *
+ * It was, briefly, on the reasoning that a leaderboard of grey discs is a
+ * spreadsheet rather than a list of people. That reasoning cost more than it
+ * bought: it put a photo-library permission dialog between a reader and the
+ * first Team they were invited to, made "I do not want my face in this app" a
+ * refusal to play at all, and turned an optional column into a wall. A friend
+ * is recognised by the name they chose — which IS required, is unique, and is
+ * on every row — and a photo makes that nicer rather than possible.
+ *
+ * So the photo is offered on the same screen, in the same session, and can be
+ * added, replaced or removed at any point afterwards from Account. What it can
+ * never do is stop somebody using Teams.
  *
  * THE GATE IS STILL ONLY ON TEAMS. A reader who never opens the Teams tab never
  * picks a username and is never shown a photo-library prompt: Newsletter, Mini
@@ -154,19 +161,20 @@ export type PlayerProfile = {
  * `profiles.username`, `country_code` and `avatar_path` all NULL.
  */
 export function isProfileCompleteForTeams(profile: PlayerProfile): boolean {
-  return (
-    Boolean(profile.username) && Boolean(profile.countryCode) && Boolean(profile.avatarPath)
-  );
+  return Boolean(profile.username) && Boolean(profile.countryCode);
 }
 
-export type ProfileField = "username" | "country" | "avatar";
+export type ProfileField = "username" | "country";
 
+/**
+ * What Teams is still waiting for.
+ *
+ * Only ever the required fields. A missing avatar is not missing — it is a
+ * choice the reader is entitled to make and to keep making — so it is not
+ * reported here and never appears in the "Teams needs…" line.
+ */
 export function missingProfileFields(profile: PlayerProfile): ProfileField[] {
   const missing: ProfileField[] = [];
-
-  if (!profile.avatarPath) {
-    missing.push("avatar");
-  }
 
   if (!profile.username) {
     missing.push("username");
@@ -177,26 +185,4 @@ export function missingProfileFields(profile: PlayerProfile): ProfileField[] {
   }
 
   return missing;
-}
-
-/**
- * The two initials a fallback avatar shows.
- *
- * Every leaderboard row has to render whether or not an image exists, loads, or
- * is still being fetched — so this never returns an empty string.
- */
-export function initialsFor(username: string | null): string {
-  const value = (username ?? "").trim();
-
-  if (value.length === 0) {
-    return "?";
-  }
-
-  const parts = value.split(/[._\s]+/).filter(Boolean);
-
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-
-  return value.slice(0, 2).toUpperCase();
 }

@@ -545,6 +545,8 @@ export type Database = {
         {
           id: string;
           display_name: string | null;
+          /** Optional: a Team without a photo carries null and renders the placeholder. */
+          avatar_path: string | null;
           name_status: string;
           status: string;
           archived_at: string | null;
@@ -961,11 +963,21 @@ export type Database = {
        * eligibility date, the version number and the rank. There is no argument
        * here through which a score or a standing could be set.
        */
+      /**
+       * The canonical 4-argument signature. `p_clear_avatar` is REQUIRED, here
+       * and in the database: it carries no DEFAULT, which is what keeps this
+       * overload disjoint from the 3-argument one PostgREST still serves for
+       * builds shipped before removal existed. A call that omitted it would
+       * resolve to that older wrapper and silently lose the ability to remove a
+       * photo, so the type makes omitting it a compile error.
+       */
       set_player_identity: {
         Args: {
           p_username: string | null;
           p_country_code: string | null;
           p_avatar_path: string | null;
+          /** True removes the stored photo; NULL in p_avatar_path leaves it alone. */
+          p_clear_avatar: boolean;
         };
         Returns: {
           id: string;
@@ -1006,6 +1018,15 @@ export type Database = {
         Args: { p_team_id: string; p_name: string };
         Returns: string | null;
       };
+      /** Owner-only. Returns the stored path, or null once the photo is removed. */
+      set_team_avatar: {
+        Args: {
+          p_team_id: string;
+          p_avatar_path: string | null;
+          p_clear_avatar?: boolean;
+        };
+        Returns: string | null;
+      };
       rotate_team_invite_code: {
         Args: { p_team_id: string };
         Returns: string | null;
@@ -1029,6 +1050,7 @@ export type Database = {
         Returns: {
           team_id: string;
           display_name: string | null;
+          avatar_path: string | null;
           name_hidden: boolean;
           team_status: string;
           is_owner: boolean;

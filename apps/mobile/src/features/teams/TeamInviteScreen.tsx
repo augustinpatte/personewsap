@@ -3,15 +3,16 @@ import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { Share, StyleSheet, View } from "react-native";
 
-import { AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
+import { AppText, Card, ModuleContentSkeleton, PrimaryButton, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useAuth } from "../auth";
-import { ModuleError, ModuleLoading } from "../modules";
+import { ModuleError } from "../modules";
 import { getModuleCopy } from "../modules/moduleCopy";
 import { getReaderCopy } from "../today/contentCopy";
 import { ReaderScaffold } from "../today/readers";
 import { inviteShareText } from "./inviteLink";
+import { TeamAvatar } from "./PlayerAvatar";
 import { getTeamsCopy } from "./teamsCopy";
 import {
   fetchInviteCode,
@@ -155,13 +156,18 @@ export function TeamInviteScreen({ teamId }: { teamId: string }) {
         router.back();
       }}
     >
-      {status === "loading" ? <ModuleLoading label={moduleCopy.common.loading} /> : null}
+      {status === "loading" ? <ModuleContentSkeleton label={moduleCopy.common.loading} /> : null}
       {status === "error" ? <ModuleError language={language} onRetry={() => void load()} /> : null}
 
       {status === "ready" && team ? (
         <View style={styles.body}>
           <View style={styles.header}>
-            <AppText variant="title">{justCreated ? copy.createdTitle : teamName}</AppText>
+            <View style={styles.headIdentity}>
+              <TeamAvatar avatarPath={team.avatarPath} size="header" />
+              <AppText style={styles.headTitle} variant="title">
+                {justCreated ? copy.createdTitle : teamName}
+              </AppText>
+            </View>
             {justCreated ? (
               <>
                 <AppText color="muted" variant="body">
@@ -248,6 +254,14 @@ const createStyles = (c: ThemeColors) =>
     },
     header: {
       gap: tokens.space.sm
+    },
+    headIdentity: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    headTitle: {
+      flex: 1
     },
     card: {
       gap: tokens.space.md

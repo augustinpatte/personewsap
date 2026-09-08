@@ -9,16 +9,23 @@
     "backgroundColor": "#F5F1E8",
     "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/splash.png",
       "backgroundColor": "#F5F1E8",
       "resizeMode": "contain"
     },
     "ios": {
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": false,
       "bundleIdentifier": "com.personewsap.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "splash": {
+        "backgroundColor": "#F5F1E8",
+        "resizeMode": "contain",
+        "dark": {
+          "backgroundColor": "#16140F",
+          "resizeMode": "contain"
+        }
       }
     },
     "android": {
@@ -27,6 +34,14 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#F5F1E8"
+      },
+      "splash": {
+        "backgroundColor": "#F5F1E8",
+        "resizeMode": "contain",
+        "dark": {
+          "backgroundColor": "#16140F",
+          "resizeMode": "contain"
+        }
       }
     },
     "plugins": [

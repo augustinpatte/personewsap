@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useRouter, type Href } from "expo-router";
-import { StyleSheet, TextInput, View } from "react-native";
+import { Image, StyleSheet, TextInput, View } from "react-native";
 
-import { AppText, Card, PrimaryButton } from "../../components";
+import { AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useAuth } from "../auth";
 import { EditorialRule } from "../modules";
 import { formatDropDate, getReaderCopy } from "../today/contentCopy";
 import { ReaderScaffold } from "../today/readers";
+import { pickAndCompressAvatar } from "./avatarUpload";
+import { TeamAvatar } from "./PlayerAvatar";
 import { validateTeamName } from "./playerProfile";
+import { uploadTeamAvatar } from "./teamAvatarUpload";
 import { TeamConfigFields } from "./TeamConfigFields";
 import {
   EMPTY_DRAFT,
@@ -19,7 +22,7 @@ import {
   type TeamConfigDraft
 } from "./teamConfigOptions";
 import { getTeamsCopy } from "./teamsCopy";
-import { createTeam, saveTeamConfig } from "./teamsData";
+import { createTeam, saveTeamConfig, setTeamAvatar } from "./teamsData";
 
 /**
  * Creating a Team.
@@ -36,6 +39,13 @@ import { createTeam, saveTeamConfig } from "./teamsData";
  * real invite code and can set the topics from Manage — the alternative, holding
  * the team back until the config lands, would lose the team on a dropped
  * connection.
+ *
+ * THE PHOTO IS OPTIONAL AND IS SENT LAST. A Team's storage path is
+ * `<team id>/<file>.jpg` and the id does not exist until `create_team` has
+ * returned, so the picture cannot be uploaded before the Team is. It is chosen
+ * here, held as a local file, and sent after — and if that send fails the Team
+ * still exists, with no photo, exactly as it would for the majority of Teams
+ * that never add one. Nothing about creating a Team is ever blocked on it.
  *
  * WHAT IT SAYS AT THE END. "Your Team starts scoring with the next edition."
  * That is the server's rule (`create_team` sets the founder's
@@ -55,6 +65,13 @@ export function CreateTeamScreen() {
   const [draft, setDraft] = useState<TeamConfigDraft>(EMPTY_DRAFT);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Held locally until the Team has an id to be stored under.
+  const [pendingPhoto, setPendingPhoto] = useState<{
+    uri: string;
+    base64: string;
+    bytes: number;
+  } | null>(null);
+  const [pickingPhoto, setPickingPhoto] = useState(false);
 
   const shape = draftEditionShape(draft);
 
@@ -69,6 +86,32 @@ export function CreateTeamScreen() {
       default:
         return null;
     }
+  };
+
+  const onChoosePhoto = async () => {
+    setError(null);
+    setPickingPhoto(true);
+
+    const picked = await pickAndCompressAvatar();
+
+    setPickingPhoto(false);
+
+    if (picked.status === "cancelled") {
+      return;
+    }
+
+    if (picked.status !== "picked") {
+      setError(
+        picked.status === "too_large"
+          ? copy.avatarTooLarge
+          : picked.status === "permission_denied"
+            ? copy.avatarPermissionBody
+            : copy.avatarFailed
+      );
+      return;
+    }
+
+    setPendingPhoto({ uri: picked.uri, base64: picked.base64, bytes: picked.bytes });
   };
 
   const onCreate = async () => {
@@ -103,6 +146,21 @@ export function CreateTeamScreen() {
       miniCaseTopics: draft.miniCases
     });
 
+    // Same rule for the photo, and it is the reason it is sent here rather than
+    // before: the path is keyed by the Team id. A failure leaves a Team with no
+    // picture, which is what most Teams have anyway, and Manage can set one.
+    if (pendingPhoto) {
+      const upload = await uploadTeamAvatar({
+        teamId: created.data.teamId,
+        base64: pendingPhoto.base64,
+        bytes: pendingPhoto.bytes
+      });
+
+      if (upload.status === "uploaded") {
+        await setTeamAvatar({ teamId: created.data.teamId, avatarPath: upload.path });
+      }
+    }
+
     setCreating(false);
 
     // replace, not push: Back from the invite screen belongs on the Teams list,
@@ -125,6 +183,43 @@ export function CreateTeamScreen() {
       </View>
 
       <Card padding="lg" style={styles.card}>
+        <View style={styles.photo}>
+          {pendingPhoto ? (
+            <Image
+              accessibilityIgnoresInvertColors
+              accessible={false}
+              source={{ uri: pendingPhoto.uri }}
+              style={styles.pendingPhoto}
+            />
+          ) : (
+            <TeamAvatar avatarPath={null} size="hero" />
+          )}
+          <AppText color="muted" variant="caption">
+            {`${copy.teamPhotoLabel} · ${copy.avatarOptional}`}
+          </AppText>
+          <AppText align="center" color="mutedSoft" variant="caption">
+            {copy.teamPhotoHelp}
+          </AppText>
+          <SecondaryButton
+            disabled={creating || pickingPhoto}
+            label={
+              pickingPhoto
+                ? copy.avatarPreparing
+                : pendingPhoto
+                  ? copy.teamPhotoChange
+                  : copy.teamPhotoChoose
+            }
+            onPress={() => void onChoosePhoto()}
+          />
+          {pendingPhoto ? (
+            <SecondaryButton
+              disabled={creating || pickingPhoto}
+              label={copy.teamPhotoRemove}
+              onPress={() => setPendingPhoto(null)}
+            />
+          ) : null}
+        </View>
+
         <View style={styles.field}>
           <AppText color="muted" variant="caption">
             {copy.nameLabel}
@@ -244,6 +339,17 @@ const createStyles = (c: ThemeColors) =>
     },
     field: {
       gap: tokens.space.sm
+    },
+    photo: {
+      alignItems: "center",
+      gap: tokens.space.sm
+    },
+    pendingPhoto: {
+      borderColor: c.border,
+      borderRadius: tokens.radius.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      height: 96,
+      width: 96
     },
     input: {
       borderRadius: tokens.radius.md,

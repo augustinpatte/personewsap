@@ -7,6 +7,7 @@ import {
   type StyleProp,
   type ViewStyle
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { PropsWithChildren } from "react";
 
 import {
@@ -144,9 +145,32 @@ export function ViewSwitch({
 }
 
 /**
+ * The paper a module screen is printed on.
+ *
+ * One safe area, one background, taken from the active palette. Every module
+ * tab used to declare its own `safeArea: { backgroundColor: c.background,
+ * flex: 1 }` — four identical copies, and the fifth screen (Teams) simply
+ * forgot, which is how a whole tab came to be drawn straight onto the
+ * navigator's stock grey. A screen that renders nothing of its own still
+ * renders PersoNewsAP paper.
+ */
+export function ModuleSurface({
+  children,
+  style
+}: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+  const styles = useThemedStyles(createStyles);
+
+  return <SafeAreaView style={[styles.surface, style]}>{children}</SafeAreaView>;
+}
+
+/**
  * Scrollable body for a module view. The screen chrome (header + switch) sits
- * above it inside one SafeAreaView, so this deliberately is NOT another
+ * above it inside one ModuleSurface, so this deliberately is NOT another
  * SafeAreaView — just a padded scroll surface.
+ *
+ * It carries the background anyway. A scroll is the first thing several screens
+ * render while their data is still in flight, sometimes as the entire screen,
+ * and a transparent one there would show whatever the navigator left behind.
  */
 export function ModuleScroll({
   children,
@@ -178,6 +202,7 @@ export function ModuleScroll({
       // The bar is translucent, so the scroll indicator must stop where the
       // content does rather than running under it.
       scrollIndicatorInsets={{ bottom: tabBarInset }}
+      style={styles.surface}
     >
       {reveal ? <ContentReveal>{children}</ContentReveal> : children}
     </ScrollView>
@@ -449,6 +474,10 @@ const createStyles = (c: ThemeColors) =>
       height: 40,
       justifyContent: "center",
       width: 40
+    },
+    surface: {
+      backgroundColor: c.background,
+      flex: 1
     },
     scrollContent: {
       flexGrow: 1,

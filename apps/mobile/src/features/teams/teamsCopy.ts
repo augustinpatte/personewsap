@@ -32,7 +32,7 @@ export function getTeamsCopy(language: ContentLanguage) {
         // Profile gate
         profileTitle: "Choose your player name",
         profileBody:
-          "A photo, a name and a country. Team-mates see them on the leaderboard, and nothing else in PersoNewsAP changes.",
+          "A name and a country. Team-mates see them on the leaderboard, and nothing else in PersoNewsAP changes. A photo is optional, and you can add or remove it whenever you like.",
         usernameLabel: "Username",
         usernamePlaceholder: "augustin",
         countryLabel: "Country",
@@ -142,7 +142,7 @@ export function getTeamsCopy(language: ContentLanguage) {
 
 
         // Profile, continued
-        avatarRequired: "Required",
+        avatarOptional: "Optional",
         avatarChange: "Change photo",
         avatarHelp: "A square photo, resized on your phone before it is sent.",
         avatarPreparing: "Preparing the photo",
@@ -155,7 +155,14 @@ export function getTeamsCopy(language: ContentLanguage) {
         countryMoreResults: (count: number) =>
           count === 1 ? "1 more — keep typing" : `${count} more — keep typing`,
         countrySelected: "Selected country",
-        profileNeeds: "Teams needs a photo, a name and a country.",
+        profileNeeds: "Teams needs a name and a country.",
+        avatarRemoved: "Photo removed.",
+        teamPhotoLabel: "Team photo",
+        teamPhotoHelp: "Optional. Only members of this Team can see it.",
+        teamPhotoChoose: "Add a Team photo",
+        teamPhotoChange: "Change the Team photo",
+        teamPhotoRemove: "Remove the Team photo",
+        teamPhotoSaved: "Team photo updated.",
 
         // Create, continued
         createIntro: "You choose the topics. Everybody in the Team plays the same ones.",
@@ -247,7 +254,7 @@ export function getTeamsCopy(language: ContentLanguage) {
 
         profileTitle: "Choisissez votre nom de joueur",
         profileBody:
-          "Une photo, un nom et un pays. Vos coéquipiers les voient dans le classement, et rien d'autre ne change dans PersoNewsAP.",
+          "Un nom et un pays. Vos coéquipiers les voient dans le classement, et rien d'autre ne change dans PersoNewsAP. La photo est facultative, et vous pouvez l'ajouter ou la retirer quand vous voulez.",
         usernameLabel: "Nom d'utilisateur",
         usernamePlaceholder: "augustin",
         countryLabel: "Pays",
@@ -347,7 +354,7 @@ export function getTeamsCopy(language: ContentLanguage) {
         reportReasonOther: "Autre chose",
 
 
-        avatarRequired: "Obligatoire",
+        avatarOptional: "Facultatif",
         avatarChange: "Changer la photo",
         avatarHelp: "Une photo carrée, redimensionnée sur votre téléphone avant l'envoi.",
         avatarPreparing: "Préparation de la photo",
@@ -360,7 +367,14 @@ export function getTeamsCopy(language: ContentLanguage) {
         countryMoreResults: (count: number) =>
           count === 1 ? "1 autre — continuez à taper" : `${count} autres — continuez à taper`,
         countrySelected: "Pays sélectionné",
-        profileNeeds: "Teams demande une photo, un nom et un pays.",
+        profileNeeds: "Teams demande un nom et un pays.",
+        avatarRemoved: "Photo retirée.",
+        teamPhotoLabel: "Photo de la Team",
+        teamPhotoHelp: "Facultative. Seuls les membres de cette Team la voient.",
+        teamPhotoChoose: "Ajouter une photo de Team",
+        teamPhotoChange: "Changer la photo de Team",
+        teamPhotoRemove: "Retirer la photo de Team",
+        teamPhotoSaved: "Photo de la Team mise à jour.",
 
         createIntro: "Vous choisissez les sujets. Toute la Team joue les mêmes.",
         newsletterTopicsHelp: "Choisissez les sujets, puis le nombre d'articles de chacun.",

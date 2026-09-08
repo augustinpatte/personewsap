@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import {
   AppText,
   EmptyState,
+  ModuleContentSkeleton,
   PressableSurface,
   PrimaryButton,
   SecondaryButton
@@ -13,10 +14,16 @@ import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { useAuth } from "../auth";
-import { ModuleError, ModuleHeader, ModuleLoading, ModuleScroll } from "../modules";
+import {
+  ModuleError,
+  ModuleHeader,
+  ModuleScroll,
+  ModuleSurface
+} from "../modules";
 import { getModuleCopy } from "../modules/moduleCopy";
 import { resolveReaderEditionDate } from "../today/editionCadence";
 import { formatTeamPoints } from "./leaderboard";
+import { TeamAvatar } from "./PlayerAvatar";
 import { isProfileCompleteForTeams, type PlayerProfile } from "./playerProfile";
 import { fetchMyTeams, fetchPlayerProfile, type TeamSummary } from "./teamsData";
 import { useRefetchOnReturn } from "./useRefetchOnReturn";
@@ -41,11 +48,9 @@ import { TeamProfileGate } from "./TeamProfileGate";
  * watching change. Live updates begin on Team Detail and end when it closes.
  */
 export function TeamsLandingScreen() {
-  const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { profileLanguage, user } = useAuth();
   const language = profileLanguage ?? "en";
-  const copy = getTeamsCopy(language);
   const moduleCopy = getModuleCopy(language);
 
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
@@ -98,29 +103,43 @@ export function TeamsLandingScreen() {
   // this the reader returns to the list they saw before they had one.
   useRefetchOnReturn(useCallback(() => void load(), [load]));
 
-  if (status === "loading") {
-    return <ModuleLoading label={moduleCopy.common.loading} />;
-  }
+  // THE MASTHEAD IS NOT PART OF THE LOADING STATE. It used to be: the whole
+  // screen was replaced by a skeleton, so the header appeared out of nowhere
+  // when the data landed and the page visibly recomposed. The four module tabs
+  // keep their chrome and swap only the body, and so does this one now.
+  return (
+    <ModuleSurface>
+      <View style={styles.chrome}>
+        <ModuteHeaderRow language={language} />
+      </View>
 
-  if (status === "error") {
-    return (
-      <ModuleScroll>
-        <ModuleError language={language} onRetry={() => void load()} />
-      </ModuleScroll>
-    );
-  }
+      {status === "loading" ? (
+        <ModuleScroll>
+          <ModuleContentSkeleton label={moduleCopy.common.loading} />
+        </ModuleScroll>
+      ) : status === "error" ? (
+        <ModuleScroll>
+          <ModuleError language={language} onRetry={() => void load()} />
+        </ModuleScroll>
+      ) : // THE GATE, and the only place in the app it exists. Newsletter, Mini
+      // Cases, Stories, Path, the archive and Settings all work untouched for a
+      // reader who has never picked a username.
+      profile && !isProfileCompleteForTeams(profile) ? (
+        <TeamProfileGate onCompleted={() => void load()} profile={profile} />
+      ) : (
+        <TeamsList language={language} teams={teams} />
+      )}
+    </ModuleSurface>
+  );
+}
 
-  // THE GATE, and the only place in the app it exists. Newsletter, Mini Cases,
-  // Stories, Path, the archive and Settings all work untouched for a reader who
-  // has never picked a username.
-  if (profile && !isProfileCompleteForTeams(profile)) {
-    return <TeamProfileGate onCompleted={() => void load()} profile={profile} />;
-  }
+function TeamsList({ language, teams }: { language: "fr" | "en"; teams: TeamSummary[] }) {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const copy = getTeamsCopy(language);
 
   return (
     <ModuleScroll contentStyle={styles.content} reveal>
-      <ModuteHeaderRow language={language} />
-
       {/* Your Teams first: the reason a returning reader opened this tab is to
           see where they stand, not to acquire another league. */}
       {teams.length === 0 ? (
@@ -200,13 +219,19 @@ function TeamCard({
 
   return (
     <PressableSurface accessibilityHint={copy.leaderboard} onPress={onPress} variant="row">
-      <View style={styles.cardHead}>
-        <AppText numberOfLines={2} style={styles.cardName} variant="subtitle">
-          {team.name ?? copy.hiddenMember}
-        </AppText>
-        <AppText color="muted" variant="caption">
-          {copy.members(team.memberCount)}
-        </AppText>
+      <View style={styles.cardIdentity}>
+        {/* Null for most Teams, and that is the ordinary case rather than a
+            failure: the placeholder disc is what a Team without a photo looks
+            like, in both schemes. */}
+        <TeamAvatar avatarPath={team.avatarPath} />
+        <View style={styles.cardHead}>
+          <AppText numberOfLines={2} style={styles.cardName} variant="subtitle">
+            {team.name ?? copy.hiddenMember}
+          </AppText>
+          <AppText color="muted" variant="caption">
+            {copy.members(team.memberCount)}
+          </AppText>
+        </View>
       </View>
 
       {team.startsNextEdition ? (
@@ -232,13 +257,24 @@ const createStyles = (c: ThemeColors) =>
     content: {
       gap: tokens.space.xl
     },
+    chrome: {
+      gap: tokens.space.lg,
+      paddingHorizontal: tokens.space.lg,
+      paddingTop: tokens.space.md
+    },
     actions: {
       gap: tokens.space.sm
     },
     list: {
       gap: tokens.space.md
     },
+    cardIdentity: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
     cardHead: {
+      flex: 1,
       gap: tokens.space.xs
     },
     cardName: {

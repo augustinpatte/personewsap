@@ -1,5 +1,6 @@
 import { normalizeSupabaseError, supabase, type NormalizedSupabaseError } from "../../lib/supabase";
 import { stripBucketPrefix } from "./avatarPolicy";
+import { TEAM_AVATAR_BUCKET, stripTeamBucketPrefix } from "./teamAvatarPolicy";
 import type { EditionStatus, LeaderboardMember, LeaderboardRange } from "./leaderboard";
 import type { PlayerProfile } from "./playerProfile";
 
@@ -34,6 +35,8 @@ function fail(error: unknown): TeamsResult<never> {
 export type TeamSummary = {
   teamId: string;
   name: string | null;
+  /** Storage path in the `team-avatars` bucket, or null: a photo is optional. */
+  avatarPath: string | null;
   memberCount: number;
   isOwner: boolean;
   /** Null until the reader has scored in the current edition. */
@@ -95,6 +98,16 @@ export async function savePlayerIdentity(input: {
   username?: string | null;
   countryCode?: string | null;
   avatarPath?: string | null;
+  /**
+   * Take the photo off the profile.
+   *
+   * A separate flag rather than "avatarPath: null", because the RPC COALESCEs
+   * every argument so that sending only a country cannot erase a username.
+   * Under that rule NULL means "leave it alone", which leaves no way to say
+   * "remove it" — so removing is its own explicit intent, on the wire and in
+   * the function signature.
+   */
+  clearAvatar?: boolean;
 }): Promise<TeamsResult<PlayerProfile>> {
   if (!supabase) {
     return { ok: false, error: configError() };
@@ -102,10 +115,19 @@ export async function savePlayerIdentity(input: {
 
   try {
     const { data, error } = await supabase
+      // ALL FOUR ARGUMENTS, ALWAYS, INCLUDING p_clear_avatar: false.
+      //
+      // The database serves two overloads — this one and a 3-argument wrapper
+      // kept for the build already on people's phones — and PostgREST picks
+      // between them by the set of argument NAMES in this body. Dropping
+      // p_clear_avatar when it is false would silently route the call to the
+      // old wrapper, which cannot remove a photo. It is sent explicitly every
+      // time, and the generated type makes omitting it a compile error.
       .rpc("set_player_identity", {
         p_username: input.username ?? null,
         p_country_code: input.countryCode ?? null,
-        p_avatar_path: input.avatarPath ?? null
+        p_avatar_path: input.avatarPath ?? null,
+        p_clear_avatar: input.clearAvatar === true
       })
       .maybeSingle();
 
@@ -204,7 +226,7 @@ export async function fetchMyTeams(input: {
         : Promise.resolve({ data: [] as unknown[] }),
       supabase
         .from("team_directory")
-        .select("id,display_name,is_owner,status")
+        .select("id,display_name,avatar_path,is_owner,status")
         .in("id", teamIds)
         .eq("status", "active")
     ]);
@@ -243,6 +265,7 @@ export async function fetchMyTeams(input: {
           // own neutral label; a client that forgets renders nothing, which is
           // the safe failure rather than the old name.
           name: typeof team.display_name === "string" ? team.display_name : null,
+          avatarPath: typeof team.avatar_path === "string" ? team.avatar_path : null,
           memberCount: memberCounts.get(teamId) ?? 1,
           isOwner: team.is_owner === true,
           rank: null,
@@ -617,6 +640,33 @@ export async function signAvatarUrl(
 }
 
 /**
+ * The same, for a Team's own photo.
+ *
+ * A second private bucket rather than a folder in the first: the read rule is
+ * different — an active MEMBER of that Team, not a person who shares a Team
+ * with its owner — and a rule that different belongs behind its own set of
+ * policies rather than behind a path convention nobody can see from SQL.
+ */
+export async function signTeamAvatarUrl(
+  path: string,
+  expiresInSeconds = 3600
+): Promise<string | null> {
+  if (!supabase || !path) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(TEAM_AVATAR_BUCKET)
+      .createSignedUrl(stripTeamBucketPrefix(path), expiresInSeconds);
+
+    return error ? null : (data?.signedUrl ?? null);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * One team's header: name, size, the reader's role and eligibility.
  *
  * `get_team_detail` rather than three queries, and rather than a read of
@@ -628,6 +678,8 @@ export async function signAvatarUrl(
 export type TeamDetail = {
   teamId: string;
   name: string | null;
+  /** Storage path in the `team-avatars` bucket, or null: a photo is optional. */
+  avatarPath: string | null;
   nameHidden: boolean;
   status: "active" | "archived";
   isOwner: boolean;
@@ -660,6 +712,7 @@ export async function fetchTeamDetail(teamId: string): Promise<TeamsResult<TeamD
       data: {
         teamId: String(row.team_id ?? teamId),
         name: typeof row.display_name === "string" ? row.display_name : null,
+        avatarPath: typeof row.avatar_path === "string" ? row.avatar_path : null,
         nameHidden: row.name_hidden === true,
         status: row.team_status === "archived" ? "archived" : "active",
         isOwner: row.is_owner === true,
@@ -744,6 +797,40 @@ export async function fetchMyStreak(input: {
     });
 
     return error ? fail(error) : { ok: true, data: Number(data ?? 0) };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Set, replace or remove a Team's photo.
+ *
+ * Owner-only, and the server is what enforces that: `set_team_avatar` checks
+ * `is_team_owner` in the same statement that writes, so a member who reached
+ * this call some other way is refused with 42501 rather than trusted. The
+ * client's job is only to send the intent.
+ *
+ * `clear: true` is how a photo is removed. NULL cannot mean it, because a
+ * caller sending nothing must leave the existing photo alone — the same reason
+ * the player identity write has its own clear flag.
+ */
+export async function setTeamAvatar(input: {
+  teamId: string;
+  avatarPath?: string | null;
+  clear?: boolean;
+}): Promise<TeamsResult<string | null>> {
+  if (!supabase) {
+    return { ok: false, error: configError() };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("set_team_avatar", {
+      p_team_id: input.teamId,
+      p_avatar_path: input.avatarPath ?? null,
+      p_clear_avatar: input.clear === true
+    });
+
+    return error ? fail(error) : { ok: true, data: typeof data === "string" ? data : null };
   } catch (error) {
     return fail(error);
   }

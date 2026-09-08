@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  initialsFor,
   isProfileCompleteForTeams,
   missingProfileFields,
   normalizeCountryCode,
@@ -109,15 +108,16 @@ describe("the Teams gate", () => {
     avatarPath: "aaaa0000-0000-4000-8000-00000000000a/photo.jpg"
   };
 
-  it("needs a photo, a username and a country", () => {
+  it("needs a username and a country", () => {
     expect(isProfileCompleteForTeams(complete)).toBe(true);
   });
 
-  it("requires the avatar", () => {
-    // A leaderboard is a list of people, and the photo is how you recognise the
-    // friend you are playing against. A Team where half the rows are two grey
-    // letters is a spreadsheet.
-    expect(isProfileCompleteForTeams({ ...complete, avatarPath: null })).toBe(false);
+  it("does NOT require the avatar", () => {
+    // OBJECTIVE 2. A photo is optional. It briefly was not, and that put an iOS
+    // photo-library dialog between somebody and the first Team a friend invited
+    // them to — a Team you cannot join without handing over your face is not a
+    // private league between friends, it is a toll.
+    expect(isProfileCompleteForTeams({ ...complete, avatarPath: null })).toBe(true);
   });
 
   it("requires the username", () => {
@@ -128,13 +128,23 @@ describe("the Teams gate", () => {
     expect(isProfileCompleteForTeams({ ...complete, countryCode: null })).toBe(false);
   });
 
-  it("reports exactly what is missing", () => {
+  it("lets a reader with no photo through the gate and into Teams", () => {
+    // The whole of objective 2 in one assertion: the gate is what stands
+    // between a reader and their leaderboard, and a missing photo does not
+    // close it — at the gate, or ever after.
+    const noPhoto = { username: "augustin", countryCode: "FR", avatarPath: null };
+
+    expect(isProfileCompleteForTeams(noPhoto)).toBe(true);
+    expect(missingProfileFields(noPhoto)).toEqual([]);
+  });
+
+  it("reports exactly what is missing, and a photo is never missing", () => {
     expect(
       missingProfileFields({ username: null, countryCode: null, avatarPath: null })
-    ).toEqual(["avatar", "username", "country"]);
+    ).toEqual(["username", "country"]);
 
     expect(missingProfileFields({ ...complete, countryCode: null })).toEqual(["country"]);
-    expect(missingProfileFields({ ...complete, avatarPath: null })).toEqual(["avatar"]);
+    expect(missingProfileFields({ ...complete, avatarPath: null })).toEqual([]);
     expect(missingProfileFields(complete)).toEqual([]);
   });
 
@@ -148,18 +158,6 @@ describe("the Teams gate", () => {
   });
 });
 
-describe("fallback initials", () => {
-  it("always returns something a row can render", () => {
-    expect(initialsFor("augustin")).toBe("AU");
-    expect(initialsFor("aug.patte")).toBe("AP");
-    expect(initialsFor("a")).toBe("A");
-  });
-
-  it("survives a missing or moderated name", () => {
-    expect(initialsFor(null)).toBe("?");
-    expect(initialsFor("   ")).toBe("?");
-  });
-});
 
 // ---------------------------------------------------------------------------
 // The client and the server must refuse the same names

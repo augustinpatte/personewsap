@@ -12,9 +12,11 @@ import { getTeamsCopy } from "./teamsCopy";
 /**
  * The one thing Teams asks for before it will show you a leaderboard.
  *
- * A photo, a username and a country — all three, once. A leaderboard is a list
- * of people, and the photo is how you recognise the friend you are playing
- * against; a Team where half the rows are two grey letters is a spreadsheet.
+ * A username and a country, once. NOT a photo: that is offered on the same
+ * form, is genuinely optional, and can be added or taken off at any point from
+ * Account. A gate that demanded a face put a photo-library permission dialog in
+ * front of somebody opening a friend's invite, and "I would rather not" became
+ * a reason not to play at all.
  *
  * NOTHING ABOUT THIS GATE REACHES THE REST OF THE APP. A reader who closes it
  * still has their Newsletter, their Mini Cases, their Stories, their Path, their

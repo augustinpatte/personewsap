@@ -1,10 +1,12 @@
 import { Redirect, Stack } from "expo-router";
 
+import { useThemeColors } from "../../src/design";
 import { AppLaunchScreen, useAuth } from "../../src/features/auth";
 import { OnboardingProvider } from "../../src/features/onboarding";
 
 export default function OnboardingLayout() {
   const { profileLanguage, status } = useAuth();
+  const colors = useThemeColors();
 
   if (status === "loading") {
     return <AppLaunchScreen language={profileLanguage} />;
@@ -23,7 +25,8 @@ export default function OnboardingLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: "slide_from_right"
+          animation: "slide_from_right",
+          contentStyle: { backgroundColor: colors.background }
         }}
       />
     </OnboardingProvider>

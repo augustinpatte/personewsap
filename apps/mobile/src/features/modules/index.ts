@@ -6,6 +6,7 @@ export {
   ModuleHeader,
   ModuleLoading,
   ModuleScroll,
+  ModuleSurface,
   Monogram,
   ViewSwitch
 } from "./ModuleChrome";

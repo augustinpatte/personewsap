@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 
+import { useThemeColors } from "../../src/design";
 import { AppLaunchScreen, useAuth } from "../../src/features/auth";
 
 /**
@@ -11,10 +12,21 @@ import { AppLaunchScreen, useAuth } from "../../src/features/auth";
  */
 export default function TeamsLayout() {
   const { profileLanguage, status } = useAuth();
+  const colors = useThemeColors();
 
   if (status === "loading") {
     return <AppLaunchScreen language={profileLanguage} />;
   }
 
-  return <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }} />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "slide_from_right",
+        // A Team pushes over a Team: the screen sliding in has to be paper from
+        // its first frame, not the navigator's stock grey.
+        contentStyle: { backgroundColor: colors.background }
+      }}
+    />
+  );
 }

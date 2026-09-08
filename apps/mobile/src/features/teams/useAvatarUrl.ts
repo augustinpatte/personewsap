@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { signAvatarUrl } from "./teamsData";
+import { signAvatarUrl, signTeamAvatarUrl } from "./teamsData";
 
 /**
  * A signed URL for one avatar, cached for the life of the process.
@@ -23,8 +23,23 @@ const RENEW_MARGIN_MS = 60 * 1000;
 
 type Entry = { url: string; expiresAt: number };
 
+/**
+ * Two buckets, two caches, and never one shared by both.
+ *
+ * A player path and a Team path are both `<uuid>/<file>.jpg`, so a single cache
+ * keyed by path alone could serve a Team's picture for a member whose id
+ * happened to match — improbable, and exactly the kind of improbable that is
+ * impossible to debug. The bucket is part of the key because it is part of the
+ * identity of the object.
+ */
+type Bucket = "avatars" | "team-avatars";
+
 const cache = new Map<string, Entry>();
 const inFlight = new Map<string, Promise<string | null>>();
+
+function keyFor(bucket: Bucket, path: string): string {
+  return `${bucket}:${path}`;
+}
 
 function cached(path: string): string | null {
   const entry = cache.get(path);
@@ -47,12 +62,16 @@ export function clearAvatarUrlCache(): void {
   inFlight.clear();
 }
 
-export async function resolveAvatarUrl(path: string | null | undefined): Promise<string | null> {
+async function resolveIn(
+  bucket: Bucket,
+  path: string | null | undefined
+): Promise<string | null> {
   if (!path) {
     return null;
   }
 
-  const hit = cached(path);
+  const key = keyFor(bucket, path);
+  const hit = cached(key);
 
   if (hit) {
     return hit;
@@ -60,31 +79,45 @@ export async function resolveAvatarUrl(path: string | null | undefined): Promise
 
   // Twenty rows sharing one avatar path — or one row rendered twice while a
   // refetch is in flight — make one request, not twenty.
-  const pending = inFlight.get(path);
+  const pending = inFlight.get(key);
 
   if (pending) {
     return pending;
   }
 
-  const request = signAvatarUrl(path, TTL_SECONDS)
+  const sign = bucket === "avatars" ? signAvatarUrl : signTeamAvatarUrl;
+
+  const request = sign(path, TTL_SECONDS)
     .then((url) => {
       if (url) {
-        cache.set(path, { url, expiresAt: Date.now() + TTL_SECONDS * 1000 });
+        cache.set(key, { url, expiresAt: Date.now() + TTL_SECONDS * 1000 });
       }
 
       return url;
     })
     .finally(() => {
-      inFlight.delete(path);
+      inFlight.delete(key);
     });
 
-  inFlight.set(path, request);
+  inFlight.set(key, request);
 
   return request;
 }
 
-export function useAvatarUrl(path: string | null | undefined): string | null {
-  const [url, setUrl] = useState<string | null>(() => (path ? cached(path) : null));
+export async function resolveAvatarUrl(path: string | null | undefined): Promise<string | null> {
+  return resolveIn("avatars", path);
+}
+
+export async function resolveTeamAvatarUrl(
+  path: string | null | undefined
+): Promise<string | null> {
+  return resolveIn("team-avatars", path);
+}
+
+function useSignedAvatarUrl(bucket: Bucket, path: string | null | undefined): string | null {
+  const [url, setUrl] = useState<string | null>(() =>
+    path ? cached(keyFor(bucket, path)) : null
+  );
 
   useEffect(() => {
     let active = true;
@@ -96,7 +129,7 @@ export function useAvatarUrl(path: string | null | undefined): string | null {
       };
     }
 
-    const hit = cached(path);
+    const hit = cached(keyFor(bucket, path));
 
     if (hit) {
       setUrl(hit);
@@ -105,7 +138,7 @@ export function useAvatarUrl(path: string | null | undefined): string | null {
       };
     }
 
-    void resolveAvatarUrl(path).then((next) => {
+    void resolveIn(bucket, path).then((next) => {
       if (active) {
         setUrl(next);
       }
@@ -114,7 +147,15 @@ export function useAvatarUrl(path: string | null | undefined): string | null {
     return () => {
       active = false;
     };
-  }, [path]);
+  }, [bucket, path]);
 
   return url;
+}
+
+export function useAvatarUrl(path: string | null | undefined): string | null {
+  return useSignedAvatarUrl("avatars", path);
+}
+
+export function useTeamAvatarUrl(path: string | null | undefined): string | null {
+  return useSignedAvatarUrl("team-avatars", path);
 }

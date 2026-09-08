@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, type Href } from "expo-router";
 import { AppState, StyleSheet, View } from "react-native";
 
-import { AppText, SecondaryButton } from "../../components";
+import { AppText, ModuleContentSkeleton, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useAuth } from "../auth";
-import { ModuleError, ModuleLoading, ModuleScroll, ViewSwitch } from "../modules";
+import { ModuleError } from "../modules";
 import { getModuleCopy } from "../modules/moduleCopy";
 import { getReaderCopy } from "../today/contentCopy";
 import { ReaderScaffold } from "../today/readers";
@@ -22,7 +22,7 @@ import {
   type LeaderboardRange,
   type LeaderboardRow
 } from "./leaderboard";
-import { PlayerAvatar } from "./PlayerAvatar";
+import { PlayerAvatar, TeamAvatar } from "./PlayerAvatar";
 import { getTeamsCopy, rangeLabel, statusLabel } from "./teamsCopy";
 import {
   fetchBlockedUserIds,
@@ -142,14 +142,23 @@ export function TeamDetailScreen({ teamId }: { teamId: string }) {
   const progress = teamEditionProgress(rows);
   const startsNextEdition = self?.status === "starts_next_edition";
 
-  if (status === "loading") {
-    return <ModuleLoading label={moduleCopy.common.loading} />;
-  }
-
-  if (status === "error") {
+  // Loading and error both keep the scaffold. Returning a bare skeleton here
+  // took the safe area, the background and the way back off the screen for as
+  // long as the fetch lasted, so a slow network showed an unpainted page with
+  // no exit; the reader now waits inside the same frame the Team arrives in.
+  if (status === "loading" || status === "error") {
     return (
-      <ReaderScaffold closeLabel={getReaderCopy(language).close} onClose={() => router.back()}>
-        <ModuleError language={language} onRetry={() => void load(range)} />
+      <ReaderScaffold
+        closeLabel={getReaderCopy(language).close}
+        eyebrow={copy.eyebrow}
+        iconName="users"
+        onClose={() => router.back()}
+      >
+        {status === "loading" ? (
+          <ModuleContentSkeleton label={moduleCopy.common.loading} />
+        ) : (
+          <ModuleError language={language} onRetry={() => void load(range)} />
+        )}
       </ReaderScaffold>
     );
   }
@@ -162,12 +171,17 @@ export function TeamDetailScreen({ teamId }: { teamId: string }) {
       onClose={() => router.back()}
     >
       <View style={styles.identity}>
-        <AppText numberOfLines={2} variant="title">
-          {team?.name ?? copy.hiddenMember}
-        </AppText>
-        <AppText color="muted" variant="caption">
-          {[copy.members(team?.memberCount ?? rows.length), copy.currentEdition].join(" · ")}
-        </AppText>
+        <View style={styles.identityHead}>
+          <TeamAvatar avatarPath={team?.avatarPath} size="header" />
+          <View style={styles.identityCopy}>
+            <AppText numberOfLines={2} variant="title">
+              {team?.name ?? copy.hiddenMember}
+            </AppText>
+            <AppText color="muted" variant="caption">
+              {[copy.members(team?.memberCount ?? rows.length), copy.currentEdition].join(" · ")}
+            </AppText>
+          </View>
+        </View>
         {team?.status === "archived" ? (
           <AppText color="mutedSoft" variant="caption">
             {copy.teamArchived}
@@ -347,6 +361,15 @@ function LeaderboardRowView({
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     identity: {
+      gap: tokens.space.xs
+    },
+    identityHead: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: tokens.space.md
+    },
+    identityCopy: {
+      flex: 1,
       gap: tokens.space.xs
     },
     summary: {

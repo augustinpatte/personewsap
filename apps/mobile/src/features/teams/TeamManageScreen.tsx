@@ -2,15 +2,24 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, type Href } from "expo-router";
 import { Alert, StyleSheet, TextInput, View } from "react-native";
 
-import { AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
+import {
+  AppText,
+  Card,
+  ModuleContentSkeleton,
+  PrimaryButton,
+  SecondaryButton
+} from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useAuth } from "../auth";
-import { EditorialRule, ModuleError, ModuleLoading } from "../modules";
+import { EditorialRule, ModuleError } from "../modules";
 import { getModuleCopy } from "../modules/moduleCopy";
 import { formatDropDate, getReaderCopy } from "../today/contentCopy";
 import { ReaderScaffold } from "../today/readers";
+import { pickAndCompressAvatar } from "./avatarUpload";
+import { TeamAvatar } from "./PlayerAvatar";
 import { validateTeamName } from "./playerProfile";
+import { deleteTeamAvatarObject, uploadTeamAvatar } from "./teamAvatarUpload";
 import { TeamConfigFields } from "./TeamConfigFields";
 import {
   EMPTY_DRAFT,
@@ -26,6 +35,7 @@ import {
   leaveTeam,
   renameTeam,
   saveTeamConfig,
+  setTeamAvatar,
   type TeamDetail
 } from "./teamsData";
 import { useRefetchOnReturn } from "./useRefetchOnReturn";
@@ -66,6 +76,10 @@ export function TeamManageScreen({ teamId }: { teamId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  // The Team photo is written on its own, not with the rename: they are two
+  // decisions, and batching them would make "I only wanted to change the
+  // picture" also re-submit a name the owner had not touched.
+  const [photoStage, setPhotoStage] = useState<"idle" | "preparing" | "saving">("idle");
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -160,6 +174,94 @@ export function TeamManageScreen({ teamId }: { teamId: string }) {
     setNotice(copy.configSaved);
   };
 
+  /**
+   * Add or replace the Team photo.
+   *
+   * Uploaded to `team-avatars/<team id>/…` and only then pointed at by
+   * `set_team_avatar`, in that order: a row pointing at an object that does not
+   * exist yet would be a broken picture for every member, whereas an upload
+   * whose RPC fails is one orphaned file. The previous object is removed after
+   * the row has stopped pointing at it, and is never awaited.
+   */
+  const onChooseTeamPhoto = async () => {
+    setError(null);
+    setPhotoStage("preparing");
+
+    const picked = await pickAndCompressAvatar();
+
+    if (picked.status === "cancelled") {
+      setPhotoStage("idle");
+      return;
+    }
+
+    if (picked.status !== "picked") {
+      setPhotoStage("idle");
+      setError(
+        picked.status === "too_large"
+          ? copy.avatarTooLarge
+          : picked.status === "permission_denied"
+            ? copy.avatarPermissionBody
+            : copy.avatarFailed
+      );
+      return;
+    }
+
+    setPhotoStage("saving");
+
+    const upload = await uploadTeamAvatar({
+      teamId,
+      base64: picked.base64,
+      bytes: picked.bytes
+    });
+
+    if (upload.status !== "uploaded") {
+      setPhotoStage("idle");
+      setError(upload.status === "too_large" ? copy.avatarTooLarge : copy.avatarFailed);
+      return;
+    }
+
+    const result = await setTeamAvatar({ teamId, avatarPath: upload.path });
+
+    setPhotoStage("idle");
+
+    if (!result.ok) {
+      setError(result.error.code === "42501" ? copy.notOwner : copy.actionFailed);
+      return;
+    }
+
+    const replaced = team?.avatarPath ?? null;
+
+    if (replaced && replaced !== result.data) {
+      void deleteTeamAvatarObject(replaced);
+    }
+
+    setTeam((current) => (current ? { ...current, avatarPath: result.data } : current));
+    setNotice(copy.teamPhotoSaved);
+  };
+
+  const onRemoveTeamPhoto = async () => {
+    const replaced = team?.avatarPath ?? null;
+
+    setError(null);
+    setPhotoStage("saving");
+
+    const result = await setTeamAvatar({ teamId, clear: true });
+
+    setPhotoStage("idle");
+
+    if (!result.ok) {
+      setError(result.error.code === "42501" ? copy.notOwner : copy.actionFailed);
+      return;
+    }
+
+    if (replaced) {
+      void deleteTeamAvatarObject(replaced);
+    }
+
+    setTeam((current) => (current ? { ...current, avatarPath: null } : current));
+    setNotice(copy.teamPhotoSaved);
+  };
+
   const onArchive = () => {
     Alert.alert(copy.archiveTitle, copy.archiveConfirm, [
       { text: copy.cancel, style: "cancel" },
@@ -224,7 +326,7 @@ export function TeamManageScreen({ teamId }: { teamId: string }) {
       iconName="users"
       onClose={() => router.back()}
     >
-      {status === "loading" ? <ModuleLoading label={moduleCopy.common.loading} /> : null}
+      {status === "loading" ? <ModuleContentSkeleton label={moduleCopy.common.loading} /> : null}
       {status === "error" ? <ModuleError language={language} onRetry={() => void load()} /> : null}
 
       {status === "ready" && team ? (
@@ -255,6 +357,40 @@ export function TeamManageScreen({ teamId }: { teamId: string }) {
 
           {team.isOwner ? (
             <>
+              <Card padding="lg" style={styles.card}>
+                <AppText color="muted" variant="caption">
+                  {copy.teamPhotoLabel}
+                </AppText>
+                <View style={styles.teamPhoto}>
+                  {/* Null is the ordinary state. The placeholder is a Team
+                      without a photo, not a Team whose photo failed. */}
+                  <TeamAvatar avatarPath={team.avatarPath} size="hero" />
+                  <AppText align="center" color="mutedSoft" variant="caption">
+                    {copy.teamPhotoHelp}
+                  </AppText>
+                  <SecondaryButton
+                    disabled={working || photoStage !== "idle"}
+                    label={
+                      photoStage === "preparing"
+                        ? copy.avatarPreparing
+                        : photoStage === "saving"
+                          ? copy.avatarUploading
+                          : team.avatarPath
+                            ? copy.teamPhotoChange
+                            : copy.teamPhotoChoose
+                    }
+                    onPress={() => void onChooseTeamPhoto()}
+                  />
+                  {team.avatarPath ? (
+                    <SecondaryButton
+                      disabled={working || photoStage !== "idle"}
+                      label={copy.teamPhotoRemove}
+                      onPress={() => void onRemoveTeamPhoto()}
+                    />
+                  ) : null}
+                </View>
+              </Card>
+
               <Card padding="lg" style={styles.card}>
                 <AppText color="muted" variant="caption">
                   {copy.nameLabel}
@@ -350,6 +486,10 @@ const createStyles = (_c: ThemeColors) =>
       minHeight: 48,
       paddingHorizontal: tokens.space.md,
       paddingVertical: tokens.space.md
+    },
+    teamPhoto: {
+      alignItems: "center",
+      gap: tokens.space.sm
     },
     danger: {
       gap: tokens.space.sm

@@ -115,6 +115,13 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
+          // Each tab's scene container. Left unset it is painted by
+          // @react-navigation/elements' Background with the navigation theme's
+          // colour — which used to be the library's stock light grey in both
+          // schemes, and was what flashed between two tabs at night. The theme
+          // is PersoNewsAP's now; this states the same answer where the switch
+          // actually happens.
+          sceneStyle: { backgroundColor: colors.background },
           tabBarActiveTintColor: colors.ink,
           tabBarInactiveTintColor: colors.muted,
           // The bar floats over the content instead of reserving a strip of

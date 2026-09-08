@@ -41,7 +41,9 @@ const MIGRATIONS = [
   "20260907140000_teams_security_hardening.sql",
   "20260907170000_resume_settled_question_attempt.sql",
   "20260907180000_scored_question_contract_declaration.sql",
-  "20260907190000_verify_edition_game_contract.sql"
+  "20260907190000_verify_edition_game_contract.sql",
+  "20260908090000_optional_player_avatar.sql",
+  "20260908091000_team_avatar.sql"
 ] as const;
 
 const sources = new Map(
@@ -1382,6 +1384,281 @@ describe("the hardening pass grants nothing new away", () => {
         header.slice(header.indexOf("("), header.indexOf(")") + 1).replace(/\s+/g, " ");
 
       expect(signature(replacement!.header), name).toBe(signature(original!.header));
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Optional avatars, for people and for Teams
+// ---------------------------------------------------------------------------
+
+describe("a player photo is optional and removable", () => {
+  const optional = stripNoise(
+    readFileSync(join(migrationsDir, "20260908090000_optional_player_avatar.sql"), "utf8")
+  );
+
+  it("never made the column NOT NULL, and still does not", () => {
+    // The requirement only ever lived in the client. Nothing in the schema has
+    // to change for a photo to be optional — which is why this migration adds
+    // no column, drops no column and touches no row.
+    for (const line of allCode.split("\n")) {
+      expect(line, line.trim()).not.toMatch(/avatar_path[^,]*NOT NULL/i);
+    }
+
+    expect(optional).not.toMatch(/ALTER TABLE[\s\S]{0,200}avatar_path/i);
+  });
+
+  it("gives removal its own argument instead of overloading NULL", () => {
+    // NULL means "leave this field alone" — the COALESCE that stops a caller
+    // sending only a country from erasing a username. So it cannot also mean
+    // "remove", and removal is explicit.
+    expect(optional).toContain("p_clear_avatar BOOLEAN");
+    expect(optional).toMatch(/WHEN v_clear THEN NULL\s*\n\s*ELSE COALESCE\(v_avatar, p\.avatar_path\)/);
+    expect(optional).toMatch(/username = COALESCE\(v_username, p\.username\)/);
+    expect(optional).toMatch(/country_code = COALESCE\(v_country, p\.country_code\)/);
+  });
+
+  it("refuses to set and clear in the same call", () => {
+    expect(optional).toMatch(/IF v_clear AND v_avatar IS NOT NULL THEN[\s\S]{0,200}RAISE EXCEPTION/);
+  });
+
+  it("keeps the 3-argument signature the installed build still calls", () => {
+    // A TestFlight build in people's hands calls set_player_identity with
+    // exactly three arguments and cannot be changed retroactively. Dropping
+    // that signature would break the profile screen on every one of those
+    // phones for as long as the build lives.
+    expect(optional).not.toMatch(/DROP FUNCTION[^;]*set_player_identity/i);
+
+    // Both entrances are created, and the older one is replaced in place rather
+    // than removed and re-added.
+    expect(optional).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.set_player_identity\(\s*\n\s*p_username TEXT,\s*\n\s*p_country_code TEXT,\s*\n\s*p_avatar_path TEXT,/
+    );
+    expect(optional).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.set_player_identity\(\s*\n\s*p_username TEXT DEFAULT NULL,\s*\n\s*p_country_code TEXT DEFAULT NULL,\s*\n\s*p_avatar_path TEXT DEFAULT NULL\s*\n\s*\)/
+    );
+  });
+
+  it("gives p_clear_avatar no default, which is what keeps the two disjoint", () => {
+    // PostgREST resolves an overload by the set of argument NAMES in the body.
+    // With a default, {p_username, p_country_code, p_avatar_path} would satisfy
+    // both candidates and every installed build would get PGRST203 instead of a
+    // saved profile.
+    expect(optional).toMatch(/p_clear_avatar BOOLEAN\s*\n?\s*\)/);
+    expect(optional).not.toMatch(/p_clear_avatar BOOLEAN DEFAULT/i);
+  });
+
+  it("makes the wrapper delegate rather than restate a single guard", () => {
+    // Two copies of an avatar ownership check is one copy too many, and the one
+    // that drifts is always the one nobody is looking at. The wrapper holds no
+    // rules: it calls the canonical function with the old semantics.
+    const wrapper = optional.slice(optional.lastIndexOf("LANGUAGE sql"));
+
+    expect(wrapper).toContain("FROM public.set_player_identity(");
+    expect(wrapper).toContain("false");
+    expect(wrapper).not.toContain("is_own_avatar_path");
+    expect(wrapper).not.toContain("is_reserved_username");
+    expect(wrapper).not.toContain("auth.uid()");
+    // And it is still search_path-pinned, definer or not.
+    expect(wrapper).toContain("SET search_path = public, pg_temp");
+  });
+
+  it("locks both signatures down identically", () => {
+    for (const signature of ["TEXT, TEXT, TEXT, BOOLEAN", "TEXT, TEXT, TEXT"]) {
+      for (const role of ["PUBLIC", "anon"]) {
+        expect(
+          optional,
+          `${signature} / ${role}`
+        ).toContain(
+          `REVOKE ALL ON FUNCTION public.set_player_identity(${signature}) FROM ${role};`
+        );
+      }
+
+      for (const role of ["authenticated", "service_role"]) {
+        expect(optional, `${signature} / ${role}`).toContain(
+          `GRANT EXECUTE ON FUNCTION public.set_player_identity(${signature}) TO ${role};`
+        );
+      }
+    }
+  });
+
+  it("keeps the impersonation guard it inherited", () => {
+    // The function is recreated wholesale, so the guard from 20260907160000 has
+    // to be restated — and it is the one thing here that must not be lost.
+    expect(optional).toMatch(
+      /is_own_avatar_path\(v_avatar, v_user_id\) IS NOT TRUE THEN[\s\S]{0,200}RAISE EXCEPTION/
+    );
+    expect(optional).toContain("v_user_id UUID := auth.uid();");
+  });
+});
+
+describe("a Team photo is optional, private and owner-only", () => {
+  const teamAvatar = stripNoise(
+    readFileSync(join(migrationsDir, "20260908091000_team_avatar.sql"), "utf8")
+  );
+  const teamAvatarRaw = readFileSync(
+    join(migrationsDir, "20260908091000_team_avatar.sql"),
+    "utf8"
+  );
+
+  it("adds one nullable column and nothing else to public.teams", () => {
+    expect(teamAvatar).toContain("ADD COLUMN IF NOT EXISTS avatar_path TEXT");
+    expect(teamAvatar).not.toMatch(/avatar_path TEXT NOT NULL/i);
+    // Existing teams keep working untouched: no backfill, no default. The one
+    // UPDATE in the file is set_team_avatar's own, which is checked below.
+    expect(teamAvatar).not.toMatch(/ADD COLUMN IF NOT EXISTS avatar_path TEXT\s+DEFAULT/i);
+    expect((teamAvatar.match(/UPDATE public\.teams/gi) ?? []).length).toBe(1);
+  });
+
+  it("constrains the shape of a stored path but never requires one", () => {
+    expect(teamAvatar).toMatch(/CHECK \(avatar_path IS NULL OR avatar_path ~ ''\)/);
+  });
+
+  it("keeps the bucket private", () => {
+    const insert = /INSERT INTO storage\.buckets[\s\S]*?;/.exec(teamAvatarRaw)?.[0] ?? "";
+
+    expect(insert).toContain("'team-avatars'");
+    expect(insert).toMatch(/FALSE,\s*\n/);
+    expect(insert).toContain("409600");
+    expect(teamAvatarRaw).toContain("SET public = FALSE");
+    expect(teamAvatarRaw).not.toMatch(/public\s*=\s*TRUE/i);
+  });
+
+  it("lets only the owner write an object and only a member read one", () => {
+    // The permission IS the path: the first segment names the team, and the
+    // policy turns that into a membership question.
+    //
+    // Read one policy at a time. A regex that scanned the whole file would find
+    // the right predicate in the NEXT policy and pass while this one was wrong,
+    // which is exactly the mistake worth guarding against here.
+    const policies = new Map<string, string>();
+
+    for (const match of teamAvatarRaw.matchAll(
+      /CREATE POLICY "([^"]+)"([\s\S]*?)\n {2}\$policy\$/g
+    )) {
+      policies.set(match[1], match[2]);
+    }
+
+    expect([...policies.keys()].sort()).toEqual([
+      "Owners delete a team avatar",
+      "Owners replace a team avatar",
+      "Owners upload a team avatar",
+      "Team members can read a team avatar"
+    ]);
+
+    for (const [name, body] of policies) {
+      expect(body, name).toContain("bucket_id = 'team-avatars'");
+      expect(body, name).toContain("TO authenticated");
+
+      if (name.startsWith("Owners")) {
+        expect(body, name).toContain(
+          "public.is_team_owner(public.team_avatar_object_team(name))"
+        );
+        expect(body, name).not.toContain("is_active_team_member");
+      } else {
+        expect(body, name).toContain(
+          "public.is_active_team_member(public.team_avatar_object_team(name))"
+        );
+        expect(body, name).toContain("FOR SELECT");
+      }
+    }
+
+    // UPDATE carries the predicate twice: USING for the row it starts on and
+    // WITH CHECK for the row it becomes.
+    const replace = policies.get("Owners replace a team avatar") ?? "";
+
+    expect(replace).toContain("USING (");
+    expect(replace).toContain("WITH CHECK (");
+    expect(
+      (replace.match(/public\.is_team_owner\(public\.team_avatar_object_team\(name\)\)/g) ?? [])
+        .length
+    ).toBe(2);
+
+    // Never FOR ALL: it would let one statement move an object from one team's
+    // folder into another's, since only the destination is WITH CHECKed.
+    expect(teamAvatarRaw).not.toMatch(/ON storage\.objects\s*\n\s*FOR ALL/);
+  });
+
+  it("fails closed on a path it cannot parse", () => {
+    // team_avatar_object_team returns NULL for anything that is not
+    // <uuid>/<file>, and both membership predicates read NULL as false.
+    expect(teamAvatar).toMatch(/IF array_length\(v_segments, 1\) <> 2 THEN\s*\n\s*RETURN NULL;/);
+    expect(teamAvatar).toMatch(/is_team_avatar_path[\s\S]{0,600}SELECT COALESCE\(/);
+    expect(teamAvatar).toMatch(
+      /is_team_avatar_path\(v_avatar, p_team_id\) IS NOT TRUE THEN[\s\S]{0,200}RAISE EXCEPTION/
+    );
+  });
+
+  it("refuses a URL and a traversal in the stored path", () => {
+    expect(teamAvatarRaw).toContain("AND p_path !~* '^[a-z][a-z0-9+.-]*:'");
+    expect(teamAvatarRaw).toContain("AND p_path !~ '\\.\\.'");
+  });
+
+  it("makes set_team_avatar the only writer, and owner-only", () => {
+    expect(teamAvatar).toMatch(
+      /set_team_avatar[\s\S]{0,900}IF NOT public\.is_team_owner\(p_team_id\) THEN[\s\S]{0,200}RAISE EXCEPTION/
+    );
+    // It writes avatar_path and nothing else, so a photo change can never
+    // rename a Team or lift a moderation decision.
+    const update = /UPDATE public\.teams AS t[\s\S]*?;/.exec(teamAvatar)?.[0] ?? "";
+
+    expect(update).toContain("avatar_path");
+    expect(update).toContain("updated_at");
+    expect(update).not.toMatch(/\bname\b|name_status|owner_id|invite_code|status =/);
+  });
+
+  it("supports add, replace and remove — and refuses set-and-clear", () => {
+    expect(teamAvatar).toContain("p_clear_avatar BOOLEAN DEFAULT FALSE");
+    expect(teamAvatar).toMatch(/IF v_clear AND v_avatar IS NOT NULL THEN[\s\S]{0,200}RAISE EXCEPTION/);
+    expect(teamAvatar).toMatch(/IF NOT v_clear AND v_avatar IS NULL THEN[\s\S]{0,200}RAISE EXCEPTION/);
+    expect(teamAvatar).toMatch(/SET avatar_path = CASE WHEN v_clear THEN NULL ELSE v_avatar END/);
+  });
+
+  it("serves the path through the moderated projection, never from public.teams", () => {
+    expect(teamAvatar).toContain("DROP VIEW IF EXISTS public.team_directory;");
+    expect(teamAvatar).toContain("CREATE VIEW public.team_directory AS");
+    expect(teamAvatar).toContain(
+      "ALTER VIEW public.team_directory SET (security_invoker = false);"
+    );
+    expect(teamAvatar).toMatch(/WHERE public\.is_active_team_member\(t\.id\);/);
+    expect(teamAvatar).not.toMatch(/GRANT SELECT ON TABLE public\.teams TO authenticated/i);
+
+    const view = /CREATE VIEW public\.team_directory AS([\s\S]*?);/.exec(teamAvatar)?.[1] ?? "";
+
+    expect(view).not.toMatch(/invite_code/);
+    expect(view).not.toMatch(/owner_id\s*,/);
+  });
+
+  it("hides a moderated Team's photo with its name", () => {
+    // A hidden name beside the picture that provoked the report would be the
+    // moderation decision half-applied.
+    expect(teamAvatarRaw).toContain(
+      "CASE WHEN t.name_status = 'hidden' THEN NULL ELSE t.avatar_path END"
+    );
+    expect(
+      teamAvatarRaw.split("CASE WHEN t.name_status = 'hidden' THEN NULL ELSE t.avatar_path END")
+        .length - 1
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("grants the client nothing on the new bucket beyond the RPC", () => {
+    expect(teamAvatar).not.toMatch(/GRANT[^;]*storage\.[^;]*authenticated/i);
+    expect([...teamAvatar.matchAll(/GRANT[^;]*?\bTO\b[^;]*?\banon\b/gi)]).toEqual([]);
+    expect(teamAvatar).toContain(
+      "REVOKE ALL ON FUNCTION public.set_team_avatar(UUID, TEXT, BOOLEAN) FROM anon;"
+    );
+  });
+
+  it("changes nothing about scoring, editions or the publication pipeline", () => {
+    for (const forbidden of [
+      "question_attempts",
+      "team_question_scores",
+      "team_member_edition_scores",
+      "publish_scheduled_staging_payload",
+      "register_edition",
+      "materialize_"
+    ]) {
+      expect(teamAvatar, forbidden).not.toContain(forbidden);
     }
   });
 });

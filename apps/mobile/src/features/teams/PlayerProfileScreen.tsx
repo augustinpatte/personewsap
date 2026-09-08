@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 
-import { AppText } from "../../components";
+import { AppText, ModuleContentSkeleton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useAuth } from "../auth";
-import { ModuleError, ModuleLoading } from "../modules";
+import { ModuleError } from "../modules";
 import { getModuleCopy } from "../modules/moduleCopy";
 import { getReaderCopy } from "../today/contentCopy";
 import { ReaderScaffold } from "../today/readers";
@@ -63,7 +63,7 @@ export function PlayerProfileScreen() {
       iconName="users"
       onClose={() => router.back()}
     >
-      {status === "loading" ? <ModuleLoading label={moduleCopy.common.loading} /> : null}
+      {status === "loading" ? <ModuleContentSkeleton label={moduleCopy.common.loading} /> : null}
       {status === "error" ? <ModuleError language={language} onRetry={() => void load()} /> : null}
 
       {status === "ready" && profile ? (

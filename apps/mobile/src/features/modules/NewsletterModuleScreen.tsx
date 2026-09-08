@@ -2,7 +2,6 @@ import { useRouter, type Href } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   AppText,
@@ -48,6 +47,7 @@ import {
   ModuleHeader,
   ModuleLoading,
   ModuleScroll,
+  ModuleSurface,
   ViewSwitch
 } from "./ModuleChrome";
 import { TodayQuietState } from "./TodayQuietState";
@@ -85,7 +85,7 @@ export function NewsletterModuleScreen() {
   const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <ModuleSurface>
       <View style={styles.chrome}>
         <ModuleHeader
           accountLabel={copy.common.accountLabel}
@@ -123,7 +123,7 @@ export function NewsletterModuleScreen() {
       ) : (
         <NewsletterArchive />
       )}
-    </SafeAreaView>
+    </ModuleSurface>
   );
 }
 
@@ -540,10 +540,6 @@ function EditionArticleRow({ article }: { article: LibraryItemSummary }) {
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    safeArea: {
-      backgroundColor: c.background,
-      flex: 1
-    },
     chrome: {
       gap: tokens.space.lg,
       paddingHorizontal: tokens.space.lg,
