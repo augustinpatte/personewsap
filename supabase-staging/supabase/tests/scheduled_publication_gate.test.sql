@@ -453,6 +453,27 @@ end $$;
 -- opening a challenge that does not exist.
 
 /** Replace one job's stored output with a mutated copy of itself. */
+/**
+ * A mini-case question block in the format that predates the contract.
+ *
+ * `role: framework` and `is_correct` booleans — which is what the six approved
+ * mini cases of the 2026-09-09 batch carry. Reproduced here so the gate's
+ * refusal of them is a test rather than an expectation.
+ */
+create or replace function pg_temp.pre_contract_questions() returns jsonb
+language sql immutable as $$
+  select jsonb_agg(jsonb_build_object(
+    'id', 'q' || n,
+    'role', role,
+    'question', 'Question ' || n || ' in the old shape',
+    'options', jsonb_build_array(
+      jsonb_build_object('id','a','text','Option A','is_correct',true,'feedback','Correct.'),
+      jsonb_build_object('id','b','text','Option B','is_correct',false,'feedback','No.'),
+      jsonb_build_object('id','c','text','Option C','is_correct',false,'feedback','No.'),
+      jsonb_build_object('id','d','text','Option D','is_correct',false,'feedback','No.'))
+  )) from (values (1,'framework'),(2,'application'),(3,'decision')) v(n, role);
+$$;
+
 create or replace function pg_temp.break_questions(
   p_batch uuid,
   p_content_type text,
@@ -516,6 +537,20 @@ begin
     v_json := jsonb_set(v_json, '{fr,questions,2,role}', to_jsonb('method_framework'::text));
 
   elsif p_mutation = 'no_questions' then
+    v_json := (v_json #- '{en,questions}') #- '{fr,questions}';
+
+  elsif p_mutation = 'pre_contract_mini_case' then
+    -- THE SHAPE THE 2026-09-09 BATCH ACTUALLY CARRIES TODAY: the old role
+    -- vocabulary (`framework`) and options graded with `is_correct` instead of
+    -- `score_milli`. Six approved mini cases look exactly like this, and the
+    -- whole point of Blocker 3 is that they must be refused with a precise
+    -- diagnostic rather than published as though they satisfied the contract.
+    v_json := jsonb_set(v_json, '{en,questions}', pg_temp.pre_contract_questions());
+    v_json := jsonb_set(v_json, '{fr,questions}', pg_temp.pre_contract_questions());
+
+  elsif p_mutation = 'story_without_questions' then
+    -- The approved Business Story of that same batch: reviewed, approved, and
+    -- carrying no questions at all.
     v_json := (v_json #- '{en,questions}') #- '{fr,questions}';
 
   elsif p_mutation = 'no_feedback' then
@@ -711,6 +746,168 @@ begin
   where id = v_batch;
   perform pg_temp.record(16, 'L4 a bundle naming the contract opts in', 'true',
     public.batch_requires_scored_questions(v_batch)::text);
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- M. The declaration travels with the payload
+-- ---------------------------------------------------------------------------
+-- Production must not infer that an edition owes its readers questions; it must
+-- be TOLD. This is the telling. Without it the whole false-green fix on the
+-- production side has nothing to read.
+
+do $$
+declare
+  v_batch uuid;
+  v_plan jsonb;
+begin
+  v_batch := pg_temp.mk_edition('2027-04-05'::date, 'daily');           -- Monday
+  v_plan := public.get_scheduled_edition_publish_plan('2027-04-05');
+
+  perform pg_temp.record(17, 'M1 a ready payload is offered', 'true',
+    (v_plan->'ready_payload' <> 'null'::jsonb)::text);
+  perform pg_temp.record(17, 'M2 and it declares that questions are required', 'true',
+    v_plan->'ready_payload'->'batch'->>'scored_questions_required');
+  perform pg_temp.record(17, 'M3 with the contract version, as an integer', '1',
+    v_plan->'ready_payload'->'batch'->>'scored_question_contract_version');
+  perform pg_temp.record(17, 'M4 the version is the one the contract reports',
+    'scored-questions-v' || (v_plan->'ready_payload'->'batch'->>'scored_question_contract_version'),
+    public.scored_question_contract()->>'version');
+
+  -- The declaration follows the gate's verdict, not a constant. A batch the
+  -- cutover does not reach declares `false`, and production honours that as an
+  -- explicit legacy edition rather than as a silence.
+  update public.automation_batches
+  set metadata = metadata || jsonb_build_object('scored_questions', false)
+  where id = v_batch;
+
+  v_plan := public.get_scheduled_edition_publish_plan('2027-04-05');
+
+  perform pg_temp.record(17, 'M5 an opted-out batch declares false', 'false',
+    v_plan->'ready_payload'->'batch'->>'scored_questions_required');
+  perform pg_temp.record(17, 'M6 and still declares the version, so the edition is classifiable', '1',
+    v_plan->'ready_payload'->'batch'->>'scored_question_contract_version');
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- N. The batches already prepared for 2026-09-09
+-- ---------------------------------------------------------------------------
+-- These are real, they are approved, and they are wrong. Six mini cases carry
+-- the old `framework` / `is_correct` shape and the approved Business Story
+-- carries no questions at all. The requirement is not that the code repair them
+-- — nothing here mutates a reviewed output — but that it refuse them, name the
+-- job that is blocking, and keep the outputs and reviews intact.
+
+do $$
+declare
+  v_batch uuid;
+  v_job uuid;
+  v_outputs_before int;
+  v_reviews_before int;
+  v_outputs_after int;
+  v_reviews_after int;
+begin
+  v_batch := pg_temp.mk_edition('2027-04-07'::date, 'daily');           -- Wednesday
+
+  select count(*) into v_outputs_before from public.generation_outputs o
+  join public.generation_jobs j on j.id = o.job_id where j.batch_id = v_batch;
+  select count(*) into v_reviews_before from public.generation_reviews r
+  join public.generation_jobs j on j.id = r.job_id where j.batch_id = v_batch;
+
+  v_job := pg_temp.break_questions(v_batch, 'mini_case', 'pre_contract_mini_case');
+
+  perform pg_temp.record(18, 'N1 an old-format mini case refuses the edition',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-04-07'));
+  perform pg_temp.record(18, 'N2 the old role is named', 'true',
+    pg_temp.question_error('2027-04-07', 'question_role_invalid'));
+  perform pg_temp.record(18, 'N3 so is the missing score set', 'true',
+    pg_temp.question_error('2027-04-07', 'question_score_tier_set_invalid'));
+
+  -- The diagnostic has to identify WHICH job, or an operator holding 23 jobs
+  -- has been told only that something is wrong.
+  perform pg_temp.record(18, 'N4 the blocker names the failing job', v_job::text,
+    (select b->>'job_id' from
+      jsonb_array_elements(public.assert_edition_questions_publishable('2027-04-07')->'blockers') b
+     limit 1));
+  perform pg_temp.record(18, 'N5 and its content type', 'mini_case',
+    (select b->>'content_type' from
+      jsonb_array_elements(public.assert_edition_questions_publishable('2027-04-07')->'blockers') b
+     limit 1));
+
+  perform pg_temp.record(18, 'N6 no payload is offered', 'true',
+    (public.get_scheduled_edition_publish_plan('2027-04-07')->'ready_payload' = 'null'::jsonb)::text);
+
+  -- NOTHING WAS REPAIRED, and nothing may be. The gate reads; it does not write.
+  select count(*) into v_outputs_after from public.generation_outputs o
+  join public.generation_jobs j on j.id = o.job_id where j.batch_id = v_batch;
+  select count(*) into v_reviews_after from public.generation_reviews r
+  join public.generation_jobs j on j.id = r.job_id where j.batch_id = v_batch;
+
+  perform pg_temp.record(18, 'N7 the historical outputs are untouched',
+    v_outputs_before::text, v_outputs_after::text);
+  perform pg_temp.record(18, 'N8 so are the reviews', v_reviews_before::text, v_reviews_after::text);
+  perform pg_temp.record(18, 'N9 the approved review is still approved', 'approved',
+    (select r.verdict from public.generation_reviews r
+      where r.job_id = v_job order by r.reviewed_at desc limit 1));
+
+  -- The approved Business Story with no questions at all.
+  v_batch := pg_temp.mk_edition('2027-04-09'::date, 'daily');           -- Friday
+  perform pg_temp.break_questions(v_batch, 'business_story', 'story_without_questions');
+
+  perform pg_temp.record(18, 'N10 an approved story with no questions refuses the edition',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-04-09'));
+  perform pg_temp.record(18, 'N11 and the absence is what is reported', 'true',
+    pg_temp.question_error('2027-04-09', 'questions_missing'));
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- O. A questions-required batch with nothing to check is not publishable
+-- ---------------------------------------------------------------------------
+-- The gate used to return ok=true here, with `jobs_checked = 0`, and was saved
+-- only by the editorial gate refusing the same batch next door. A gate whose
+-- verdict is right because a different gate is also running is not a gate.
+
+do $$
+declare v_batch uuid;
+begin
+  v_batch := pg_temp.mk_edition('2027-04-12'::date, 'daily');           -- Monday
+
+  delete from public.generation_reviews r
+  using public.generation_jobs j where r.job_id = j.id and j.batch_id = v_batch;
+  delete from public.generation_outputs o
+  using public.generation_jobs j where o.job_id = j.id and j.batch_id = v_batch;
+
+  perform pg_temp.record(19, 'O1 a questions-required batch with no outputs refuses',
+    'false:scored_questions_invalid', pg_temp.question_verdict('2027-04-12'));
+  perform pg_temp.record(19, 'O2 and says the questions are absent', 'scored_questions_absent',
+    (select b->>'code' from
+      jsonb_array_elements(public.assert_edition_questions_publishable('2027-04-12')->'blockers') b
+     limit 1));
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- P. There is no attempt 4
+-- ---------------------------------------------------------------------------
+-- The editorial rule, asserted where the pipeline actually reads it: the
+-- contract the Scheduled Tasks are served, and the column on the job table that
+-- bounds a worker.
+
+do $$
+declare v_batch uuid;
+begin
+  perform pg_temp.record(20, 'P1 the served contract caps attempts at 3', '3',
+    public.scored_question_contract()->>'max_attempts');
+  perform pg_temp.record(20, 'P2 and says so in the attempt policy', 'true',
+    ((public.scored_question_contract()->'attempt_policy')::text
+      like '%There is no attempt 4%')::text);
+  perform pg_temp.record(20, 'P3 attempt 3 repairs a local question defect rather than regenerating',
+    'true',
+    ((public.scored_question_contract()->'attempt_policy')::text
+      like '%the reviewer repairs it, revalidates, approves%')::text);
+
+  v_batch := pg_temp.mk_edition('2027-04-14'::date, 'daily');           -- Wednesday
+  perform pg_temp.record(20, 'P4 a job may not be generated a fourth time', '3',
+    (select distinct j.max_attempts::text from public.generation_jobs j
+      where j.batch_id = v_batch));
 end $$;
 
 -- ---------------------------------------------------------------------------

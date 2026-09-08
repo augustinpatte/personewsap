@@ -39,7 +39,9 @@ const MIGRATIONS = [
   "20260907120000_team_archive_content.sql",
   "20260907130000_archive_team.sql",
   "20260907140000_teams_security_hardening.sql",
-  "20260907170000_resume_settled_question_attempt.sql"
+  "20260907170000_resume_settled_question_attempt.sql",
+  "20260907180000_scored_question_contract_declaration.sql",
+  "20260907190000_verify_edition_game_contract.sql"
 ] as const;
 
 const sources = new Map(
@@ -125,8 +127,12 @@ describe("the migration files themselves", () => {
 
       expect((code.match(/^\s*BEGIN;/gim) ?? []).length, name).toBe(1);
       expect((code.match(/^\s*COMMIT;/gim) ?? []).length, name).toBe(1);
-      // A failed migration must leave nothing half-applied.
-      expect(code.indexOf("BEGIN;"), name).toBeLessThan(code.indexOf("COMMIT;"));
+      // A failed migration must leave nothing half-applied. Case-insensitive
+      // because this repository writes SQL in both cases — the invariant is
+      // atomicity, not capitalisation, and the counts above are already
+      // case-insensitive.
+      const upper = code.toUpperCase();
+      expect(upper.indexOf("BEGIN;"), name).toBeLessThan(upper.indexOf("COMMIT;"));
     }
   });
 
@@ -510,11 +516,55 @@ describe("the product rules that must not be re-litigated in code", () => {
       "learning_sessions",
       "user_learning_paths",
       "update_profile_language",
-      "user_archive_search_items",
-      "publish_scheduled_staging_payload"
+      "user_archive_search_items"
     ]) {
       expect(allCode, forbidden).not.toContain(forbidden);
     }
+  });
+
+  /**
+   * THE ONE EXEMPTION, AND ITS EXACT WIDTH.
+   *
+   * `publish_scheduled_staging_payload` was on the forbidden list above for the
+   * whole Teams pass, and rightly: it is the function that publishes PersoNews
+   * and the Teams work had no business inside it.
+   *
+   * 20260907180000 has business inside it, and only one piece: the edition has
+   * to record — inside the publishing transaction, before any question exists —
+   * whether it owes its readers questions. That is what makes the requirement a
+   * declaration instead of something inferred later from whether question rows
+   * happen to exist, which is the false green the whole migration exists to
+   * close.
+   *
+   * So the exemption is narrowed rather than removed. Exactly one migration may
+   * name the publisher, it may only ADD a metadata key, and it must refuse to
+   * patch a body it does not recognise instead of rewriting one blind.
+   */
+  it("touches the publisher from exactly one migration, and only to stamp metadata", () => {
+    const touching = [...sources.entries()].filter(([, sql]) =>
+      stripNoise(sql).includes("publish_scheduled_staging_payload")
+    );
+
+    expect(touching.map(([name]) => name)).toEqual([
+      "20260907180000_scored_question_contract_declaration.sql"
+    ]);
+
+    const patch = stripNoise(touching[0][1]);
+    // `stripNoise` blanks string literals, and the refusal message is one — so
+    // the guard is asserted on the source with its literals intact.
+    const patchWithText = touching[0][1].replace(/^\s*--.*$/gm, "");
+
+    // A guarded, single-anchor patch — never a restatement of a 400-line
+    // function this file does not own.
+    expect(patch).toContain("pg_get_functiondef");
+    expect(patchWithText).toContain("refusing to patch blind");
+    expect(patchWithText).toContain("staging_scored_question_contract");
+
+    // It adds a metadata key. It does not decide what gets published, which
+    // items are written, or what any of them contain.
+    expect(patch).not.toMatch(/INSERT INTO public\.content_items/i);
+    expect(patch).not.toMatch(/INSERT INTO public\.daily_drops/i);
+    expect(patch).not.toMatch(/DELETE FROM/i);
   });
 });
 

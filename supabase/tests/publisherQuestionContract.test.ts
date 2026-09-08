@@ -29,7 +29,15 @@ function stripComments(sql: string): string {
 }
 
 const migration = read("supabase", "migrations", "20260906100000_publish_scored_questions.sql");
-const verification = read("supabase", "migrations", "20260906105000_verify_edition_game.sql");
+// The CURRENT definition. 20260906105000 introduced this function and
+// 20260907190000 replaced it wholesale, so reading the older file would be
+// asserting against a body no database runs.
+const verification = read("supabase", "migrations", "20260907190000_verify_edition_game_contract.sql");
+const declaration = read(
+  "supabase",
+  "migrations",
+  "20260907180000_scored_question_contract_declaration.sql"
+);
 const preflight = read(
   "supabase-staging",
   "supabase",
@@ -42,6 +50,16 @@ const bridge = read("supabase", "functions", "personews-task-bridge", "index.ts"
 
 const code = stripComments(migration);
 const verificationCode = stripComments(verification);
+const declarationCode = stripComments(declaration);
+/**
+ * Comments AND string literals removed.
+ *
+ * `stripComments` only takes out `--` lines, and the assertion below is about
+ * what the SQL DOES, not about what its COMMENT ON says it avoids doing — the
+ * function comment names `logical_questions` precisely to record that it must
+ * never read it.
+ */
+const declarationSql = declarationCode.replace(/'(?:[^']|'')*'/g, "''");
 const preflightCode = stripComments(preflight);
 
 describe("the metadata leak", () => {
@@ -400,7 +418,7 @@ describe("verifying that the edition is playable", () => {
   });
 
   it("leaves a legacy edition alone", () => {
-    expect(verificationCode).toContain("edition_expects_questions");
+    expect(verificationCode).toContain("edition_question_contract");
     expect(verificationCode).toContain("questions_not_expected");
   });
 
@@ -410,5 +428,121 @@ describe("verifying that the edition is playable", () => {
     expect(verificationCode).toContain(
       "revoke all on function public.verify_scheduled_edition_game(date, uuid, text) from public, anon, authenticated;"
     );
+  });
+});
+
+/**
+ * THE FALSE GREEN, AND WHY IT WAS ONE.
+ *
+ * `edition_expects_questions` used to answer "does this edition owe its readers
+ * questions?" by joining `content_items` to `logical_questions`. It inferred the
+ * REQUIREMENT from the PERSISTENCE, so the one failure the verification exists
+ * to catch — the question stage running and writing nothing — looked exactly
+ * like a legacy edition and returned `ok: true, questions_not_expected`. Staging
+ * then wrote a `published` receipt and stopped re-offering the batch.
+ *
+ * These cases pin the shape of the fix, not just its behaviour: the requirement
+ * has to arrive as a declaration, and the code that answers it must not be able
+ * to reach `logical_questions` at all.
+ */
+describe("the requirement is declared, never inferred", () => {
+  it("reads the declaration off the published metadata", () => {
+    expect(declarationCode).toContain("staging_scored_question_contract");
+    expect(declarationCode).toContain("edition_question_contract");
+  });
+
+  it("never consults logical_questions to decide whether questions are owed", () => {
+    // The whole defect in one assertion. `edition_question_contract` and
+    // `edition_expects_questions` are the only two functions in this file, and
+    // neither may name the table whose presence used to be the answer.
+    expect(declarationSql).not.toContain("logical_questions");
+  });
+
+  it("tells a pre-contract item apart from an undeclared one", () => {
+    // Absent key: written before the contract existed, genuinely legacy, and a
+    // state no new publish can re-create. Version 0: a contract-aware publisher
+    // from a payload that declared nothing — a misconfiguration, not a legacy
+    // edition, and it fails.
+    expect(declarationCode).toContain("historical");
+    expect(declarationCode).toContain("declaration_missing");
+    expect(declarationCode).toContain("inconsistent");
+  });
+
+  it("refuses a payload declaring a contract version this project does not implement", () => {
+    expect(declarationCode).toContain("scored_question_contract_version");
+    expect(declarationCode).toMatch(/this project implements v/);
+  });
+
+  it("stamps the declaration inside the publishing transaction", () => {
+    // Patched into the publisher's own metadata expression, so there is no
+    // window in which an item of a questions-required edition exists without it.
+    expect(declarationCode).toContain("publish_scheduled_staging_payload");
+    expect(declarationCode).toContain("refusing to patch blind");
+  });
+
+  it("fails an edition that declared questions and persisted none", () => {
+    expect(verificationCode).toContain("questions_missing_entirely");
+    expect(verificationCode).toContain("contract_declaration_missing");
+    expect(verificationCode).toContain("contract_declaration_inconsistent");
+  });
+
+  it("holds a required edition to the whole contract, not only the counts", () => {
+    for (const code of [
+      "question_role_invalid",
+      "question_score_tier_set_invalid",
+      "question_option_locale_incomplete",
+      "question_locale_incomplete",
+      "question_grade_count_mismatch"
+    ]) {
+      expect(verificationCode, code).toContain(code);
+    }
+
+    // The tier set, as the set. Two options at 1000 and no 300 is not a scored
+    // question, and a count of four grades would not notice.
+    expect(verificationCode).toContain("array[0, 300, 600, 1000]");
+  });
+
+  it("counts the private grades and never returns one", () => {
+    expect(verificationCode).toContain("private.logical_question_grades");
+    expect(verificationCode).not.toMatch(/select\s+g\.rationale_md/i);
+    expect(verificationCode).not.toContain("rationale_md");
+  });
+});
+
+/**
+ * The declaration only works if it survives the trip.
+ *
+ * Staging stamps it onto `ready_payload.batch`; production reads it off
+ * `p_payload->'batch'` inside the publishing transaction. Between those two
+ * points sit two Edge Functions, and neither may rebuild the payload — a
+ * publisher that reconstructed a `batch` object from the fields it happens to
+ * care about would drop the declaration silently, and every edition would go
+ * back to being unclassifiable.
+ *
+ * No Edge Function changed for this: they already forward it verbatim. These
+ * cases exist so that stays true.
+ */
+describe("the declaration survives the Edge Functions", () => {
+  const scheduler = read("supabase", "functions", "personews-scheduled-publisher", "core.ts");
+
+  it("the staging publisher forwards the canonical payload untouched", () => {
+    expect(scheduler).toContain("deps.publish(plan.ready_payload, runId)");
+    // Never a reconstruction.
+    expect(scheduler).not.toMatch(/batch:\s*\{/);
+    expect(scheduler).not.toContain("scored_questions_required");
+  });
+
+  it("the production publisher passes the payload straight to the RPC", () => {
+    expect(publisherEntry).toContain("p_payload: p");
+    expect(publisherEntry).not.toContain("scored_questions_required");
+  });
+
+  it("so the only thing that reads the declaration is the SQL", () => {
+    // If an Edge Function ever needs to know, it should ask the database rather
+    // than parse the payload a second time and risk the two disagreeing.
+    // Escaped, because the patch injects it as an E'' literal into the
+    // publisher's own body.
+    expect(declarationCode).toContain("scored_question_declaration(p_payload->");
+    expect(declarationCode).toContain("batch");
   });
 });

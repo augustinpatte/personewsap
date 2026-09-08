@@ -38,6 +38,11 @@ const SUITES = {
     file: "supabase/tests/push_notification_claims.test.sql",
     stack: "production",
   },
+  "question-contract": {
+    label: "Scored-question contract verification",
+    file: "supabase/tests/edition_question_contract.test.sql",
+    stack: "production",
+  },
   publisher: {
     label: "Scheduled edition publication",
     file: "supabase/tests/scheduled_edition_publication.test.sql",

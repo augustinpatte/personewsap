@@ -37,7 +37,8 @@ Resources → Proxies → Manual, with every field blank, then restart Docker.
 | `supabase db reset` | Every production migration replays from an empty database. |
 | `supabase db reset --workdir supabase-staging` | Same, for staging. |
 | `npm run teams:test:sql:local` | The Teams and scored-question contract, against a schema built from the migrations. |
-| `npm run db:test:sql:local` | All four production suites: teams, language switch, push claims, scheduled publication. |
+| `npm run db:test:sql:local` | All five production suites: teams, language switch, push claims, scheduled publication, scored-question contract. |
+| `npm run contract:test:sql:local` | Only the scored-question contract suite: that a declared edition with zero persisted questions FAILS verification rather than reporting `questions_not_expected`, that a genuinely legacy edition still passes, and that roles, tiers, locales and grades are all held to the contract. |
 | `npm run staging:test:sql:local` | The deterministic hard gate and the scored-question preflight. |
 | `npm run teams:test:e2e:local` | A batch generated in staging becomes a published edition in production, assigned to real readers and real Teams, played and scored through real JWTs. |
 | `npm run supabase:migration-check` | Without a token: migration filenames — real UTC timestamps, no duplicates. With one: remote drift as well. |
@@ -45,6 +46,23 @@ Resources → Proxies → Manual, with every field blank, then restart Docker.
 Each SQL suite is one transaction ending in `ROLLBACK`. The E2E is not: it runs
 `supabase db reset` on both stacks first and leaves what it built behind, which
 is why it only ever runs locally.
+
+## The staging baseline is a floor, and it was wrong
+
+`supabase-staging/supabase/migrations/20260901080000_staging_pipeline_baseline.sql`
+was reconstructed from the code that reads these tables, and reconstruction from
+callers only recovers the columns somebody reads. It was corrected on 2026-09-07
+against the live column list: `generation_jobs.topic` is nullable (a mini-case
+job files its subject under `mini_case_topic`), `prompt_key` and
+`prompt_bundle_version` are NOT NULL, `target_project_ref` defaults to the
+production ref, and the table carries `claimed_by` / `claimed_at` /
+`lease_expires_at` / `max_attempts` / `source_packet` / `constraints` — plus
+`generation_outputs.source_urls` and `generation_reviews.feedback`.
+
+It is still every-statement-`IF NOT EXISTS`, so applying it to the real staging
+project creates nothing and changes nothing. A local database built from the old
+version does not gain the columns by re-running it: rebuild with
+`supabase db reset --workdir supabase-staging`.
 
 ## What a green run does not cover
 
