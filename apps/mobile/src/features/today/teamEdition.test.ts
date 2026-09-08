@@ -45,6 +45,7 @@ let contentRows: Array<Record<string, unknown>> = [];
 let dropItemRows: Array<Record<string, unknown>> = [];
 let dropRow: Record<string, unknown> | null = null;
 let teamRows: Array<Record<string, unknown>> = [];
+let questionRows: Array<Record<string, unknown>> = [];
 
 vi.mock("../../lib/supabase", () => ({
   supabase: {
@@ -82,6 +83,7 @@ beforeEach(() => {
   contentRows = [];
   dropItemRows = [];
   teamRows = [];
+  questionRows = [];
   dropRow = {
     id: "drop-1",
     user_id: USER,
@@ -325,6 +327,86 @@ describe("Team content is additive, never load-bearing", () => {
 /* The fake database                                                          */
 /* ------------------------------------------------------------------------- */
 
+/**
+ * A LOGICAL KEY IS NOT AN IDENTITY ON ITS OWN.
+ *
+ * `logical_questions` is unique on (content_logical_key, content_type,
+ * question_sequence) — the content type is part of the key, and the client
+ * fetches by logical key alone because that is all PostgREST can filter here.
+ * Grouping the answer by the key alone hands a newsletter article the mini
+ * case's three questions as well as its own two.
+ *
+ * Not cosmetic. The three extra questions were never assigned to this reader,
+ * so `start_question_attempt` refuses each one with 42501, and the flow stops
+ * on a "Retry" it can never get past: the question on screen is the first
+ * unsettled one, and a failed start never settles.
+ */
+describe("questions belong to a content type, not only to a logical key", () => {
+  const questionRow = (
+    id: string,
+    contentType: string,
+    logicalKey: string,
+    sequence: number,
+    role: string | null
+  ) => ({
+    id,
+    content_logical_key: logicalKey,
+    content_type: contentType,
+    question_sequence: sequence,
+    question_role: role
+  });
+
+  it("does not hand a newsletter article a mini case's questions", async () => {
+    // One staging batch, one key, two content types — which the table permits.
+    givenPersonal([
+      article("p-fin", "job-shared", "The Fed blinked", "finance"),
+      miniCase("p-case", "job-shared", "Price the risk")
+    ]);
+
+    questionRows = [
+      questionRow("q-n1", "newsletter_article", "job-shared", 1, "interpretation"),
+      questionRow("q-n2", "newsletter_article", "job-shared", 2, "application_decision"),
+      questionRow("q-c1", "mini_case", "job-shared", 1, "method_framework"),
+      questionRow("q-c2", "mini_case", "job-shared", 2, "technical_application"),
+      questionRow("q-c3", "mini_case", "job-shared", 3, "conclusion_decision")
+    ];
+
+    const drop = await loadEdition();
+    const newsletter = drop.items.newsletter[0] as unknown as {
+      logical_questions?: Array<{ logical_question_id: string }>;
+    };
+    const miniCaseItem = drop.items.mini_cases[0] as unknown as {
+      logical_questions?: Array<{ logical_question_id: string }>;
+    };
+
+    expect(newsletter.logical_questions?.map((q) => q.logical_question_id)).toEqual([
+      "q-n1",
+      "q-n2"
+    ]);
+    expect(miniCaseItem.logical_questions?.map((q) => q.logical_question_id)).toEqual([
+      "q-c1",
+      "q-c2",
+      "q-c3"
+    ]);
+  });
+
+  it("still attaches the questions of a content type that has them alone", async () => {
+    givenPersonal([article("p-fin", "job-finance", "The Fed blinked", "finance")]);
+
+    questionRows = [
+      questionRow("q-1", "newsletter_article", "job-finance", 1, "interpretation"),
+      questionRow("q-2", "newsletter_article", "job-finance", 2, "application_decision")
+    ];
+
+    const drop = await loadEdition();
+    const newsletter = drop.items.newsletter[0] as unknown as {
+      logical_questions?: Array<{ logical_question_id: string }>;
+    };
+
+    expect(newsletter.logical_questions).toHaveLength(2);
+  });
+});
+
 async function loadEdition() {
   const result = await fetchTodayDrop(USER, EDITION, { language: "en" });
 
@@ -448,6 +530,12 @@ function resolveMany(
       data: contentRows.filter((row) => (filters.ids ?? []).includes(row.id as string)),
       error: null
     };
+  }
+
+  if (table === "logical_questions") {
+    // Filtered on content_logical_key only, exactly as the client filters it —
+    // so a test can hand back the collision the real table permits.
+    return { data: questionRows, error: null };
   }
 
   return { data: [], error: null };

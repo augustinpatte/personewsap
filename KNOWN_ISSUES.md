@@ -21,8 +21,8 @@ never to make this document read better.
 | Editorial review gate missing | open | LLM output can be structurally valid and still not be publishable, especially for law, medicine and finance. There is no human review step before production publication. |
 | Source licensing review missing | open | The ingestion layer reads RSS/feed metadata only. Publisher terms and commercial reuse rights are still unreviewed. Treat sources as internal-test-only until that is settled. |
 | TestFlight operations incomplete | open | Signing, App Store Connect setup, privacy answers and the invite process still need an owner. |
-| Teams assignment engine is not scheduled | open | `public.materialize_edition_assignments(edition_date)` exists (migration `20260906104000`) and is idempotent, but **nothing calls it**. Until the publication pipeline invokes it once an edition's questions have been persisted, `solo_question_assignments`, `team_content_assignments` and `team_question_assignments` stay empty and no reader can reach a question. Deliberately not wired here: a cron entry added in the same pass would run against editions whose questions may not exist yet. |
-| Teams migrations still pending everywhere | open | The sixteen `20260906090000`–`20260907160000` migrations have never been applied to staging or production. They now replay cleanly from an empty database — `supabase db reset` applies all 62 production migrations and `npm run db:test:sql:local` passes against the result. Before pushing, re-validate against the real remote schema with `npm run teams:test:sql -- --with-migrations`, which inlines them into a transaction that rolls back. |
+| Teams assignment engine wired, not yet deployed | **code resolved 2026-09-07; deployment open** | `public.materialize_edition_assignments(edition_date)` is now publish stage 3 in `supabase/functions/personews-task-publisher/index.ts`, after content and questions, and `verify_scheduled_edition_game` fails the read-back if the assignments did not land — so a stage that silently wrote nothing cannot produce a receipt. Pinned by `supabase/tests/publisherQuestionContract.test.ts` and exercised end to end by `npm run teams:test:e2e:local`. What is left is purely operational: the production Edge Function has not been redeployed, so until `npm run edge:deploy:prod` runs, the live publisher is still the two-stage one and the assignment tables stay empty in production. |
+| Teams migrations still pending everywhere | open | The nineteen `20260906090000`–`20260907170000` migrations have never been applied to staging or production. They replay cleanly from an empty database — `supabase db reset` applies all 63 production migrations and `npm run db:test:sql:local` passes against the result. Before pushing, re-validate against the real remote schema with `npm run teams:test:sql -- --with-migrations`, which inlines them into a transaction that rolls back. |
 | Staging pipeline core is not in version control | open | `refresh_batch_status`, `get_ready_batch_payload`, `mark_batch_published`, `validate_generation_output` and the `trg_enforce_production_batch_mode` trigger exist only inside the staging project and were applied by hand. `supabase-staging/supabase/tests/local_harness.sql` supplies local stand-ins written from their callers so the gate can be run at all; they are NOT the remote definitions and the harness says so on every run. Recover them with `select pg_get_functiondef(oid) …` against staging, commit them as a migration, and delete the harness. |
 | Scored-question preflight not applied to staging | open | `supabase-staging/.../20260906110000_scored_question_preflight.sql` adds the question contract, the legacy cutover and the gate that refuses a batch whose questions are wrong. Until it is applied, `get_scheduled_edition_publish_plan` is the pre-existing editorial gate only, and an edition with no questions still publishes. Validate with `npm run publisher:test:sql:dry`. Note the cutover default (`2026-09-09`): move it with `app.scored_question_cutover_edition` if the generators are not ready by then, or every edition from that date fails the gate. |
 | Generators not yet emitting scored questions | open | The contract now reaches the Scheduled Tasks through the bridge manifest (`scored_question_contract`), and the prompts carry it, but no batch has been generated against it. The first batch after the cutover will fail the gate until the generators are re-run. |
@@ -43,6 +43,19 @@ against a schema that came from the migrations.
 | The scored-question preflight reported the wrong reason for a missing question set | four `jsonb_typeof(x) <> 'array'` comparisons went NULL when the key was absent, so the branch written to catch it was skipped | `20260906110000` coalesces all four. One of them let a payload carrying no `jobs` array at all pass the composition check |
 | The Teams SQL suite had never run to completion | it inserted a `question_role` its own migration's CHECK constraint forbids, and stopped on statement 262 | suite corrected; it now runs 184 checks, all passing |
 | The staging project could not be built at all | every staging migration reads `automation_batches`, `generation_jobs`, `generation_outputs`, `generation_reviews`, `publication_receipts`, `automation_health` and `automation_config`, and none of them creates any | `20260901080000_staging_pipeline_baseline` — idempotent, so it is a no-op against the real staging project |
+
+## Resolved on 2026-09-07 — hostile product pass over the finished feature
+
+Found by driving the product's own scenarios against the code rather than
+re-running the suites that shipped with it. Both defects had full unit coverage
+of the piece that was correct and none of the wiring that was not, so every
+suite was green while the reader saw the bug.
+
+| Defect | Where | Fix |
+| --- | --- | --- |
+| A question the reader had already answered came back blank and worth zero | `start_question_attempt` answered `already_submitted` and nothing else: no prompt, no options, no score, no record of what was chosen. `questionReducer` has always accepted an `answered` payload — `quizSession.test.ts` proves it — but nothing ever built one, so the reducer fabricated `0 / bad / no selection`. Every reopening path hit it: the app killed mid-reading, a second device, the archive, a language switch. A reading finished across two sessions reported a total short by every point earned in the first one | `20260907170000_resume_settled_question_attempt` returns the prompt, the options in their stored order, the chosen option, the score, the band and expired/skipped — populated only when `status = 'submitted'`, the same gate `get_question_feedback` opens on, so no grading is released any earlier than before. `quizData.ts` parses it, `useQuizFlow.ts` hands it to the reducer and loads the explanation. Proven by SQL checks B20a/B33–B33d and ten E2E checks through real JWTs |
+| An article could be handed another content type's questions | `fetchQuestionsByContentItemIds` grouped `logical_questions` by `content_logical_key` alone. That column is not unique — the table's key is `(content_logical_key, content_type, question_sequence)` — so a mini case and a newsletter article sharing a staging batch each received all five questions. The three extra ones were never assigned to the reader, so `start_question_attempt` refuses each with 42501 and the flow stops on a Retry it can never pass: the question on screen is the first unsettled one, and a failed start never settles | grouped on content type and key together in `apps/mobile/src/features/today/dailyDropData.ts`; pinned by `teamEdition.test.ts`, which fails against the old grouping |
+| The reading prompts told the generator the reader could re-read the article | `newsletter_prompt_final.md` and `business_story_prompt_final.md` both opened their question section with "Le lecteur a le contenu sous les yeux". `ReadingQuizScreen` replaces the article — that is why it is a screen and not a section — so the premise was false for both formats, and no downstream validator could catch a question that leans on a detail the reader can no longer see | both prompts now state that the text is gone and what follows from it in each direction; the Mini Case prompt keeps the opposite rule, because its case genuinely does stay on screen. The Reviewer rubrics gained the matching check, and `questionPromptContract.test.ts` pins all of it |
 
 Commands: `docs/LOCAL_PROOF.md`.
 
@@ -94,6 +107,46 @@ control. **Unsafe only in the narrow sense that breached passwords are still
 accepted; needs a Pro upgrade.**
 
 ## Active Issues
+
+### Teams Have No Size Cap, And Their Lists Are Not Virtualized
+
+Status: open, not a defect today — a shape that becomes one at scale.
+
+Nothing bounds how many members a team may have, or how many teams a reader may
+join. `join_team_with_invite` checks the code and the team's status and stops
+there, and `get_team_leaderboard` and `get_team_roster` return every row with no
+`LIMIT`. On the client, Team Detail, Members and the Teams list all render with
+`.map()` inside the shared `AppScreen` scroll view rather than a `FlatList`, so
+a team of four hundred mounts four hundred rows — each of which resolves a
+signed avatar URL.
+
+Left alone on purpose. Choosing the cap is a product decision, not an
+engineering one, and silently truncating a leaderboard would be a worse answer
+than rendering a long one: the standing would then be wrong rather than slow.
+For the invite-code league this ships as, tens of members is the realistic
+shape and the current rendering is fine.
+
+The remedy, when the number exists: enforce it in `join_team_with_invite` so the
+bound is a server rule rather than a client hope, and convert the three screens
+to `FlatList` with `ListHeaderComponent` for the chrome above each list.
+
+### Archiving A Team Revokes Reading Access To Its Past Editions
+
+Status: open question for the product, deliberate in the code.
+
+`get_my_team_edition_content` and `get_my_team_archive_content` both require
+`teams.status = 'active'`. When a team is archived — by its owner, or by the
+last member leaving, or by an owner deleting their account with nobody to
+inherit — its members immediately lose the ability to reopen Team articles they
+read while it was live. Scores are untouched: archiving is a soft delete
+precisely so the standings survive (`20260907130000`), and `question_attempts`
+and `team_question_scores` keep every row.
+
+That is the same revocation rule leaving a team follows, applied to the whole
+team at once, and it is consistent. Whether it is what the product wants is a
+separate question: an article somebody read is arguably theirs to reread, and
+the alternative — keeping past editions readable to the roster as it stood on
+the day — is a one-clause change to both RPCs.
 
 ### Leaked Production Credentials In Git History
 

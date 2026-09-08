@@ -45,6 +45,16 @@ export type StartedAttempt = {
   alreadySubmitted: boolean;
   prompt: string;
   options: QuizOption[];
+  /**
+   * The result the server already holds, present only when `alreadySubmitted`.
+   *
+   * Without it a reopened reading could only ever render a fabricated zero: the
+   * reducer has always been able to restore a settled question, but nothing
+   * gave it the answer to restore. The server now returns what was chosen and
+   * what it scored on the same call, so the archive, a second device and the
+   * app reopened after a kill all show the debrief the reader actually earned.
+   */
+  settled?: SubmittedAnswer;
 };
 
 /** What `submit_question_answer` hands back. */

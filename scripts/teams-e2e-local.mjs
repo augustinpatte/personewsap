@@ -780,6 +780,62 @@ const bobQ1 = await answer(bob, q1, 300);
 check("Bob answers the same question in French and scores 300", 300, bobQ1.result?.score_milli);
 check("Bob's answer counts for his one Team", 1, bobQ1.result?.teams_scored);
 
+// REOPENING A QUESTION ALREADY ANSWERED.
+//
+// The app kill, the second device, the archive re-read and the language switch
+// are all this one call. It used to answer `already_submitted` and nothing
+// else — no prompt, no options, no score, no record of what was chosen — so a
+// reader who scored 1000 was shown a blank card and told it was worth zero, and
+// the running total of a reading finished across two sessions was short by
+// every point earned in the first one.
+const aliceResume = await rpc(alice, "start_question_attempt", {
+  p_logical_question_id: q1.id,
+});
+const resumed = aliceResume.data?.[0] ?? {};
+
+check("reopening a settled question reports it as settled", true, resumed.already_submitted);
+check("and returns the score the reader actually earned", 1000, resumed.score_milli);
+check("with its band", "excellent", resumed.grade_band);
+check("and the option they chose", q1.byGrade["1000"], resumed.selected_option_id);
+check("neither expired nor skipped", "false:false", `${resumed.expired}:${resumed.skipped}`);
+check("the prompt comes back", true, String(resumed.prompt ?? "").length > 0);
+check(
+  "so do the options, in the order they were shown in",
+  JSON.stringify((resumed.options ?? []).map((option) => option.option_id)),
+  await scalar(
+    `select to_json(a.option_order)::text from public.question_attempts a
+      where a.user_id = :'user'::uuid and a.logical_question_id = :'q'::uuid;`,
+    { user: alice.id, q: q1.id },
+  ),
+);
+check(
+  "and the payload still carries no per-option grading",
+  false,
+  /score_milli|excellent|grade_band/.test(JSON.stringify(resumed.options ?? [])),
+);
+check(
+  "reopening it did not create a second attempt",
+  1,
+  Number(
+    await scalar(
+      `select count(*) from public.question_attempts
+        where user_id = :'user'::uuid and logical_question_id = :'q'::uuid;`,
+      { user: alice.id, q: q1.id },
+    ),
+  ),
+);
+check(
+  "nor a second ledger row in either Team",
+  2,
+  Number(
+    await scalar(
+      `select count(*) from public.team_question_scores
+        where user_id = :'user'::uuid and logical_question_id = :'q'::uuid;`,
+      { user: alice.id, q: q1.id },
+    ),
+  ),
+);
+
 check(
   "one attempt, two Team ledger rows — the multi-team fanout",
   "1:2",

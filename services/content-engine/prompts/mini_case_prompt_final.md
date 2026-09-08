@@ -1302,8 +1302,15 @@ recopier ce contrat ailleurs pour l'adapter — le corriger à sa source, dans
 LE CONTENU FOURNIT LES FAITS.
 LA QUESTION EXIGE LE RAISONNEMENT.
 
-Le lecteur a le contenu sous les yeux. Une question qu'il peut résoudre en
-relisant une ligne ne mesure rien.
+LE CAS RESTE À L'ÉCRAN PENDANT LES QUESTIONS.
+
+Le Mini Case est le seul format où c'est vrai : le cas EST la matière, et les
+trois questions le parcourent. Une question qu'il peut résoudre en relisant une
+ligne ne mesure donc rien — l'énoncé est disponible, seul le raisonnement est
+noté.
+
+Ne jamais poser une question dont la réponse est un chiffre, une date ou un nom
+qu'il suffit de retrouver dans le cas.
 
 ## INTERDIT
 

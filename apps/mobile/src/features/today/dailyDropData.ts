@@ -882,14 +882,26 @@ async function fetchQuestionsByContentItemIds(
     return {};
   }
 
-  const keyByItemId = new Map<string, string>();
+  // Keyed by content_type AND logical key, which is the identity
+  // `logical_questions` is actually unique on
+  // (content_logical_key, content_type, question_sequence). The logical key
+  // alone is NOT unique across content types: a mini case and a newsletter
+  // article produced by one staging batch can carry the same key, and grouping
+  // on it alone hands each of them the other's questions as well as its own.
+  //
+  // That is not cosmetic. The reader would be shown five questions on a
+  // two-question article, and the extra ones are questions the database never
+  // assigned them — so `start_question_attempt` refuses each with 42501 and the
+  // flow stops on a permanent "Retry" it can never get past, because the first
+  // unsettled question is the one on screen and a failed start never settles.
+  const identityByItemId = new Map<string, string>();
   const logicalKeys = new Set<string>();
 
   for (const item of contentItems) {
     const key = readContentLogicalKey(item);
 
     if (key) {
-      keyByItemId.set(item.id, key);
+      identityByItemId.set(item.id, questionGroupKey(item.content_type, key));
       logicalKeys.add(key);
     }
   }
@@ -908,11 +920,14 @@ async function fetchQuestionsByContentItemIds(
     return {};
   }
 
-  const byKey = new Map<string, LogicalQuestionRef[]>();
+  const byIdentity = new Map<string, LogicalQuestionRef[]>();
 
   for (const row of data) {
-    const key = row.content_logical_key as string;
-    const list = byKey.get(key) ?? [];
+    const identity = questionGroupKey(
+      String(row.content_type ?? ""),
+      String(row.content_logical_key ?? "")
+    );
+    const list = byIdentity.get(identity) ?? [];
 
     list.push({
       logical_question_id: row.id as string,
@@ -920,23 +935,26 @@ async function fetchQuestionsByContentItemIds(
       question_role: (row.question_role as string | null) ?? null
     });
 
-    byKey.set(key, list);
+    byIdentity.set(identity, list);
   }
 
   const questions: QuestionsByContentItemId = {};
 
   for (const item of contentItems) {
-    const key = keyByItemId.get(item.id);
-    const list = key ? byKey.get(key) : undefined;
+    const identity = identityByItemId.get(item.id);
+    const list = identity ? byIdentity.get(identity) : undefined;
 
-    // Content type has to match too: a mini case and a newsletter article can
-    // share a staging batch but never a question set.
     if (list && list.length > 0) {
       questions[item.id] = list;
     }
   }
 
   return questions;
+}
+
+/** The identity `logical_questions` is unique on: content type, then key. */
+function questionGroupKey(contentType: string, logicalKey: string): string {
+  return `${contentType}:${logicalKey}`;
 }
 
 /**

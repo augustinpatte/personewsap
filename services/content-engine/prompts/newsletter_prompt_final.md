@@ -1400,8 +1400,24 @@ recopier ce contrat ailleurs pour l'adapter — le corriger à sa source, dans
 LE CONTENU FOURNIT LES FAITS.
 LA QUESTION EXIGE LE RAISONNEMENT.
 
-Le lecteur a le contenu sous les yeux. Une question qu'il peut résoudre en
-relisant une ligne ne mesure rien.
+LE TEXTE N'EST PLUS À L'ÉCRAN QUAND LA QUESTION EST POSÉE.
+
+Le produit ouvre le challenge sur un écran séparé : l'article disparaît, et le
+lecteur répond en vingt secondes sur ce qu'il a compris, pas sur ce qu'il peut
+relire. Une question ne doit donc JAMAIS supposer que le texte reste
+consultable.
+
+Deux conséquences, dans deux directions opposées, et les deux sont bloquantes :
+
+- ne jamais poser une question qui demande de retrouver une donnée précise
+  (chiffre, date, nom, citation) : sans le texte, ce n'est plus de la lecture,
+  c'est de la mémoire ;
+- ne jamais poser une question qui ne se joue que sur un détail : l'énoncé doit
+  rappeler lui-même le peu de contexte nécessaire, en une clause, pour que la
+  question se tienne seule.
+
+Une question qu'un lecteur attentif ne pourrait pas trancher sans rouvrir
+l'article est une question ratée.
 
 ## INTERDIT
 

@@ -65,6 +65,13 @@ function readBand(value: unknown): QuestionGradeBand {
  * Resuming is the same call: the RPC is idempotent per (user, logical question),
  * so reopening the app returns the ORIGINAL started_at and deadline rather than
  * a fresh twenty seconds, and the stable option order comes back unchanged.
+ *
+ * When the attempt is already SETTLED the same call also carries what was
+ * chosen and what it scored, in `settled`. That is what lets the archive, a
+ * second device and the app reopened after a kill render the debrief instead of
+ * a blank card worth zero — and it releases nothing new, because those columns
+ * are populated only for an attempt the caller has already submitted, which is
+ * the gate `get_question_feedback` already opens on.
  */
 export async function startQuestionAttempt(
   logicalQuestionId: string
@@ -93,18 +100,34 @@ export async function startQuestionAttempt(
     }
 
     const row = data as Record<string, unknown>;
+    const alreadySubmitted = row.already_submitted === true;
+    const attemptId = String(row.attempt_id ?? "");
 
     return {
       ok: true,
       data: {
-        attemptId: String(row.attempt_id ?? ""),
+        attemptId,
         serverNow: String(row.server_now ?? ""),
         startedAt: String(row.started_at ?? ""),
         deadlineAt: String(row.deadline_at ?? ""),
         timeLimitSeconds: Number(row.time_limit_seconds ?? 20),
-        alreadySubmitted: row.already_submitted === true,
+        alreadySubmitted,
         prompt: typeof row.prompt === "string" ? row.prompt : "",
-        options: readOptions(row.options)
+        options: readOptions(row.options),
+        // Only read when the server says the attempt is settled. On an open
+        // question these columns are NULL by construction, and treating them as
+        // a result would be inventing one.
+        settled: alreadySubmitted
+          ? {
+              attemptId,
+              scoreMilli: readTier(row.score_milli),
+              gradeBand: readBand(row.grade_band),
+              expired: row.expired === true,
+              skipped: row.skipped === true,
+              selectedOptionId:
+                typeof row.selected_option_id === "string" ? row.selected_option_id : null
+            }
+          : undefined
       }
     };
   } catch (error) {

@@ -350,6 +350,9 @@ bonne réponse reste identifiable sans comprendre le sujet, la question échoue.
 Substance — jugement du Reviewer :
 
 - la question exige un RAISONNEMENT, pas la relecture d'une ligne ;
+- le cas reste affiché pendant les trois questions — c'est le seul format où
+  c'est vrai — donc l'énoncé peut s'appuyer sur le cas, mais une question dont
+  la réponse se retrouve en recopiant une ligne du cas reste un FAIL ;
 - la question n'exige aucune donnée absente du contenu et du source packet ;
 - le `decision_criterion` nomme un axe réel et suffit à départager les quatre
   options ;

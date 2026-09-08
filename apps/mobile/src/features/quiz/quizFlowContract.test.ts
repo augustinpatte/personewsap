@@ -308,3 +308,57 @@ describe("Parcours is untouched", () => {
     expect(context).not.toMatch(/\bteam_id\b|\bTeamRef\b/);
   });
 });
+
+/**
+ * REOPENING A QUESTION YOU HAVE ALREADY ANSWERED.
+ *
+ * `start_question_attempt` reports `already_submitted` for an attempt the
+ * reader has settled, and for a long time that was ALL it reported: no prompt,
+ * no options, no score, no record of what was chosen. The reducer has always
+ * been able to restore a settled question — `start_succeeded` takes an
+ * `answered` payload and `quizSession.test.ts` proves it — but nothing ever
+ * handed it one, so every path that reopens a settled reading rendered an empty
+ * prompt, zero option rows and a fabricated "0 points":
+ *
+ *   the app killed after answering and reopened;
+ *   the reading opened again from the archive;
+ *   a second device opening a question the first one answered;
+ *   the reader switching language after answering.
+ *
+ * That is the exact shape of bug the unit tests could not see: the reducer was
+ * right, the wiring was missing, and both suites were green. So the wiring is
+ * pinned here.
+ */
+describe("resuming a question the server has already settled", () => {
+  it("reads the settled result off the start payload", () => {
+    // Populated only when the server says the attempt is submitted — on an open
+    // question those columns are NULL, and reading them as a result would be
+    // inventing one.
+    expect(data).toMatch(/settled:\s*alreadySubmitted/);
+    expect(data).toContain("selected_option_id");
+    expect(data).toContain("grade_band");
+  });
+
+  it("hands it to the reducer instead of letting it fabricate a zero", () => {
+    const start = flow.slice(flow.indexOf("start_succeeded"));
+
+    expect(start).toContain("answered: result.data.settled");
+  });
+
+  it("loads the explanation for a question resumed as settled", () => {
+    // `get_question_feedback` opens for exactly the attempts that reach this
+    // branch, so the debrief is complete rather than half-restored.
+    const resumed = flow.slice(flow.indexOf("if (result.data.alreadySubmitted)"));
+
+    expect(resumed).toContain("loadFeedback(currentIndex)");
+  });
+
+  it("does not count a resumed question as a fresh start", () => {
+    const resumed = flow.slice(flow.indexOf("if (result.data.alreadySubmitted)"));
+    const analytics = resumed.indexOf('trackAnalyticsEvent("quiz_started"');
+    const bail = resumed.indexOf("return;");
+
+    expect(bail).toBeGreaterThanOrEqual(0);
+    expect(bail).toBeLessThan(analytics);
+  });
+});

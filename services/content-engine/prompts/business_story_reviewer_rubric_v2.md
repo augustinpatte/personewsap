@@ -359,6 +359,11 @@ bonne réponse reste identifiable sans comprendre le sujet, la question échoue.
 Substance — jugement du Reviewer :
 
 - la question exige un RAISONNEMENT, pas la relecture d'une ligne ;
+- la question TIENT SANS LE TEXTE. Le produit retire l'article de l'écran
+  pendant le challenge : une question dont la réponse suppose de retrouver un
+  chiffre, une date, un nom ou une formulation exacte dans le corps du texte est
+  un FAIL, et une question dont l'énoncé ne rappelle pas lui-même le contexte
+  minimal nécessaire est un FAIL ;
 - la question n'exige aucune donnée absente du contenu et du source packet ;
 - le `decision_criterion` nomme un axe réel et suffit à départager les quatre
   options ;

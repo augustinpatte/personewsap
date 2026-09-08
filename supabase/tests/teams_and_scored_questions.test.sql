@@ -469,6 +469,14 @@ begin
     (select (s.options::text ilike '%score%' or s.options::text ilike '%excellent%')::text
      from public.start_question_attempt(pg_temp.lq_shared()) s));
 
+  -- The settled columns exist for the debrief, and only for it. While the
+  -- question is still OPEN they are empty, which is what keeps them from being
+  -- a second door onto the answer key.
+  perform pg_temp.record(218, 'B20a an open attempt releases no score, band or selection', 'true',
+    (select (s.score_milli is null and s.grade_band is null and s.selected_option_id is null
+             and not s.expired and not s.skipped)::text
+     from public.start_question_attempt(pg_temp.lq_shared()) s));
+
   -- The feedback door is shut until the answer is in.
   begin
     perform * from public.get_question_feedback(pg_temp.lq_shared());
@@ -536,8 +544,49 @@ begin
     (select count(*)::text from public.question_attempts a
      where a.user_id = pg_temp.uid_owner() and a.logical_question_id = pg_temp.lq_shared()));
 
-  perform pg_temp.record(42, 'B33 restarting after submitting reports it, and returns no options', 'true|0',
-    (select s.already_submitted::text || '|' || jsonb_array_length(s.options)::text
+  -- A SETTLED QUESTION COMES BACK WHOLE (§10).
+  --
+  -- `already_submitted` used to be the entire answer: no prompt, no options, no
+  -- score, and no record of what was chosen. Every surface that reopens a
+  -- settled reading — the archive, a second device, the app relaunched after a
+  -- kill, a language switch — could then render only a blank card worth zero,
+  -- and a reader who scored 1000 was shown nothing and told it was worth
+  -- nothing. The debrief comes back instead, and what it releases is exactly
+  -- what `get_question_feedback` already releases to a caller who has
+  -- submitted: not one grade more, and behind the same gate.
+  -- Two options, not four: this fixture's question is hand-built with a best
+  -- and a weak option, which is all the fanout and grading checks need. The
+  -- count is asserted against the fixture rather than against the editorial
+  -- contract, so this reads what the payload returned and not what a real
+  -- edition would carry.
+  perform pg_temp.record(42, 'B33 restarting after submitting returns the debrief',
+    'true|2|1000|excellent|false|false',
+    (select s.already_submitted::text || '|' || jsonb_array_length(s.options)::text || '|' ||
+            s.score_milli::text || '|' || s.grade_band || '|' ||
+            s.expired::text || '|' || s.skipped::text
+     from public.start_question_attempt(pg_temp.lq_shared()) s));
+
+  perform pg_temp.record(214, 'B33a the option the reader chose is named', pg_temp.opt_best()::text,
+    (select s.selected_option_id::text
+     from public.start_question_attempt(pg_temp.lq_shared()) s));
+
+  -- The SAME order as on the day. "The one I picked was second" has to stay
+  -- true when the reading is reopened, or the debrief describes a screen the
+  -- reader never saw.
+  perform pg_temp.record(215, 'B33b the options come back in the order they were shown in', 'true',
+    (select (
+       (select array_agg((e.o->>'option_id')::uuid order by e.ord)
+          from jsonb_array_elements(s.options) with ordinality as e(o, ord))
+       = (select a.option_order from public.question_attempts a where a.id = v_attempt)
+     )::text
+     from public.start_question_attempt(pg_temp.lq_shared()) s));
+
+  perform pg_temp.record(216, 'B33c a settled payload still carries no per-option grading', 'false',
+    (select (s.options::text ilike '%score%' or s.options::text ilike '%excellent%')::text
+     from public.start_question_attempt(pg_temp.lq_shared()) s));
+
+  perform pg_temp.record(217, 'B33d the prompt comes back too', 'true',
+    (select (length(coalesce(s.prompt, '')) > 0)::text
      from public.start_question_attempt(pg_temp.lq_shared()) s));
 
   -- Feedback is released now, and only now.
@@ -621,6 +670,66 @@ begin
   perform pg_temp.record(51, 'C2 it is reported as expired', 'true', v_expired::text);
   perform pg_temp.record(52, 'C3 the late choice is not kept as if it counted', 'null',
     coalesce(v_selected::text, 'null'));
+end $$;
+
+-- THE BOUNDARY ITSELF, from both sides.
+--
+-- C1 proves an answer four minutes late is worth nothing, which is not the
+-- interesting case: a comparison written the wrong way round still passes it.
+-- The rule the product actually sells is twenty seconds, so what has to be
+-- proven is that a submit inside the window scores and one past it does not,
+-- with the two separated by a fraction of a second.
+--
+-- The outsider is used deliberately: they are in no team, so these two submits
+-- fan out to nothing and cannot disturb any leaderboard the rest of the suite
+-- reads. And the deadline is planted by the owning role, because a client
+-- moving its own deadline is precisely what B23 proves is refused.
+reset role;
+
+do $$
+begin
+  -- Started 19.9 seconds ago: still inside the window, by a tenth of a second.
+  insert into public.question_attempts
+    (id, user_id, logical_question_id, edition_date, started_at, deadline_at, option_order)
+  values ('deadbeef-0000-4000-8000-000000000002', pg_temp.uid_outsider(), pg_temp.lq_shared(),
+          pg_temp.ed('e2'), now() - interval '19.9 seconds', now() + interval '0.1 seconds',
+          array[pg_temp.opt_best(), pg_temp.opt_weak()]);
+
+  -- The same question for the leaver would collide with C1's attempt, so the
+  -- past-the-post half uses lq_solo, whose options are graded on the same scale.
+  insert into public.question_attempts
+    (id, user_id, logical_question_id, edition_date, started_at, deadline_at, option_order)
+  values ('deadbeef-0000-4000-8000-000000000003', pg_temp.uid_outsider(), pg_temp.lq_solo(),
+          pg_temp.ed('e2'), now() - interval '20.1 seconds', now() - interval '0.1 seconds',
+          array['ababab00-0000-4000-8000-000000000003'::uuid]);
+end $$;
+
+set local role authenticated;
+
+do $$
+declare
+  v_score int;
+  v_expired boolean;
+begin
+  perform pg_temp.sign_in(pg_temp.uid_outsider());
+
+  select s.score_milli, s.expired into v_score, v_expired
+  from public.submit_question_answer('deadbeef-0000-4000-8000-000000000002', pg_temp.opt_best()) s;
+
+  perform pg_temp.record(219, 'C4 an answer 0.1s inside the window still scores', '1000|false',
+    v_score::text || '|' || v_expired::text);
+
+  select s.score_milli, s.expired into v_score, v_expired
+  from public.submit_question_answer('deadbeef-0000-4000-8000-000000000003', 'ababab00-0000-4000-8000-000000000003'::uuid) s;
+
+  perform pg_temp.record(220, 'C5 an answer 0.1s past it is worth nothing', '0|true',
+    v_score::text || '|' || v_expired::text);
+
+  -- Neither submit touched a leaderboard: the outsider is in no team, and the
+  -- fanout is over teams, not over readers.
+  perform pg_temp.record(221, 'C6 the boundary submits scored for no team', '0',
+    (select count(*)::text from public.team_question_scores s
+     where s.user_id = pg_temp.uid_outsider()));
 end $$;
 
 -- ---------------------------------------------------------------------------

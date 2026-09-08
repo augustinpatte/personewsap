@@ -376,3 +376,52 @@ describe("the contract the Scheduled Tasks actually receive", () => {
     );
   });
 });
+
+/**
+ * The prompts describe the product the reader actually uses.
+ *
+ * Every reading prompt used to open its question section with "Le lecteur a le
+ * contenu sous les yeux" — and for a Newsletter article and a Business Story
+ * that is false. `ReadingQuizScreen` replaces the article: the reader answers in
+ * twenty seconds with the text gone, which is exactly why it is a screen and not
+ * a section appended to the reader. A generator told the opposite writes
+ * questions that lean on a detail nobody can go back and check, and there is no
+ * downstream validator that could catch it — "answerable without the text" is a
+ * judgement, so the only place it can be enforced is the instruction itself and
+ * the rubric the Reviewer reads.
+ *
+ * The Mini Case is the deliberate exception, and its prompt says so: the case
+ * stays on screen because the case IS the material and the three questions walk
+ * through it.
+ */
+describe("the prompts match how the product shows a question", () => {
+  const READING_PROMPTS = [
+    "newsletter_prompt_final.md",
+    "business_story_prompt_final.md"
+  ] as const;
+
+  it.each([...CONTENT_PROMPTS, ...REVIEWER_RUBRICS])(
+    "%s never claims the reader can re-read the content",
+    (name) => {
+      expect(read(name)).not.toContain("Le lecteur a le contenu sous les yeux");
+    }
+  );
+
+  it.each(READING_PROMPTS)("%s says the text is gone during the question", (name) => {
+    expect(read(name)).toContain("LE TEXTE N'EST PLUS À L'ÉCRAN QUAND LA QUESTION EST POSÉE.");
+  });
+
+  it("the mini case prompt keeps the opposite rule, because the case stays visible", () => {
+    const prompt = read("mini_case_prompt_final.md");
+
+    expect(prompt).toContain("LE CAS RESTE À L'ÉCRAN PENDANT LES QUESTIONS.");
+    expect(prompt).not.toContain("LE TEXTE N'EST PLUS À L'ÉCRAN");
+  });
+
+  it.each(["newsletter_reviewer_rubric_v2.md", "business_story_reviewer_rubric_v2.md"] as const)(
+    "%s makes the Reviewer check it",
+    (name) => {
+      expect(read(name)).toContain("la question TIENT SANS LE TEXTE");
+    }
+  );
+});

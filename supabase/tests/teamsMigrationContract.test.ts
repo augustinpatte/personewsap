@@ -38,7 +38,8 @@ const MIGRATIONS = [
   "20260906110000_team_read_surface_and_invite.sql",
   "20260907120000_team_archive_content.sql",
   "20260907130000_archive_team.sql",
-  "20260907140000_teams_security_hardening.sql"
+  "20260907140000_teams_security_hardening.sql",
+  "20260907170000_resume_settled_question_attempt.sql"
 ] as const;
 
 const sources = new Map(
@@ -147,11 +148,42 @@ describe("the migration files themselves", () => {
   it("never drop or rename anything that already existed", () => {
     // The whole set is meant to be additive. DROP POLICY on a policy this set
     // creates is fine (re-runnability); anything else is not.
-    const drops = [...allCode.matchAll(/DROP\s+(TABLE|COLUMN|CONSTRAINT|FUNCTION|SCHEMA|TYPE)/gi)];
+    const drops = [...allCode.matchAll(/DROP\s+(TABLE|COLUMN|CONSTRAINT|SCHEMA|TYPE)/gi)];
 
     expect(drops.map((match) => match[0])).toEqual([]);
     expect(allCode).not.toMatch(/ALTER TABLE[\s\S]{0,80}\bRENAME\b/i);
     expect(allCode).not.toMatch(/ALTER TABLE[\s\S]{0,80}\bDROP COLUMN\b/i);
+  });
+
+  // DROP FUNCTION is the one exception, and it is a narrow one.
+  //
+  // Postgres will not let CREATE OR REPLACE change a RETURNS TABLE — adding an
+  // output column means dropping and recreating. That is not a destructive
+  // change: a function holds no data, and the replacement lands in the same
+  // transaction. What WOULD be destructive is dropping a function this set did
+  // not create (something the rest of the product depends on) or dropping one
+  // and not putting it back, so those are what this checks. `IF EXISTS` is
+  // required too: a re-run against a database where the drop already happened
+  // must not fail on the second pass.
+  it("only drop a function to immediately recreate it, and only its own", () => {
+    const created = new Set(functions.map((definition) => definition.name));
+
+    for (const [name, sql] of sources) {
+      const code = stripNoise(sql);
+
+      for (const match of code.matchAll(/DROP\s+FUNCTION(\s+IF\s+EXISTS)?\s+((?:public|private)\.\w+)/gi)) {
+        const [statement, ifExists, dropped] = [match[0], match[1], match[2]];
+
+        expect(ifExists, `${name}: ${statement} must be IF EXISTS`).toBeTruthy();
+        expect(created, `${name} drops ${dropped}, which this set never creates`).toContain(
+          dropped
+        );
+        expect(
+          code.indexOf(`CREATE OR REPLACE FUNCTION ${dropped}`),
+          `${name} drops ${dropped} without recreating it`
+        ).toBeGreaterThan(match.index ?? 0);
+      }
+    }
   });
 
   it("only ever add columns to existing tables", () => {

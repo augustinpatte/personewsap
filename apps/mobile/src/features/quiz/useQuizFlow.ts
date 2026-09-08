@@ -101,6 +101,24 @@ export function useQuizFlow(input: {
   const currentIndex = progress.currentIndex;
   const currentQuestion = input.questions[currentIndex];
 
+  const loadFeedback = useCallback(
+    async (index: number) => {
+      const question = input.questions[index];
+
+      if (!question) {
+        return;
+      }
+
+      const feedback = await fetchQuestionFeedback(question.logicalQuestionId);
+
+      if (feedback.ok) {
+        const chosen = feedback.data.find((entry) => entry.isSelected);
+        setFeedbackByIndex((current) => ({ ...current, [index]: chosen?.feedback ?? null }));
+      }
+    },
+    [input.questions]
+  );
+
   // Start the question in front of the reader, and only that one.
   useEffect(() => {
     if (!input.active || !currentQuestion || startedRef.current.has(currentIndex)) {
@@ -137,25 +155,42 @@ export function useQuizFlow(input: {
         return;
       }
 
+      // RESUMING A SETTLED QUESTION RESTORES ITS RESULT.
+      //
+      // `settled` is what the server already holds for an attempt this reader
+      // submitted. Passing it through is the whole difference between a
+      // reopened reading showing the debrief the reader earned and showing an
+      // empty card worth zero — the reducer has always accepted the answer, and
+      // for a long time nothing handed it one.
       dispatch({
         index: currentIndex,
-        action: { type: "start_succeeded", attempt: result.data }
+        action: {
+          type: "start_succeeded",
+          attempt: result.data,
+          answered: result.data.settled
+        }
       });
 
-      if (!result.data.alreadySubmitted) {
-        trackAnalyticsEvent("quiz_started", {
-          content_type: input.contentType,
-          is_team: input.isTeam,
-          question_index: currentIndex + 1,
-          question_count: total
-        });
+      if (result.data.alreadySubmitted) {
+        // The explanation too: it is part of the debrief, and
+        // `get_question_feedback` opens for exactly the attempts that reach
+        // here — the submitted ones.
+        void loadFeedback(currentIndex);
+        return;
       }
+
+      trackAnalyticsEvent("quiz_started", {
+        content_type: input.contentType,
+        is_team: input.isTeam,
+        question_index: currentIndex + 1,
+        question_count: total
+      });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [currentIndex, currentQuestion, input.active, input.contentType, input.isTeam, retryToken, states, total]);
+  }, [currentIndex, currentQuestion, input.active, input.contentType, input.isTeam, loadFeedback, retryToken, states, total]);
 
   // The expiry clock. It counts nothing — it asks the reducer to compare now()
   // against the server's deadline, which is the only authority here.
@@ -172,24 +207,6 @@ export function useQuizFlow(input: {
 
     return () => clearInterval(interval);
   }, [currentIndex, states]);
-
-  const loadFeedback = useCallback(
-    async (index: number) => {
-      const question = input.questions[index];
-
-      if (!question) {
-        return;
-      }
-
-      const feedback = await fetchQuestionFeedback(question.logicalQuestionId);
-
-      if (feedback.ok) {
-        const chosen = feedback.data.find((entry) => entry.isSelected);
-        setFeedbackByIndex((current) => ({ ...current, [index]: chosen?.feedback ?? null }));
-      }
-    },
-    [input.questions]
-  );
 
   const settleExpiredAttempt = useCallback(
     async (index: number, attemptId: string) => {
