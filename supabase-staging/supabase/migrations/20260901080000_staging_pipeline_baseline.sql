@@ -265,17 +265,17 @@ on conflict (key) do nothing;
 -- this is the same function; if the cadence ever changes it changes here, in
 -- one place, rather than in whichever copy the reader happens to find.
 
-create or replace function public.resolve_staging_edition_kind(p_edition_date date)
+create or replace function public.resolve_staging_edition_kind(p_date date default current_date)
 returns text
 language sql
 immutable
 set search_path = public, pg_temp
 as $$
-  select case extract(isodow from p_edition_date)
-    when 1 then 'daily'          -- Monday
-    when 3 then 'daily'          -- Wednesday
-    when 5 then 'daily'          -- Friday
-    when 7 then 'weekly_digest'  -- Sunday
+  select case extract(dow from p_date)::int
+    when 1 then 'daily'
+    when 3 then 'daily'
+    when 5 then 'daily'
+    when 0 then 'weekly_digest'
     else null
   end;
 $$;
