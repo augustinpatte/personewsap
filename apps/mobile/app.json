@@ -13,7 +13,7 @@
       "resizeMode": "contain"
     },
     "ios": {
-      "buildNumber": "10",
+      "buildNumber": "11",
       "supportsTablet": false,
       "bundleIdentifier": "com.personewsap.mobile",
       "infoPlist": {
