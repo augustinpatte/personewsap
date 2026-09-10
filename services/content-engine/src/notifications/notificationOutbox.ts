@@ -47,6 +47,14 @@ export type NotificationOutbox = {
    * goes silent the day the outbox has a bad afternoon.
    */
   isAwaitingVerification: (input: { eventDate: string }) => Promise<boolean>;
+  /**
+   * Editions verified in the last three days. A reader in Los Angeles is told
+   * about Monday's edition at 19:00 Los Angeles, which is early Tuesday in
+   * Paris: by then neither the event nor the cadence date names Monday, so the
+   * run has to ask which recent editions may still have readers to tell.
+   * Answers [] when it cannot know, which is the behaviour before this existed.
+   */
+  recentReleasedEditionDates: () => Promise<string[]>;
 };
 
 /** The outbox has not been deployed to this project yet. */
@@ -130,6 +138,25 @@ export function createSupabaseNotificationOutbox(supabase: SupabaseClient): Noti
       }
 
       return (data as { status?: string } | null)?.status === "awaiting_verification";
+    },
+
+    async recentReleasedEditionDates() {
+      const { data, error } = await supabase.rpc("get_recent_released_edition_dates", {});
+
+      if (error) {
+        if (!MISSING_FUNCTION_CODES.has(error.code ?? "")) {
+          console.error("[content-engine] could not list recent released editions", {
+            code: error.code ?? null,
+            message: error.message
+          });
+        }
+
+        return [];
+      }
+
+      return ((data ?? []) as Array<{ released_edition_date: string }>).map(
+        (row) => row.released_edition_date
+      );
     }
   };
 }
@@ -145,6 +172,8 @@ export function createSupabaseNotificationOutbox(supabase: SupabaseClient): Noti
 export function resolveEditionDatesToAnnounce(input: {
   events: NotificationEvent[];
   fallbackDate: string | null;
+  /** Recently verified editions whose later-timezone readers may now be due. */
+  recentDates?: string[];
 }): string[] {
   const dates = new Set<string>();
 
@@ -152,6 +181,10 @@ export function resolveEditionDatesToAnnounce(input: {
     if (event.eventType === "edition_published") {
       dates.add(event.eventDate);
     }
+  }
+
+  for (const date of input.recentDates ?? []) {
+    dates.add(date);
   }
 
   if (input.fallbackDate) {

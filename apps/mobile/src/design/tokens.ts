@@ -27,6 +27,10 @@ export const tokens = {
     warningSoft: "#EFE7D6",
     danger: "#9B3D33",
     dangerSoft: "#F1E3DF",
+    // The disabled-notifications banner: a burnt, muted orange rather than a
+    // signal orange, dark enough for white caption text (4.8:1).
+    notice: "#B25A22",
+    onNotice: "#FFFFFF",
     white: "#FFFFFF",
     black: "#000000",
     transparent: "transparent"

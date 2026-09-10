@@ -2,6 +2,7 @@ import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
 
 import { useAuth } from "../auth";
+import { trackStartupRegistration } from "./notificationStartup";
 import { registerCurrentDeviceForEnabledNotifications } from "./pushNotificationPreferences";
 
 /**
@@ -28,10 +29,15 @@ export function usePushTokenRefresh(): void {
       return;
     }
 
-    void registerCurrentDeviceForEnabledNotifications({
+    const registration = registerCurrentDeviceForEnabledNotifications({
       language: profileLanguage,
       userId: user.id
-    }).catch((error: unknown) => {
+    });
+
+    // The disabled-notifications banner waits for this before judging.
+    trackStartupRegistration(registration);
+
+    void registration.catch((error: unknown) => {
       if (__DEV__) {
         console.info("[Notifications]", {
           event: "push_token_login_sync_failed",

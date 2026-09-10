@@ -55,6 +55,8 @@ export const darkColors: ThemeColors = {
   warningSoft: "#2A2316",
   danger: "#DB8E80",
   dangerSoft: "#2F1F1B",
+  notice: "#B25A22",
+  onNotice: "#FFFFFF",
   white: "#FFFFFF",
   black: "#000000",
   transparent: "transparent",

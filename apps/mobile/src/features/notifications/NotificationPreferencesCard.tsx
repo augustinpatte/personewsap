@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Switch, View } from "react-native";
+import { ActivityIndicator, AppState, Linking, StyleSheet, Switch, View } from "react-native";
 
 import { AppText, Card, ProgressPill } from "../../components";
+import { SecondaryButton } from "../../components/SecondaryButton";
 import { tokens } from "../../design/tokens";
 import { useThemeColors } from "../../design/theme";
 import { formatLanguageName, localized } from "../../lib/i18n";
@@ -14,6 +15,7 @@ import {
   type NotificationPreferences,
   type NotificationRegistrationState
 } from "./pushNotificationPreferences";
+import { decideNotificationSettingsAction, type IosPermissionStatus } from "./pushPermissionFlow";
 
 type NotificationPreferencesCardProps = {
   language?: Language | null;
@@ -27,6 +29,7 @@ export function NotificationPreferencesCard({
   userId
 }: NotificationPreferencesCardProps) {
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
+  const [permissionStatus, setPermissionStatus] = useState<IosPermissionStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -61,12 +64,13 @@ export function NotificationPreferencesCard({
     // have revoked permission in iOS Settings since it was written. Ask the
     // system, so this card can never promise a notification iOS will refuse to
     // deliver.
-    const permissionStatus = await readIosPermissionStatus();
+    const systemStatus = await readIosPermissionStatus();
 
+    setPermissionStatus(systemStatus);
     setRegistrationState(
-      permissionStatus === "denied"
+      systemStatus === "denied"
         ? "denied"
-        : result.preferences.tokenStored && permissionStatus === "granted"
+        : result.preferences.tokenStored && systemStatus === "granted"
           ? "granted"
           : "not_requested"
     );
@@ -75,6 +79,18 @@ export function NotificationPreferencesCard({
   useEffect(() => {
     void loadPreferences();
   }, [loadPreferences, refreshKey]);
+
+  // Back from iOS Settings: the reader may have just switched notifications on
+  // there, and the card must say so without being reopened.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        void loadPreferences();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [loadPreferences]);
 
   const savePreferences = useCallback(
     async (nextEnabled: boolean) => {
@@ -105,7 +121,12 @@ export function NotificationPreferencesCard({
               }
             : current
         );
-        setErrorMessage(getUserFacingErrorMessage(result.error, uiLanguage, "notification"));
+        // A refusal is explained by the section itself, with the way out; an
+        // error line underneath would say the same thing twice.
+        if (result.registrationState !== "denied") {
+          setErrorMessage(getUserFacingErrorMessage(result.error, uiLanguage, "notification"));
+        }
+        await loadPreferences();
         return;
       }
 
@@ -148,6 +169,17 @@ export function NotificationPreferencesCard({
   }
 
   const enabled = preferences?.notificationsEnabled ?? false;
+  const action =
+    preferences && permissionStatus
+      ? decideNotificationSettingsAction({
+          permissionStatus,
+          notificationsEnabled: enabled,
+          hasActiveDevice: preferences.tokenStored
+        })
+      : "none";
+  // Refused at system level: the switch cannot change that, and pretending it
+  // could would be a control that silently does nothing.
+  const blockedBySystem = action === "open_system_settings";
 
   return (
     <Card tone="muted">
@@ -159,7 +191,8 @@ export function NotificationPreferencesCard({
           </AppText>
         </View>
         <Switch
-          disabled={saving || loading || !preferences?.tokenStorageReady}
+          accessibilityLabel={copy.title}
+          disabled={saving || loading || !preferences?.tokenStorageReady || blockedBySystem}
           ios_backgroundColor={colors.borderStrong}
           onValueChange={(nextValue) => {
             void savePreferences(nextValue);
@@ -169,9 +202,28 @@ export function NotificationPreferencesCard({
             false: colors.borderStrong,
             true: colors.accent
           }}
-          value={enabled}
+          value={enabled && !blockedBySystem}
         />
       </View>
+
+      {blockedBySystem ? (
+        <View style={styles.systemBlock}>
+          <AppText variant="bodyStrong">{copy.systemOffTitle}</AppText>
+          <AppText color="muted" variant="body">
+            {copy.systemOffBody}
+          </AppText>
+          <SecondaryButton
+            label={copy.openSettings}
+            onPress={() => {
+              void Linking.openSettings();
+            }}
+          />
+        </View>
+      ) : action === "request_permission" && !enabled ? (
+        <AppText color="muted" variant="caption">
+          {copy.permissionHint}
+        </AppText>
+      ) : null}
 
       <View style={styles.metaRows}>
         <InfoRow label={copy.language} value={formatLanguageName(preferences?.language ?? null, uiLanguage)} />
@@ -187,7 +239,10 @@ export function NotificationPreferencesCard({
         />
       </View>
 
-      <ProgressPill label={registrationLabel(registrationState, enabled, uiLanguage)} tone={enabled ? "success" : "neutral"} />
+      <ProgressPill
+        label={registrationLabel(blockedBySystem ? "denied" : registrationState, enabled, uiLanguage)}
+        tone={enabled && !blockedBySystem ? "success" : "neutral"}
+      />
 
       {saving ? (
         <AppText color="muted" variant="caption">
@@ -195,7 +250,9 @@ export function NotificationPreferencesCard({
         </AppText>
       ) : null}
       {errorMessage ? <AppText color="danger" variant="body">{errorMessage}</AppText> : null}
-      {statusMessage ? <AppText color="accent" variant="bodyStrong">{statusMessage}</AppText> : null}
+      {statusMessage && !blockedBySystem ? (
+        <AppText color="accent" variant="bodyStrong">{statusMessage}</AppText>
+      ) : null}
     </Card>
   );
 }
@@ -220,12 +277,12 @@ function registrationLabel(
 ) {
   const copy = getNotificationCopy(language);
 
-  if (enabled && state === "granted") {
-    return copy.ready;
-  }
-
   if (state === "denied") {
     return copy.denied;
+  }
+
+  if (enabled && state === "granted") {
+    return copy.ready;
   }
 
   if (state === "missing_project_id") {
@@ -265,48 +322,60 @@ function getNotificationCopy(language: Language) {
   return localized(
     {
       en: {
-        title: "Edition notification",
-        description: "One notification per published edition — four a week.",
+        title: "Edition notifications",
+        description:
+          "Your edition at 19:00 your time, and one reminder the next morning only if your session is unfinished.",
         signIn: "Sign in to manage edition notifications.",
-        loading: "Loading reminder settings...",
+        loading: "Loading notification settings...",
         language: "Language",
-        pushToken: "Reminder status",
-        tokenStored: "Ready for this account",
+        pushToken: "This account",
+        tokenStored: "Ready to receive notifications",
         tokenNotStored: "Not enabled",
         tableNotReady: "Unavailable",
-        saving: "Saving reminder settings...",
-        ready: "Ready",
-        denied: "Denied",
+        saving: "Saving notification settings...",
+        ready: "On",
+        denied: "Off in your phone's Settings",
         needsEas: "Unavailable",
         deviceOnly: "Phone only",
         storageNeeded: "Unavailable",
         checking: "Checking",
         off: "Off",
         disabled: "Edition notifications turned off.",
-        enabled: "You will be notified when each new edition is published.",
-        saved: "Reminder settings saved."
+        enabled: "You will be notified at 19:00 your time when each new edition is ready.",
+        saved: "Notification settings saved.",
+        systemOffTitle: "Notifications are off for PersoNews on this phone",
+        systemOffBody:
+          "They were turned off at system level, so only your phone's Settings can turn them back on. PersoNews will not ask again.",
+        openSettings: "Open Settings",
+        permissionHint: "Switching this on will ask your phone for permission, once."
       },
       fr: {
-        title: "Notification d'édition",
-        description: "Une notification par édition publiée — quatre par semaine.",
+        title: "Notifications d'édition",
+        description:
+          "Votre édition à 19 h, heure locale, et un seul rappel le lendemain matin si votre session n'est pas terminée.",
         signIn: "Connectez-vous pour gérer les notifications d'édition.",
-        loading: "Chargement des réglages de rappel...",
+        loading: "Chargement des réglages de notification...",
         language: "Langue",
-        pushToken: "État du rappel",
-        tokenStored: "Prêt pour ce compte",
+        pushToken: "Ce compte",
+        tokenStored: "Prêt à recevoir les notifications",
         tokenNotStored: "Non activé",
         tableNotReady: "Indisponible",
-        saving: "Enregistrement des réglages de rappel...",
-        ready: "Prêt",
-        denied: "Refusé",
+        saving: "Enregistrement des réglages de notification...",
+        ready: "Activées",
+        denied: "Désactivées dans les Réglages du téléphone",
         needsEas: "Indisponible",
         deviceOnly: "Téléphone requis",
         storageNeeded: "Indisponible",
         checking: "Vérification",
-        off: "Désactivé",
+        off: "Désactivées",
         disabled: "Notifications d'édition désactivées.",
-        enabled: "Vous serez notifié à la publication de chaque nouvelle édition.",
-        saved: "Réglages de rappel enregistrés."
+        enabled: "Vous serez notifié à 19 h, heure locale, à chaque nouvelle édition.",
+        saved: "Réglages de notification enregistrés.",
+        systemOffTitle: "Les notifications de PersoNews sont désactivées sur ce téléphone",
+        systemOffBody:
+          "Elles ont été coupées au niveau du système : seuls les Réglages du téléphone peuvent les réactiver. PersoNews ne vous le redemandera pas.",
+        openSettings: "Ouvrir les Réglages",
+        permissionHint: "L'activer demandera une seule fois l'autorisation à votre téléphone."
       }
     },
     language
@@ -333,6 +402,9 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     flexShrink: 1
+  },
+  systemBlock: {
+    gap: tokens.space.sm
   },
   topline: {
     alignItems: "center",

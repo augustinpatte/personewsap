@@ -67,6 +67,13 @@ const SUITES = {
     label: "Push notification claims",
     file: "supabase/tests/push_notification_claims.test.sql",
     stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  "local-time": {
+    label: "Reader-local edition notifications",
+    file: "supabase/tests/reader_local_notifications.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
   },
   avatars: {
     label: "Optional player avatars & Team avatars",

@@ -16,6 +16,10 @@ on:
       timezone: "Europe/Paris"
     - cron: "35 21 * * 1,3,5,0"
       timezone: "Europe/Paris"
+    # Reader-local notifications (19:00 and 08:30 in each reader's zone) are
+    # sent at every hour of the day. Expo keeps a receipt for 24 hours, so a
+    # check every three hours reconciles each ticket well inside that.
+    - cron: "50 */3 * * *"
   workflow_dispatch:
     inputs:
       limit:

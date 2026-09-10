@@ -13,16 +13,22 @@ import {
   isRetryableExpoRequestFailure,
   resolveEditionNotificationRecipients,
   selectPendingRecipients,
+  isExpoPushToken,
   toExpoPushMessage,
   type DeliveryOutcome,
-  type EditionNotificationRecipient,
   type ExpoPushReceipt,
   type ExpoPushTicket,
+  type PushMessageContent,
   type ReceiptOutcome,
   type NotificationCandidateDrop,
   type NotificationCandidateToken,
   type RecipientSkipReason
 } from "./editionNotification.js";
+import {
+  ANSWER_REMINDER_NOTIFICATION_KIND,
+  buildAnswerReminderMessage,
+  type ClaimedAnswerReminder
+} from "./answerReminder.js";
 
 /**
  * Delivering the "your edition is ready" notification.
@@ -54,7 +60,8 @@ export type DeliveryRecord = {
     | "sent"
     | "retryable_failure"
     | "terminal_failure"
-    | "failed";
+    | "failed"
+    | "cancelled";
   attemptCount: number;
   expoTicketId?: string | null;
   lastAttemptAt?: string | null;
@@ -108,6 +115,30 @@ export type PushNotificationStore = {
   }) => Promise<void>;
   /** Retires a device whose token Expo reports as gone. */
   disablePushToken: (pushTokenId: string, reason: string) => Promise<void>;
+  /**
+   * WHEN each reader's edition_ready is due: 19:00 in their CURRENT
+   * `profiles.timezone`, and never before the edition was verified. `null`
+   * means the schedule is not deployed on this project, which keeps the
+   * behaviour it had before (every eligible reader is due at once). Optional,
+   * so a store without it behaves exactly as before.
+   */
+  loadEditionReadySchedule?: (input: {
+    dropDate: string;
+    userIds: string[];
+    now: string;
+  }) => Promise<Map<string, EditionReadySchedule> | null>;
+  /**
+   * Leases the next-morning reminders owed RIGHT NOW, with eligibility re-read
+   * by the database in the leasing statement. Only returned rows may be sent.
+   * `null` means the claim is not deployed on this project.
+   */
+  claimAnswerReminders?: (input: { limit: number }) => Promise<ClaimedAnswerReminder[] | null>;
+};
+
+export type EditionReadySchedule = {
+  /** ISO instant, or null while the edition awaits verification. */
+  dueAt: string | null;
+  isDue: boolean;
 };
 
 export type ExpoPushClient = {
@@ -141,7 +172,36 @@ export type SendEditionNotificationsResult = {
    * longer knows what it did.
    */
   bookkeepingFailures: number;
+  /**
+   * Eligible readers whose 19:00 has not come yet in their own timezone. Not
+   * skipped for good: nothing is written for them, and a later run sends.
+   */
+  notDue: number;
+  /** The earliest of those readers' due instants, for the operator. */
+  nextDueAt: string | null;
+  /**
+   * applied: reader-local timing decided who was sent to. unavailable: the
+   * schedule is not deployed here, so every eligible reader was due (the old
+   * behaviour). bypassed: a single-reader test send, which is an instruction.
+   */
+  localTimeGate: "applied" | "unavailable" | "bypassed";
   skipped: Array<{ userId: string; reason: RecipientSkipReason }>;
+};
+
+export type SendAnswerRemindersResult = {
+  /** False when the claim RPC does not exist on this project yet. */
+  deployed: boolean;
+  /** Device rows leased and attempted by this run. */
+  claimed: number;
+  ticketAccepted: number;
+  retryable: number;
+  permanentFailures: number;
+  disabledTokens: number;
+  bookkeepingFailures: number;
+  /** Rows handed back again in the same run after a retryable failure; left to the next run. */
+  deferred: number;
+  /** The editions the attempted reminders belonged to. */
+  editionDates: string[];
 };
 
 export type ReconcilePushReceiptsResult = {
@@ -202,6 +262,9 @@ export async function sendEditionNotifications(input: {
     permanentFailures: 0,
     disabledTokens: 0,
     bookkeepingFailures: 0,
+    notDue: 0,
+    nextDueAt: null,
+    localTimeGate: onlyUserIds ? "bypassed" : input.store.loadEditionReadySchedule ? "applied" : "unavailable",
     skipped: []
   };
 
@@ -264,6 +327,53 @@ export async function sendEditionNotifications(input: {
     });
   }
 
+  // WHEN, per reader. Everything above decided WHO, exactly as before; this
+  // only holds back a reader whose 19:00 has not come yet in their own
+  // timezone — read from profiles.timezone now, so a reader who travelled is on
+  // their new clock. Nothing is written for them: they are not skipped for
+  // good, a later run finds them due, and health counts them as scheduled
+  // rather than failed. A single-reader test send is an instruction, not held.
+  let dueRecipients = resolved.recipients;
+
+  if (result.localTimeGate === "applied" && input.store.loadEditionReadySchedule && resolved.recipients.length > 0) {
+    const schedule = await input.store.loadEditionReadySchedule({
+      dropDate: input.dropDate,
+      userIds: [...new Set(resolved.recipients.map((recipient) => recipient.userId))],
+      now: now()
+    });
+
+    if (schedule === null) {
+      result.localTimeGate = "unavailable";
+    } else {
+      const notDueUserIds = new Set<string>();
+
+      dueRecipients = resolved.recipients.filter((recipient) => {
+        const entry = schedule.get(recipient.userId);
+
+        if (entry?.isDue) {
+          return true;
+        }
+
+        notDueUserIds.add(recipient.userId);
+
+        if (
+          entry?.dueAt &&
+          (result.nextDueAt === null || Date.parse(entry.dueAt) < Date.parse(result.nextDueAt))
+        ) {
+          result.nextDueAt = entry.dueAt;
+        }
+
+        return false;
+      });
+
+      result.notDue = notDueUserIds.size;
+
+      for (const userId of notDueUserIds) {
+        result.skipped.push({ userId, reason: "not_due_yet" });
+      }
+    }
+  }
+
   const deliveries = await input.store.loadDeliveries({
     dropDate: input.dropDate,
     notificationKind: EDITION_NOTIFICATION_KIND
@@ -283,7 +393,7 @@ export async function sendEditionNotifications(input: {
   );
 
   const pending = selectPendingRecipients({
-    recipients: resolved.recipients,
+    recipients: dueRecipients,
     alreadySentTokenIds,
     awaitingReceiptTokenIds,
     permanentlyFailedTokenIds
@@ -297,6 +407,8 @@ export async function sendEditionNotifications(input: {
       drop_date: input.dropDate,
       already_sent: result.alreadySent,
       awaiting_receipt: result.awaitingReceipt,
+      not_due: result.notDue,
+      next_due_at: result.nextDueAt,
       skipped: resolved.skipped.length
     });
     return result;
@@ -385,6 +497,8 @@ export async function sendEditionNotifications(input: {
     permanent_failures: result.permanentFailures,
     disabled_tokens: result.disabledTokens,
     bookkeeping_failures: result.bookkeepingFailures,
+    not_due: result.notDue,
+    next_due_at: result.nextDueAt,
     skipped: result.skipped.length
   });
 
@@ -502,9 +616,185 @@ export async function reconcileExpoPushReceipts(input: {
   return result;
 }
 
+/**
+ * The next-morning reminder, for every reader owed it right now.
+ *
+ * The database decides who: `claim_edition_answer_reminders` re-reads each
+ * reader's assignments, answers, notification preference, devices, timezone
+ * and the edition's state in the very statement that leases the row, and
+ * returns only what may be sent. This sends exactly that, records every
+ * outcome against (device, edition, edition_answer_reminder), and never sends a
+ * row it was not handed.
+ *
+ * Bounded on purpose: a row that failed retryably is not hammered within the
+ * same run. If a later claim in this run hands it back, it is left to its lease
+ * and the next run — and the claim itself refuses it once the three-hour
+ * morning window has closed.
+ */
+export async function sendAnswerReminders(input: {
+  store: PushNotificationStore;
+  client: ExpoPushClient;
+  now?: () => string;
+  rateLimiter?: PushRateLimiter;
+  retry?: RetryOptions;
+  batchSize?: number;
+  maxRounds?: number;
+}): Promise<SendAnswerRemindersResult> {
+  const now = input.now ?? (() => new Date().toISOString());
+  const rateLimiter =
+    input.rateLimiter ??
+    createPushRateLimiter({ messagesPerSecond: EXPO_PUSH_MESSAGES_PER_SECOND });
+  const batchSize = Math.min(Math.max(1, Math.trunc(input.batchSize ?? 500)), 1000);
+  const maxRounds = Math.max(1, Math.trunc(input.maxRounds ?? 20));
+  const result: SendAnswerRemindersResult = {
+    deployed: true,
+    claimed: 0,
+    ticketAccepted: 0,
+    retryable: 0,
+    permanentFailures: 0,
+    disabledTokens: 0,
+    bookkeepingFailures: 0,
+    deferred: 0,
+    editionDates: []
+  };
+
+  if (!input.store.claimAnswerReminders) {
+    result.deployed = false;
+    return result;
+  }
+
+  const attempted = new Set<string>();
+  const editionDates = new Set<string>();
+
+  for (let round = 0; round < maxRounds; round += 1) {
+    const claimed = await input.store.claimAnswerReminders({ limit: batchSize });
+
+    if (claimed === null) {
+      result.deployed = false;
+      break;
+    }
+
+    const fresh = claimed.filter(
+      (row) => !attempted.has(`${row.pushTokenId}|${row.editionDate}`)
+    );
+    result.deferred += claimed.length - fresh.length;
+
+    if (fresh.length === 0) {
+      break;
+    }
+
+    const sendable: Array<ClaimedAnswerReminder & { message: PushMessageContent }> = [];
+
+    for (const row of fresh) {
+      attempted.add(`${row.pushTokenId}|${row.editionDate}`);
+      editionDates.add(row.editionDate);
+      result.claimed += 1;
+
+      if (isExpoPushToken(row.expoPushToken)) {
+        sendable.push({ ...row, message: buildAnswerReminderMessage(row.language, row.editionDate) });
+        continue;
+      }
+
+      // The claim only fans out to well-formed tokens; this covers a row that
+      // reached the table some other way.
+      await recordAnswerReminderOutcome(
+        input.store,
+        row,
+        { kind: "token_invalid", error: "not_an_expo_push_token" },
+        now(),
+        result
+      );
+    }
+
+    for (const chunk of chunkForExpo(sendable)) {
+      await rateLimiter.waitForCapacity(chunk.length);
+      const outcomes = await sendChunk(input.client, chunk, input.retry);
+
+      for (const [index, outcome] of outcomes.entries()) {
+        await recordAnswerReminderOutcome(input.store, chunk[index], outcome, now(), result);
+      }
+    }
+
+    if (claimed.length < batchSize) {
+      break;
+    }
+  }
+
+  result.editionDates = [...editionDates].sort();
+
+  console.info("[content-engine] edition answer reminder delivery", {
+    deployed: result.deployed,
+    claimed: result.claimed,
+    ticket_accepted: result.ticketAccepted,
+    retryable: result.retryable,
+    permanent_failures: result.permanentFailures,
+    disabled_tokens: result.disabledTokens,
+    bookkeeping_failures: result.bookkeepingFailures,
+    deferred: result.deferred,
+    edition_dates: result.editionDates
+  });
+
+  return result;
+}
+
+async function recordAnswerReminderOutcome(
+  store: PushNotificationStore,
+  row: ClaimedAnswerReminder,
+  outcome: DeliveryOutcome,
+  attemptedAt: string,
+  result: SendAnswerRemindersResult
+): Promise<void> {
+  try {
+    await store.recordDeliveryResult({
+      pushTokenId: row.pushTokenId,
+      dropDate: row.editionDate,
+      notificationKind: ANSWER_REMINDER_NOTIFICATION_KIND,
+      outcome,
+      attemptedAt
+    });
+  } catch (error) {
+    // Same rule as the edition: the message may have gone out, what failed is
+    // writing it down. The run continues and the count fails the job.
+    result.bookkeepingFailures += 1;
+    console.error("[content-engine] could not record an answer reminder result", {
+      edition_date: row.editionDate,
+      push_token_id: redactIdentifier(row.pushTokenId),
+      outcome: outcome.kind,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return;
+  }
+
+  if (outcome.kind === "ticket_accepted") {
+    result.ticketAccepted += 1;
+    return;
+  }
+
+  if (outcome.kind === "token_invalid") {
+    try {
+      await store.disablePushToken(row.pushTokenId, outcome.error);
+      result.disabledTokens += 1;
+    } catch (error) {
+      result.bookkeepingFailures += 1;
+      console.warn("[content-engine] could not retire a push token after a reminder", {
+        push_token_id: redactIdentifier(row.pushTokenId),
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+    return;
+  }
+
+  if (outcome.kind === "permanent") {
+    result.permanentFailures += 1;
+    return;
+  }
+
+  result.retryable += 1;
+}
+
 async function sendChunk(
   client: ExpoPushClient,
-  chunk: EditionNotificationRecipient[],
+  chunk: Array<{ expoPushToken: string; message: PushMessageContent }>,
   retry?: RetryOptions
 ): Promise<DeliveryOutcome[]> {
   try {

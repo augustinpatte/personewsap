@@ -7,8 +7,13 @@ import { localized } from "../../lib/i18n";
 import { normalizeSupabaseError, supabase, type NormalizedSupabaseError } from "../../lib/supabase";
 import type { Language } from "../../types/domain";
 import {
+  resolveEffectiveNotificationState,
+  type EffectiveNotificationState
+} from "./notificationBanner";
+import {
   decidePushPermissionAction,
   shouldEnablePreferenceAfterGrant,
+  shouldRequestSystemPermission,
   type IosPermissionStatus
 } from "./pushPermissionFlow";
 
@@ -377,9 +382,17 @@ async function registerForPushNotifications(
   }
 
   const existingPermission = await Notifications.getPermissionsAsync();
-  let finalStatus = existingPermission.status;
+  let finalStatus: string = existingPermission.status;
 
-  if (finalStatus !== "granted") {
+  // Apple's dialog can be shown once. After a refusal it never appears again,
+  // so asking would be a button that silently does nothing; the Notifications
+  // section offers this app's page in iOS Settings instead.
+  if (
+    shouldRequestSystemPermission({
+      status: existingPermission.status,
+      canAskAgain: existingPermission.canAskAgain
+    })
+  ) {
     const requestedPermission = await Notifications.requestPermissionsAsync();
     finalStatus = requestedPermission.status;
   }
@@ -446,6 +459,47 @@ export async function readIosPermissionStatus(): Promise<IosPermissionStatus> {
   } catch {
     return "denied";
   }
+}
+
+/**
+ * Whether this build on this device can receive a push at all. A simulator, the
+ * web build, or a build without an EAS project id cannot, and must never be
+ * told that notifications are "off" when there is nothing to switch on.
+ */
+export function isPushSupportedOnThisDevice(): boolean {
+  return (
+    (Platform.OS === "ios" || Platform.OS === "android") &&
+    Device.isDevice === true &&
+    getExpoProjectId() !== null
+  );
+}
+
+/**
+ * The effective notification state for the signed-in reader on this device:
+ * iOS permission read now, the PersoNews preference and the live Expo push
+ * registration read from the account. Anything unreadable is `unknown`, which
+ * never shows a banner.
+ */
+export async function loadEffectiveNotificationState(
+  userId: string,
+  language: Language | null = null
+): Promise<EffectiveNotificationState> {
+  if (!isPushSupportedOnThisDevice()) {
+    return { kind: "unknown" };
+  }
+
+  const preferences = await loadNotificationPreferences(userId, language);
+
+  if (!preferences.ok || !preferences.preferences.tokenStorageReady) {
+    return { kind: "unknown" };
+  }
+
+  return resolveEffectiveNotificationState({
+    pushSupported: true,
+    permissionStatus: await readIosPermissionStatus(),
+    notificationsEnabled: preferences.preferences.notificationsEnabled,
+    hasActiveDevice: preferences.preferences.tokenStored
+  });
 }
 
 /** Diagnostics for a failed registration. No token value is ever logged. */

@@ -1,10 +1,11 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, Ref } from "react";
 import {
   ScrollView,
   StyleSheet,
   View,
   type ScrollViewProps,
   type StyleProp,
+  type ViewProps,
   type ViewStyle
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,6 +21,8 @@ type AppScreenProps = PropsWithChildren<{
   contentStyle?: StyleProp<ViewStyle>;
   safeAreaStyle?: StyleProp<ViewStyle>;
   scrollViewProps?: Omit<ScrollViewProps, "contentContainerStyle" | "children">;
+  /** For a screen that has to scroll itself to a section it was opened for. */
+  scrollRef?: Ref<ScrollView>;
 }>;
 
 function AppScreenRoot({
@@ -29,6 +32,7 @@ function AppScreenRoot({
   contentStyle,
   safeAreaStyle,
   scrollViewProps,
+  scrollRef,
   children
 }: AppScreenProps) {
   const colors = useThemeColors();
@@ -49,6 +53,7 @@ function AppScreenRoot({
     >
       {scroll ? (
         <ScrollView
+          ref={scrollRef}
           automaticallyAdjustKeyboardInsets
           bounces
           contentInsetAdjustmentBehavior="automatic"
@@ -77,10 +82,15 @@ export function AppScreenHeader({ children, style }: AppScreenHeaderProps) {
 
 type AppScreenBodyProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
+  onLayout?: ViewProps["onLayout"];
 }>;
 
-export function AppScreenBody({ children, style }: AppScreenBodyProps) {
-  return <View style={[styles.body, style]}>{children}</View>;
+export function AppScreenBody({ children, style, onLayout }: AppScreenBodyProps) {
+  return (
+    <View onLayout={onLayout} style={[styles.body, style]}>
+      {children}
+    </View>
+  );
 }
 
 type AppScreenFooterProps = PropsWithChildren<{

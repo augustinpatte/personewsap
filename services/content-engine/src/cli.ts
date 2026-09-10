@@ -223,7 +223,7 @@ Commands:
   daily-job               Production daily scheduler command. Writes require explicit production env confirmation.
   daily-job-test          Generate, publish, and assign a limited marked test daily drop.
   app-preview-test        Generate + persist + assign ONE test drop (USER_LIMIT=1) so engine output is visible in the app.
-  push-notifications      Send the "edition is ready" notification for a published edition. Idempotent per device.
+  push-notifications      Send due edition notifications (19:00 reader-local) and next-morning answer reminders (08:30 reader-local). Idempotent per device.
   push-receipts           Reconcile Expo push receipts for accepted notification tickets.
   job-health              Read production job_runs health summary with service-role credentials.
   business-story-memory   Read-only editorial memory report for Business Stories.

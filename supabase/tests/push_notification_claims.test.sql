@@ -585,9 +585,17 @@ begin
       coalesce(to_regprocedure('cron.schedule(text,text,text)')::text, 'MISSING'),
       coalesce(to_regprocedure('net.http_post(text,jsonb,jsonb,jsonb,integer)')::text, 'MISSING')));
 
-  perform pg_temp.record(53, 'D4 the wake-up is actually scheduled', '*/2 17-22 * * *',
+  -- Either shape is a scheduled wake-up: the Paris-evening window of
+  -- 20260906082000, or the all-day window 20260910090000 widened it to for
+  -- reader-local delivery. The exact all-day schedule is pinned by
+  -- reader_local_notifications.test.sql; this case only has to prove the job
+  -- exists, on both sides of that deploy.
+  perform pg_temp.record(53, 'D4 the wake-up is actually scheduled', 'scheduled',
     case when to_regclass('cron.job') is null then 'NO CRON SCHEMA'
-      else (select coalesce(max(job.schedule), 'NOT SCHEDULED')
+      else (select case
+                     when max(job.schedule) in ('*/2 17-22 * * *', '*/2 * * * *') then 'scheduled'
+                     else coalesce(max(job.schedule), 'NOT SCHEDULED')
+                   end
             from cron.job as job
             where job.jobname = 'personews-notification-dispatch')
     end);

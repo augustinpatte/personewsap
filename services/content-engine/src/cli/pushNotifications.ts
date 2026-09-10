@@ -6,7 +6,9 @@ import {
 } from "../notifications/notificationOutbox.js";
 import {
   createExpoPushClient,
+  sendAnswerReminders,
   sendEditionNotifications,
+  type SendAnswerRemindersResult,
   type SendEditionNotificationsResult
 } from "../notifications/pushSender.js";
 import { createSupabasePushNotificationStore } from "../notifications/supabasePushStore.js";
@@ -42,6 +44,18 @@ import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
  * read back and found complete, and an unverified edition is not announced by
  * any path. Not knowing is not the same as knowing it failed, so an absent row
  * withholds nothing.
+ *
+ * ON THE READER'S CLOCK
+ *
+ * Each reader is told at 19:00 in their own timezone (profiles.timezone, read
+ * at send time), so one edition is announced over several runs: Paris on the
+ * verification wake-up, New York five hours later, Los Angeles three after
+ * that. Every run therefore also looks at editions verified in the last three
+ * days and sends to whichever of their readers have come due since.
+ *
+ * Each run then sends the next-morning reminder — 08:30 reader-local, once, to
+ * readers with assigned questions still unanswered. Who is owed it is decided
+ * by the database when the row is leased, never here.
  */
 
 export type PushNotificationsOptions = {
@@ -86,6 +100,11 @@ export type PushNotificationsOutput = {
   result: SendEditionNotificationsResult | null;
   /** Every edition this run announced, including the primary one. */
   editions: Array<{ dropDate: string; result: SendEditionNotificationsResult }>;
+  /**
+   * Next-morning reminders this run sent. null when it did not look: an
+   * explicit --date recovery, a single-reader test, or a dry run.
+   */
+  reminders: SendAnswerRemindersResult | null;
   /**
    * True when this run could not finish its own bookkeeping. The CLI exits
    * non-zero on it: a run that does not know what it sent must not be green.
@@ -138,6 +157,7 @@ export async function runPushNotifications(
     events: [],
     result: null,
     editions: [],
+    reminders: null,
     incomplete: false
   };
 
@@ -182,14 +202,31 @@ export async function runPushNotifications(
     }
   }
 
-  const dates = resolveEditionDatesToAnnounce({ events, fallbackDate });
+  // Editions verified in the last three days: their readers further west come
+  // due hours after the event, when neither the event nor the cadence date
+  // names them any more. An explicit --date is still obeyed on its own.
+  const recentDates = options.explicitDate ? [] : await outbox.recentReleasedEditionDates();
+  const dates = resolveEditionDatesToAnnounce({ events, fallbackDate, recentDates });
+
+  // The next-morning reminder has its own eligibility, decided by the database
+  // at claim time. It is not part of an explicit --date recovery or of a
+  // single-reader test: both are instructions about one edition send.
+  const reminders =
+    options.explicitDate || options.onlyUserId
+      ? null
+      : await sendAnswerReminders({ store, client });
+  const reminderBookkeepingFailures = reminders?.bookkeepingFailures ?? 0;
 
   if (dates.length === 0) {
     return {
       ...empty,
+      reminders,
+      incomplete: reminderBookkeepingFailures > 0,
       note: withheld
         ? `Edition ${withheld} is published but not yet verified: nothing is announced until verification succeeds.`
-        : "Quiet day in the 4x/week cadence: no edition, no notification."
+        : (reminders?.claimed ?? 0) > 0
+          ? `No edition to announce; ${reminders?.claimed} answer reminder(s) attempted.`
+          : "Quiet day in the 4x/week cadence: no edition, no notification."
     };
   }
 
@@ -246,11 +283,12 @@ export async function runPushNotifications(
     singleUser: options.onlyUserId !== null,
     result: primary,
     editions,
-    incomplete: totals.bookkeepingFailures > 0,
+    reminders,
+    incomplete: totals.bookkeepingFailures + reminderBookkeepingFailures > 0,
     note:
-      totals.bookkeepingFailures > 0
+      totals.bookkeepingFailures + reminderBookkeepingFailures > 0
         ? "Some deliveries could not be recorded. This run does not know what it sent: check push_notification_deliveries before re-running."
-        : totals.retryable > 0
+        : totals.retryable + (reminders?.retryable ?? 0) > 0
           ? "Some devices could not be reached. Re-run this command to retry them; already-notified devices are skipped."
           : totals.awaitingReceipt > 0
             ? "Expo accepted push tickets. Run content:push-receipts later to confirm final delivery."

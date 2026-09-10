@@ -241,8 +241,15 @@ describe("the fix", () => {
   });
 
   it("is read by the TypeScript caller under the name it has always had", () => {
-    expect(store).toContain("row.push_token_id");
-    expect(store).not.toContain("claimed_push_token_id");
+    // Scoped to the edition claim. The answer-reminder claim is a different
+    // RPC with its own claimed_-prefixed shape, and not this contract.
+    const claimCall = store.slice(
+      store.indexOf('supabase.rpc("claim_push_notification_deliveries"'),
+      store.indexOf("if (failures.length === batches.length)")
+    );
+
+    expect(claimCall).toContain("row.push_token_id");
+    expect(claimCall).not.toContain("claimed_push_token_id");
   });
 
   it("so the migration and the merge can happen in either order", () => {
@@ -457,7 +464,9 @@ describe("the dispatcher", () => {
 describe("the schedules are recovery, not the trigger", () => {
   it("makes the event the primary trigger of the delivery workflow", () => {
     expect(deliveryWorkflow).toContain("repository_dispatch:");
-    expect(deliveryWorkflow).toContain("types: [edition_published]");
+    // The verification event, and — since reader-local delivery — the event
+    // for a notification coming due. Both are sent by production itself.
+    expect(deliveryWorkflow).toContain("types: [edition_published, edition_notifications_due]");
   });
 
   it("keeps the three Paris recovery windows", () => {
@@ -517,7 +526,10 @@ describe("what the sender does with the events", () => {
   });
 
   it("exits non-zero when it cannot record what it sent", () => {
-    expect(pushCli).toContain("incomplete: totals.bookkeepingFailures > 0");
+    // Reminder bookkeeping failures count exactly as edition ones do.
+    expect(pushCli).toContain(
+      "incomplete: totals.bookkeepingFailures + reminderBookkeepingFailures > 0"
+    );
     expect(read("services", "content-engine", "src", "cli.ts")).toContain(
       "if (output.incomplete) {"
     );

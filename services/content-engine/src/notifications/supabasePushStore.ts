@@ -1,12 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { DailyDropSlot, Language } from "../domain.js";
+import type { ClaimedAnswerReminder } from "./answerReminder.js";
 import type {
   NotificationCandidateDrop,
   NotificationCandidateToken,
   ReceiptOutcome
 } from "./editionNotification.js";
-import type { DeliveryRecord, PushNotificationStore } from "./pushSender.js";
+import type {
+  DeliveryRecord,
+  EditionReadySchedule,
+  PushNotificationStore
+} from "./pushSender.js";
 
 /**
  * The Supabase side of edition notifications.
@@ -24,6 +29,8 @@ import type { DeliveryRecord, PushNotificationStore } from "./pushSender.js";
 const PUBLISHED_DROP_STATUSES = ["published"] as const;
 const SUPABASE_PAGE_SIZE = 1000;
 const USER_ID_FILTER_BATCH_SIZE = 100;
+/** The function is not deployed on this project yet. */
+const MISSING_FUNCTION_CODES = new Set(["PGRST202", "PGRST203", "42883", "42P01"]);
 
 export function createSupabasePushNotificationStore(
   supabase: SupabaseClient
@@ -430,6 +437,77 @@ export function createSupabasePushNotificationStore(
       if (error) {
         throw new Error(`Could not record push receipt: ${error.message}`);
       }
+    },
+
+    async loadEditionReadySchedule({ dropDate, userIds, now }) {
+      const schedule = new Map<string, EditionReadySchedule>();
+
+      for (const batch of chunk([...new Set(userIds)], USER_ID_FILTER_BATCH_SIZE)) {
+        const { data, error } = await supabase.rpc("get_edition_ready_schedule", {
+          p_edition_date: dropDate,
+          p_user_ids: batch,
+          p_now: now
+        });
+
+        if (error) {
+          if (MISSING_FUNCTION_CODES.has(error.code ?? "")) {
+            // Before 20260910090000: every eligible reader is due at once, as
+            // it always was. Late for nobody, early for readers west of Paris.
+            console.info("[content-engine] reader-local schedule is not deployed yet", {
+              code: error.code ?? null
+            });
+            return null;
+          }
+
+          throw new Error(`Could not read the reader-local schedule for ${dropDate}: ${error.message}`);
+        }
+
+        for (const row of (data ?? []) as Array<{
+          schedule_user_id: string;
+          schedule_due_at: string | null;
+          schedule_is_due: boolean | null;
+        }>) {
+          schedule.set(row.schedule_user_id, {
+            dueAt: row.schedule_due_at,
+            isDue: row.schedule_is_due === true
+          });
+        }
+      }
+
+      return schedule;
+    },
+
+    async claimAnswerReminders({ limit }) {
+      const { data, error } = await supabase.rpc("claim_edition_answer_reminders", {
+        p_claim_id: `content-engine-${crypto.randomUUID()}`,
+        p_limit: Math.max(1, Math.trunc(limit)),
+        p_claim_ttl_seconds: 900
+      });
+
+      if (error) {
+        if (MISSING_FUNCTION_CODES.has(error.code ?? "")) {
+          console.info("[content-engine] answer reminders are not deployed yet", {
+            code: error.code ?? null
+          });
+          return null;
+        }
+
+        throw new Error(`Could not claim answer reminders: ${error.message}`);
+      }
+
+      return ((data ?? []) as Array<{
+        claimed_push_token_id: string;
+        claimed_user_id: string;
+        claimed_edition_date: string;
+        claimed_expo_push_token: string;
+        claimed_language: string | null;
+      }>).map<ClaimedAnswerReminder>((row) => ({
+        pushTokenId: row.claimed_push_token_id,
+        userId: row.claimed_user_id,
+        editionDate: row.claimed_edition_date,
+        expoPushToken: row.claimed_expo_push_token,
+        language: row.claimed_language === "fr" ? "fr" : "en"
+      }));
     },
 
     async disablePushToken(pushTokenId, reason) {

@@ -1,18 +1,26 @@
 /**
  * Where a tapped notification takes the reader.
  *
- * There is exactly one notification in the product — "your edition is ready" —
- * so there is exactly one destination: the Newsletter tab, which is the front
- * page of an edition. No dedicated screen, no special stack, no deep link into
- * a reader: the existing navigation already puts today's edition there, and the
- * archive already holds the rest.
+ * An edition causes at most two notifications — "your edition is ready" in the
+ * evening and, only if questions are still unanswered, "your session isn't
+ * finished" the next morning — and both lead to the same place: the Newsletter
+ * tab, which is the front page of an edition and where its session is played.
+ * No dedicated screen, no special stack, no deep link into a reader: the
+ * existing navigation already puts the edition there, and the archive already
+ * holds the rest.
  *
  * Parsing is kept pure and defensive: a payload is data from outside the app,
  * so anything unrecognised routes nowhere rather than crashing a cold start.
  */
 
 export const EDITION_READY_NOTIFICATION = "edition_ready";
+export const EDITION_ANSWER_REMINDER_NOTIFICATION = "edition_answer_reminder";
 export const NEWSLETTER_ROUTE = "/(tabs)/newsletter";
+
+const ROUTED_NOTIFICATION_TYPES = new Set<string>([
+  EDITION_READY_NOTIFICATION,
+  EDITION_ANSWER_REMINDER_NOTIFICATION
+]);
 
 export type NotificationRoute = {
   pathname: typeof NEWSLETTER_ROUTE;
@@ -34,7 +42,7 @@ export function resolveNotificationRoute(data: unknown): NotificationRoute | nul
 
   const payload = data as { type?: unknown; drop_date?: unknown };
 
-  if (payload.type !== EDITION_READY_NOTIFICATION) {
+  if (typeof payload.type !== "string" || !ROUTED_NOTIFICATION_TYPES.has(payload.type)) {
     return null;
   }
 

@@ -7,6 +7,7 @@ import { useTheme } from "../../src/design";
 import { ArchiveProvider } from "../../src/features/archive";
 import { AppLaunchScreen, useAuth } from "../../src/features/auth";
 import { useLearningPath } from "../../src/features/learning";
+import { NotificationDisabledBanner } from "../../src/features/notifications";
 import { shouldRedirectToLearningSetup } from "../../src/features/learning/learningPathRouting";
 import { localized } from "../../src/lib/i18n";
 
@@ -208,6 +209,10 @@ export default function TabsLayout() {
             Reached from the masthead on every module screen. */}
         <Tabs.Screen name="settings" options={{ href: null }} />
       </Tabs>
+      {/* Over the tabs, not in them: the authenticated app is where a reader
+          can act on it, it floats instead of pushing the screen down, and it
+          leaves on its own after five seconds. */}
+      <NotificationDisabledBanner />
     </ArchiveProvider>
   );
 }

@@ -62,7 +62,16 @@ export type RecipientSkipReason =
   | "notifications_disabled"
   | "no_enabled_token"
   | "drop_not_published"
-  | "incomplete_edition";
+  | "incomplete_edition"
+  /** Eligible, but 19:00 has not come yet in the reader's own timezone. */
+  | "not_due_yet";
+
+/** What any PersoNews push carries: a title, a body, and where a tap goes. */
+export type PushMessageContent = {
+  title: string;
+  body: string;
+  data: { type: string; drop_date: string };
+};
 
 export type ResolvedRecipients = {
   recipients: EditionNotificationRecipient[];
@@ -382,7 +391,10 @@ export function selectPendingRecipients(input: {
   );
 }
 
-export function toExpoPushMessage(recipient: EditionNotificationRecipient) {
+export function toExpoPushMessage(recipient: {
+  expoPushToken: string;
+  message: PushMessageContent;
+}) {
   return {
     to: recipient.expoPushToken,
     title: recipient.message.title,

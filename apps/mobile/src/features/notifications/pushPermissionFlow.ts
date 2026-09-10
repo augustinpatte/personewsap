@@ -68,6 +68,56 @@ export function shouldEnablePreferenceAfterGrant(input: {
 }
 
 /**
+ * Whether asking iOS is allowed to show Apple's dialog at all.
+ *
+ * Only while the system has never been answered. Once the reader refused,
+ * `requestPermissionsAsync` can no longer show anything on iOS, and calling it
+ * from an "Enable" button would look like a button that does nothing — the
+ * honest action is to open this app's page in iOS Settings instead. A status
+ * that says "denied" is never re-requested, whatever `canAskAgain` claims.
+ */
+export function shouldRequestSystemPermission(input: {
+  status: string;
+  canAskAgain?: boolean | null;
+}): boolean {
+  if (input.status === "granted" || input.status === "denied") {
+    return false;
+  }
+
+  return input.canAskAgain !== false;
+}
+
+/** What the Notifications section of Settings offers for a given state. */
+export type NotificationSettingsAction =
+  /** iOS has never asked: turning notifications on shows Apple's prompt. */
+  | "request_permission"
+  /** Refused at system level: only iOS Settings can change it. */
+  | "open_system_settings"
+  /** Permission granted, PersoNews preference off (or no live device): switch on normally. */
+  | "enable_preference"
+  | "none";
+
+export function decideNotificationSettingsAction(input: {
+  permissionStatus: IosPermissionStatus;
+  notificationsEnabled: boolean;
+  hasActiveDevice: boolean;
+}): NotificationSettingsAction {
+  if (input.permissionStatus === "denied") {
+    return "open_system_settings";
+  }
+
+  if (input.permissionStatus === "undetermined") {
+    return "request_permission";
+  }
+
+  if (!input.notificationsEnabled || !input.hasActiveDevice) {
+    return "enable_preference";
+  }
+
+  return "none";
+}
+
+/**
  * How Settings should describe the state, so the UI can never claim
  * notifications are working while iOS is refusing them.
  */

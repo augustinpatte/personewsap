@@ -13,7 +13,7 @@
       "resizeMode": "contain"
     },
     "ios": {
-      "buildNumber": "6",
+      "buildNumber": "10",
       "supportsTablet": false,
       "bundleIdentifier": "com.personewsap.mobile",
       "infoPlist": {
@@ -60,7 +60,8 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

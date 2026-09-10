@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Modal, Share, StyleSheet, View } from "react-native";
+import { Modal, Share, StyleSheet, View, type ScrollView } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Redirect, useRouter, type Href } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter, type Href } from "expo-router";
 
 import { AppScreen } from "../../components/AppScreen";
 import { AppText } from "../../components/AppText";
@@ -18,7 +18,7 @@ import {
 import { useArchive } from "../archive";
 import { useAuth } from "../auth";
 import { useDailyDrop } from "../today";
-import { NotificationPreferencesCard } from "../notifications";
+import { NOTIFICATION_SETTINGS_SECTION, NotificationPreferencesCard } from "../notifications";
 import { LearningAccountSection } from "../learning";
 import { PreferencesEditor, updateProfileLanguage } from "../preferences";
 import { clearPreferenceSensitiveContentCache } from "../preferences/contentRefresh";
@@ -57,6 +57,12 @@ export function SettingsScreen() {
   const [signOutError, setSignOutError] = useState<NormalizedSupabaseError | null>(null);
   const [languageSaveError, setLanguageSaveError] = useState<string | null>(null);
   const languageSaveRequestRef = useRef(0);
+  // `?section=notifications` is how the disabled-notifications banner opens
+  // this screen: the same Settings, scrolled to its Notifications section.
+  const { section: requestedSection } = useLocalSearchParams<{ section?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
+  const bodyOffsetRef = useRef<number | null>(null);
+  const notificationsOffsetRef = useRef<number | null>(null);
   const styles = useThemedStyles(createStyles);
   const copy = getAccountCopy(profileLanguage);
   const languageOptions = useMemo(
@@ -75,6 +81,31 @@ export function SettingsScreen() {
       });
     }
   }, [profileLanguage, visibleAccountError]);
+
+  /**
+   * Scroll to Notifications once both offsets are known — immediately when the
+   * screen is already laid out, or from onLayout on a first visit — then drop
+   * the parameter so coming back to Settings later does not jump again.
+   */
+  const scrollToRequestedSection = useCallback(() => {
+    if (
+      requestedSection !== NOTIFICATION_SETTINGS_SECTION ||
+      bodyOffsetRef.current === null ||
+      notificationsOffsetRef.current === null
+    ) {
+      return;
+    }
+
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, bodyOffsetRef.current + notificationsOffsetRef.current - tokens.space.md),
+      animated: true
+    });
+    router.setParams({ section: undefined });
+  }, [requestedSection, router]);
+
+  useEffect(() => {
+    scrollToRequestedSection();
+  }, [scrollToRequestedSection]);
 
   const handleLanguageChange = useCallback(
     async (language: Language): Promise<boolean> => {
@@ -226,7 +257,7 @@ export function SettingsScreen() {
   }
 
   return (
-    <AppScreen>
+    <AppScreen scrollRef={scrollRef}>
       <AppScreen.Header>
         <View style={styles.headerCopy}>
           <AppText color="muted" variant="eyebrow">{copy.eyebrow}</AppText>
@@ -237,7 +268,12 @@ export function SettingsScreen() {
         </View>
       </AppScreen.Header>
 
-      <AppScreen.Body>
+      <AppScreen.Body
+        onLayout={(event) => {
+          bodyOffsetRef.current = event.nativeEvent.layout.y;
+          scrollToRequestedSection();
+        }}
+      >
         <AccountIdentityCard
           email={user?.email ?? copy.noActiveUser}
           language={formatLanguageName(profileLanguage, profileLanguage)}
@@ -302,11 +338,6 @@ export function SettingsScreen() {
               </View>
             </View>
           </Card>
-          <NotificationPreferencesCard
-            language={profileLanguage}
-            refreshKey={preferencesRefreshKey}
-            userId={user?.id ?? null}
-          />
           <Card tone="muted">
             <SettingsRow
               iconName="moon"
@@ -315,6 +346,27 @@ export function SettingsScreen() {
             />
           </Card>
         </SettingsSection>
+
+        {/* Its own section, so the banner has one place to land on. */}
+        <View
+          onLayout={(event) => {
+            notificationsOffsetRef.current = event.nativeEvent.layout.y;
+            scrollToRequestedSection();
+          }}
+          testID="settings-notifications-section"
+        >
+          <SettingsSection
+            description={copy.notificationsDescription}
+            iconName="bell"
+            title={copy.notificationsTitle}
+          >
+            <NotificationPreferencesCard
+              language={profileLanguage}
+              refreshKey={preferencesRefreshKey}
+              userId={user?.id ?? null}
+            />
+          </SettingsSection>
+        </View>
 
         <SettingsSection
           description={copy.accountDescription}
@@ -609,7 +661,10 @@ function getAccountCopy(language: string | null) {
         contentDescription:
           "Enabled modules, newsletter topics, article depth, mini-case topics and learning path.",
         appTitle: "App",
-        appDescription: "Language, notifications and appearance.",
+        appDescription: "Language and appearance.",
+        notificationsTitle: "Notifications",
+        notificationsDescription:
+          "Your edition at 19:00 your time, and one reminder the next morning only if your session is unfinished.",
         languageTitle: "Language",
         appearanceTitle: "Appearance",
         appearanceSystem: "Follows your device setting",
@@ -664,7 +719,10 @@ function getAccountCopy(language: string | null) {
         contentDescription:
           "Modules actifs, sujets newsletter, profondeur des articles, sujets mini-cas et parcours.",
         appTitle: "App",
-        appDescription: "Langue, notifications et apparence.",
+        appDescription: "Langue et apparence.",
+        notificationsTitle: "Notifications",
+        notificationsDescription:
+          "Votre édition à 19 h, heure locale, et un seul rappel le lendemain matin si votre session n'est pas terminée.",
         languageTitle: "Langue",
         appearanceTitle: "Apparence",
         appearanceSystem: "Suit le réglage de votre appareil",
