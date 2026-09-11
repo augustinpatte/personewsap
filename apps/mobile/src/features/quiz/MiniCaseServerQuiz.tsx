@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { StyleSheet, View, type ScrollView } from "react-native";
 
-import { AppText, PrimaryButton } from "../../components";
+import { AppText, EmptyState, PrimaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { getReaderCopy } from "../today/contentCopy";
@@ -13,28 +14,23 @@ import { readItemQuestions } from "./itemQuestions";
 import { getQuizCopy } from "./quizCopy";
 import { formatPoints } from "./quizSession";
 import { TeamBadge } from "./TeamBadge";
-import { useQuizFlow } from "./useQuizFlow";
+import type { TeamRef } from "./teamMerge";
+import { questionListKey, useQuizFlow, type QuizQuestionRef } from "./useQuizFlow";
 
 /**
  * A Mini Case, scored by the server.
  *
- * THE OPPOSITE DECISION TO THE NEWSLETTER, on purpose. A newsletter question
- * hides the article, because a question about what a mechanism implies is not a
- * reading-comprehension test and leaving the text up turns judgement into
- * scanning. A Mini Case question does the reverse: the situation, the challenge
- * and the constraints stay on screen for all three questions, because the case
- * IS the material and the three questions walk through it —
+ * THE OPPOSITE DECISION TO THE NEWSLETTER, on purpose: the situation, the
+ * challenge and the constraints stay on screen for all three questions, because
+ * the case IS the material and the three questions walk through it —
  *
  *     method_framework  ->  technical_application  ->  conclusion_decision
  *
- * A reader who cannot re-read the constraint while choosing how to apply it is
- * being tested on memory instead of on reasoning, which is not what this
- * exercise is for.
- *
- * This component is ADDITIVE. It renders only for a case whose options carry
- * real 0/300/600/1000 tiers and which has logical questions to score against;
- * every legacy case keeps the existing self-marked reader untouched. That is
- * why nothing in `MiniCaseReader`'s three existing flows changes.
+ * The reader reads the case first and starts the questions with "Go to
+ * questions". The first question's twenty seconds therefore start when it is
+ * scrolled into view, never while it sits below the fold of a case still being
+ * read. Every state below the case is composed — loading, unavailable, empty,
+ * question, score — never an empty region.
  */
 export function MiniCaseServerQuiz({
   caseIntro,
@@ -44,23 +40,66 @@ export function MiniCaseServerQuiz({
   caseIntro: React.ReactNode;
   challenge: MiniCaseChallenge;
 }) {
+  const { questions, teams } = readItemQuestions(challenge);
+
+  // Keyed by the logical question list, so the flow always has a state per
+  // question — and a language switch, which keeps the ids, keeps the flow.
+  return (
+    <MiniCaseServerQuizBody
+      caseIntro={caseIntro}
+      challenge={challenge}
+      key={questionListKey(questions)}
+      questions={questions}
+      teams={teams}
+    />
+  );
+}
+
+function MiniCaseServerQuizBody({
+  caseIntro,
+  challenge,
+  questions,
+  teams
+}: {
+  caseIntro: React.ReactNode;
+  challenge: MiniCaseChallenge;
+  questions: QuizQuestionRef[];
+  teams: TeamRef[];
+}) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { language, isItemComplete, markItemsComplete } = useDailyDrop();
   const readerCopy = getReaderCopy(language);
   const copy = getQuizCopy(language);
-  const { questions, teams } = readItemQuestions(challenge);
+  const [started, setStarted] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const questionsOffsetRef = useRef<number | null>(null);
 
   const quiz = useQuizFlow({
     questions,
-    // A Mini Case has no "read the article first" step — opening the case IS
-    // arriving at question 1, and the case stays visible above it.
-    active: true,
+    active: started,
     contentType: "mini_case",
     isTeam: teams.length > 0
   });
 
   const state = quiz.states[quiz.currentIndex];
+
+  // Bring the question on screen whenever a new one is displayed, with the
+  // case still above it to scroll back to.
+  const scrollToQuestions = useCallback(() => {
+    if (!started || questionsOffsetRef.current === null) {
+      return;
+    }
+
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, questionsOffsetRef.current - tokens.space.md),
+      animated: true
+    });
+  }, [started]);
+
+  useEffect(() => {
+    scrollToQuestions();
+  }, [quiz.currentIndex, scrollToQuestions]);
 
   const onFinish = async () => {
     if (!isItemComplete(challenge.id)) {
@@ -70,25 +109,40 @@ export function MiniCaseServerQuiz({
     router.back();
   };
 
+  const footer = !started ? (
+    <PrimaryButton label={copy.goToQuestions} onPress={() => setStarted(true)} />
+  ) : quiz.isComplete ? (
+    <PrimaryButton label={readerCopy.finishCase} onPress={onFinish} />
+  ) : undefined;
+
   return (
     <ReaderScaffold
       closeLabel={readerCopy.close}
       eyebrow={readerCopy.caseEyebrow}
+      footer={footer}
       iconName="check-square"
-      footer={
-        quiz.isComplete ? (
-          <PrimaryButton label={readerCopy.finishCase} onPress={onFinish} />
-        ) : undefined
-      }
       onClose={() => router.back()}
+      scrollRef={scrollRef}
     >
       {/* The case, unchanged and always visible. */}
       {caseIntro}
 
       <TeamBadge compact language={language} teams={teams} />
 
-      <View style={styles.questions}>
-        {quiz.isComplete || !state ? (
+      <View
+        onLayout={(event) => {
+          questionsOffsetRef.current = event.nativeEvent.layout.y;
+          scrollToQuestions();
+        }}
+        style={styles.questions}
+      >
+        {!started ? (
+          <AppText color="muted" variant="caption">
+            {copy.questionsIntro(questions.length)}
+          </AppText>
+        ) : questions.length === 0 ? (
+          <EmptyState description={copy.emptyBody} iconName="help-circle" title={copy.emptyTitle} />
+        ) : quiz.isComplete || !state ? (
           <View style={styles.complete}>
             <AppText color="muted" variant="eyebrow">
               {copy.completeTitle}

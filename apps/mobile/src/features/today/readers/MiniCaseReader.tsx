@@ -92,15 +92,13 @@ export function MiniCaseReader({ caseId }: { caseId: string }) {
     );
   }
 
-  // A case whose options carry real 0/300/600/1000 tiers AND which has logical
-  // questions to score against goes through the server-scored reader. Everything
-  // else — the whole approved launch catalog, written with is_correct or with
-  // best/viable/weak — keeps the existing self-marked flows below, untouched.
-  // The decision lives in one predicate so there is no second place to forget it.
+  // A case the reader has logical questions for is scored by the server — its
+  // metadata no longer carries answers at all. Everything else keeps the
+  // existing self-marked flows below, untouched. The decision lives in one
+  // predicate so there is no second place to forget it.
   if (
     isServerScorableMiniCase({
-      hasLogicalQuestions: readItemQuestions(item).questions.length > 0,
-      questions: item.questions ?? []
+      hasLogicalQuestions: readItemQuestions(item).questions.length > 0
     })
   ) {
     return (

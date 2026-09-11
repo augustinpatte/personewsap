@@ -324,6 +324,23 @@ export function summarizeQuiz(states: QuestionState[]): QuizProgress {
 }
 
 /**
+ * The question on screen.
+ *
+ * The first question that is either still open, or settled but not yet
+ * continued past. The second half is what keeps an outcome and its explanation
+ * on screen until the reader taps Continue — without it the next question
+ * replaced the feedback the instant the answer came back, and started its own
+ * clock while the reader was still reading why they lost points.
+ */
+export function resolveDisplayedIndex(
+  states: QuestionState[],
+  acknowledged: ReadonlySet<number>
+): number {
+  const index = states.findIndex((state, position) => !isSettled(state) || !acknowledged.has(position));
+  return index === -1 ? states.length : index;
+}
+
+/**
  * Does this reading still owe the reader something?
  *
  * What "Continue challenge" is computed from: the article is read, but at least

@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode, Ref } from "react";
 import { Feather } from "@expo/vector-icons";
 import {
   Pressable,
@@ -26,6 +26,8 @@ type ReaderScaffoldProps = PropsWithChildren<{
   closeLabel: string;
   footer?: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
+  /** For a reader that has to bring a section (a Mini Case question) into view. */
+  scrollRef?: Ref<ScrollView>;
 }>;
 
 export function ReaderScaffold({
@@ -35,6 +37,7 @@ export function ReaderScaffold({
   closeLabel,
   footer,
   contentStyle,
+  scrollRef,
   children
 }: ReaderScaffoldProps) {
   const styles = useThemedStyles(createStyles);
@@ -64,6 +67,7 @@ export function ReaderScaffold({
       </View>
 
       <ScrollView
+        ref={scrollRef}
         bounces
         contentContainerStyle={[styles.content, contentStyle]}
         showsVerticalScrollIndicator={false}

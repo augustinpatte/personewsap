@@ -85,7 +85,7 @@ describe("the flow settles it with the server", () => {
     expect(code).toMatch(
       /submitQuestionAnswer\(\{ attemptId, selectedOptionId: null \}\)/
     );
-    expect(code).toContain("void settleExpiredAttempt(index, state.attemptId);");
+    expect(code).toContain("void settleExpiredAttempt(index, state.attemptId, key);");
   });
 
   it("does it once per question, from the transition rather than from a render", () => {
@@ -96,15 +96,17 @@ describe("the flow settles it with the server", () => {
   it("does not retry: the deadline has passed and nothing can be won", () => {
     const settle = code.slice(
       code.indexOf("const settleExpiredAttempt"),
-      code.indexOf("const expiredReportedRef")
+      code.indexOf("states.forEach((state, index)")
     );
 
+    // Guard against a vacuous slice: the settle body must actually be here.
+    expect(settle).toContain("submitQuestionAnswer");
     expect(settle).not.toContain("submitAnswerWithRetry");
     expect(settle).not.toContain("deadlineAt");
   });
 
   it("releases the explanation only after the settle succeeded", () => {
-    expect(code).toMatch(/if \(result\.ok\) \{\s*await loadFeedback\(index\);/);
+    expect(code).toMatch(/if \(result\.ok\) \{\s*await loadFeedback\(index, requestKey\);/);
   });
 
   it("sends no timestamp, no duration and no score, here or anywhere", () => {

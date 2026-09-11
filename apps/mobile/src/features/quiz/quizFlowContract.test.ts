@@ -37,16 +37,22 @@ const flow = stripComments(read("quiz", "useQuizFlow.ts"));
 const data = stripComments(read("quiz", "quizData.ts"));
 
 describe("the Newsletter flow", () => {
-  it("marks the article read before anything else happens", () => {
+  it("marks the article read, through the canonical write, before opening the questions", () => {
     // The existing completion semantics are unchanged: the article is read the
-    // moment the reader says so, whatever the questions do afterwards.
-    const finish = newsletterReader.slice(newsletterReader.indexOf("const onFinish"));
+    // moment the reader moves on, through the same markItemsComplete.
+    const goTo = newsletterReader.slice(newsletterReader.indexOf("const onGoToQuestions"));
 
-    expect(finish.indexOf("markItemsComplete")).toBeLessThan(finish.indexOf("setShowQuiz"));
+    expect(goTo).toContain("markRead: () => markItemsComplete([item])");
+    expect(goTo.indexOf("markRead")).toBeLessThan(
+      goTo.indexOf("openQuestions: () => setShowQuiz(true)")
+    );
   });
 
-  it("moves to the quiz only when there are unanswered questions", () => {
-    expect(newsletterReader).toMatch(/questions\.length > 0 && quiz\.hasPending/);
+  it("leads to the questions whenever the reading has some", () => {
+    expect(newsletterReader).toContain(
+      "resolveReadingCta({ questionCount: questions.length, completed })"
+    );
+    expect(newsletterReader).toContain('cta === "go_to_questions"');
   });
 
   it("hides the article once the quiz starts", () => {
@@ -70,11 +76,13 @@ describe("the Newsletter flow", () => {
 describe("the Business Story flow", () => {
   it("uses the same hidden-article flow as the Newsletter", () => {
     expect(storyReader).toMatch(/if \(showQuiz\) \{[\s\S]{0,400}<ReadingQuizScreen/);
-    expect(storyReader).toMatch(/questions\.length > 0 && quiz\.hasPending/);
+    expect(storyReader).toContain(
+      "resolveReadingCta({ questionCount: questions.length, completed })"
+    );
   });
 
   it("is Solo: no team badge and no team flag", () => {
-    expect(storyReader).toContain("isTeam: false");
+    expect(storyReader).toContain("isTeam={false}");
     expect(storyReader).toContain("teams={[]}");
   });
 
@@ -141,9 +149,19 @@ describe("a question never starts before it is visible", () => {
     expect(flow).toMatch(/startQuestionAttempt\(currentQuestion\.logicalQuestionId\)/);
   });
 
-  it("passes active: false until the reader finishes the article", () => {
-    expect(newsletterReader).toContain("active: showQuiz");
-    expect(storyReader).toContain("active: showQuiz");
+  it("creates the flow only on the question screen, never behind the article", () => {
+    for (const reader of [newsletterReader, storyReader]) {
+      expect(reader).not.toContain("useQuizFlow(");
+      expect(reader).toMatch(/if \(showQuiz\) \{[\s\S]{0,200}<ReadingQuizScreen/);
+      // One state per logical question, whatever loaded when.
+      expect(reader).toContain("key={questionListKey(questions)}");
+    }
+
+    expect(readingQuizScreen).toContain(
+      "useQuizFlow({ questions, active: true, contentType, isTeam })"
+    );
+    // The Mini Case starts on "Go to questions", not on opening the case.
+    expect(miniCaseQuiz).toContain("active: started");
   });
 
   it("prefetches nothing", () => {
@@ -155,7 +173,7 @@ describe("a question never starts before it is visible", () => {
 
 describe("the server owns the clock", () => {
   it("never falls back to a local timer when the start fails", () => {
-    expect(flow).toContain('action: { type: "start_failed"');
+    expect(flow).toContain('{ type: "start_failed"');
     expect(questionCard).toContain("copy.startFailedTitle");
     expect(questionCard).toContain("onRetryStart");
   });
@@ -345,12 +363,13 @@ describe("resuming a question the server has already settled", () => {
     expect(start).toContain("answered: result.data.settled");
   });
 
-  it("loads the explanation for a question resumed as settled", () => {
-    // `get_question_feedback` opens for exactly the attempts that reach this
-    // branch, so the debrief is complete rather than half-restored.
+  it("moves straight past a question resumed as settled, never replaying it", () => {
+    // Reopening a half-answered reading lands on the first question still
+    // owed: a question settled on an earlier visit is restored with its score
+    // and continued past at once.
     const resumed = flow.slice(flow.indexOf("if (result.data.alreadySubmitted)"));
 
-    expect(resumed).toContain("loadFeedback(currentIndex)");
+    expect(resumed).toContain("setAcknowledged((current) => withIndex(current, index))");
   });
 
   it("does not count a resumed question as a fresh start", () => {

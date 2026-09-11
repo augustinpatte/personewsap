@@ -128,27 +128,25 @@ describe("which cases the server scores", () => {
     ]
   };
 
-  it("scores a graded case that has logical questions", () => {
-    expect(
-      isServerScorableMiniCase({ hasLogicalQuestions: true, questions: [graded, graded, graded] })
-    ).toBe(true);
+  it("keeps the normaliser's view of graded and legacy options", () => {
+    expect(normalizeMiniCaseOptions(graded.options).graded).toBe(true);
+    expect(normalizeMiniCaseOptions(legacy.options).graded).toBe(false);
   });
 
-  it("leaves a legacy case on its existing self-marked behaviour", () => {
-    // The server grades from private.logical_question_grades, and a legacy case
-    // has no rows there. Pushing it through the RPC would just fail.
-    expect(
-      isServerScorableMiniCase({ hasLogicalQuestions: true, questions: [graded, legacy, graded] })
-    ).toBe(false);
+  it("scores a case with logical questions on the server", () => {
+    expect(isServerScorableMiniCase({ hasLogicalQuestions: true })).toBe(true);
   });
 
-  it("leaves a case with no logical questions alone", () => {
-    expect(
-      isServerScorableMiniCase({ hasLogicalQuestions: false, questions: [graded, graded, graded] })
-    ).toBe(false);
+  it("scores a newly published case whose metadata carries no answers at all", () => {
+    // THE Mini Case bug. The publisher strips `questions` out of the metadata —
+    // it is the answer key, which now lives in private.logical_question_grades —
+    // so a new case reaches the app with logical questions and NO JSON options.
+    // The old gate required graded JSON options and sent every such case to the
+    // legacy flow, where it had no questions to show.
+    expect(isServerScorableMiniCase({ hasLogicalQuestions: true })).toBe(true);
   });
 
-  it("treats a case with no questions as not scorable", () => {
-    expect(isServerScorableMiniCase({ hasLogicalQuestions: true, questions: [] })).toBe(false);
+  it("leaves a case with no logical questions — the legacy catalog — on its self-marked flow", () => {
+    expect(isServerScorableMiniCase({ hasLogicalQuestions: false })).toBe(false);
   });
 });

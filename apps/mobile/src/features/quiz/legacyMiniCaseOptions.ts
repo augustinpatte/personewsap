@@ -128,19 +128,21 @@ export function normalizeMiniCaseOptions(
 /**
  * Is this Mini Case scored by the server?
  *
- * Only a case whose options carry real tiers can be: the server grades from
- * `private.logical_question_grades`, and a legacy case has no rows there. A
- * legacy case therefore keeps its existing self-marked behaviour — three
- * questions, local score out of three, no timer, no Team points — and is not
- * pushed through a server round-trip that would fail.
+ * Exactly when the reader has logical questions for it. The logical-question
+ * backend is the authority: every `logical_questions` row is written together
+ * with its private grades (by the publisher and by the backfill alike), and RLS
+ * only returns the ones assigned to this reader.
+ *
+ * It used to ALSO require the case's metadata `questions` to carry 0/300/600/
+ * 1000 tiers. But the publisher strips that block (it is the answer key, and it
+ * now lives in `private.logical_question_grades`), so every newly published
+ * scored Mini Case failed the check and fell into the legacy self-marked flow
+ * with no questions at all. Client-side answer data is never consulted to
+ * decide a scored flow.
+ *
+ * A case with no logical questions — the legacy catalog — keeps its existing
+ * self-marked behaviour.
  */
-export function isServerScorableMiniCase(input: {
-  hasLogicalQuestions: boolean;
-  questions: Array<{ options: MiniCaseOption[] }>;
-}): boolean {
-  if (!input.hasLogicalQuestions || input.questions.length === 0) {
-    return false;
-  }
-
-  return input.questions.every((question) => normalizeMiniCaseOptions(question.options).graded);
+export function isServerScorableMiniCase(input: { hasLogicalQuestions: boolean }): boolean {
+  return input.hasLogicalQuestions;
 }

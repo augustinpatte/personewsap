@@ -127,35 +127,28 @@ describe("nothing is forced on content read before the rollout", () => {
   it.each([
     ["newsletter", newsletterReader],
     ["business story", storyReader]
-  ])("%s only opens the quiz on a fresh completion", (_name, reader) => {
-    // The bug: the footer of an already-read article says "Back", and Back must
-    // go back. The quiz moved inside the `if (!completed)` branch.
-    const finish = reader.slice(reader.indexOf("const onFinish"), reader.indexOf("if (showQuiz)"));
+  ])("%s never hides the questions behind a button that says Back", (_name, reader) => {
+    // "Back" still goes back, and "Mark as read" still only marks read: the
+    // legacy button never opens a quiz. A reading with questions says so on its
+    // button instead — "Go to questions" — so nobody is surprised by one.
+    const finish = reader.slice(reader.indexOf("const onFinish"), reader.indexOf("const onGoToQuestions"));
 
-    expect(finish).toMatch(/if \(!completed\) \{[\s\S]*?setShowQuiz\(true\)[\s\S]*?\}/);
-    expect(finish.trimEnd().endsWith("};")).toBe(true);
+    expect(finish).not.toContain("setShowQuiz");
+    expect(finish).toContain("router.back()");
+    expect(reader).toContain("getQuizCopy(language).goToQuestions");
+    expect(reader).toContain('cta === "back" ? copy.back : copy.markRead');
   });
 
   it.each([
     ["newsletter", newsletterReader],
     ["business story", storyReader]
-  ])("%s offers the quiz beside the button, never behind it", (_name, reader) => {
-    expect(reader).toContain("wasAlreadyRead");
-    expect(reader).toContain("continueChallenge");
-  });
+  ])("%s declares its hooks above the missing-item guard", (_name, reader) => {
+    // A hook after an early return is a rules-of-hooks violation and a real
+    // crash risk when an item disappears between renders.
+    const hooks = reader.slice(0, reader.indexOf("if (!item"));
 
-  it("captures the already-read state once, with the other hooks", () => {
-    // Lazy initialiser, so it is read on the first render only — and declared
-    // above the missing-item guard, because a hook after an early return is a
-    // rules-of-hooks violation and a real crash risk when an item disappears
-    // between renders.
-    expect(newsletterReader).toContain(
-      'const [wasAlreadyRead] = useState(() => isItemComplete(item?.id ?? ""))'
-    );
-
-    const hooks = newsletterReader.slice(0, newsletterReader.indexOf("if (!item"));
-
-    expect(hooks).toContain("wasAlreadyRead");
+    expect(hooks).toContain("readItemQuestions(item)");
+    expect(hooks).toContain("useState(false)");
   });
 
   it("shows Continue challenge in the list only when questions remain", () => {

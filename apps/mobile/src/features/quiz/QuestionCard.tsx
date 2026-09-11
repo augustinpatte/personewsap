@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { AppText, ContentReveal, PrimaryButton, SecondaryButton } from "../../components";
+import {
+  AppText,
+  ContentReveal,
+  PrimaryButton,
+  SecondaryButton,
+  SkeletonBlock,
+  SkeletonLine
+} from "../../components";
 import { tokens } from "../../design/tokens";
 import { useReducedMotion } from "../../design/useReducedMotion";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
@@ -42,6 +49,7 @@ export function QuestionCard({
   onSkip,
   onContinue,
   onRetryStart,
+  onBackToContent,
   feedback,
   isLast
 }: {
@@ -54,6 +62,8 @@ export function QuestionCard({
   onSkip: () => void;
   onContinue: () => void;
   onRetryStart: () => void;
+  /** Offered beside Retry when the question cannot be loaded. */
+  onBackToContent?: () => void;
   /** Released by the server only after the answer is in. */
   feedback?: string | null;
   isLast: boolean;
@@ -85,17 +95,38 @@ export function QuestionCard({
           {copy.startFailedBody}
         </AppText>
         <PrimaryButton label={copy.retry} onPress={onRetryStart} />
+        {onBackToContent ? (
+          <SecondaryButton label={copy.backToContent} onPress={onBackToContent} />
+        ) : null}
       </View>
     );
   }
 
   if (state.status === "idle" || state.status === "starting") {
-    // Deliberately no timer and no options: the question has not started, so
-    // there is nothing to count down and nothing to answer.
+    // The LOADING state, shaped like the question that is coming: a prompt and
+    // four answers in the palette's own placeholder fill. Never a bare caption
+    // on an empty page — that was what the black screen looked like. No timer
+    // and no options yet: nothing has started, so nothing is counting.
     return (
-      <View style={styles.question}>
-        <AppText color="muted" variant="caption">
+      <View
+        accessibilityLabel={copy.loadingQuestion}
+        accessibilityRole="progressbar"
+        style={styles.question}
+      >
+        <AppText color="muted" variant="eyebrow">
           {copy.progress(index + 1, total)}
+        </AppText>
+        <View style={styles.promptSkeleton}>
+          <SkeletonLine height={22} />
+          <SkeletonLine height={22} width="72%" />
+        </View>
+        <View style={styles.options}>
+          {[0, 1, 2, 3].map((placeholder) => (
+            <SkeletonBlock height={52} key={placeholder} />
+          ))}
+        </View>
+        <AppText color="muted" variant="caption">
+          {copy.loadingQuestion}
         </AppText>
       </View>
     );
@@ -347,6 +378,10 @@ const createStyles = (c: ThemeColors) =>
       alignItems: "flex-end"
     },
     prompt: {
+      marginTop: tokens.space.xs
+    },
+    promptSkeleton: {
+      gap: tokens.space.sm,
       marginTop: tokens.space.xs
     },
     options: {
