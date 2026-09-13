@@ -13,6 +13,9 @@ import { editionDisplayDate, estimateReadMinutes } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
 import { resolveTodayEditionState } from "../today/todayEditionState";
 import { stripMarkdownInline } from "../today/readers/markdown";
+import { questionIdsOf } from "../quiz/itemQuestions";
+import { contentQuestionsLabel } from "../quiz/quizCopy";
+import { useContentsQuestionProgress } from "../quiz/useContentsQuestionProgress";
 import { ItemArchiveList } from "./ItemArchiveList";
 import { getModuleCopy } from "./moduleCopy";
 import {
@@ -90,6 +93,9 @@ function StoriesToday({ onOpenArchive }: { onOpenArchive: () => void }) {
     useDailyDrop();
   const copy = getModuleCopy(language);
   const story = drop.items.business_story;
+  const questionProgress = useContentsQuestionProgress(
+    story ? [{ id: story.id, questionIds: questionIdsOf(story) }] : []
+  );
   const editionState = resolveTodayEditionState({
     dropDate: drop.drop_date,
     error,
@@ -172,7 +178,8 @@ function StoriesToday({ onOpenArchive }: { onOpenArchive: () => void }) {
             items={[
               story.company_or_market,
               story.story_date ? story.story_date.slice(0, 4) : null,
-              copy.stories.headerMeta
+              copy.stories.headerMeta,
+              contentQuestionsLabel(questionProgress.get(story.id), language)
             ]}
           />
 
@@ -215,6 +222,9 @@ function StoriesArchive() {
     () => selectArchiveItems(archive.drops, "business_story"),
     [archive.drops]
   );
+  const questionProgress = useContentsQuestionProgress(
+    stories.map((item) => ({ id: item.id, questionIds: item.logical_question_ids ?? [] }))
+  );
 
   const openStory = (item: LibraryItemSummary) => {
     trackAnalyticsEvent("content_item_opened", {
@@ -232,16 +242,29 @@ function StoriesArchive() {
       contentType="business_story"
       items={stories}
       onOpen={openStory}
-      renderMeta={(item) =>
-        item.is_completed ? (
+      renderMeta={(item) => {
+        // Read, and — for a scored story — where the reader stands on its
+        // questions: finished, started or never opened, at a glance.
+        const questionsLabel = contentQuestionsLabel(
+          questionProgress.get(item.id),
+          archive.language
+        );
+
+        if (!item.is_completed && !questionsLabel) {
+          return null;
+        }
+
+        return (
           <View style={styles.statusRow}>
-            <View style={styles.statusDot} />
+            {item.is_completed ? <View style={styles.statusDot} /> : null}
             <AppText color="accentInk" variant="caption">
-              {copy.common.read}
+              {[item.is_completed ? copy.common.read : null, questionsLabel]
+                .filter(Boolean)
+                .join(" · ")}
             </AppText>
           </View>
-        ) : null
-      }
+        );
+      }}
       searchAccessibilityLabel={copy.stories.searchAccessibility}
       searchPlaceholder={copy.stories.searchPlaceholder}
     />

@@ -15,13 +15,14 @@ import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { answerCorrect, answerIncorrect } from "../../lib/haptics";
 import type { ContentLanguage } from "../today/contentTypes";
-import { describeOptionForAccessibility, getQuizCopy } from "./quizCopy";
 import {
-  formatPoints,
-  remainingSeconds,
-  type QuestionState,
-  type QuizOption
-} from "./quizSession";
+  buildAnswerExplanation,
+  getExplanationCopy,
+  type ExplanationBlock,
+  type QuestionExplanation
+} from "./answerExplanation";
+import { describeOptionForAccessibility, getQuizCopy } from "./quizCopy";
+import { remainingSeconds, type QuestionState, type QuizOption } from "./quizSession";
 
 /**
  * One question, wherever it is asked.
@@ -50,7 +51,7 @@ export function QuestionCard({
   onContinue,
   onRetryStart,
   onBackToContent,
-  feedback,
+  explanation,
   isLast
 }: {
   copyLanguage: ContentLanguage;
@@ -64,8 +65,12 @@ export function QuestionCard({
   onRetryStart: () => void;
   /** Offered beside Retry when the question cannot be loaded. */
   onBackToContent?: () => void;
-  /** Released by the server only after the answer is in. */
-  feedback?: string | null;
+  /**
+   * Released by the server only once the question is settled: the chosen
+   * option and the best option. undefined while it is on its way; null when
+   * it could not be loaded.
+   */
+  explanation: QuestionExplanation | null | undefined;
   isLast: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -186,7 +191,7 @@ export function QuestionCard({
       {revealed ? (
         <Outcome
           copyLanguage={copyLanguage}
-          feedback={feedback}
+          explanation={explanation}
           isLast={isLast}
           onContinue={onContinue}
           state={state}
@@ -283,21 +288,23 @@ function OptionRow({
 }
 
 /**
- * What the reader is told once the answer is in.
+ * What the reader is taught once the answer is in.
  *
- * Score, then explanation, then Continue — and untimed. The twenty seconds
- * covered the decision; there is no speed bonus, so nothing is gained by
- * hurrying through the part that teaches.
+ * Their answer — what it earned and why — then, unless it already was, the
+ * answer worth the full point and why. Partial credit is the unusual part of
+ * PersoNews, so a 0.3 has to say what held and what was missing, and show the
+ * reasoning that earns 1. Untimed: the twenty seconds covered the decision,
+ * there is no speed bonus, and Continue (or Finish) is the only way forward.
  */
 function Outcome({
   copyLanguage,
-  feedback,
+  explanation,
   isLast,
   onContinue,
   state
 }: {
   copyLanguage: ContentLanguage;
-  feedback?: string | null;
+  explanation: QuestionExplanation | null | undefined;
   isLast: boolean;
   onContinue: () => void;
   state: Extract<QuestionState, { status: "answered" | "expired" }>;
@@ -327,34 +334,41 @@ function Outcome({
     }
   }, [expired, scoreMilli]);
 
-  const title = expired ? copy.expiredTitle : skipped ? copy.skippedTitle : null;
-  const body = expired ? copy.expiredBody : skipped ? copy.skippedBody : null;
+  const explanationCopy = getExplanationCopy(copyLanguage);
+  const view = buildAnswerExplanation({
+    language: copyLanguage,
+    outcome: expired ? "expired" : skipped ? "skipped" : "answered",
+    scoreMilli,
+    selectedOptionId: state.status === "answered" ? state.selectedOptionId : null,
+    options: state.options,
+    explanation
+  });
 
   const content = (
     <View style={styles.outcome}>
-      <View style={styles.outcomeHead}>
-        <AppText color="accentInk" variant="eyebrow">
-          {copy.points(formatPoints(scoreMilli))}
-        </AppText>
-        {title ? (
-          <AppText color="muted" variant="caption">
-            {title}
-          </AppText>
-        ) : null}
-      </View>
+      {view.blocks.map((block) => (
+        <ExplanationCard block={block} key={block.kind} />
+      ))}
 
-      {body ? (
-        <AppText color="inkSoft" variant="body">
-          {body}
+      {view.loading ? (
+        <View
+          accessibilityLabel={explanationCopy.loading}
+          accessibilityRole="progressbar"
+          style={styles.explanationLoading}
+        >
+          <SkeletonLine height={16} />
+          <SkeletonLine height={16} width="82%" />
+        </View>
+      ) : null}
+
+      {view.notice ? (
+        <AppText color="muted" variant="caption">
+          {view.notice}
         </AppText>
       ) : null}
 
-      {feedback ? (
-        <AppText color="inkSoft" variant="read">
-          {feedback}
-        </AppText>
-      ) : null}
-
+      {/* The only way forward. Nothing advances by itself, and the host scrolls
+          when the explanation is long — nothing is squeezed to fit. */}
       <PrimaryButton label={isLast ? copy.finish : copy.continueLabel} onPress={onContinue} />
     </View>
   );
@@ -362,6 +376,55 @@ function Outcome({
   // Opacity only, and a no-op under Reduce Motion — the same reveal the readers
   // already use when content replaces a placeholder.
   return reduceMotion ? content : <ContentReveal>{content}</ContentReveal>;
+}
+
+/**
+ * One answer, explained: which answer, what it earned, what that score means,
+ * and — when the edition carries one — the editorial explanation of why.
+ */
+function ExplanationCard({ block }: { block: ExplanationBlock }) {
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View style={[styles.block, block.best ? styles.blockBest : null]}>
+      <View
+        accessibilityLabel={`${block.eyebrow}. ${block.points}`}
+        accessibilityRole="header"
+        accessible
+        style={styles.blockHead}
+      >
+        <AppText color={block.best ? "accentInk" : "muted"} variant="eyebrow">
+          {block.eyebrow}
+        </AppText>
+        <AppText color={block.best ? "accentInk" : "ink"} variant="bodyStrong">
+          {block.points}
+        </AppText>
+      </View>
+
+      {block.label ? (
+        <View style={styles.answerQuote}>
+          <AppText color="ink" variant="body">
+            {block.label}
+          </AppText>
+        </View>
+      ) : null}
+
+      <AppText color="inkSoft" variant="body">
+        {block.verdict}
+      </AppText>
+
+      {block.whyHeading && block.body ? (
+        <View style={styles.why}>
+          <AppText accessibilityRole="header" color="muted" variant="eyebrow">
+            {block.whyHeading}
+          </AppText>
+          <AppText color="ink" variant="read">
+            {block.body}
+          </AppText>
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 const createStyles = (c: ThemeColors) =>
@@ -412,12 +475,39 @@ const createStyles = (c: ThemeColors) =>
     outcome: {
       borderTopColor: c.border,
       borderTopWidth: 1,
-      gap: tokens.space.md,
+      gap: tokens.space.xl,
       paddingTop: tokens.space.lg
     },
-    outcomeHead: {
-      alignItems: "center",
+    block: {
+      gap: tokens.space.sm
+    },
+    // The answer worth the full point carries the accent rule, whichever block
+    // it is in.
+    blockBest: {
+      borderLeftColor: c.accent,
+      borderLeftWidth: 2,
+      paddingLeft: tokens.space.md
+    },
+    blockHead: {
+      alignItems: "baseline",
       flexDirection: "row",
-      gap: tokens.space.md
+      flexWrap: "wrap",
+      gap: tokens.space.sm,
+      justifyContent: "space-between"
+    },
+    answerQuote: {
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderRadius: tokens.radius.lg,
+      borderWidth: 1,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.sm
+    },
+    why: {
+      gap: tokens.space.xs,
+      marginTop: tokens.space.xs
+    },
+    explanationLoading: {
+      gap: tokens.space.sm
     }
   });

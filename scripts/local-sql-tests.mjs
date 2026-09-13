@@ -75,6 +75,24 @@ const SUITES = {
     stack: "production",
     migrationsFrom: UNAPPLIED_TAIL_VERSION,
   },
+  "question-explanation": {
+    label: "Post-answer explanation (your answer / best answer)",
+    file: "supabase/tests/question_explanation.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  "teams-intro": {
+    label: "Teams introduction state",
+    file: "supabase/tests/teams_intro_state.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  "push-timing": {
+    label: "Push timing (20:00 / 08:30 local), retries and attempt cap",
+    file: "supabase/tests/push_timing_and_retries.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
   avatars: {
     label: "Optional player avatars & Team avatars",
     file: "supabase/tests/optional_and_team_avatars.test.sql",

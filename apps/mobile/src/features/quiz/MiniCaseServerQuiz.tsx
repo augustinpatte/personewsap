@@ -10,11 +10,16 @@ import type { MiniCaseChallenge } from "../today/contentTypes";
 import { useDailyDrop } from "../today/DailyDropContext";
 import { ReaderScaffold } from "../today/readers";
 import { QuestionCard } from "./QuestionCard";
-import { readItemQuestions } from "./itemQuestions";
-import { getQuizCopy } from "./quizCopy";
+import {
+  resolveQuestionsCta,
+  type ContentQuestionProgress,
+  type SettledSeed
+} from "./questionProgress";
+import { getQuizCopy, questionsCtaLabel } from "./quizCopy";
 import { formatPoints } from "./quizSession";
 import { TeamBadge } from "./TeamBadge";
 import type { TeamRef } from "./teamMerge";
+import { useReadingQuestions } from "./useReadingQuestions";
 import { questionListKey, useQuizFlow, type QuizQuestionRef } from "./useQuizFlow";
 
 /**
@@ -26,11 +31,11 @@ import { questionListKey, useQuizFlow, type QuizQuestionRef } from "./useQuizFlo
  *
  *     method_framework  ->  technical_application  ->  conclusion_decision
  *
- * The reader reads the case first and starts the questions with "Go to
- * questions". The first question's twenty seconds therefore start when it is
- * scrolled into view, never while it sits below the fold of a case still being
- * read. Every state below the case is composed — loading, unavailable, empty,
- * question, score — never an empty region.
+ * The reader reads the case first and starts the questions from the button,
+ * which already says where they stand ("Continue questions" when Q1 and Q2 are
+ * settled and Q3 is not). The first question still owed is the one scrolled
+ * into view and started; settled ones are never started again. Every state
+ * below the case is composed — loading, unavailable, empty, question, score.
  */
 export function MiniCaseServerQuiz({
   caseIntro,
@@ -40,7 +45,7 @@ export function MiniCaseServerQuiz({
   caseIntro: React.ReactNode;
   challenge: MiniCaseChallenge;
 }) {
-  const { questions, teams } = readItemQuestions(challenge);
+  const { questions, teams, progress, progressKnown, settled } = useReadingQuestions(challenge);
 
   // Keyed by the logical question list, so the flow always has a state per
   // question — and a language switch, which keeps the ids, keeps the flow.
@@ -49,7 +54,10 @@ export function MiniCaseServerQuiz({
       caseIntro={caseIntro}
       challenge={challenge}
       key={questionListKey(questions)}
+      progress={progress}
+      progressKnown={progressKnown}
       questions={questions}
+      settled={settled}
       teams={teams}
     />
   );
@@ -58,12 +66,18 @@ export function MiniCaseServerQuiz({
 function MiniCaseServerQuizBody({
   caseIntro,
   challenge,
+  progress,
+  progressKnown,
   questions,
+  settled,
   teams
 }: {
   caseIntro: React.ReactNode;
   challenge: MiniCaseChallenge;
+  progress: ContentQuestionProgress;
+  progressKnown: boolean;
   questions: QuizQuestionRef[];
+  settled: Record<string, SettledSeed>;
   teams: TeamRef[];
 }) {
   const router = useRouter();
@@ -79,7 +93,8 @@ function MiniCaseServerQuizBody({
     questions,
     active: started,
     contentType: "mini_case",
-    isTeam: teams.length > 0
+    isTeam: teams.length > 0,
+    settled
   });
 
   const state = quiz.states[quiz.currentIndex];
@@ -110,7 +125,17 @@ function MiniCaseServerQuizBody({
   };
 
   const footer = !started ? (
-    <PrimaryButton label={copy.goToQuestions} onPress={() => setStarted(true)} />
+    <View style={styles.footerActions}>
+      {progressKnown ? (
+        <AppText color="muted" variant="caption">
+          {copy.questionsProgress(progress.settled, progress.total)}
+        </AppText>
+      ) : null}
+      <PrimaryButton
+        label={questionsCtaLabel(resolveQuestionsCta(progress), copy)}
+        onPress={() => setStarted(true)}
+      />
+    </View>
   ) : quiz.isComplete ? (
     <PrimaryButton label={readerCopy.finishCase} onPress={onFinish} />
   ) : undefined;
@@ -157,7 +182,7 @@ function MiniCaseServerQuizBody({
         ) : (
           <QuestionCard
             copyLanguage={language}
-            feedback={quiz.feedback}
+            explanation={quiz.explanation}
             index={quiz.currentIndex}
             isLast={quiz.currentIndex === quiz.total - 1}
             onContinue={quiz.advance}
@@ -175,6 +200,9 @@ function MiniCaseServerQuizBody({
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
+    footerActions: {
+      gap: tokens.space.sm
+    },
     questions: {
       // A rule rather than a card: the questions are the next part of the same
       // page, not a separate surface floating over the case.

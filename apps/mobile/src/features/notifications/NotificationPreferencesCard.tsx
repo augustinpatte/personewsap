@@ -324,7 +324,7 @@ function getNotificationCopy(language: Language) {
       en: {
         title: "Edition notifications",
         description:
-          "Your edition at 19:00 your time, and one reminder the next morning only if your session is unfinished.",
+          "Your edition at 20:00 your time, and one reminder the next morning only if your session is unfinished.",
         signIn: "Sign in to manage edition notifications.",
         loading: "Loading notification settings...",
         language: "Language",
@@ -341,7 +341,7 @@ function getNotificationCopy(language: Language) {
         checking: "Checking",
         off: "Off",
         disabled: "Edition notifications turned off.",
-        enabled: "You will be notified at 19:00 your time when each new edition is ready.",
+        enabled: "You will be notified at 20:00 your time when each new edition is ready.",
         saved: "Notification settings saved.",
         systemOffTitle: "Notifications are off for PersoNews on this phone",
         systemOffBody:
@@ -352,7 +352,7 @@ function getNotificationCopy(language: Language) {
       fr: {
         title: "Notifications d'édition",
         description:
-          "Votre édition à 19 h, heure locale, et un seul rappel le lendemain matin si votre session n'est pas terminée.",
+          "Votre édition à 20 h, heure locale, et un seul rappel le lendemain matin si votre session n'est pas terminée.",
         signIn: "Connectez-vous pour gérer les notifications d'édition.",
         loading: "Chargement des réglages de notification...",
         language: "Langue",
@@ -369,7 +369,7 @@ function getNotificationCopy(language: Language) {
         checking: "Vérification",
         off: "Désactivées",
         disabled: "Notifications d'édition désactivées.",
-        enabled: "Vous serez notifié à 19 h, heure locale, à chaque nouvelle édition.",
+        enabled: "Vous serez notifié à 20 h, heure locale, à chaque nouvelle édition.",
         saved: "Réglages de notification enregistrés.",
         systemOffTitle: "Les notifications de PersoNews sont désactivées sur ce téléphone",
         systemOffBody:

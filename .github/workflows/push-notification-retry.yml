@@ -16,12 +16,22 @@ name: PersoNewsAP Push Notification Delivery
 #
 # ON THE READER'S CLOCK
 #
-# Edition notifications go out at 19:00 in each reader's own timezone and the
-# next-morning answer reminder at 08:30 in it, so there is due work at every hour
-# of the UTC day. `repository_dispatch: edition_notifications_due` is sent by the
-# same dispatcher whenever a reader-local notification comes due. The half-hourly
-# schedule is the recovery for that path — one workflow, not one per timezone:
-# the command itself works out which readers are due right now.
+# Edition notifications go out at 20:00 in each reader's own timezone and the
+# next-morning answer reminder at 08:30 in it, each with at most two technical
+# retries at +15 and +30 minutes, so there is due work at every hour of the UTC
+# day. `repository_dispatch: edition_notifications_due` is sent by the same
+# dispatcher whenever a reader-local notification comes due.
+#
+# THIS WORKFLOW IS NO LONGER THE CLOCK
+#
+# On 11–12 September a `*/30` schedule here ran only every three to five hours,
+# which is what turned 19:00 Chicago into 20:27 and 08:30 into 09:19. The precise
+# sender is now the Supabase Edge Function `personews-push-notifications`, woken
+# every minute by pg_cron (`public.invoke_push_worker`) only when something is
+# due. This workflow is its fallback, every five minutes, on the SAME SQL claims:
+# Supabase decides what is due, which attempt it is and whether it may be sent,
+# and a row leased by one worker is never handed to the other. A run that finds
+# nothing due sends nothing.
 #
 # No continue-on-error anywhere in this file. A failed send has to be visible.
 
@@ -35,8 +45,10 @@ on:
       timezone: "Europe/Paris"
     - cron: "0 20 * * 1,3,5,0"
       timezone: "Europe/Paris"
-    # Recovery for reader-local delivery when the dispatcher cannot wake us.
-    - cron: "*/30 * * * *"
+    # Fallback for the Supabase worker. GitHub runs schedules late or not at
+    # all under load, so this is best-effort by nature; the due times, retry
+    # slots and attempt cap live in the database, not here.
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       languages:

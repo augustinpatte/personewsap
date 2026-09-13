@@ -48,7 +48,7 @@ function RootNavigator() {
   // session rather than racing the auth redirect.
   useNotificationRouting();
   usePushTokenRefresh();
-  // The server notifies at 19:00 and 08:30 in profiles.timezone; this keeps it
+  // The server notifies at 20:00 and 08:30 in profiles.timezone; this keeps it
   // on the phone's zone when the reader travels.
   useProfileTimezoneSync();
 

@@ -74,6 +74,8 @@ export type Database = {
           email: string;
           language: Language;
           timezone: string;
+          /** When the reader finished the Teams introduction; NULL until then. */
+          teams_intro_completed_at?: string | null;
           created_at: string;
           updated_at: string;
         },
@@ -494,6 +496,28 @@ export type Database = {
           question_sequence: number;
           question_role: string | null;
           time_limit_seconds: number;
+        },
+        never,
+        never
+      >;
+      /**
+       * The reader's own attempts (RLS: user_id = auth.uid()), read for
+       * question progress. Written only by start_question_attempt and
+       * submit_question_answer, so Insert and Update are `never`. score_milli
+       * is NULL until the attempt is submitted.
+       */
+      question_attempts: TableDefinition<
+        {
+          id: string;
+          user_id: string;
+          logical_question_id: string;
+          edition_date: string | null;
+          started_at: string;
+          deadline_at: string;
+          submitted_at: string | null;
+          selected_option_id: string | null;
+          score_milli: number | null;
+          status: "in_progress" | "submitted";
         },
         never,
         never
@@ -1242,6 +1266,32 @@ export type Database = {
               feedback_md: string | null;
             }>
           | null;
+      };
+      get_question_explanation: {
+        /**
+         * Refused (42501) until the caller's own attempt is settled. Then one
+         * row: the option chosen and the best option — never the other two.
+         */
+        Args: { p_logical_question_id: string };
+        Returns:
+          | Array<{
+              outcome: "answered" | "expired" | "skipped";
+              explanation_language: string;
+              selected_option_id: string | null;
+              selected_label: string | null;
+              selected_score_milli: number;
+              selected_feedback_md: string | null;
+              best_option_id: string | null;
+              best_label: string | null;
+              best_score_milli: number | null;
+              best_feedback_md: string | null;
+            }>
+          | null;
+      };
+      complete_teams_intro: {
+        /** Idempotent: stamps the first completion and returns it forever after. */
+        Args: Record<string, never>;
+        Returns: string | null;
       };
       start_learning_path: {
         Args: {

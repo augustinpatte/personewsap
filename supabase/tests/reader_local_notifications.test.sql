@@ -1,8 +1,10 @@
 -- Reader-local edition notifications — PRODUCTION project.
 --
--- Proves 20260910090000_reader_local_notifications: 19:00 reader-local
--- edition_ready, the 08:30 reader-local edition_answer_reminder, its exact
--- eligibility re-checked at claim time, and the health states.
+-- Proves 20260910090000_reader_local_notifications as amended by
+-- 20260912090000_push_timing_and_retries: 20:00 reader-local edition_ready
+-- (19:00 before that file), the 08:30 reader-local edition_answer_reminder, its
+-- exact eligibility re-checked at claim time, and the health states. Retries,
+-- attempt caps and the worker are proven in push_timing_and_retries.test.sql.
 --
 -- One transaction ending in ROLLBACK. Every reader, device, edition and delivery
 -- row below is a fixture that never survives the run, and nothing reaches Expo:
@@ -287,9 +289,9 @@ begin
       public.reader_notification_timezone('  '),
       public.reader_notification_timezone('UTC')));
 
-  -- 19:00 local on 2026-09-14 (all four in summer time), edition verified 17:05Z.
+  -- 20:00 local on 2026-09-14 (all four in summer time), edition verified 17:05Z.
   perform pg_temp.record(4, 'T4 edition_ready: Paris, New York, Chicago (New Orleans), Los Angeles',
-    '2026-09-14T17:05Z|2026-09-14T23:00Z|2026-09-15T00:00Z|2026-09-15T02:00Z',
+    '2026-09-14T18:00Z|2026-09-15T00:00Z|2026-09-15T01:00Z|2026-09-15T03:00Z',
     concat_ws('|',
       pg_temp.utc(public.edition_ready_due_at(pg_temp.ed(), 'Europe/Paris', v_released)),
       pg_temp.utc(public.edition_ready_due_at(pg_temp.ed(), 'America/New_York', v_released)),
@@ -305,11 +307,11 @@ begin
       pg_temp.utc(public.edition_answer_reminder_due_at(pg_temp.ed(), 'America/Chicago', v_released)),
       pg_temp.utc(public.edition_answer_reminder_due_at(pg_temp.ed(), 'America/Los_Angeles', v_released))));
 
-  -- 19:00 in Shanghai is 11:00Z, six hours before Paris verified at 17:05Z. It
+  -- 20:00 in Shanghai is 12:00Z, five hours before Paris verified at 17:05Z. It
   -- has already passed, so Shanghai is due AT verification (01:05 Shanghai on
   -- the 15th) — never moved to the next evening. The reminder is 08:30
   -- Shanghai on the 15th. Tokyo the same, an hour further east.
-  perform pg_temp.record(6, 'T6 Asia/Shanghai (and Tokyo): 19:00 already passed at verification, so due immediately',
+  perform pg_temp.record(6, 'T6 Asia/Shanghai (and Tokyo): 20:00 already passed at verification, so due immediately',
     '2026-09-14T17:05Z|2026-09-15T00:30Z|2026-09-14T17:05Z|2026-09-14T23:30Z',
     concat_ws('|',
       pg_temp.utc(public.edition_ready_due_at(pg_temp.ed(), 'Asia/Shanghai', v_released)),
@@ -317,7 +319,7 @@ begin
       pg_temp.utc(public.edition_ready_due_at(pg_temp.ed(), 'Asia/Tokyo', v_released)),
       pg_temp.utc(public.edition_answer_reminder_due_at(pg_temp.ed(), 'Asia/Tokyo', v_released))));
 
-  perform pg_temp.record(7, 'T7 a Paris verification after 19:00 is announced at once, however late, never the next day',
+  perform pg_temp.record(7, 'T7 a Paris verification after 20:00 is announced at once, however late, never the next day',
     '2026-09-14T19:30Z|2026-09-14T20:30Z',
     concat_ws('|',
       pg_temp.utc(public.edition_ready_due_at(pg_temp.ed(), 'Europe/Paris', timestamptz '2026-09-14 19:30:00+00')),
@@ -331,7 +333,7 @@ begin
   -- DST, autumn. Europe left summer time on 2026-10-25, the US on 2026-11-01.
   -- Monday 2026-10-26: Paris is on CET, New York still on EDT.
   perform pg_temp.record(9, 'T9 DST: Paris after 25 Oct is UTC+1, New York before 1 Nov is UTC-4',
-    '2026-10-26T18:05Z|2026-10-27T07:30Z|2026-10-26T23:00Z|2026-10-27T12:30Z',
+    '2026-10-26T19:00Z|2026-10-27T07:30Z|2026-10-27T00:00Z|2026-10-27T12:30Z',
     concat_ws('|',
       pg_temp.utc(public.edition_ready_due_at(date '2026-10-26', 'Europe/Paris', timestamptz '2026-10-26 18:05:00+00')),
       pg_temp.utc(public.edition_answer_reminder_due_at(date '2026-10-26', 'Europe/Paris', timestamptz '2026-10-26 18:05:00+00')),
@@ -339,10 +341,10 @@ begin
       pg_temp.utc(public.edition_answer_reminder_due_at(date '2026-10-26', 'America/New_York', timestamptz '2026-10-26 18:05:00+00'))));
 
   -- Friday 2026-10-30 (CDT) and Sunday 2026-11-01, the day Chicago and Los
-  -- Angeles fall back at 02:00 local: the same 19:00 and 08:30 move by an hour
+  -- Angeles fall back at 02:00 local: the same 20:00 and 08:30 move by an hour
   -- in UTC with nothing written down.
   perform pg_temp.record(10, 'T10 DST: Chicago and Los Angeles across the 1 Nov fall-back',
-    '2026-10-31T00:00Z|2026-10-31T13:30Z|2026-11-02T01:00Z|2026-11-02T14:30Z|2026-11-02T03:00Z|2026-11-02T16:30Z',
+    '2026-10-31T01:00Z|2026-10-31T13:30Z|2026-11-02T02:00Z|2026-11-02T14:30Z|2026-11-02T04:00Z|2026-11-02T16:30Z',
     concat_ws('|',
       pg_temp.utc(public.edition_ready_due_at(date '2026-10-30', 'America/Chicago', timestamptz '2026-10-30 18:05:00+00')),
       pg_temp.utc(public.edition_answer_reminder_due_at(date '2026-10-30', 'America/Chicago', timestamptz '2026-10-30 18:05:00+00')),
@@ -353,7 +355,7 @@ begin
 
   -- DST, spring. The US springs forward on 2027-03-14, Europe on 2027-03-28.
   perform pg_temp.record(11, 'T11 DST: New York and Paris on the spring-forward Sundays',
-    '2027-03-14T23:00Z|2027-03-15T12:30Z|2027-03-28T17:05Z|2027-03-29T06:30Z',
+    '2027-03-15T00:00Z|2027-03-15T12:30Z|2027-03-28T18:00Z|2027-03-29T06:30Z',
     concat_ws('|',
       pg_temp.utc(public.edition_ready_due_at(date '2027-03-14', 'America/New_York', timestamptz '2027-03-14 18:05:00+00')),
       pg_temp.utc(public.edition_answer_reminder_due_at(date '2027-03-14', 'America/New_York', timestamptz '2027-03-14 18:05:00+00')),
@@ -372,7 +374,7 @@ do $$
 declare
   v_ids uuid[] := array[pg_temp.r_paris(), pg_temp.r_chicago(), pg_temp.r_la(), pg_temp.r_shanghai()];
 begin
-  -- The verification instant itself. Shanghai's 19:00 (11:00Z) is long past,
+  -- The verification instant itself. Shanghai's 20:00 (12:00Z) is long past,
   -- so it is eligible at 17:05:00Z exactly — and not a second before.
   perform pg_temp.record(104, 'S0 Shanghai is eligible at the verification instant, not before',
     'false|true',
@@ -382,32 +384,32 @@ begin
     (select schedule.schedule_is_due::text
      from public.get_edition_ready_schedule(pg_temp.ed(), array[pg_temp.r_shanghai()], timestamptz '2026-09-14 17:05:00+00') as schedule));
 
-  -- 19:10 Paris on the edition evening.
-  perform pg_temp.record(13, 'S1 at 19:10 Paris: Paris and Shanghai are due, the Americas are not',
-    'chicago:false,la:false,paris:true,shanghai:true',
+  -- 19:10 Paris on the edition evening: verified, but 20:00 Paris is still ahead.
+  perform pg_temp.record(13, 'S1 at 19:10 Paris: only Shanghai is due; Paris waits for 20:00, the Americas too',
+    'chicago:false,la:false,paris:false,shanghai:true',
     (select string_agg(names.short_name || ':' || schedule.schedule_is_due, ',' order by names.short_name)
      from public.get_edition_ready_schedule(pg_temp.ed(), v_ids, timestamptz '2026-09-14 17:10:00+00') as schedule
      join ltn_names as names on names.user_id = schedule.schedule_user_id));
 
-  perform pg_temp.record(14, 'S2 at 19:00 Chicago the Chicago reader is due, Los Angeles still not',
+  perform pg_temp.record(14, 'S2 at 20:01 Chicago the Chicago reader is due, Los Angeles still not',
     'chicago:true,la:false,paris:true,shanghai:true',
     (select string_agg(names.short_name || ':' || schedule.schedule_is_due, ',' order by names.short_name)
-     from public.get_edition_ready_schedule(pg_temp.ed(), v_ids, timestamptz '2026-09-15 00:01:00+00') as schedule
+     from public.get_edition_ready_schedule(pg_temp.ed(), v_ids, timestamptz '2026-09-15 01:01:00+00') as schedule
      join ltn_names as names on names.user_id = schedule.schedule_user_id));
 
-  perform pg_temp.record(15, 'S3 the probe wakes the sender for exactly the due readers (Paris and Shanghai at 19:10)',
-    '2|0',
+  perform pg_temp.record(15, 'S3 the probe wakes the sender for exactly the due readers (Shanghai alone at 19:10 Paris)',
+    '1|0',
     (select due.edition_ready_due || '|' || due.answer_reminders_due
      from public.count_due_edition_notifications(timestamptz '2026-09-14 17:10:00+00') as due));
 
-  perform pg_temp.record(16, 'S4 and later for New York and Chicago; Paris is past its six-hour window',
-    '2|0',
+  perform pg_temp.record(16, 'S4 later New York at 20:05 New York; Chicago not yet; Paris past its three-hour window',
+    '1|0',
     (select due.edition_ready_due || '|' || due.answer_reminders_due
      from public.count_due_edition_notifications(timestamptz '2026-09-15 00:05:00+00') as due));
 
   -- Health is read at the real clock (2026-09-10), before this fixture edition
   -- is due for anyone: six devices, all healthy, none "never attempted".
-  perform pg_temp.record(17, 'S5 health: a reader whose 19:00 has not come is scheduled, not failed',
+  perform pg_temp.record(17, 'S5 health: a reader whose 20:00 has not come is scheduled, not failed',
     'eligible=6 scheduled_not_due=6 never_attempted=0',
     (select format('eligible=%s scheduled_not_due=%s never_attempted=%s',
                    health.eligible_devices, health.scheduled_not_due, health.never_attempted)
@@ -490,14 +492,14 @@ begin
 
   -- Travel: the traveler was due on Paris time. The app writes their new zone
   -- before the claim runs; they are now owed the reminder at 08:30 CHICAGO, and
-  -- the same move pushes their 19:00 edition_ready too.
+  -- the same move pushes their 20:00 edition_ready too.
   perform pg_temp.record(28, 'R10 before travel: due on Paris time', 'due|2026-09-15T06:30Z',
     pg_temp.state(pg_temp.r_traveler(), v_at) || '|' || pg_temp.due(pg_temp.r_traveler()));
 
   update public.profiles set timezone = 'America/Chicago' where id = pg_temp.r_traveler();
 
   perform pg_temp.record(29, 'R11 after travel: the CURRENT zone decides, for both notifications',
-    'scheduled_not_due|2026-09-15T13:30Z|2026-09-15T00:00Z',
+    'scheduled_not_due|2026-09-15T13:30Z|2026-09-15T01:00Z',
     pg_temp.state(pg_temp.r_traveler(), v_at) || '|' || pg_temp.due(pg_temp.r_traveler()) || '|' ||
     (select pg_temp.utc(schedule.schedule_due_at)
      from public.get_edition_ready_schedule(pg_temp.ed(), array[pg_temp.r_traveler()], v_at) as schedule));

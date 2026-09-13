@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, type Href } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { AppState, Pressable, StyleSheet, View } from "react-native";
 
 import {
   AppText,
@@ -26,9 +26,13 @@ import { formatTeamPoints } from "./leaderboard";
 import { TeamAvatar } from "./PlayerAvatar";
 import { isProfileCompleteForTeams, type PlayerProfile } from "./playerProfile";
 import { fetchMyTeams, fetchPlayerProfile, type TeamSummary } from "./teamsData";
+import { onTeamScoresChanged } from "./teamScoreEvents";
 import { useRefetchOnReturn } from "./useRefetchOnReturn";
 import { getTeamsCopy } from "./teamsCopy";
 import { TeamProfileGate } from "./TeamProfileGate";
+import { TeamsIntro } from "./TeamsIntro";
+import { getTeamsIntroCopy } from "./teamsIntroCopy";
+import { useTeamsIntroGate } from "./useTeamsIntroGate";
 
 /**
  * The Teams tab.
@@ -56,18 +60,28 @@ export function TeamsLandingScreen() {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  // The first visit opens on the three-part introduction, once per reader.
+  const introGate = useTeamsIntroGate(user?.id);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!user?.id) {
       return;
     }
 
-    setStatus("loading");
+    // A silent refresh (a score just changed, the app came back) redraws in
+    // place: the list stays up, and a failure keeps it rather than erasing it.
+    const silent = options?.silent === true;
+
+    if (!silent) {
+      setStatus("loading");
+    }
 
     const profileResult = await fetchPlayerProfile(user.id);
 
     if (!profileResult.ok) {
-      setStatus("error");
+      if (!silent) {
+        setStatus("error");
+      }
       return;
     }
 
@@ -87,7 +101,9 @@ export function TeamsLandingScreen() {
     });
 
     if (!teamsResult.ok) {
-      setStatus("error");
+      if (!silent) {
+        setStatus("error");
+      }
       return;
     }
 
@@ -99,9 +115,41 @@ export function TeamsLandingScreen() {
     void load();
   }, [load]);
 
+  // Each Team's points on this list come from the server: redraw them the
+  // moment an answer of the reader's scores for a Team, and on every return to
+  // the foreground, in case something changed while the app was away.
+  useEffect(() => onTeamScoresChanged(() => void load({ silent: true })), [load]);
+
+  useEffect(() => {
+    const appState = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        void load({ silent: true });
+      }
+    });
+
+    return () => appState.remove();
+  }, [load]);
+
   // Back from Create or Join, where a Team was just made or joined. Without
   // this the reader returns to the list they saw before they had one.
   useRefetchOnReturn(useCallback(() => void load(), [load]));
+
+  // FIRST VISIT. How to play, how points work, how Teams count an answer —
+  // before the landing, once. Finishing it is recorded for the reader (server,
+  // mirrored on the device), so it never opens by itself again on any phone.
+  if (introGate.status === "show") {
+    return (
+      <ModuleSurface>
+        <ModuleScroll contentStyle={styles.introContent} reveal>
+          <TeamsIntro
+            language={language}
+            mode="first_open"
+            onFinish={() => void introGate.complete()}
+          />
+        </ModuleScroll>
+      </ModuleSurface>
+    );
+  }
 
   // THE MASTHEAD IS NOT PART OF THE LOADING STATE. It used to be: the whole
   // screen was replaced by a skeleton, so the header appeared out of nowhere
@@ -113,7 +161,9 @@ export function TeamsLandingScreen() {
         <ModuteHeaderRow language={language} />
       </View>
 
-      {status === "loading" ? (
+      {/* While the introduction question is open, the same skeleton: neither
+          the landing nor the introduction appears and is then replaced. */}
+      {status === "loading" || introGate.status === "checking" ? (
         <ModuleScroll>
           <ModuleContentSkeleton label={moduleCopy.common.loading} />
         </ModuleScroll>
@@ -137,6 +187,7 @@ function TeamsList({ language, teams }: { language: "fr" | "en"; teams: TeamSumm
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const copy = getTeamsCopy(language);
+  const introCopy = getTeamsIntroCopy(language);
 
   return (
     <ModuleScroll contentStyle={styles.content} reveal>
@@ -181,6 +232,20 @@ function TeamsList({ language, teams }: { language: "fr" | "en"; teams: TeamSumm
           onPress={() => router.push("/(teams)/create" as Href)}
         />
       </View>
+
+      {/* The introduction, on demand. A quiet link, not a third button: it is
+          reopened occasionally, and opening it records nothing. */}
+      <Pressable
+        accessibilityHint={introCopy.howScoringWorksHint}
+        accessibilityRole="link"
+        hitSlop={8}
+        onPress={() => router.push("/(teams)/how-scoring-works" as Href)}
+        style={styles.scoringLink}
+      >
+        <AppText color="accentInk" variant="label">
+          {introCopy.howScoringWorks}
+        </AppText>
+      </Pressable>
     </ModuleScroll>
   );
 }
@@ -264,6 +329,14 @@ const createStyles = (c: ThemeColors) =>
     },
     actions: {
       gap: tokens.space.sm
+    },
+    introContent: {
+      paddingTop: tokens.space.lg
+    },
+    scoringLink: {
+      alignSelf: "flex-start",
+      justifyContent: "center",
+      minHeight: 44
     },
     list: {
       gap: tokens.space.md

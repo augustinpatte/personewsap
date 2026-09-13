@@ -135,7 +135,8 @@ describe("nothing is forced on content read before the rollout", () => {
 
     expect(finish).not.toContain("setShowQuiz");
     expect(finish).toContain("router.back()");
-    expect(reader).toContain("getQuizCopy(language).goToQuestions");
+    // The button's words come from the server-side progress.
+    expect(reader).toContain("questionsCtaLabel(resolveQuestionsCta(progress), quizCopy)");
     expect(reader).toContain('cta === "back" ? copy.back : copy.markRead');
   });
 
@@ -147,13 +148,17 @@ describe("nothing is forced on content read before the rollout", () => {
     // crash risk when an item disappears between renders.
     const hooks = reader.slice(0, reader.indexOf("if (!item"));
 
-    expect(hooks).toContain("readItemQuestions(item)");
+    expect(hooks).toContain("useReadingQuestions(item)");
     expect(hooks).toContain("useState(false)");
   });
 
-  it("shows Continue challenge in the list only when questions remain", () => {
-    expect(newsletterModule).toContain("itemHasQuestions(article)");
-    expect(newsletterModule).toContain("continueChallenge");
+  it("shows each reading's server-side question progress in the list", () => {
+    // "Questions · 1/2" rather than a generic "Continue challenge": the row
+    // says what is finished, started or never opened.
+    expect(newsletterModule).toContain("useContentsQuestionProgress");
+    expect(newsletterModule).toContain(
+      "contentQuestionsLabel(questionProgress.get(article.id), language)"
+    );
   });
 });
 

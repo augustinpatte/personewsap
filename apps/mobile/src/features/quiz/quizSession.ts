@@ -65,6 +65,11 @@ export type SubmittedAnswer = {
   expired: boolean;
   skipped: boolean;
   selectedOptionId: string | null;
+  /**
+   * How many Teams this answer was counted for (`teams_scored`). A count, not
+   * a score: it only tells the Team screens there is something to refetch.
+   */
+  teamsScored?: number;
 };
 
 export type QuestionState =

@@ -664,7 +664,7 @@ function getAccountCopy(language: string | null) {
         appDescription: "Language and appearance.",
         notificationsTitle: "Notifications",
         notificationsDescription:
-          "Your edition at 19:00 your time, and one reminder the next morning only if your session is unfinished.",
+          "Your edition at 20:00 your time, and one reminder the next morning only if your session is unfinished.",
         languageTitle: "Language",
         appearanceTitle: "Appearance",
         appearanceSystem: "Follows your device setting",
@@ -722,7 +722,7 @@ function getAccountCopy(language: string | null) {
         appDescription: "Langue et apparence.",
         notificationsTitle: "Notifications",
         notificationsDescription:
-          "Votre édition à 19 h, heure locale, et un seul rappel le lendemain matin si votre session n'est pas terminée.",
+          "Votre édition à 20 h, heure locale, et un seul rappel le lendemain matin si votre session n'est pas terminée.",
         languageTitle: "Langue",
         appearanceTitle: "Apparence",
         appearanceSystem: "Suit le réglage de votre appareil",

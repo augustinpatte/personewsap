@@ -35,8 +35,10 @@ import { resolveTodayEditionState } from "../today/todayEditionState";
 import { isEditionDay } from "../today/editionCadence";
 import { stripMarkdownInline } from "../today/readers/markdown";
 import { TeamBadge } from "../quiz/TeamBadge";
-import { itemHasQuestions } from "../quiz/itemQuestions";
-import { getQuizCopy } from "../quiz/quizCopy";
+import { questionIdsOf } from "../quiz/itemQuestions";
+import type { ContentQuestionProgress } from "../quiz/questionProgress";
+import { contentQuestionsLabel } from "../quiz/quizCopy";
+import { useContentsQuestionProgress } from "../quiz/useContentsQuestionProgress";
 import { getModuleCopy } from "./moduleCopy";
 import {
   EditorialRule,
@@ -142,6 +144,10 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   // two come to disagree — the reader told they have six articles left while
   // the list shows five.
   const articles = drop.items.newsletter;
+  // The reader's server-side progress on each article's questions, in one read.
+  const questionProgress = useContentsQuestionProgress(
+    articles.map((article) => ({ id: article.id, questionIds: questionIdsOf(article) }))
+  );
   const editionState = resolveTodayEditionState({
     dropDate: drop.drop_date,
     error,
@@ -250,21 +256,16 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
         <MetaLine
           items={[
             getTopicLabel(lead.topic, language),
-            copy.common.minuteCount(estimateReadMinutes(lead))
+            copy.common.minuteCount(estimateReadMinutes(lead)),
+            // "Questions · 1/2": where the reader stands, before opening it.
+            // The lead is where a reader looks first.
+            contentQuestionsLabel(questionProgress.get(lead.id), language)
           ]}
         />
         <AppText variant="lede">{stripMarkdownInline(lead.summary)}</AppText>
         <ReadStatus
           completed={isItemComplete(lead.id)}
-          // Same rule as the secondary rows: an article that is finished but
-          // still owes questions has something left to do, and a plain "Read"
-          // would hide it. The lead is where a reader looks first, so it was
-          // the worst place to leave it out.
-          completedLabel={
-            itemHasQuestions(lead)
-              ? getQuizCopy(language).continueChallenge
-              : copy.common.read
-          }
+          completedLabel={copy.common.read}
           openLabel={copy.newsletter.readLead}
         />
       </PressableSurface>
@@ -290,14 +291,10 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
                 items={[
                   getTopicLabel(article.topic, language),
                   copy.common.minuteCount(estimateReadMinutes(article)),
-                  // "Continue challenge" beats "Read" on an article that is
-                  // finished but still owes questions: the reader has something
-                  // left to do, and a plain "Read" would hide it.
-                  isItemComplete(article.id) && itemHasQuestions(article)
-                    ? getQuizCopy(language).continueChallenge
-                    : isItemComplete(article.id)
-                      ? copy.common.read
-                      : null
+                  isItemComplete(article.id) ? copy.common.read : null,
+                  // Where the reader stands on its questions, from the server:
+                  // a read article can still owe some, and this says so.
+                  contentQuestionsLabel(questionProgress.get(article.id), language)
                 ]}
                 tone={isItemComplete(article.id) ? "accentInk" : "muted"}
               />
@@ -340,6 +337,13 @@ function NewsletterArchive() {
   const editions = useMemo(
     () => selectNewsletterEditions(archive.drops),
     [archive.drops]
+  );
+  // Question progress for every loaded article, in one read for the page, so an
+  // old edition shows what was finished, started or never opened.
+  const questionProgress = useContentsQuestionProgress(
+    editions
+      .flatMap((edition) => edition.articles)
+      .map((article) => ({ id: article.id, questionIds: article.logical_question_ids ?? [] }))
   );
 
   if (archive.status !== "ready") {
@@ -400,7 +404,9 @@ function NewsletterArchive() {
       keyExtractor={(edition) => edition.drop_id}
       keyboardShouldPersistTaps="handled"
       ListFooterComponent={<EditionsFooter />}
-      renderItem={({ item }) => <EditionGroup edition={item} />}
+      renderItem={({ item }) => (
+        <EditionGroup edition={item} questionProgress={questionProgress} />
+      )}
       showsVerticalScrollIndicator={false}
     />
   );
@@ -428,7 +434,13 @@ function EditionsFooter() {
   );
 }
 
-function EditionGroup({ edition }: { edition: NewsletterEditionSummary }) {
+function EditionGroup({
+  edition,
+  questionProgress
+}: {
+  edition: NewsletterEditionSummary;
+  questionProgress: ReadonlyMap<string, ContentQuestionProgress>;
+}) {
   const styles = useThemedStyles(createStyles);
   const { language } = useArchive();
   const copy = getModuleCopy(language);
@@ -464,7 +476,11 @@ function EditionGroup({ edition }: { edition: NewsletterEditionSummary }) {
 
       <View style={styles.editionItems}>
         {edition.articles.map((article) => (
-          <EditionArticleRow article={article} key={article.id} />
+          <EditionArticleRow
+            article={article}
+            key={article.id}
+            progress={questionProgress.get(article.id)}
+          />
         ))}
         {edition.extras.length > 0 ? (
           <>
@@ -481,7 +497,13 @@ function EditionGroup({ edition }: { edition: NewsletterEditionSummary }) {
   );
 }
 
-function EditionArticleRow({ article }: { article: LibraryItemSummary }) {
+function EditionArticleRow({
+  article,
+  progress
+}: {
+  article: LibraryItemSummary;
+  progress?: ContentQuestionProgress;
+}) {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { language } = useArchive();
@@ -528,6 +550,11 @@ function EditionArticleRow({ article }: { article: LibraryItemSummary }) {
                 ? "Carrière"
                 : "Career"
               : getTopicLabel(article.topic, language)}
+          </AppText>
+        ) : null}
+        {progress ? (
+          <AppText color={progress.status === "completed" ? "muted" : "accentInk"} variant="caption">
+            {contentQuestionsLabel(progress, language)}
           </AppText>
         ) : null}
       </View>

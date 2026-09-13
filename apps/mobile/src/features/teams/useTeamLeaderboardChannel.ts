@@ -28,6 +28,12 @@ import {
  * it is already entitled to read. Broadcasting the standing itself would put
  * scores on the message bus, cost more per message, and create a second source
  * of truth that could disagree with the database.
+ *
+ * A BROADCAST SENT WHILE THE CHANNEL IS DOWN IS GONE. So every time the channel
+ * reaches SUBSCRIBED — its first join, and every rejoin after the network or the
+ * socket came back — the screen is nudged once too. That closes the gap between
+ * the screen's first fetch and the join, and every reconnection gap after it,
+ * without a single polling timer.
  */
 export function useTeamLeaderboardChannel(input: {
   teamId: string | null;
@@ -51,6 +57,19 @@ export function useTeamLeaderboardChannel(input: {
     }
 
     let isActive = AppState.currentState === "active";
+
+    // Five team-mates answering within a second produce five broadcasts;
+    // refetching five times would turn a saving into a cost.
+    const nudge = () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        onChangedRef.current();
+      }, LEADERBOARD_REFRESH_DEBOUNCE_MS);
+    };
 
     const apply = () => {
       const intent = resolveChannelIntent({
@@ -87,17 +106,13 @@ export function useTeamLeaderboardChannel(input: {
             return;
           }
 
-          // Five team-mates answering within a second produce five broadcasts;
-          // refetching five times would turn a saving into a cost.
-          if (debounceRef.current) {
-            clearTimeout(debounceRef.current);
-          }
-
-          debounceRef.current = setTimeout(() => {
-            onChangedRef.current();
-          }, LEADERBOARD_REFRESH_DEBOUNCE_MS);
+          nudge();
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            nudge();
+          }
+        });
 
       channelRef.current = channel;
       topicRef.current = topic;

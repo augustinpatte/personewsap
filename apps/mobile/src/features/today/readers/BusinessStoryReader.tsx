@@ -11,12 +11,10 @@ import { MarkdownBody } from "./MarkdownBody";
 import { stripMarkdownInline } from "./markdown";
 import { ReaderScaffold } from "./ReaderScaffold";
 import { ReadingQuizScreen } from "../../quiz/ReadingQuizScreen";
-import { getQuizCopy } from "../../quiz/quizCopy";
-import {
-  goToQuestionsAfterReading,
-  readItemQuestions,
-  resolveReadingCta
-} from "../../quiz/itemQuestions";
+import { getQuizCopy, questionsCtaLabel } from "../../quiz/quizCopy";
+import { goToQuestionsAfterReading, resolveReadingCta } from "../../quiz/itemQuestions";
+import { resolveQuestionsCta } from "../../quiz/questionProgress";
+import { useReadingQuestions } from "../../quiz/useReadingQuestions";
 import { questionListKey } from "../../quiz/useQuizFlow";
 import { SourceList } from "./SourceList";
 
@@ -28,11 +26,11 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
 
   const item = getItemById(storyId);
 
-  // Hooks run before the missing-item guard below, unconditionally.
-  // `readItemQuestions` is null-safe and returns an empty block for a missing
-  // or legacy item, which is what keeps the hook order identical on every
+  // Hooks run before the missing-item guard below, unconditionally. The
+  // questions and the reader's server-side progress on them are null-safe on a
+  // missing or legacy item, which keeps the hook order identical on every
   // render.
-  const { questions } = readItemQuestions(item);
+  const { questions, progress, progressKnown, settled } = useReadingQuestions(item);
   const [showQuiz, setShowQuiz] = useState(false);
 
   if (!item || item.content_type !== "business_story") {
@@ -53,6 +51,7 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
 
   const completed = isItemComplete(item.id);
   const cta = resolveReadingCta({ questionCount: questions.length, completed });
+  const quizCopy = getQuizCopy(language);
   const chapters = [
     { label: copy.setup, body: item.setup },
     { label: copy.tension, body: item.tension },
@@ -69,7 +68,8 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
     router.back();
   };
 
-  // Scored content: read, then straight to this story's own questions.
+  // Scored content: read, then straight to this story's own questions —
+  // resumed where the server says the reader stopped.
   const onGoToQuestions = () => {
     void goToQuestionsAfterReading({
       completed,
@@ -90,6 +90,7 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
         onBackToContent={() => setShowQuiz(false)}
         onClose={() => router.back()}
         questions={questions}
+        settled={settled}
         teams={[]}
         title={item.title}
       />
@@ -103,7 +104,17 @@ export function BusinessStoryReader({ storyId }: { storyId: string }) {
       iconName="briefcase"
       footer={
         cta === "go_to_questions" ? (
-          <PrimaryButton label={getQuizCopy(language).goToQuestions} onPress={onGoToQuestions} />
+          <View style={styles.footerActions}>
+            {progressKnown ? (
+              <AppText color="muted" variant="caption">
+                {quizCopy.questionsProgress(progress.settled, progress.total)}
+              </AppText>
+            ) : null}
+            <PrimaryButton
+              label={questionsCtaLabel(resolveQuestionsCta(progress), quizCopy)}
+              onPress={onGoToQuestions}
+            />
+          </View>
         ) : (
           <PrimaryButton label={cta === "back" ? copy.back : copy.markRead} onPress={onFinish} />
         )
@@ -166,6 +177,9 @@ function Monogram({ label }: { label: string }) {
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
+    footerActions: {
+      gap: tokens.space.sm
+    },
     identity: {
       alignItems: "center",
       flexDirection: "row",

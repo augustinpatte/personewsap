@@ -5,164 +5,236 @@ reader's own clock:
 
 | Kind | When | Only if |
 | --- | --- | --- |
-| `edition_ready` | ~19:00 reader-local on the edition date | the edition is verified |
-| `edition_answer_reminder` | ~08:30 reader-local the next morning, once | assigned questions are still unanswered |
+| `edition_ready` | 20:00 reader-local on the edition date, or the moment the edition is ready if later | the edition is verified |
+| `edition_answer_reminder` | 08:30 reader-local the next morning, once | assigned questions are still unanswered |
+
+Each notification gets **at most three attempts**: the initial one, a retry at
++15 minutes and a retry at +30 minutes (20:00 / 20:15 / 20:30, 08:30 / 08:45 /
+09:00). These are technical retries, not three notifications. Once Expo has
+accepted a ticket, the notification is never sent again.
 
 Team notification kinds (`team_invite_received`, `team_member_joined`,
 `team_edition_result`) are not scheduled by any of this. Nothing in the
 repository sends them yet; when something does, it uses the same delivery
 table and is not gated on a local time.
 
-Migration: `supabase/migrations/20260910090000_reader_local_notifications.sql`.
+Migrations:
+
+- `supabase/migrations/20260910090000_reader_local_notifications.sql`: the
+  reader's clock, the reminder's eligibility, and health.
+- `supabase/migrations/20260912090000_push_timing_and_retries.sql`: 20:00
+  instead of 19:00, the retry schedule, the attempt cap, observability, and the
+  Supabase worker.
+
+## What went wrong on 11–12 September
+
+- **Evening.** The 2026-09-11 edition was verified at 17:00:19Z (12:00 Chicago),
+  and the Chicago reader was due at 19:00 Chicago (00:00Z). The delivery row was
+  written at 01:27:20Z (20:27 Chicago) and the ticket accepted a second later.
+  The edition was not late. Between 23:09Z and 01:26Z the `*/30` GitHub schedule
+  did not run at all. The push then left with APNs priority 5 (`"normal"`),
+  which lets iOS hold it, and it reached the phone around 20:39.
+- **Morning.** The reminder was due at 08:30 Chicago (13:30Z). The database
+  dispatcher fired (`notification_dispatch_state` shows it), but none of the 43
+  recorded runs was started by `repository_dispatch`. The next scheduled run
+  started at 14:19:29Z and sent at 14:19:56Z (09:19 Chicago).
+- **The schedule.** The workflow's schedule was `*/30 * * * *`, not
+  `17 * * * *`. GitHub ran it only every three to five hours (01:26, 06:24,
+  11:10, 14:19 and 17:24 UTC on the 12th).
+
+The fix is to stop depending on GitHub's scheduler for the time of day.
 
 ## The clock
 
-`profiles.timezone` (an IANA name) is the only authority. The app writes it
-when the profile is created and again whenever the device's zone changes
+`profiles.timezone` (an IANA name) is the only authority. The app writes it when
+the profile is created and again whenever the device's zone changes
 (`useProfileTimezoneSync`, on launch and on every return to the foreground).
 
 The zone is read from the OS through `expo-localization`
 (`getCalendars()[0].timeZone`), not from the JavaScript engine's `Intl` zone. It
 falls back to `Intl` only if the native value is unavailable.
-`expo-localization` is a native module, so this needs a new native build
-(TestFlight).
 
-Every due time is computed **when it is asked**, by PostgreSQL's tz database
-(`(day + time) AT TIME ZONE zone`). No offset is stored, and DST is resolved by
-the zone rules. An unknown or non-IANA value (`Mars/Olympus`, `UTC+5`, `CEST`)
-is treated as `Europe/Paris`.
+Every due time is computed by PostgreSQL's tz database
+(`(day + time) AT TIME ZONE zone`), so DST is resolved by the zone rules. The
+server's own timezone plays no part. A missing, unknown or non-IANA value
+(`Mars/Olympus`, `UTC+5`, `CEST`) is treated as `Europe/Paris`. `UTC` is
+accepted as-is, since it is the column default of old rows.
 
-- `edition_ready_due_at` = `greatest(edition_date 19:00 local, verified_at)`.
-  If the reader's 19:00 is still ahead when the edition verifies (everyone west
-  of Paris), they are told at 19:00. If it has already passed (Shanghai, Tokyo),
-  they are eligible immediately at verification. It is never moved to another
-  day.
-- `edition_answer_reminder_due_at`: 08:30 local on the calendar day after the
-  edition date, never before that reader's `edition_ready`. It can be sent until
-  11:30 local and never later.
+- `edition_ready_target_at` is 20:00 local on the edition date.
+- `edition_ready_due_at` is `greatest(20:00 local, verified_at)`. An unverified
+  edition is never due, and the time is never moved to another day.
+- `edition_answer_reminder_target_at` is 08:30 local on the next calendar day.
+  `edition_answer_reminder_due_at` adds "never before that reader's
+  `edition_ready`". The reminder can be sent until 11:30 local and never later.
 
-Edition Monday 2026-09-14, verified 17:05Z (19:05 Paris):
+Edition Monday 2026-09-14, verified 17:05Z:
 
 | Reader | edition_ready | reminder |
 | --- | --- | --- |
-| Europe/Paris | 19:05 Paris (17:05Z) | Tue 08:30 Paris (06:30Z) |
-| America/New_York | 19:00 NY (23:00Z) | Tue 08:30 NY (12:30Z) |
-| America/Chicago (New Orleans) | 19:00 Chicago (Tue 00:00Z) | Tue 08:30 Chicago (13:30Z) |
-| America/Los_Angeles | 19:00 LA (Tue 02:00Z) | Tue 08:30 LA (15:30Z) |
-| Asia/Shanghai | at verification: Tue 01:05 Shanghai (17:05Z), its 19:00 had passed | Tue 08:30 Shanghai (00:30Z) |
+| Europe/Paris | 20:00 Paris (18:00Z) | Tue 08:30 Paris (06:30Z) |
+| Europe/London | 20:00 London (19:00Z) | Tue 08:30 London (07:30Z) |
+| America/Chicago | 20:00 Chicago (Tue 01:00Z) | Tue 08:30 Chicago (13:30Z) |
+| Asia/Tokyo | at verification: 02:05 Tokyo (17:05Z), its 20:00 had passed | Tue 08:30 Tokyo (Mon 23:30Z) |
+| Australia/Sydney | at verification (17:05Z), its 20:00 had passed | Tue 08:30 Sydney (Mon 22:30Z) |
 
-DST examples:
+DST examples, proven in `supabase/tests/push_timing_and_retries.test.sql`:
 
-- Chicago, Friday 2026-10-30 (CDT): 19:00 = 00:00Z, and the reminder at 08:30 = 13:30Z.
-- Chicago, Sunday 2026-11-01, after the fall-back: 19:00 = 01:00Z, and the reminder at 08:30 = 14:30Z.
+| Case | 20:00 | 08:30 next morning |
+| --- | --- | --- |
+| Chicago, Sat 2026-10-31 (CDT) → Sun 2026-11-01 (CST) | 01:00Z | 14:30Z |
+| Chicago, Sun 2026-11-01 (CST) | 02:00Z | — |
+| London, Sat 2026-10-24 (BST) → Sun 2026-10-25 (GMT) | 19:00Z, then 20:00Z | — |
+| Sydney, Sat 2026-10-03 (AEST) → Sun 2026-10-04 (AEDT) | 10:00Z | 21:30Z |
 
-All of these are proven in `supabase/tests/reader_local_notifications.test.sql`.
+**Travel.** Nothing about a zone is frozen into the schedule before it is due,
+so the zone at that time decides. A delivery row records the zone it was
+scheduled in (`reader_timezone`), for the record only.
 
-**Travel.** Nothing about a zone is frozen into a schedule row, so the zone at
-send time decides. A reader due at 08:30 Paris who lands in Chicago and opens
-the app before then is reminded at 08:30 Chicago instead. The same applies to
-19:00. If they don't open the app, the server keeps using the last zone it knew.
+## Who does the sending
+
+- **The primary worker is in Supabase.** pg_cron runs
+  `public.invoke_push_worker()` every minute (job `personews-push-worker`).
+  When `count_claimable_push_work()` finds something due, it POSTs to the Edge
+  Function `personews-push-notifications`. It never makes a request when
+  nothing is due.
+- **The Edge Function claims and records only.** It calls
+  `claim_due_push_notifications`, sends exactly the rows it was handed to Expo,
+  and records each outcome with `record_push_delivery_attempt`.
+- **The GitHub workflow is the fallback.**
+  `.github/workflows/push-notification-retry.yml` runs every five minutes, plus
+  on `repository_dispatch` and the three Paris evening windows. It runs
+  `content:push-notifications` against the same SQL claims, so both workers can
+  run at once without a duplicate. It also reconciles receipts.
+
+Supabase is the authority on everything: `scheduled_for`, attempts, the next
+retry slot, idempotency.
+
+## Retries and idempotency
+
+The unique key is `(push_token_id, drop_date, notification_kind)`: one row per
+device, edition and kind.
+
+**Leasing counts the attempt.** `attempt_count` goes up by one and
+`next_attempt_at` is set to `scheduled_for + 15 min × attempts`.
+
+**A retryable failure** (network error, Expo 5xx or 429, an Expo ticket error
+worth retrying) is set to that slot by a trigger (`schedule_push_delivery_retry`).
+A worker that dies after leasing leaves the same slot behind, because its lease
+(at most 14 minutes) expires before the slot arrives. For example, with a 20:00
+Chicago target:
+
+| Attempt | When | On failure |
+| --- | --- | --- |
+| 1 | 20:00 | retry at 20:15 |
+| 2 | 20:15 | retry at 20:30 |
+| 3 | 20:30 | `terminal_failure: gave up after 3 attempts` |
+
+The morning reminder follows 08:30, 08:45 and 09:00 the same way. Retries count
+from `scheduled_for`, the first moment the row could be sent: an edition ready
+at 20:27 retries at 20:42 and 20:57.
+
+**The states:**
+
+| State | Meaning | Leased again? |
+| --- | --- | --- |
+| `pending` | written, not yet attempted | yes, at `scheduled_for` |
+| `claimed` | leased by a worker | only after the lease expires, at the next slot |
+| `retryable_failure` | failed before Expo accepted it | yes, at `next_attempt_at` |
+| `awaiting_receipt` | Expo accepted the ticket, receipt not read yet | **never** |
+| `sent` | receipt says delivered | **never** |
+| `terminal_failure` | permanent error, invalid token, three attempts used, or send window over | **never** |
+| `cancelled` | no longer owed (answered, notifications off, device retired) | **never** |
+
+A retryable receipt stays `awaiting_receipt`. A receipt never causes a resend.
+
+**Guards:**
+
+- Nothing is sent more than three hours after `scheduled_for`.
+- No row gets a fourth attempt, even if it is forced back to `pending`.
+- A worker whose lease was taken over (`stale_claim`) records nothing.
+- The sender on `main`, which still adds one to `attempt_count` itself, is
+  neutralised by the trigger, so an attempt is never counted twice.
+
+## When the edition is not ready at 20:00
+
+Nothing is sent and nothing is written. The row is created, with
+`target_at = 20:00 local` and `scheduled_for = edition_ready_at`, the minute
+the edition is verified, and sent in that same minute.
+`get_push_delivery_timeline(date)` then shows `blocked_until_ready = true`
+alongside the local target, its UTC instant, the ready time and every attempt.
 
 ## Who is reminded
 
-`edition_answer_reminder_reader(user, edition, now)` is the only definition. The
-claim, the dispatcher's probe and the health report all read it. A reader is
-owed a reminder only if **all** of the following hold at claim time:
+`edition_answer_reminder_reader(user, edition, now)` is the only definition. It
+is unchanged by 20260912090000. A reader is owed a reminder only if all of the
+following hold at claim time:
 
-- **Verified:** the edition was verified. For editions that predate the outbox,
-  the publication time counts as verification.
-- **Assigned:** the reader was assigned at least one question. That means
-  personal `solo_question_assignments`, or questions of an active Team they are
-  currently eligible in for that edition.
-- **Unanswered:** at least one of those questions has no submitted `question_attempts` row.
-- **Notifications on:** `user_preferences.notifications_enabled` is true.
-- **Device:** at least one enabled, well-formed Expo push token exists.
-- **Edition open:** `is_edition_open`, meaning the next edition hasn't published yet.
-- **Window:** it is between 08:30 and 11:30 local.
-- **Not yet reminded:** no reminder row exists yet for that reader and edition.
+- the edition was verified;
+- the reader was assigned at least one question;
+- at least one of those questions is still unanswered;
+- notifications are on;
+- a live device exists;
+- the edition is still open;
+- it is between 08:30 and 11:30 local;
+- the reader has not been reminded yet.
 
-`claim_edition_answer_reminders` re-evaluates this inside the statement that
-leases the delivery row, then returns only what may be sent:
+It is re-evaluated in the statement that leases each attempt, including the
+retries. A reader who answers between 08:30 and 08:45 is stood down
+(`cancelled: completed_before_send`), never reminded.
 
-- **Newly owed:** a newly owed reader is fanned out to their live devices once.
-  A device registered afterwards does not get a second reminder.
-- **No longer owed:** a fanned-out row that is no longer owed becomes `cancelled`
-  with reason `completed_before_send`, `notifications_disabled` or
-  `edition_closed`. This is not a failure.
-- **Window closed:** a row still unsent at 11:30 local becomes
-  `terminal_failure: reminder send window elapsed`, so there is no afternoon nag.
+## Observability
 
-**Completion suppresses immediately.** Nothing is scheduled that needs
-cancelling. The reminder exists only while a question is unanswered, so the
-answer committing is what removes it. The only remaining window is the
-milliseconds between the claim and the Expo request.
+Each attempt in the Edge Function logs one JSON line (`event: push_attempt`)
+with these fields:
 
-**Idempotency is per device, not per account.** The unique key is
-`(push_token_id, drop_date, notification_kind)`. That guarantees:
+- `kind`, `drop_date`, `timezone`
+- `target_local_time`, `target_utc`
+- `edition_ready_at`, `blocked_until_ready`, `scheduled_for`
+- `actual_dispatch_at`, `attempt_number`
+- `result`, `recorded_status`, `retry_due_at`
 
-- at most one `edition_ready` delivery per device per edition;
-- at most one `edition_answer_reminder` delivery per device per edition.
+The line identifies a device by the first 8 characters of its row id only.
+Push tokens and user ids are never logged.
 
-A reader with two active devices therefore receives each push on both. There is
-no account-level exactly-once guarantee. The one account-level rule is on the
-reminder fan-out: it happens once per reader and edition, to the devices active
-at that moment. A device registered after the reminder went out gets none,
-while a device registered before its 19:00 does get `edition_ready`.
+`select * from get_push_delivery_timeline('2026-09-14')`, run with the service
+role, returns the same information per delivery row, with hashed reader ids and
+no tokens.
 
-## Who wakes the sender
-
-`dispatch_notification_events` (pg_cron, `*/2 * * * *`, one job) now also calls
-`count_due_edition_notifications()`. When a reader-local notification has come
-due and was never attempted, it sends `repository_dispatch:
-edition_notifications_due`, at most once every 5 minutes (throttled by
-`notification_dispatch_state`).
-
-`push-notification-retry.yml` runs `content:push-notifications`. That command
-works out who is due right now across every reader:
-
-- editions from the outbox, today's cadence date, and every edition verified
-  in the last three days (each gated per reader by `get_edition_ready_schedule`);
-- then `claim_edition_answer_reminders`.
-
-A `*/30 * * * *` schedule is the recovery path if the dispatcher cannot reach
-GitHub. `push-receipts.yml` also runs every 3 hours, because reminders are sent
-at every hour.
-
-## Health
-
-`npm run content:notification-health` now reports three things:
-
-- **`edition_ready` for the latest edition:**
-  - `scheduled_not_due`: this reader's 19:00 hasn't come yet. Healthy.
-  - `due_awaiting_worker`: due in the last 30 minutes. Healthy.
-  - `never_attempted`: due more than 30 minutes ago, or the edition was never
-    verified. **Critical.**
-- **The reminder, for the two latest editions,** counted in readers. The
-  `summary` field is one of:
-  - `no_reminder_needed`
-  - `scheduled` (with `nextDueAt`)
-  - `due`
-  - `sent`
-  - `failed`, which means `never_attempted > 0` and is **critical**
-  - `not_released`
-- **Supporting counts** alongside that: `completedBeforeReminder`, `cancelled`,
-  `notEligible`, `editionClosed`, `retryable` (a warning) and `terminal`.
+`npm run content:notification-health` still reports `scheduled_not_due`,
+`due_awaiting_worker` and `never_attempted` per reader, now against the 20:00
+target.
 
 ## Deploying
 
-1. The migration depends on the Teams/scored-questions migrations
-   (`solo_question_assignments`, `team_*`, `editions`, `question_attempts`).
-   Deploy it after them, as a plain forward `supabase db push`.
-2. Prove it locally first: `npm run local-time:test:sql:local`, then
-   `node scripts/local-sql-tests.mjs push --with-migrations`.
-3. Sender order doesn't matter. A sender without the migration behaves as before
-   (`localTimeGate: "unavailable"`, reminders `deployed: false`). A database with
-   the migration and an old sender keeps announcing at verification time.
-4. The Vault secrets `personews_notification_dispatch_url` and
-   `personews_notification_dispatch_token` make reader-local delivery punctual.
-   Without them, the half-hourly schedule delivers within about 30 minutes.
-5. Scheduled workflows only run from `main`.
+Nothing here deploys itself. In order:
 
-**Rollback:** re-schedule the cron to `'*/2 17-22 * * *'` to stop reader-local
-wake-ups. Every function is additive, and the sender falls back to announcing
-at verification if the schedule RPC is removed.
+1. **Prove it locally:**
+   `node scripts/local-sql-tests.mjs push-timing local-time push --with-migrations`.
+2. **Apply the migration:** `supabase db push` on the production project.
+   Everything it contains is additive. Rows that already exist get
+   `scheduled_for = created_at`, so days-old retryable rows are retired, never
+   sent. The minute job is inert until step 4.
+3. **Deploy the function and its token:**
+   - `supabase functions deploy personews-push-notifications --project-ref wkbviidrbmehmjbhvpeh --no-verify-jwt`
+   - `supabase secrets set PERSONEWS_PUSH_WORKER_TOKEN=<random> --project-ref wkbviidrbmehmjbhvpeh`
+4. **Add the two Vault secrets** (SQL editor):
+   - `select vault.create_secret('https://wkbviidrbmehmjbhvpeh.supabase.co/functions/v1/personews-push-notifications', 'personews_push_worker_url');`
+   - `select vault.create_secret('<same random>', 'personews_push_worker_token');`
+5. **Merge the branch.** Scheduled workflows only run from `main`, and the
+   five-minute fallback and the Node sender's changes take effect then. The
+   order of steps 2 and 5 doesn't matter: every function keeps its signature,
+   and the trigger absorbs the old sender's own attempt counting.
+6. **Check it:**
+   - `select public.invoke_push_worker();` returns `no_due_work` outside due
+     minutes.
+   - `select * from net._http_response order by created desc limit 5;` shows
+     the function answering 200.
+   - Look at `get_push_delivery_timeline(<date>)` after 20:00.
+
+Separately from this change, the old dispatcher's `repository_dispatch` never
+started a GitHub run. Check `personews_notification_dispatch_token` (it needs
+Contents: write on the repository) and `net._http_response`. With the Supabase
+worker in place this no longer affects timing.
+
+**Rollback:** `select cron.unschedule('personews-push-worker');` stops the
+Supabase worker. The GitHub fallback keeps sending on the same rules.

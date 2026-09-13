@@ -340,19 +340,9 @@ export function createSupabasePushNotificationStore(
       outcome,
       attemptedAt
     }) {
-      const { data: existing, error: readError } = await supabase
-        .from("push_notification_deliveries")
-        .select("attempt_count")
-        .eq("push_token_id", pushTokenId)
-        .eq("drop_date", dropDate)
-        .eq("notification_kind", notificationKind)
-        .maybeSingle();
-
-      if (readError) {
-        throw new Error(`Could not read delivery attempt count: ${readError.message}`);
-      }
-
-      const attemptCount = ((existing as { attempt_count?: number } | null)?.attempt_count ?? 0) + 1;
+      // attempt_count is not written here: the claim that leased this row
+      // already counted the attempt (20260912090000), and a retryable failure
+      // is rescheduled to its +15/+30 minute slot by the database itself.
       // An accepted ticket is not final delivery. It waits for receipt
       // reconciliation; retryable send failures become retryable rows.
       const status =
@@ -367,7 +357,6 @@ export function createSupabasePushNotificationStore(
         .update({
           status,
           expo_ticket_id: outcome.kind === "ticket_accepted" ? outcome.expoTicketId : null,
-          attempt_count: attemptCount,
           last_attempt_at: attemptedAt,
           sent_at: null,
           error: outcome.kind === "ticket_accepted" ? null : outcome.error

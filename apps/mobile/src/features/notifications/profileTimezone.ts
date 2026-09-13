@@ -1,6 +1,6 @@
 /**
  * `profiles.timezone` is the one authority the server uses to decide WHEN a
- * reader is notified: 19:00 for the edition, 08:30 for the next-morning
+ * reader is notified: 20:00 for the edition, 08:30 for the next-morning
  * reminder, both in that zone. It is written from the device, and has to follow
  * the reader when they travel — a reader who lands in Chicago and opens the app
  * must be reminded at 08:30 Chicago, not 08:30 Paris.

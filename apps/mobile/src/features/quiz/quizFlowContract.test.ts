@@ -89,7 +89,7 @@ describe("the Business Story flow", () => {
   it("leaves a story with no questions on its original behaviour", () => {
     // `readItemQuestions` returns an empty array for legacy content, so the
     // branch simply does not fire and the reader closes as it always did.
-    expect(storyReader).toContain("readItemQuestions(item)");
+    expect(storyReader).toContain("useReadingQuestions(item)");
   });
 });
 
@@ -158,7 +158,7 @@ describe("a question never starts before it is visible", () => {
     }
 
     expect(readingQuizScreen).toContain(
-      "useQuizFlow({ questions, active: true, contentType, isTeam })"
+      "useQuizFlow({ questions, active: true, contentType, isTeam, settled })"
     );
     // The Mini Case starts on "Go to questions", not on opening the case.
     expect(miniCaseQuiz).toContain("active: started");

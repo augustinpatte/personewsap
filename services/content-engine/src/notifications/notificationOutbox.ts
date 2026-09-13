@@ -49,7 +49,7 @@ export type NotificationOutbox = {
   isAwaitingVerification: (input: { eventDate: string }) => Promise<boolean>;
   /**
    * Editions verified in the last three days. A reader in Los Angeles is told
-   * about Monday's edition at 19:00 Los Angeles, which is early Tuesday in
+   * about Monday's edition at 20:00 Los Angeles, which is early Tuesday in
    * Paris: by then neither the event nor the cadence date names Monday, so the
    * run has to ask which recent editions may still have readers to tell.
    * Answers [] when it cannot know, which is the behaviour before this existed.

@@ -95,6 +95,11 @@ export function readItemQuestions(item: DailyDropContentItem | null | undefined)
   };
 }
 
+/** The logical question ids of a reading, in answering order. */
+export function questionIdsOf(item: DailyDropContentItem | null | undefined): string[] {
+  return readItemQuestions(item).questions.map((question) => question.logicalQuestionId);
+}
+
 /**
  * Does this reading still owe the reader questions?
  *

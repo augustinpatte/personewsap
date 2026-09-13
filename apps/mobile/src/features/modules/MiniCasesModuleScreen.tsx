@@ -27,6 +27,10 @@ import { readMiniCaseResponseAnywhere, syncMiniCaseResponses } from "../today/mi
 import type { MiniCaseChallenge } from "../today/contentTypes";
 import { stripMarkdownInline } from "../today/readers/markdown";
 import { TeamBadge } from "../quiz/TeamBadge";
+import { questionIdsOf } from "../quiz/itemQuestions";
+import type { ContentQuestionProgress } from "../quiz/questionProgress";
+import { contentQuestionsLabel } from "../quiz/quizCopy";
+import { useContentsQuestionProgress } from "../quiz/useContentsQuestionProgress";
 import { ItemArchiveList } from "./ItemArchiveList";
 import { getModuleCopy } from "./moduleCopy";
 import {
@@ -109,6 +113,9 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   // The list arrives merged and deduplicated from the data layer (see
   // orderEditionItems), so a case two of their Teams chose is one card here.
   const miniCases = drop.items.mini_cases;
+  const questionProgress = useContentsQuestionProgress(
+    miniCases.map((miniCase) => ({ id: miniCase.id, questionIds: questionIdsOf(miniCase) }))
+  );
   // A solved case shows its result on its card, so the card is a record of what
   // you decided rather than just a "done" mark. One lookup for the whole list,
   // not one per card.
@@ -214,6 +221,7 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
           key={miniCase.id}
           challenge={miniCase}
           completed={isItemComplete(miniCase.id)}
+          progress={questionProgress.get(miniCase.id)}
           score={scores[miniCase.id] ?? null}
         />
       ))}
@@ -233,10 +241,13 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
 function MiniCaseCard({
   challenge,
   completed,
+  progress,
   score
 }: {
   challenge: MiniCaseChallenge;
   completed: boolean;
+  /** Server-side progress on its scored questions; absent for a legacy case. */
+  progress?: ContentQuestionProgress;
   score: MiniCaseResponseRecord | null;
 }) {
   const router = useRouter();
@@ -283,9 +294,13 @@ function MiniCaseCard({
           items={[
             getTopicLabel(challenge.topic, language),
             getDifficultyLabel(challenge.difficulty, language),
-            challenge.questions?.length
-              ? copy.cases.questionCount(challenge.questions.length)
-              : null
+            // A scored case says where the reader stands ("Questions · 2/3");
+            // a legacy one keeps its question count.
+            progress
+              ? contentQuestionsLabel(progress, language)
+              : challenge.questions?.length
+                ? copy.cases.questionCount(challenge.questions.length)
+                : null
           ]}
         />
         <AppText variant="title">{challenge.title}</AppText>
@@ -327,6 +342,9 @@ function MiniCaseArchive() {
   const cases = useMemo(
     () => selectArchiveItems(archive.drops, "mini_case"),
     [archive.drops]
+  );
+  const questionProgress = useContentsQuestionProgress(
+    cases.map((item) => ({ id: item.id, questionIds: item.logical_question_ids ?? [] }))
   );
 
   // Scores come from the device cache first (instant, works offline), then from
@@ -382,21 +400,34 @@ function MiniCaseArchive() {
       onOpen={openCase}
       renderMeta={(item) => {
         const response = responses[item.id];
+        // For a scored case: where the reader stands on its three questions.
+        const questionsLabel = contentQuestionsLabel(
+          questionProgress.get(item.id),
+          archive.language
+        );
+        const solved = item.is_completed || Boolean(response);
 
-        if (!item.is_completed && !response) {
+        if (!solved && !questionsLabel) {
           return null;
         }
 
         return (
           <View style={styles.statusRow}>
-            <View style={styles.statusDot} />
+            {solved ? <View style={styles.statusDot} /> : null}
             <AppText color="accentInk" variant="caption">
-              {response && response.total > 0
-                ? `${copy.common.solved} · ${copy.cases.score(
-                    response.score,
-                    response.total
-                  )}`
-                : copy.common.solved}
+              {[
+                solved
+                  ? response && response.total > 0
+                    ? `${copy.common.solved} · ${copy.cases.score(
+                        response.score,
+                        response.total
+                      )}`
+                    : copy.common.solved
+                  : null,
+                questionsLabel
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </AppText>
           </View>
         );
