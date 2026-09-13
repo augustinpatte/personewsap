@@ -10,6 +10,7 @@ import { QuestionCard } from "./QuestionCard";
 import { getQuizCopy } from "./quizCopy";
 import { formatPoints } from "./quizSession";
 import { TeamBadge } from "./TeamBadge";
+import type { SettledSeed } from "./questionProgress";
 import type { TeamRef } from "./teamMerge";
 import { useQuizFlow, type QuizQuestionRef } from "./useQuizFlow";
 
@@ -38,6 +39,7 @@ export function ReadingQuizScreen({
   onBackToContent,
   onClose,
   questions,
+  settled,
   teams,
   title
 }: {
@@ -48,13 +50,15 @@ export function ReadingQuizScreen({
   onBackToContent: () => void;
   onClose: () => void;
   questions: QuizQuestionRef[];
+  /** What the server has already settled: restored, never started again. */
+  settled?: Record<string, SettledSeed>;
   teams: TeamRef[];
   /** The headline, kept as context. The body is not. */
   title: string;
 }) {
   const styles = useThemedStyles(createStyles);
   const copy = getQuizCopy(language);
-  const quiz = useQuizFlow({ questions, active: true, contentType, isTeam });
+  const quiz = useQuizFlow({ questions, active: true, contentType, isTeam, settled });
   const state = quiz.states[quiz.currentIndex];
 
   if (questions.length === 0) {
@@ -111,7 +115,7 @@ export function ReadingQuizScreen({
       {state ? (
         <QuestionCard
           copyLanguage={language}
-          feedback={quiz.feedback}
+          explanation={quiz.explanation}
           index={quiz.currentIndex}
           isLast={quiz.currentIndex === quiz.total - 1}
           onBackToContent={onBackToContent}

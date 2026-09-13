@@ -590,7 +590,9 @@ begin
      from public.start_question_attempt(pg_temp.lq_shared()) s));
 
   -- Feedback is released now, and only now.
-  perform pg_temp.record(43, 'B34 feedback is readable after submitting', '2',
+  -- Since 20260913090000 only the chosen option and the best one come back.
+  -- The owner chose the best option, so that is one row, not the whole grid.
+  perform pg_temp.record(43, 'B34 feedback is readable after submitting', '1',
     (select count(*)::text from public.get_question_feedback(pg_temp.lq_shared())));
 
   -- -------------------------------------------------------------------------

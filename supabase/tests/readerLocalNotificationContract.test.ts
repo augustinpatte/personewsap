@@ -74,6 +74,8 @@ describe("the reader's clock", () => {
     expect(migration).not.toMatch(/ADD COLUMN[^;]*timezone/i);
   });
 
+  // This file's own rule. 20260912090000 moves the hour to 20:00 and keeps the
+  // shape; pushTimingContract.test.ts pins that.
   it("is greatest(19:00 local, verification) for the edition, never another day", () => {
     const ready = functionBody("edition_ready_due_at");
 
@@ -138,9 +140,12 @@ describe("one worker for every reader and every zone", () => {
     expect(functionBody("dispatch_notification_events").toLowerCase()).not.toContain("expo");
   });
 
-  it("is woken by the reader-local event and recovered by one half-hourly schedule", () => {
+  it("is woken by the reader-local event and backed by one five-minute fallback schedule", () => {
     expect(deliveryWorkflow).toContain("types: [edition_published, edition_notifications_due]");
-    expect(deliveryWorkflow).toContain('cron: "*/30 * * * *"');
+    // Since 20260912090000 the precise worker is the Supabase Edge Function;
+    // this schedule is its fallback on the same SQL claims.
+    expect(deliveryWorkflow).toContain('cron: "*/5 * * * *"');
+    expect(deliveryWorkflow).not.toContain('cron: "*/30 * * * *"');
     expect(receiptWorkflow).toContain('cron: "50 */3 * * *"');
   });
 

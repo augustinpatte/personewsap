@@ -27,10 +27,11 @@
 --   C2  a first claim inserts the delivery row and leases it
 --   C3  the same claim repeated does not lease it a second time
 --   C4  a second worker cannot steal a live lease
---   C5  an expired lease is reclaimable
+--   C5  an expired lease is reclaimable, at its next retry slot
 --   C6  a row already sent is never re-leased — the exactly-once guarantee
 --   C7  a terminal failure is never re-leased
---   C8  a retryable failure IS re-leased
+--   C8  a retryable failure IS re-leased, at its slot (+15 min), and counts
+--       toward the three-attempt cap (see push_timing_and_retries.test.sql)
 --   C9  the same device on two dates is two independent deliveries
 --   C10 the same device and date under two kinds is two independent deliveries
 --   C11 a malformed row is dropped without costing the rest of the batch
@@ -132,6 +133,13 @@ begin
 
   insert into public.profiles (id, email, language, timezone)
   values (pg_temp.uid_reader(), 'push-suite@example.test', 'fr', 'UTC');
+
+  -- A reader who can be notified. Without this row notifications count as off,
+  -- and since 20260912090000 a pending edition_ready for such a reader is
+  -- stood down rather than retried.
+  insert into public.user_preferences (
+    user_id, notifications_enabled, newsletter_enabled, business_stories_enabled, mini_cases_enabled
+  ) values (pg_temp.uid_reader(), true, true, true, true);
 
   -- Two devices for one reader: the idempotency key is the device, so both must
   -- be told and retiring one must never suppress the other.
@@ -237,9 +245,19 @@ begin
     (select delivery.claim_id from public.push_notification_deliveries as delivery
      where delivery.push_token_id = pg_temp.tok_phone() and delivery.drop_date = pg_temp.day_one()));
 
-  -- C5: a worker that died mid-send must not strand the device forever.
+  -- C5: a worker that died mid-send must not strand the device forever. Since
+  -- 20260912090000 the lease also books the next retry slot (+15 minutes), so
+  -- an expired lease is reclaimed at that slot — not the moment it expires.
   update public.push_notification_deliveries as delivery
   set claim_expires_at = now() - interval '1 minute'
+  where delivery.push_token_id = pg_temp.tok_phone() and delivery.drop_date = pg_temp.day_one();
+
+  v_reclaimed := pg_temp.claim(pg_temp.rows_for(array[pg_temp.tok_phone()], pg_temp.day_one()), 'worker-b');
+  perform pg_temp.record(13, 'C5 an expired lease waits for its retry slot', '0', v_reclaimed::text);
+
+  -- Fifteen minutes later.
+  update public.push_notification_deliveries as delivery
+  set next_attempt_at = now() - interval '1 minute'
   where delivery.push_token_id = pg_temp.tok_phone() and delivery.drop_date = pg_temp.day_one();
 
   v_reclaimed := pg_temp.claim(pg_temp.rows_for(array[pg_temp.tok_phone()], pg_temp.day_one()), 'worker-b');
@@ -279,8 +297,20 @@ begin
   set status = 'retryable_failure'
   where delivery.push_token_id = pg_temp.tok_phone() and delivery.drop_date = pg_temp.day_one();
 
+  -- A retryable failure is rescheduled by the database to its next slot
+  -- (20260912090000): never re-sent in the same minute, never on the hour.
   v_retryable := pg_temp.claim(pg_temp.rows_for(array[pg_temp.tok_phone()], pg_temp.day_one()), 'worker-c');
-  perform pg_temp.record(18, 'C8 a retryable failure is claimed again', '1', v_retryable::text);
+  perform pg_temp.record(18, 'C8 a retryable failure is not claimed before its retry slot', '0', v_retryable::text);
+
+  update public.push_notification_deliveries as delivery
+  set next_attempt_at = now() - interval '1 minute'
+  where delivery.push_token_id = pg_temp.tok_phone() and delivery.drop_date = pg_temp.day_one();
+
+  v_retryable := pg_temp.claim(pg_temp.rows_for(array[pg_temp.tok_phone()], pg_temp.day_one()), 'worker-c');
+  perform pg_temp.record(18, 'C8 a retryable failure is claimed again at its slot', '1', v_retryable::text);
+  perform pg_temp.record(18, 'C8 that was its third and last attempt', '3',
+    (select delivery.attempt_count::text from public.push_notification_deliveries as delivery
+     where delivery.push_token_id = pg_temp.tok_phone() and delivery.drop_date = pg_temp.day_one()));
   perform pg_temp.record(19, 'C8 and the previous error is cleared', 'true',
     (select (delivery.error is null)::text from public.push_notification_deliveries as delivery
      where delivery.push_token_id = pg_temp.tok_phone() and delivery.drop_date = pg_temp.day_one()));

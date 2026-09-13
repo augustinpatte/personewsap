@@ -605,7 +605,9 @@ describe("the wording and the language", () => {
 
   it("is one notification per edition and nothing else", () => {
     expect(domain).toContain('export const EDITION_NOTIFICATION_KIND = "edition_ready"');
-    expect(domain).toContain('priority: "normal" as const');
+    // "high" since 20260912: the push goes out at 20:00 or 08:30 local, never at
+    // night, and APNs priority 5 let iOS hold a 20:27 ticket until 20:39.
+    expect(domain).toContain('priority: "high" as const');
   });
 });
 

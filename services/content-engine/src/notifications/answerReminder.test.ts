@@ -25,7 +25,7 @@ import {
  * by supabase/tests/reader_local_notifications.test.sql. What is pinned here is
  * that the sender sends exactly what it was handed, under the right kind, in
  * the reader's language — and that edition_ready waits for each reader's own
- * 19:00.
+ * 20:00.
  */
 
 const PARIS = "11111111-1111-4111-8111-111111111111";
@@ -239,7 +239,7 @@ describe("edition_ready on each reader's clock", () => {
       ...overrides
     });
 
-  it("tells Paris at 19:00 Paris while Chicago waits for 19:00 Chicago, writing nothing for Chicago", async () => {
+  it("tells Paris at 20:00 Paris while Chicago waits for 20:00 Chicago, writing nothing for Chicago", async () => {
     const { store, claimed } = editionStore(
       new Map([
         [PARIS, { dueAt: "2026-09-14T17:05:00+00:00", isDue: true }],

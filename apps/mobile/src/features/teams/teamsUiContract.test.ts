@@ -35,6 +35,7 @@ const manage = stripComments(read("TeamManageScreen.tsx"));
 const membersScreen = stripComments(read("TeamMembersScreen.tsx"));
 const invite = stripComments(read("TeamInviteScreen.tsx"));
 const channel = stripComments(read("useTeamLeaderboardChannel.ts"));
+const standing = stripComments(read("useTeamStanding.ts"));
 const refetchOnReturn = stripComments(read("useRefetchOnReturn.ts"));
 const data = stripComments(read("teamsData.ts"));
 const countries = stripComments(read("countries.ts"));
@@ -256,7 +257,8 @@ describe("the Team detail", () => {
 
   it("keeps a blocked member's score while masking their identity", () => {
     expect(detail).toContain("displayIdentity");
-    expect(detail).toContain("blockedUserIds");
+    // The block list is applied where the standing is ranked.
+    expect(standing).toContain("blockedUserIds");
     // The score cell reads the raw row, never the masked identity.
     expect(detail).toContain("formatTeamPoints(row.scoreMilli)");
   });

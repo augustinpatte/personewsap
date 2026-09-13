@@ -33,6 +33,7 @@ function deferred<T>(): Deferred<T> {
 const starts: Array<{ id: string; call: Deferred<QuizRpcResult<StartedAttempt>> }> = [];
 const submits: Array<{ attemptId: string; selectedOptionId: string | null }> = [];
 const timeoutSubmits: Array<{ attemptId: string; selectedOptionId: string | null }> = [];
+const explanationRequests: string[] = [];
 
 vi.mock("./quizData", () => ({
   startQuestionAttempt: (id: string) => {
@@ -69,13 +70,17 @@ vi.mock("./quizData", () => ({
       }
     });
   },
-  fetchQuestionFeedback: () =>
-    Promise.resolve({
+  fetchQuestionExplanation: (id: string) => {
+    explanationRequests.push(id);
+    return Promise.resolve({
       ok: true,
-      data: [
-        { optionId: "chosen", isSelected: true, scoreMilli: 300, gradeBand: "average", feedback: "Why it scored." }
-      ]
-    })
+      data: {
+        outcome: "answered",
+        selected: { optionId: "chosen", label: null, scoreMilli: 300, feedback: "Why it scored." },
+        best: { optionId: "best", label: null, scoreMilli: 1000, feedback: "Why the best one works." }
+      }
+    });
+  }
 }));
 
 vi.mock("../../lib/analytics", () => ({ trackAnalyticsEvent: () => undefined }));
@@ -182,6 +187,7 @@ beforeEach(() => {
   starts.length = 0;
   submits.length = 0;
   timeoutSubmits.length = 0;
+  explanationRequests.length = 0;
   latest.current = null;
 });
 
@@ -274,7 +280,8 @@ describe("answer, feedback, then the next question", () => {
     // The outcome and its explanation stay on screen; q2 has NOT started.
     expect(flow().currentIndex).toBe(0);
     expect(flow().states[0].status).toBe("answered");
-    expect(flow().feedback).toBe("Why it scored.");
+    expect(flow().explanation?.selected?.feedback).toBe("Why it scored.");
+    expect(flow().explanation?.best?.scoreMilli).toBe(1000);
     expect(starts.map((start) => start.id)).toEqual(["q1"]);
 
     act(() => flow().advance());
@@ -290,6 +297,23 @@ describe("answer, feedback, then the next question", () => {
     expect(flow().isComplete).toBe(true);
     expect(flow().scoreMilli).toBe(1300);
     expect(flow().total).toBe(2);
+  });
+
+  it("K. asks for no explanation before the answer is settled, then gets the chosen and the best option", async () => {
+    render(newsletter());
+    await answerStart(0, opened("q1"));
+
+    // Open question: nothing asked for, nothing held — no best answer, no score.
+    expect(flow().states[0].status).toBe("answering");
+    expect(explanationRequests).toEqual([]);
+    expect(flow().explanation).toBeUndefined();
+
+    await act(async () => flow().select("q1-b"));
+    await flush();
+
+    expect(explanationRequests).toEqual(["q1"]);
+    expect(flow().explanation?.selected?.scoreMilli).toBe(300);
+    expect(flow().explanation?.best?.optionId).toBe("best");
   });
 
   it("J. a Mini Case's three questions, in order, one at a time", async () => {

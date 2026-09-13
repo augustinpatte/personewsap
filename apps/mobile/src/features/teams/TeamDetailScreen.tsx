@@ -10,29 +10,21 @@ import { ModuleError } from "../modules";
 import { getModuleCopy } from "../modules/moduleCopy";
 import { getReaderCopy } from "../today/contentCopy";
 import { ReaderScaffold } from "../today/readers";
-import { resolveReaderEditionDate } from "../today/editionCadence";
 import { countryName, findCountry } from "./countries";
 import {
   LEADERBOARD_RANGES,
   displayIdentity,
   findSelf,
   formatTeamPoints,
-  rankLeaderboard,
   teamEditionProgress,
   type LeaderboardRange,
   type LeaderboardRow
 } from "./leaderboard";
 import { PlayerAvatar, TeamAvatar } from "./PlayerAvatar";
 import { getTeamsCopy, rangeLabel, statusLabel } from "./teamsCopy";
-import {
-  fetchBlockedUserIds,
-  fetchLeaderboard,
-  fetchMyStreak,
-  fetchTeamDetail,
-  type TeamDetail
-} from "./teamsData";
 import { useRefetchOnReturn } from "./useRefetchOnReturn";
 import { useTeamLeaderboardChannel } from "./useTeamLeaderboardChannel";
+import { useTeamStanding } from "./useTeamStanding";
 
 /**
  * One Team.
@@ -53,57 +45,14 @@ export function TeamDetailScreen({ teamId }: { teamId: string }) {
   const moduleCopy = getModuleCopy(language);
 
   const [range, setRange] = useState<LeaderboardRange>("edition");
-  const [rows, setRows] = useState<LeaderboardRow[]>([]);
-  const [team, setTeam] = useState<TeamDetail | null>(null);
-  const [streak, setStreak] = useState<number | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-
-  const load = useCallback(
-    async (nextRange: LeaderboardRange) => {
-      if (!user?.id) {
-        return;
-      }
-
-      // Four reads, in parallel, once. The header, the standing, the reader's
-      // run and their block list are all needed to draw a single frame of this
-      // screen, and doing them in sequence would make a Realtime nudge cost
-      // four round trips of latency instead of one.
-      const [leaderboard, blocks, detail, myStreak] = await Promise.all([
-        fetchLeaderboard({
-          teamId,
-          range: nextRange,
-          editionDate: nextRange === "all_time" ? null : resolveReaderEditionDate()
-        }),
-        fetchBlockedUserIds(user.id),
-        fetchTeamDetail(teamId),
-        fetchMyStreak({ teamId, userId: user.id })
-      ]);
-
-      if (!leaderboard.ok || !detail.ok) {
-        setStatus("error");
-        return;
-      }
-
-      const blockedIds = blocks.ok ? blocks.data : new Set<string>();
-
-      setTeam(detail.data);
-      setStreak(myStreak.ok ? myStreak.data : null);
-      setRows(
-        rankLeaderboard({
-          members: leaderboard.data,
-          selfUserId: user.id,
-          blockedUserIds: blockedIds
-        })
-      );
-      setStatus("ready");
-    },
-    [teamId, user?.id]
-  );
-
-  useEffect(() => {
-    setStatus("loading");
-    void load(range);
-  }, [load, range]);
+  // The server's standing for this range: fetched on open and on every range
+  // switch, refetched on every nudge below and whenever the reader's own answer
+  // scores for a Team — and only the newest answer is ever drawn.
+  const { load, rows, status, streak, team } = useTeamStanding({
+    teamId,
+    userId: user?.id ?? null,
+    range
+  });
 
   // THE DATABASE IS THE SOURCE OF TRUTH, NOT THE CHANNEL.
   //

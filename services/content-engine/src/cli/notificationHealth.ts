@@ -18,7 +18,7 @@ import { getProductEditionDate } from "../scheduler/editionCadence.js";
  *   never_attempted = eligible devices that are DUE − delivery rows
  *
  * Devices whose reader has notifications on, whose edition published, whose
- * reader-local 19:00 passed more than thirty minutes ago, and for which no
+ * reader-local 20:00 passed more than thirty minutes ago, and for which no
  * delivery row exists at all. Not a device that failed — a device nothing was
  * ever tried for. A reader in Chicago who has not been told at 19:10 Paris is
  * not in that number: they are scheduled, and reported as such.
@@ -71,7 +71,7 @@ export type NotificationHealthOutput = {
   retryable: number;
   terminal: number;
   neverAttempted: number;
-  /** Devices whose reader's 19:00 has not come yet: healthy, and not yet sent. */
+  /** Devices whose reader's 20:00 has not come yet: healthy, and not yet sent. */
   scheduledNotDue: number;
   /** Devices due in the last thirty minutes that the worker has not reached yet. */
   dueAwaitingWorker: number;
@@ -186,7 +186,7 @@ export async function runNotificationHealth(
     neverAttempted > 0 ? "critical" : retryable > 0 ? "warning" : "ok";
   const scheduledNote =
     scheduledNotDue > 0
-      ? ` ${scheduledNotDue} device(s) are scheduled for their reader's own 19:00 and have not come due yet.`
+      ? ` ${scheduledNotDue} device(s) are scheduled for their reader's own 20:00 and have not come due yet.`
       : "";
 
   return {

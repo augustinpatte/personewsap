@@ -116,7 +116,7 @@ export type PushNotificationStore = {
   /** Retires a device whose token Expo reports as gone. */
   disablePushToken: (pushTokenId: string, reason: string) => Promise<void>;
   /**
-   * WHEN each reader's edition_ready is due: 19:00 in their CURRENT
+   * WHEN each reader's edition_ready is due: 20:00 in their CURRENT
    * `profiles.timezone`, and never before the edition was verified. `null`
    * means the schedule is not deployed on this project, which keeps the
    * behaviour it had before (every eligible reader is due at once). Optional,
@@ -173,7 +173,7 @@ export type SendEditionNotificationsResult = {
    */
   bookkeepingFailures: number;
   /**
-   * Eligible readers whose 19:00 has not come yet in their own timezone. Not
+   * Eligible readers whose 20:00 has not come yet in their own timezone. Not
    * skipped for good: nothing is written for them, and a later run sends.
    */
   notDue: number;
@@ -328,7 +328,7 @@ export async function sendEditionNotifications(input: {
   }
 
   // WHEN, per reader. Everything above decided WHO, exactly as before; this
-  // only holds back a reader whose 19:00 has not come yet in their own
+  // only holds back a reader whose 20:00 has not come yet in their own
   // timezone — read from profiles.timezone now, so a reader who travelled is on
   // their new clock. Nothing is written for them: they are not skipped for
   // good, a later run finds them due, and health counts them as scheduled

@@ -63,7 +63,7 @@ export type RecipientSkipReason =
   | "no_enabled_token"
   | "drop_not_published"
   | "incomplete_edition"
-  /** Eligible, but 19:00 has not come yet in the reader's own timezone. */
+  /** Eligible, but 20:00 has not come yet in the reader's own timezone. */
   | "not_due_yet";
 
 /** What any PersoNews push carries: a title, a body, and where a tap goes. */
@@ -401,8 +401,10 @@ export function toExpoPushMessage(recipient: {
     body: recipient.message.body,
     data: recipient.message.data,
     sound: "default" as const,
-    // A published edition is not urgent: it must not wake a device at night.
-    priority: "normal" as const,
+    // Sent at 20:00 or 08:30 in the reader's own zone, never at night, so it
+    // is delivered now: APNs priority 5 ("normal") lets iOS hold a push, which
+    // is how a 20:27 ticket reached a phone at 20:39 on 11 September.
+    priority: "high" as const,
     channelId: "default"
   };
 }

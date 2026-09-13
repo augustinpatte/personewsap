@@ -47,7 +47,7 @@ import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
  *
  * ON THE READER'S CLOCK
  *
- * Each reader is told at 19:00 in their own timezone (profiles.timezone, read
+ * Each reader is told at 20:00 in their own timezone (profiles.timezone, read
  * at send time), so one edition is announced over several runs: Paris on the
  * verification wake-up, New York five hours later, Los Angeles three after
  * that. Every run therefore also looks at editions verified in the last three

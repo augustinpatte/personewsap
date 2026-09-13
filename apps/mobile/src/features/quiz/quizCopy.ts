@@ -1,5 +1,6 @@
 import { localized } from "../../lib/i18n";
 import type { ContentLanguage } from "../today/contentTypes";
+import type { ContentQuestionProgress, QuestionsCta } from "./questionProgress";
 
 /**
  * Everything a scored question says out loud.
@@ -40,6 +41,12 @@ export function getQuizCopy(language: ContentLanguage) {
           "A scored question needs a connection so the timer can come from the server.",
         retry: "Retry",
         goToQuestions: "Go to questions",
+        continueQuestions: "Continue questions",
+        questionsCompleted: "Questions completed",
+        questionsProgress: (settled: number, total: number) =>
+          total > 0 && settled >= total
+            ? `Questions · ${settled}/${total} completed`
+            : `Questions · ${settled}/${total}`,
         loadingQuestion: "Loading the question…",
         backToContent: "Back to the reading",
         emptyTitle: "No questions for this reading",
@@ -86,6 +93,12 @@ export function getQuizCopy(language: ContentLanguage) {
           "Une question notée nécessite une connexion : le chronomètre vient du serveur.",
         retry: "Réessayer",
         goToQuestions: "Passer aux questions",
+        continueQuestions: "Continuer les questions",
+        questionsCompleted: "Questions terminées",
+        questionsProgress: (settled: number, total: number) =>
+          total > 0 && settled >= total
+            ? `Questions · ${settled}/${total} terminées`
+            : `Questions · ${settled}/${total}`,
         loadingQuestion: "Chargement de la question…",
         backToContent: "Retour au contenu",
         emptyTitle: "Aucune question pour cette lecture",
@@ -111,6 +124,33 @@ export function getQuizCopy(language: ContentLanguage) {
     },
     language
   );
+}
+
+/** The questions button's words, from the real progress. */
+export function questionsCtaLabel(
+  cta: QuestionsCta,
+  copy: ReturnType<typeof getQuizCopy>
+): string {
+  if (cta === "questions_completed") {
+    return copy.questionsCompleted;
+  }
+
+  return cta === "continue_questions" ? copy.continueQuestions : copy.goToQuestions;
+}
+
+/**
+ * "Questions · 1/2" on a row or a card, or null for a reading with no
+ * questions (or whose progress has not arrived yet — never a guessed 0/2).
+ */
+export function contentQuestionsLabel(
+  progress: ContentQuestionProgress | undefined,
+  language: ContentLanguage
+): string | null {
+  if (!progress || progress.total === 0) {
+    return null;
+  }
+
+  return getQuizCopy(language).questionsProgress(progress.settled, progress.total);
 }
 
 /**

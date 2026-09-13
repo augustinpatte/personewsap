@@ -86,6 +86,7 @@ const contentInteractionSelect =
   "id,user_id,content_item_id,interaction_type,rating,message,created_at";
 const contentItemSelect =
   "id,content_type,topic_id,language,title,summary,body_md,difficulty,estimated_read_seconds,publication_date,version,status,generation_run_id,source_count,metadata,created_at,updated_at";
+const logicalQuestionIdSelect = "id,content_logical_key,content_type,question_sequence";
 const dailyDropItemSelect = "daily_drop_id,content_item_id,slot,position,created_at";
 const dailyDropSelect =
   "id,user_id,drop_date,language,status,hide_display_date,generated_at,published_at,created_at,updated_at";
@@ -544,6 +545,12 @@ async function buildLibraryDropSummaries(
     getInteractedContentItemIds(interactions, "save"),
     translationIds
   );
+  // Which scored questions each reading on the page has, so the archive can
+  // show the reader's progress on them. One query for the page.
+  const questionIdsByContentItemId = await fetchLogicalQuestionIdsByContentItemId([
+    ...contentItemsById.values(),
+    ...teamContentItems
+  ]);
 
   return drops.map((drop) => {
     const items = sortDropItemsForArchive(dropItemsByDropId[drop.id] ?? []);
@@ -572,7 +579,8 @@ async function buildLibraryDropSummaries(
         contentItems,
         completedItemIds,
         savedItemIds,
-        teamsByContentItemId
+        teamsByContentItemId,
+        questionIdsByContentItemId
       ),
       item_count: contentItems.length,
       language: language ?? drop.language,
@@ -701,12 +709,77 @@ function identitiesOfContentItems(contentItems: ContentItem[]): Set<string> {
   return identities;
 }
 
+/**
+ * The scored questions behind a page of archived readings, by content row.
+ *
+ * Same identity as the edition's own lookup: content type plus logical key,
+ * shared by the FR and EN renderings. RLS only returns the questions assigned to
+ * this reader. Best effort: a failure leaves rows without progress rather than
+ * failing the archive.
+ */
+async function fetchLogicalQuestionIdsByContentItemId(
+  contentItems: ContentItem[]
+): Promise<Map<string, string[]>> {
+  const byContentItemId = new Map<string, string[]>();
+
+  if (!supabase || contentItems.length === 0) {
+    return byContentItemId;
+  }
+
+  const keys = new Set<string>();
+
+  for (const contentItem of contentItems) {
+    const key = getContentLogicalKey(contentItem.metadata)?.trim();
+
+    if (key) {
+      keys.add(key);
+    }
+  }
+
+  if (keys.size === 0) {
+    return byContentItemId;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("logical_questions")
+      .select(logicalQuestionIdSelect)
+      .in("content_logical_key", [...keys])
+      .order("question_sequence", { ascending: true });
+
+    if (error || !data) {
+      return byContentItemId;
+    }
+
+    const byIdentity = new Map<string, string[]>();
+
+    for (const row of data) {
+      const identity = `${row.content_type}:${row.content_logical_key}`;
+      byIdentity.set(identity, [...(byIdentity.get(identity) ?? []), row.id]);
+    }
+
+    for (const contentItem of contentItems) {
+      const key = getContentLogicalKey(contentItem.metadata)?.trim();
+      const ids = key ? byIdentity.get(`${contentItem.content_type}:${key}`) : undefined;
+
+      if (ids && ids.length > 0) {
+        byContentItemId.set(contentItem.id, ids);
+      }
+    }
+  } catch {
+    // Progress is a bonus on an archive row; the row itself must still draw.
+  }
+
+  return byContentItemId;
+}
+
 function mapLibraryItems(
   drop: DailyDrop,
   contentItems: ContentItem[],
   completedItemIds: Set<string>,
   savedItemIds: Set<string>,
-  teamsByContentItemId: Map<string, ContentTeamRef[]> = new Map()
+  teamsByContentItemId: Map<string, ContentTeamRef[]> = new Map(),
+  questionIdsByContentItemId: Map<string, string[]> = new Map()
 ): LibraryItemSummary[] {
   return contentItems
     .map((contentItem): LibraryItemSummary | null => {
@@ -727,6 +800,7 @@ function mapLibraryItems(
         language: contentItem.language,
         source_count: contentItem.source_count,
         teams: teamsByContentItemId.get(contentItem.id),
+        logical_question_ids: questionIdsByContentItemId.get(contentItem.id),
         title: contentItem.title,
         topic: readLibraryTopic(contentItem)
       };

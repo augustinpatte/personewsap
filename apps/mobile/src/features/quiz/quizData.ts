@@ -1,4 +1,5 @@
 import { normalizeSupabaseError, supabase, type NormalizedSupabaseError } from "../../lib/supabase";
+import type { ExplainedOption, QuestionExplanation } from "./answerExplanation";
 import { submitWithDeadlineRetry as runSubmitWithDeadlineRetry } from "./quizSubmitPolicy";
 import type {
   QuestionGradeBand,
@@ -167,7 +168,8 @@ export async function submitQuestionAnswer(input: {
         expired: row.expired === true,
         skipped: row.skipped === true,
         selectedOptionId:
-          typeof row.selected_option_id === "string" ? row.selected_option_id : null
+          typeof row.selected_option_id === "string" ? row.selected_option_id : null,
+        teamsScored: typeof row.teams_scored === "number" ? row.teams_scored : 0
       }
     };
   } catch (error) {
@@ -241,4 +243,112 @@ export async function fetchQuestionFeedback(
   } catch (error) {
     return { ok: false, error: normalizeSupabaseError(error) };
   }
+}
+
+/**
+ * What the reader is taught after a settled question: the option they chose
+ * and the option worth the full point — two options, never the grid.
+ *
+ * `get_question_explanation` refuses until the caller's own attempt is
+ * settled, so this is only ever called after a submit or a settled timeout.
+ * Against a database that predates it (the migration and the app ship
+ * separately), the same two options are read from `get_question_feedback`.
+ */
+export async function fetchQuestionExplanation(
+  logicalQuestionId: string
+): Promise<QuizRpcResult<QuestionExplanation>> {
+  if (!supabase) {
+    return { ok: false, error: configurationError() };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("get_question_explanation", {
+      p_logical_question_id: logicalQuestionId
+    });
+
+    if (error) {
+      return isMissingFunction(error)
+        ? explanationFromFeedback(logicalQuestionId)
+        : { ok: false, error: normalizeSupabaseError(error) };
+    }
+
+    const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null | undefined;
+
+    if (!row) {
+      return {
+        ok: false,
+        error: normalizeSupabaseError({ code: "explanation_missing", message: "No explanation returned." })
+      };
+    }
+
+    return { ok: true, data: readExplanation(row) };
+  } catch (error) {
+    return { ok: false, error: normalizeSupabaseError(error) };
+  }
+}
+
+function isMissingFunction(error: { code?: string | null }): boolean {
+  // PostgREST's "not in the schema cache", and Postgres's "no such function".
+  return error.code === "PGRST202" || error.code === "42883";
+}
+
+function readText(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function readExplanation(row: Record<string, unknown>): QuestionExplanation {
+  const outcome =
+    row.outcome === "answered" || row.outcome === "expired" || row.outcome === "skipped"
+      ? row.outcome
+      : null;
+  const selectedId = readText(row.selected_option_id);
+  const bestId = readText(row.best_option_id);
+
+  return {
+    outcome,
+    selected: selectedId
+      ? {
+          optionId: selectedId,
+          label: readText(row.selected_label),
+          scoreMilli: readTier(row.selected_score_milli),
+          feedback: readText(row.selected_feedback_md)
+        }
+      : null,
+    best: bestId
+      ? {
+          optionId: bestId,
+          label: readText(row.best_label),
+          scoreMilli: readTier(row.best_score_milli),
+          feedback: readText(row.best_feedback_md)
+        }
+      : null
+  };
+}
+
+async function explanationFromFeedback(
+  logicalQuestionId: string
+): Promise<QuizRpcResult<QuestionExplanation>> {
+  const rows = await fetchQuestionFeedback(logicalQuestionId);
+
+  if (!rows.ok) {
+    return rows;
+  }
+
+  const toOption = (entry: QuestionFeedbackEntry): ExplainedOption => ({
+    optionId: entry.optionId,
+    label: null,
+    scoreMilli: entry.scoreMilli,
+    feedback: entry.feedback
+  });
+  const selected = rows.data.find((entry) => entry.isSelected) ?? null;
+  const best = [...rows.data].sort((left, right) => right.scoreMilli - left.scoreMilli)[0] ?? null;
+
+  return {
+    ok: true,
+    data: {
+      outcome: null,
+      selected: selected ? toOption(selected) : null,
+      best: best ? toOption(best) : null
+    }
+  };
 }

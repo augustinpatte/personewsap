@@ -40,6 +40,12 @@ export type LibraryItemSummary = {
    * long after its edition closed.
    */
   teams?: ContentTeamRef[];
+  /**
+   * The scored questions assigned to the reader for this reading, as logical
+   * ids (shared by FR and EN). Absent for legacy content. Their progress is
+   * read from the server separately; the archive row only carries the ids.
+   */
+  logical_question_ids?: string[];
 };
 
 export type LibraryFilter = {
