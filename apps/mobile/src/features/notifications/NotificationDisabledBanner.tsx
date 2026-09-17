@@ -89,11 +89,11 @@ export function getBannerCopy(language: Language | null | undefined) {
     {
       en: {
         message: "Notifications are off — don't miss today's session with your friends.",
-        hint: "Opens notification settings. Turn them on to get the most out of PersoNews."
+        hint: "Opens notification settings. Turn them on to get the most out of PersoNewsAP."
       },
       fr: {
         message: "Notifications désactivées — ne manquez pas la session du jour avec vos amis.",
-        hint: "Ouvre les réglages de notification. Activez-les pour profiter pleinement de PersoNews."
+        hint: "Ouvre les réglages de notification. Activez-les pour profiter pleinement de PersoNewsAP."
       }
     },
     language

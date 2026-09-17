@@ -92,11 +92,11 @@ export function buildEditionNotificationMessage(
     language === "fr"
       ? {
           title: "Votre édition du jour est arrivée",
-          body: "Venez la découvrir dans PersoNews."
+          body: "Venez la découvrir dans PersoNewsAP."
         }
       : {
           title: "Today's edition is here",
-          body: "Come discover it in PersoNews."
+          body: "Come discover it in PersoNewsAP."
         };
 
   return {

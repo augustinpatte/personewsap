@@ -2,8 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import { Redirect, Tabs, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { TabBarBackground } from "../../src/components";
-import { useTheme } from "../../src/design";
+import { TabBarBackground, TabBarButton } from "../../src/components";
+import { tabBarBottomInset, useTheme } from "../../src/design";
 import { ArchiveProvider } from "../../src/features/archive";
 import { AppLaunchScreen, useAuth } from "../../src/features/auth";
 import { useLearningPath } from "../../src/features/learning";
@@ -62,7 +62,10 @@ export default function TabsLayout() {
   const learningPath = useLearningPath();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, 16);
+  // The same floor the glass uses, from one place: the pill floats just above
+  // the home indicator, and on Android three-button navigation (which reports
+  // no bottom inset at all) it still clears the screen edge.
+  const bottomInset = tabBarBottomInset(insets.bottom);
   const copy = localized(
     {
       en: {
@@ -131,6 +134,10 @@ export default function TabsLayout() {
           // the tabs ends above it via useTabBarInset, so nothing actionable
           // ends up under the bar.
           tabBarBackground: () => <TabBarBackground />,
+          // The selected tab's capsule, drawn behind the icon and the label
+          // React Navigation already renders. Presses, long presses and
+          // accessibility state are forwarded untouched.
+          tabBarButton: (props) => <TabBarButton {...props} />,
           tabBarStyle: {
             position: "absolute",
             // The colour lives in TabBarBackground now; leaving one here would

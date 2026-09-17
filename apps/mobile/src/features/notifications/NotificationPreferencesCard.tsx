@@ -343,9 +343,9 @@ function getNotificationCopy(language: Language) {
         disabled: "Edition notifications turned off.",
         enabled: "You will be notified at 20:00 your time when each new edition is ready.",
         saved: "Notification settings saved.",
-        systemOffTitle: "Notifications are off for PersoNews on this phone",
+        systemOffTitle: "Notifications are off for PersoNewsAP on this phone",
         systemOffBody:
-          "They were turned off at system level, so only your phone's Settings can turn them back on. PersoNews will not ask again.",
+          "They were turned off at system level, so only your phone's Settings can turn them back on. PersoNewsAP will not ask again.",
         openSettings: "Open Settings",
         permissionHint: "Switching this on will ask your phone for permission, once."
       },
@@ -371,9 +371,9 @@ function getNotificationCopy(language: Language) {
         disabled: "Notifications d'édition désactivées.",
         enabled: "Vous serez notifié à 20 h, heure locale, à chaque nouvelle édition.",
         saved: "Réglages de notification enregistrés.",
-        systemOffTitle: "Les notifications de PersoNews sont désactivées sur ce téléphone",
+        systemOffTitle: "Les notifications de PersoNewsAP sont désactivées sur ce téléphone",
         systemOffBody:
-          "Elles ont été coupées au niveau du système : seuls les Réglages du téléphone peuvent les réactiver. PersoNews ne vous le redemandera pas.",
+          "Elles ont été coupées au niveau du système : seuls les Réglages du téléphone peuvent les réactiver. PersoNewsAP ne vous le redemandera pas.",
         openSettings: "Ouvrir les Réglages",
         permissionHint: "L'activer demandera une seule fois l'autorisation à votre téléphone."
       }

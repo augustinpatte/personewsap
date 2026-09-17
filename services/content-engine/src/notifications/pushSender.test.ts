@@ -242,9 +242,9 @@ describe("message", () => {
     const en = buildEditionNotificationMessage("en", DROP_DATE);
 
     expect(fr.title).toBe("Votre édition du jour est arrivée");
-    expect(fr.body).toBe("Venez la découvrir dans PersoNews.");
+    expect(fr.body).toBe("Venez la découvrir dans PersoNewsAP.");
     expect(en.title).toBe("Today's edition is here");
-    expect(en.body).toBe("Come discover it in PersoNews.");
+    expect(en.body).toBe("Come discover it in PersoNewsAP.");
     expect(fr.title).not.toBe(en.title);
 
     // No streak, no count, no urgency.
@@ -328,7 +328,7 @@ describe("eligibility", () => {
 
     expect(resolved.recipients).toHaveLength(1);
     expect(resolved.recipients[0].message.body).toBe(
-      "Venez la découvrir dans PersoNews."
+      "Venez la découvrir dans PersoNewsAP."
     );
   });
 
@@ -452,7 +452,7 @@ describe("sending", () => {
 
     const batch = client.messages[0] as Array<{ title: string; body: string }>;
     expect(batch[0].title).toBe("Today's edition is here");
-    expect(batch[0].body).toBe("Come discover it in PersoNews.");
+    expect(batch[0].body).toBe("Come discover it in PersoNewsAP.");
   });
 
   it("TEST 13: retires a stored device whose token Expo cannot accept", async () => {

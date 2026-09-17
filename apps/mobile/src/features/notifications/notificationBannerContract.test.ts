@@ -44,7 +44,7 @@ describe("the disabled-notifications banner", () => {
     expect(banner).toContain(
       "Notifications désactivées — ne manquez pas la session du jour avec vos amis."
     );
-    expect(banner).toContain("Activez-les pour profiter pleinement de PersoNews.");
+    expect(banner).toContain("Activez-les pour profiter pleinement de PersoNewsAP.");
   });
 
   it("routes to the existing Settings screen and changes no setting on the way", () => {

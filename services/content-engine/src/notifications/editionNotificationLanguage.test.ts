@@ -77,7 +77,7 @@ describe("edition notification copy", () => {
     const message = buildEditionNotificationMessage("fr", DROP_DATE);
 
     expect(message.title).toBe("Votre édition du jour est arrivée");
-    expect(message.body).toBe("Venez la découvrir dans PersoNews.");
+    expect(message.body).toBe("Venez la découvrir dans PersoNewsAP.");
     expect(message.data).toEqual({ type: "edition_ready", drop_date: DROP_DATE });
   });
 
@@ -85,7 +85,7 @@ describe("edition notification copy", () => {
     const message = buildEditionNotificationMessage("en", DROP_DATE);
 
     expect(message.title).toBe("Today's edition is here");
-    expect(message.body).toBe("Come discover it in PersoNews.");
+    expect(message.body).toBe("Come discover it in PersoNewsAP.");
   });
 
   it("carries the edition date so a tap can open that edition", () => {
@@ -127,7 +127,7 @@ describe("language is resolved at send time", () => {
     });
 
     expect(recipients[0]?.message.title).toBe("Today's edition is here");
-    expect(recipients[0]?.message.body).toBe("Come discover it in PersoNews.");
+    expect(recipients[0]?.message.body).toBe("Come discover it in PersoNewsAP.");
   });
 
   it("TEST 10: switching back to French returns the French copy on the same device", () => {

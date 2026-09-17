@@ -42,7 +42,7 @@ export function getTeamsIntroCopy(language: ContentLanguage) {
           eyebrow: "How to play",
           title: "Read, then answer",
           items: [
-            { heading: "Read your edition", body: "Read PersoNews as you always do." },
+            { heading: "Read your edition", body: "Read PersoNewsAP as you always do." },
             {
               heading: "Questions at the end",
               body: "Newsletter articles, Business Stories and Mini Cases end with a few questions."
@@ -106,7 +106,7 @@ export function getTeamsIntroCopy(language: ContentLanguage) {
           eyebrow: "Comment jouer",
           title: "Lire, puis répondre",
           items: [
-            { heading: "Lisez votre édition", body: "Lisez PersoNews comme d'habitude." },
+            { heading: "Lisez votre édition", body: "Lisez PersoNewsAP comme d'habitude." },
             {
               heading: "Des questions à la fin",
               body: "Les articles de la Newsletter, les Business Stories et les Mini cas se terminent par quelques questions."

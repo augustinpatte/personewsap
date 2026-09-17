@@ -2,16 +2,21 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { BRAND_NAME, getLaunchCopy } from "./launchCopy";
+import { getLaunchCopy } from "./launchCopy";
 
 /**
- * The branded launch state that replaced the "Loading your session" card.
+ * The launch state that replaced the "Loading your session" card.
  *
  * Two things are being protected here. The copy contract — a French account
- * never reads an English line and vice versa — and the implementation
- * constraints the launch screen was built under: no image asset for the
- * placeholder logo, no new animation dependency, and no artificial delay to
- * show branding off.
+ * never hears an English line and vice versa — and the implementation
+ * constraints the screen was built under: no image asset for the placeholder
+ * mark, no new animation dependency, and no artificial delay to show branding
+ * off.
+ *
+ * Since the branding pass the screen is the "PN" monogram alone. The word mark,
+ * the tagline and the slogan are gone on purpose: the name is already on the
+ * icon the reader just tapped, and the only text left is the spinner's
+ * accessibility label, which is announced rather than drawn.
  */
 
 const read = (...segments: string[]) => readFileSync(join(__dirname, ...segments), "utf8");
@@ -24,48 +29,35 @@ const brandMark = stripComments(read("..", "..", "components", "TemporaryBrandMa
 const authRedirect = stripComments(read("AuthRedirect.tsx"));
 
 describe("startup copy", () => {
-  it("greets a known French reader in French, and only in French", () => {
+  it("speaks to a known French reader in French, and only in French", () => {
     const copy = getLaunchCopy("fr");
 
     expect(copy).not.toBeNull();
-    expect(copy?.tagline).toBe("Application éducative premium");
-    expect(copy?.sloganLines).toEqual([
-      "Apprenez plus vite.",
-      "Lisez plus intelligemment."
-    ]);
-
-    const rendered = [copy?.tagline, ...(copy?.sloganLines ?? [])].join(" ");
-
-    for (const englishWord of ["Premium educational", "Learn faster", "Read smarter"]) {
-      expect(rendered).not.toContain(englishWord);
-    }
+    expect(copy?.loadingAccessibilityLabel).toBe("Chargement de PersoNewsAP");
+    expect(copy?.loadingAccessibilityLabel).not.toContain("Loading");
   });
 
-  it("greets a known English reader in English, and only in English", () => {
+  it("speaks to a known English reader in English, and only in English", () => {
     const copy = getLaunchCopy("en");
 
-    expect(copy?.tagline).toBe("Premium educational app");
-    expect(copy?.sloganLines).toEqual(["Learn faster.", "Read smarter."]);
-
-    const rendered = [copy?.tagline, ...(copy?.sloganLines ?? [])].join(" ");
-
-    for (const frenchWord of ["éducative", "Apprenez", "Lisez"]) {
-      expect(rendered).not.toContain(frenchWord);
-    }
+    expect(copy?.loadingAccessibilityLabel).toBe("Loading PersoNewsAP");
+    expect(copy?.loadingAccessibilityLabel).not.toContain("Chargement");
   });
 
   it("says nothing language-specific while the language is unknown", () => {
     // The bug this whole screen exists to fix: an unresolved profile used to
-    // fall through to English. It now renders the brand block alone.
+    // fall through to English. An unlabelled spinner is better than one
+    // labelled in the wrong language.
     expect(getLaunchCopy(null)).toBeNull();
     expect(getLaunchCopy(undefined)).toBeNull();
   });
 
-  it("keeps the brand name out of the localized table", () => {
-    // "PersoNewsAP" is the same word in both languages, which is what lets the
-    // screen show something before it knows who is reading.
-    expect(BRAND_NAME).toBe("PersoNewsAP");
-    expect(getLaunchCopy("fr")).not.toHaveProperty("brandName");
+  it("carries nothing the screen would have to draw", () => {
+    // The screen renders the mark alone, so the copy table holds one spoken
+    // label and no headline, tagline or slogan to put under it.
+    for (const language of ["en", "fr"] as const) {
+      expect(Object.keys(getLaunchCopy(language) ?? {})).toEqual(["loadingAccessibilityLabel"]);
+    }
   });
 
   it("makes no absolute claim about the content", () => {
@@ -113,10 +105,17 @@ describe("the launch screen implementation", () => {
     expect(launchScreenCode).not.toMatch(/["'>]PN["'<]/);
   });
 
-  it("uses the existing reveal rather than a new animation dependency", () => {
-    // ContentReveal is opacity-only and already a no-op under Reduce Motion, so
-    // the launch screen inherits the motion preference instead of re-deciding it.
-    expect(launchScreenCode).toContain("ContentReveal");
+  it("shows the mark and nothing else: no word mark, no tagline, no slogan", () => {
+    // The screen renders no text of its own at all — the only <AppText> it used
+    // to hold was the word mark under the monogram.
+    expect(launchScreenCode).not.toContain("AppText");
+    expect(launchScreenCode).not.toContain("BRAND_NAME");
+    expect(launchScreenCode).not.toMatch(/tagline|slogan/i);
+    // And no brand word is written into the screen itself.
+    expect(launchScreenCode).not.toMatch(/PersoNews/);
+  });
+
+  it("adds no animation dependency for a screen that is unmounted at once", () => {
     expect(launchScreenCode).not.toMatch(/Animated\./);
     expect(launchScreenCode).not.toMatch(/reanimated|lottie|moti/i);
   });

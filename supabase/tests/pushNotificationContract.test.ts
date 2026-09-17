@@ -590,9 +590,9 @@ describe("nothing logs a token value", () => {
 describe("the wording and the language", () => {
   it("is exactly the copy the product ships", () => {
     expect(domain).toContain('title: "Votre édition du jour est arrivée"');
-    expect(domain).toContain('body: "Venez la découvrir dans PersoNews."');
+    expect(domain).toContain('body: "Venez la découvrir dans PersoNewsAP."');
     expect(domain).toContain('title: "Today\'s edition is here"');
-    expect(domain).toContain('body: "Come discover it in PersoNews."');
+    expect(domain).toContain('body: "Come discover it in PersoNewsAP."');
   });
 
   it("resolves the language at send time from the profile", () => {

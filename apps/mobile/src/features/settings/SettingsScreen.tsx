@@ -682,7 +682,7 @@ function getAccountCopy(language: string | null) {
         privacyDescription:
           "Review privacy information, request a data export, or ask for account deletion.",
         editPlayerProfile: "Edit player profile",
-        helpScoring: "How PersoNews scoring works",
+        helpScoring: "How PersoNewsAP scoring works",
         helpTeams: "How Teams work",
         privacyPolicy: "Privacy policy",
         support: "Support",

@@ -12,7 +12,7 @@ vi.mock("react-native", () => ({
 
 const { darkColors, lightColors } = await import("./theme");
 const { navigationPaletteFor } = await import("./navigationTheme");
-const { resolveTabBarMaterial } = await import("./tabBarMaterial");
+const { resolveTabBarGlass } = await import("./tabBarMaterial");
 
 /**
  * ONE CONTINUOUS SURFACE.
@@ -180,15 +180,11 @@ describe("structural colours come from the palette", () => {
   it("keeps the tab bar's washes equal to the palette's own surfaces", () => {
     // The one place an alpha colour is written by hand. It must be the paper
     // and the espresso, never a neutral grey borrowed from another product.
-    const light = resolveTabBarMaterial({ reduceTransparency: false, isDark: false });
-    const dark = resolveTabBarMaterial({ reduceTransparency: false, isDark: true });
+    const light = resolveTabBarGlass({ isDark: false });
+    const dark = resolveTabBarGlass({ isDark: true });
 
-    if (light.kind !== "blur" || dark.kind !== "blur") {
-      throw new Error("expected both to be blur materials");
-    }
-
-    expect(light.wash).toBe(`rgba(${hexToRgb(lightColors.surface)}, 0.55)`);
-    expect(dark.wash).toBe(`rgba(${hexToRgb(darkColors.surface)}, 0.55)`);
+    expect(light.wash).toBe(`rgba(${hexToRgb(lightColors.surface)}, 0.5)`);
+    expect(dark.wash).toBe(`rgba(${hexToRgb(darkColors.surface)}, 0.5)`);
   });
 
   it("resolves every waiting, empty and error surface from the theme", () => {

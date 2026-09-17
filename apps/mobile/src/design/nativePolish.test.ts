@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { resolveTabBarMaterial, TAB_BAR_BLUR_INTENSITY } from "./tabBarMaterial";
+import { resolveTabBarGlass, TAB_BAR_BLUR_INTENSITY } from "./tabBarMaterial";
 
 /**
  * The native pass, pinned.
@@ -38,24 +38,12 @@ function collectSources(dir: string, found: string[] = []): string[] {
 }
 
 describe("tab bar material", () => {
-  it("wears the system blur when transparency is not reduced", () => {
-    const light = resolveTabBarMaterial({ reduceTransparency: false, isDark: false });
-    const dark = resolveTabBarMaterial({ reduceTransparency: false, isDark: true });
+  it("is glass in both schemes, with the app's own paper over the blur", () => {
+    const light = resolveTabBarGlass({ isDark: false });
+    const dark = resolveTabBarGlass({ isDark: true });
 
-    expect(light.kind).toBe("blur");
-    expect(dark.kind).toBe("blur");
-  });
-
-  it("picks the light material in daylight and the dark one at night", () => {
-    const light = resolveTabBarMaterial({ reduceTransparency: false, isDark: false });
-    const dark = resolveTabBarMaterial({ reduceTransparency: false, isDark: true });
-
-    if (light.kind !== "blur" || dark.kind !== "blur") {
-      throw new Error("expected both to be blur materials");
-    }
-
-    expect(light.tint).toBe("systemThickMaterialLight");
-    expect(dark.tint).toBe("systemThickMaterialDark");
+    expect(light.tint).toBe("light");
+    expect(dark.tint).toBe("dark");
     // The wash is the app's own paper, never a neutral grey borrowed from
     // somewhere else.
     expect(light.wash).not.toBe(dark.wash);
@@ -63,19 +51,11 @@ describe("tab bar material", () => {
     expect(dark.wash).toMatch(/^rgba\(/);
   });
 
-  it("goes solid in both themes when Reduce Transparency is on", () => {
-    for (const isDark of [false, true]) {
-      expect(resolveTabBarMaterial({ reduceTransparency: true, isDark })).toEqual({
-        kind: "solid"
-      });
-    }
-  });
-
-  it("stays thick enough for 10.5pt labels over moving content", () => {
-    // Not asserting an exact look, only that it is not a token gesture: a wisp
-    // of blur under five small labels is worse than none.
-    expect(TAB_BAR_BLUR_INTENSITY).toBeGreaterThanOrEqual(50);
-    expect(TAB_BAR_BLUR_INTENSITY).toBeLessThanOrEqual(100);
+  it("stays moderate: readable under 10.5pt labels, still visibly blurred", () => {
+    // Half the strength of the platform's own glass. Below ~35 it reads as a
+    // flat tint; above ~55 the page underneath stops being perceptible.
+    expect(TAB_BAR_BLUR_INTENSITY).toBeGreaterThanOrEqual(35);
+    expect(TAB_BAR_BLUR_INTENSITY).toBeLessThanOrEqual(55);
   });
 });
 

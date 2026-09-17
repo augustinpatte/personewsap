@@ -82,8 +82,8 @@ export type WorkerSummary = {
  */
 const COPY: Record<PushKind, Record<"fr" | "en", { title: string; body: string }>> = {
   edition_ready: {
-    fr: { title: "Votre édition du jour est arrivée", body: "Venez la découvrir dans PersoNews." },
-    en: { title: "Today's edition is here", body: "Come discover it in PersoNews." }
+    fr: { title: "Votre édition du jour est arrivée", body: "Venez la découvrir dans PersoNewsAP." },
+    en: { title: "Today's edition is here", body: "Come discover it in PersoNewsAP." }
   },
   edition_answer_reminder: {
     fr: {
