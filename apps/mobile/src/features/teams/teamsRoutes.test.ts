@@ -169,7 +169,12 @@ describe("the bottom bar", () => {
   });
 
   it("keeps the translucent bar material", () => {
-    expect(tabsLayout).toContain("TabBarBackground");
+    // The glass moved into GlassTabBar with the draggable selection; the
+    // layout now names that component and it renders the material.
+    expect(tabsLayout).toContain("GlassTabBar");
+    expect(
+      readFileSync(join(srcDir, "components", "GlassTabBar.tsx"), "utf8")
+    ).toContain("<TabBarBackground />");
   });
 });
 

@@ -48,6 +48,23 @@ export function answerIncorrect(): void {
 }
 
 /**
+ * The bottom bar's selection crossing into another tab while the finger is
+ * still down.
+ *
+ * The exception to "navigation is silent", and a narrow one: during a drag the
+ * finger is over glass, not over the tab it is about to choose, so the tick is
+ * the only confirmation that the target changed. It fires once per newly
+ * targeted tab — never per frame — and an ordinary tap stays quiet, because a
+ * tap lands on the thing it points at.
+ *
+ * `selectionAsync` is the lightest pattern the platform has: the same one iOS
+ * uses for a picker wheel passing a value.
+ */
+export function selectionChanged(): void {
+  fire(() => Haptics.selectionAsync());
+}
+
+/**
  * A learning session finished — the feedback was accepted and the session is
  * recorded. The only completion haptic in the app, and it fires nowhere near a
  * Mini Case answer, so it can never land as a second buzz.

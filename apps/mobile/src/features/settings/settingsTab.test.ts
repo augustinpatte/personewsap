@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = join(__dirname, "..", "..", "..", "..", "..");
 const tabs = readFileSync(join(repoRoot, "apps", "mobile", "app", "(tabs)", "_layout.tsx"), "utf8");
+// The bar itself moved into one component when the selection became
+// draggable: the layout wires it, GlassTabBar renders it.
+const glassTabBar = readFileSync(
+  join(repoRoot, "apps", "mobile", "src", "components", "GlassTabBar.tsx"),
+  "utf8"
+);
 const settingsRoute = readFileSync(join(repoRoot, "apps", "mobile", "app", "(tabs)", "settings.tsx"), "utf8");
 const accountRoute = readFileSync(join(repoRoot, "apps", "mobile", "app", "account.tsx"), "utf8");
 const settingsScreen = readFileSync(
@@ -73,9 +79,9 @@ describe("bottom navigation", () => {
   });
 
   it("keeps five-tab touch targets readable", () => {
-    expect(tabs).toMatch(/minHeight: 44/);
-    expect(tabs).toMatch(/fontSize: 10\.5/);
-    expect(tabs).toMatch(/letterSpacing: 0/);
+    expect(glassTabBar).toMatch(/minHeight: 44/);
+    expect(glassTabBar).toMatch(/fontSize: 10\.5/);
+    expect(glassTabBar).toMatch(/letterSpacing: 0/);
   });
 
   it("uses no emoji in the bar", () => {
@@ -85,8 +91,8 @@ describe("bottom navigation", () => {
 
   it("keeps the warm translucent material and its opaque fallback", () => {
     // The Apple pass's tab bar, unchanged by the Teams addition.
-    expect(tabs).toContain("<TabBarBackground />");
-    expect(tabs).toMatch(/backgroundColor: "transparent"/);
+    expect(glassTabBar).toContain("<TabBarBackground />");
+    expect(glassTabBar).toMatch(/backgroundColor: "transparent"/);
   });
 
   it("gives every module masthead a way back to Settings", () => {

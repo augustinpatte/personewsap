@@ -1,9 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { Redirect, Tabs, type Href } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { TabBarBackground, TabBarButton } from "../../src/components";
-import { tabBarBottomInset, useTheme } from "../../src/design";
+import { GlassTabBar } from "../../src/components";
+import { useTheme } from "../../src/design";
 import { ArchiveProvider } from "../../src/features/archive";
 import { AppLaunchScreen, useAuth } from "../../src/features/auth";
 import { useLearningPath } from "../../src/features/learning";
@@ -61,11 +60,6 @@ export default function TabsLayout() {
   const { profileLanguage, status } = useAuth();
   const learningPath = useLearningPath();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  // The same floor the glass uses, from one place: the pill floats just above
-  // the home indicator, and on Android three-button navigation (which reports
-  // no bottom inset at all) it still clears the screen edge.
-  const bottomInset = tabBarBottomInset(insets.bottom);
   const copy = localized(
     {
       en: {
@@ -117,6 +111,13 @@ export default function TabsLayout() {
   return (
     <ArchiveProvider>
       <Tabs
+        // ONE BAR, NOT FIVE BUTTONS. The glass, the moving capsule, the labels
+        // and the drag all live in GlassTabBar, because a selection that
+        // follows the finger across tabs needs the row to be a single touch
+        // responder — five `tabBarButton`s each keep their own touches, so a
+        // finger crossing between them is simply lost. Routes, state and
+        // navigation are unchanged: the bar renders what the navigator holds.
+        tabBar={(props) => <GlassTabBar {...props} />}
         screenOptions={{
           headerShown: false,
           // Each tab's scene container. Left unset it is painted by
@@ -126,44 +127,9 @@ export default function TabsLayout() {
           // is PersoNewsAP's now; this states the same answer where the switch
           // actually happens.
           sceneStyle: { backgroundColor: colors.background },
+          // Read by GlassTabBar for the icon and the label of each tab.
           tabBarActiveTintColor: colors.ink,
-          tabBarInactiveTintColor: colors.muted,
-          // The bar floats over the content instead of reserving a strip of
-          // layout, so a headline scrolls under it and the material has
-          // something to be translucent about. Every scrollable surface inside
-          // the tabs ends above it via useTabBarInset, so nothing actionable
-          // ends up under the bar.
-          tabBarBackground: () => <TabBarBackground />,
-          // The selected tab's capsule, drawn behind the icon and the label
-          // React Navigation already renders. Presses, long presses and
-          // accessibility state are forwarded untouched.
-          tabBarButton: (props) => <TabBarButton {...props} />,
-          tabBarStyle: {
-            position: "absolute",
-            // The colour lives in TabBarBackground now; leaving one here would
-            // paint an opaque sheet over the material.
-            backgroundColor: "transparent",
-            borderTopWidth: 0,
-            // minHeight rather than height: at large accessibility text sizes
-            // the bar grows with its labels instead of clipping them.
-            minHeight: 68 + bottomInset,
-            paddingBottom: bottomInset,
-            paddingTop: 8
-          },
-          tabBarLabelStyle: {
-            fontSize: 10.5,
-            fontWeight: "700",
-            letterSpacing: 0
-          },
-          // Deliberately no font-scaling cap here. This version only offers
-          // `tabBarAllowFontScaling`, an all-or-nothing switch that would
-          // freeze the labels outright; letting the bar grow with them is the
-          // behaviour Dynamic Type asks for.
-          tabBarItemStyle: {
-            // Comfortably above the 44pt minimum target on every device.
-            minHeight: 44,
-            paddingVertical: 3
-          }
+          tabBarInactiveTintColor: colors.muted
         }}
       >
         <Tabs.Screen

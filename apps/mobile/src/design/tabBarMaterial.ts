@@ -20,7 +20,7 @@
  * Reduce MOTION is untouched and still respected wherever the app animates.
  *
  * Kept free of any react-native import so the whole matrix is unit tested
- * without a device. `TabBarBackground` and `TabBarButton` only render it.
+ * without a device. `TabBarBackground` and `GlassTabBar` only render it.
  */
 
 export type TabBarGlassTint = "light" | "dark";
@@ -86,6 +86,12 @@ export const TAB_BAR_GLASS = {
   radius: 28,
   /** The selected tab's capsule. */
   itemRadius: 18,
+  /**
+   * How far the moving capsule sits inside its tab's share of the row, so the
+   * glass reads as a highlight travelling under the labels rather than as five
+   * touching blocks.
+   */
+  capsuleInset: 8,
   /** Detached from the screen edges on all three sides. */
   horizontalInset: 16,
   /** The least space left between the pill and the bottom of the screen. */

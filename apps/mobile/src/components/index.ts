@@ -17,6 +17,6 @@ export {
 export { ProgressPill } from "./ProgressPill";
 export { SecondaryButton } from "./SecondaryButton";
 export { SectionHeader } from "./SectionHeader";
+export { GlassTabBar } from "./GlassTabBar";
 export { TabBarBackground } from "./TabBarBackground";
-export { TabBarButton } from "./TabBarButton";
 export { TemporaryBrandMark } from "./TemporaryBrandMark";

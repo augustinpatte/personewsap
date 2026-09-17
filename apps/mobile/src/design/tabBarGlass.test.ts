@@ -26,6 +26,9 @@ import {
  *      enough that the page underneath is perceptible, restrained enough that
  *      five 10.5pt labels stay readable over anything scrolling past.
  *
+ * The gesture that moves the selection across this glass is pinned next door in
+ * tabBarGesture.test.ts.
+ *
  * Source assertions where the wiring is what matters: the mobile tree cannot be
  * rendered under jsdom, so React Native components are pinned by reading them,
  * in the idiom this repository already uses.
@@ -53,7 +56,7 @@ function alphaOf(color: string): number {
 }
 
 const background = stripComments(read(srcDir, "components", "TabBarBackground.tsx"));
-const button = stripComments(read(srcDir, "components", "TabBarButton.tsx"));
+const bar = stripComments(read(srcDir, "components", "GlassTabBar.tsx"));
 const material = stripComments(read(designDir, "tabBarMaterial.ts"));
 const tabs = stripComments(read(appDir, "(tabs)", "_layout.tsx"));
 
@@ -66,11 +69,11 @@ describe("the glass is the app's own, not the device's", () => {
     expect(resolveTabBarGlass({ isDark: true })).toBeTruthy();
   });
 
-  it("asks the device no accessibility question anywhere in the bar", () => {
+  it("asks the device no transparency question anywhere in the bar", () => {
     for (const [name, source] of [
       ["tabBarMaterial.ts", material],
       ["TabBarBackground.tsx", background],
-      ["TabBarButton.tsx", button]
+      ["GlassTabBar.tsx", bar]
     ] as const) {
       expect(source, name).not.toMatch(/AccessibilityInfo|[Rr]educeTransparency/);
     }
@@ -150,9 +153,10 @@ describe("safe areas decide where the glass stops", () => {
     expect(tabBarGlassBottom(0)).toBeGreaterThanOrEqual(TAB_BAR_GLASS.bottomGap);
   });
 
-  it("is the same floor the bar itself pads with", () => {
-    // One helper, two callers: the pill and the row of tabs cannot drift.
-    expect(tabs).toContain("tabBarBottomInset(insets.bottom)");
+  it("is the same floor the row of tabs pads with", () => {
+    // One helper, two callers: the pill and the row cannot drift apart.
+    expect(bar).toContain("tabBarBottomInset(insets.bottom)");
+    expect(bar).toContain("minHeight: 68 + bottomInset");
     expect(background).toContain("tabBarGlassBottom(insets.bottom)");
     expect(background).toContain("useSafeAreaInsets");
   });
@@ -181,15 +185,12 @@ describe("what the background actually renders", () => {
     expect(background).not.toContain("elevation");
   });
 
-  it("costs nothing per frame: no animation, no timer, no second blur", () => {
-    for (const [name, source] of [
-      ["TabBarBackground.tsx", background],
-      ["TabBarButton.tsx", button]
-    ] as const) {
-      expect(source, name).not.toMatch(/Animated|setInterval|requestAnimationFrame/);
-    }
-
-    expect(button).not.toContain("expo-blur");
+  it("costs nothing per frame: the material itself never animates", () => {
+    expect(background).not.toMatch(/Animated|setInterval|requestAnimationFrame/);
+    expect(bar).not.toContain("expo-blur");
+    // The bar animates one thing, the capsule, and only on the native driver.
+    expect(bar.match(/<Animated\.View/g) ?? []).toHaveLength(1);
+    expect(bar).toContain("useNativeDriver: true");
   });
 
   it("lets every touch through to the tabs above it", () => {
@@ -198,19 +199,19 @@ describe("what the background actually renders", () => {
 });
 
 describe("the selected tab is lifted out of the same glass", () => {
-  it("draws a brighter capsule only for the selected tab", () => {
-    expect(button).toContain("rest.accessibilityState?.selected === true");
-    expect(button).toContain("backgroundColor: glass.activeSurface");
-    expect(button).toContain("borderColor: glass.activeBorder");
-    expect(button).toContain("selected ? (");
+  it("is one capsule of the same material, not a button of its own", () => {
+    expect(bar).toContain("backgroundColor: glass.activeSurface");
+    expect(bar).toContain("borderColor: glass.activeBorder");
+    expect(bar).toContain("borderRadius: TAB_BAR_GLASS.itemRadius");
+    // Inset inside its tab's share of the row, so it reads as a highlight
+    // travelling under the labels rather than as five touching blocks.
+    expect(bar).toContain("TAB_BAR_GLASS.capsuleInset");
+    expect(TAB_BAR_GLASS.capsuleInset).toBeGreaterThan(0);
   });
 
-  it("changes nothing about how a tab behaves", () => {
-    // Press, long press, accessibility state and label, test id: all the
-    // navigator's, forwarded.
-    expect(button).toContain("{...rest}");
-    expect(button).toContain("onPress?.(event)");
-    expect(button).toContain("{children}");
+  it("never paints over the glass it belongs to", () => {
+    expect(bar).toContain('pointerEvents="none"');
+    expect(bar).toContain('backgroundColor: "transparent"');
   });
 });
 
@@ -222,9 +223,8 @@ describe("the bar itself is unchanged where it counts", () => {
     expect(tabs).toContain('<Tabs.Screen name="settings" options={{ href: null }} />');
   });
 
-  it("wires the glass and the capsule into the one navigator", () => {
-    expect(tabs).toContain("tabBarBackground: () => <TabBarBackground />");
-    expect(tabs).toContain("tabBarButton: (props) => <TabBarButton {...props} />");
+  it("wires one custom bar into the one navigator", () => {
+    expect(tabs).toContain("tabBar={(props) => <GlassTabBar {...props} />}");
     // The navigator itself, not its six `<Tabs.Screen` children: one bar, not
     // a second navigation system beside it.
     expect(tabs.match(/<Tabs[\s>]/g) ?? []).toHaveLength(1);
@@ -234,13 +234,12 @@ describe("the bar itself is unchanged where it counts", () => {
     // The bar paints nothing itself: the glass is the background, and the
     // scene behind it is the palette rather than React Navigation's stock grey
     // — which is what used to flash white between two dark screens.
-    expect(tabs).toContain('backgroundColor: "transparent"');
-    expect(tabs).toContain("borderTopWidth: 0");
+    expect(bar).toContain('backgroundColor: "transparent"');
     expect(tabs).toContain("sceneStyle: { backgroundColor: colors.background }");
   });
 
-  it("keeps every touch target at 44pt and lets the bar grow with its labels", () => {
-    expect(tabs).toContain("minHeight: 44");
-    expect(tabs).toContain("minHeight: 68 + bottomInset");
+  it("keeps every touch target at 44pt and the labels at their size", () => {
+    expect(bar).toContain("minHeight: 44");
+    expect(bar).toContain("fontSize: 10.5");
   });
 });

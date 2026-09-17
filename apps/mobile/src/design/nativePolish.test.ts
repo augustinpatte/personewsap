@@ -89,7 +89,13 @@ describe("haptics stay rare", () => {
     // and its outcome revealed on the same tap — so it is the same haptic for
     // the same reason, not a new one. A timeout is deliberately silent: nothing
     // was decided.
+    // GlassTabBar joined the list with the draggable tab selection, and it is
+    // the one navigation haptic in the app: during a drag the finger is over
+    // glass rather than over the tab it is about to choose, so a tick when the
+    // target changes is the only confirmation there is. An ordinary tap stays
+    // silent, because a tap lands on the thing it points at.
     expect(hapticUsers.sort()).toEqual([
+      "GlassTabBar.tsx",
       "LearningFeedbackScreen.tsx",
       "MiniCaseReader.tsx",
       "QuestionCard.tsx"

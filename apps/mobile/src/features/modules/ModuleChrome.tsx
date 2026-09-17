@@ -253,9 +253,15 @@ export function MetaLine({
     return null;
   }
 
+  // A narrow screen breaks this line between two facts, never inside one: the
+  // spaces within each item are non-breaking, so "Finite archive" moves down
+  // whole instead of leaving "archive" orphaned on a line of its own. The
+  // spoken label keeps ordinary spaces and commas.
+  const line = parts.map((part) => part.replace(/ /g, "\u00A0")).join("  ·  ");
+
   return (
     <AppText accessibilityLabel={parts.join(", ")} color={tone} variant="caption">
-      {parts.join("  ·  ")}
+      {line}
     </AppText>
   );
 }

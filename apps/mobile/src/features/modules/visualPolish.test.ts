@@ -44,6 +44,13 @@ const tabs = readFileSync(
   join(modulesDir, "..", "..", "..", "app", "(tabs)", "_layout.tsx"),
   "utf8"
 );
+// The bar's own rendering moved into one component when the selection became
+// draggable: the layout wires it and names the routes, GlassTabBar draws the
+// icon and the label.
+const glassTabBar = readFileSync(
+  join(modulesDir, "..", "..", "components", "GlassTabBar.tsx"),
+  "utf8"
+);
 
 describe("tab bar", () => {
   it("gives every destination a sober line icon", () => {
@@ -82,8 +89,12 @@ describe("tab bar", () => {
   });
 
   it("keeps the label beside the icon", () => {
-    // The icon supports the label; it never replaces it.
-    expect(tabs).toMatch(/tabBarLabelStyle/);
+    // The icon supports the label; it never replaces it. Both are drawn by the
+    // bar now: the layout still names each destination, GlassTabBar renders the
+    // icon above the label and sets the type.
+    expect(glassTabBar).toMatch(/tabBarIcon\?\.\(\{ focused, color, size: 20 \}\)/);
+    expect(glassTabBar).toMatch(/styles\.label/);
+    expect(glassTabBar).toMatch(/fontSize: 10\.5/);
     expect(tabs).toMatch(/title: copy\.newsletter/);
   });
 
@@ -105,7 +116,13 @@ describe("each module has its own signature", () => {
   });
 
   it("adds useful header metadata without inventing data", () => {
-    expect(newsletter).toMatch(/copy\.newsletter\.articleCount/);
+    // Not the article count any more: it counted TODAY's articles, so on a day
+    // with no edition the masthead read "0 articles" — which describes a broken
+    // edition rather than a rhythm. The header carries the two facts that hold
+    // every day; the count lives in the masthead line, where there is an
+    // edition to count.
+    expect(newsletter).toMatch(/copy\.common\.editionRhythm/);
+    expect(newsletter).toMatch(/copy\.common\.archiveAccess/);
     expect(cases).toMatch(/challenge\.questions\?\.length/);
     // Plural: the header counts the cases the reader actually has, which is
     // more than one as soon as a Team assigns them a case of its own.

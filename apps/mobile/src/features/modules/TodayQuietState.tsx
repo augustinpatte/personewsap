@@ -25,7 +25,23 @@ import { getModuleCopy } from "./moduleCopy";
  * Which of the two is shown is decided upstream by resolveTodayEditionState, so
  * this component never re-derives it and can never disagree with the screen
  * that rendered it. Never a sample edition, never an error tone.
+ *
+ * COMPOSITION. One block, read top to bottom in one breath: mark, title,
+ * what the rhythm is, what to do meanwhile, when the next one lands, then the
+ * action. It used to be five loosely spaced paragraphs at nearly equal weight —
+ * the explanation set in the reading face, as large as the title — which read
+ * as a stretched page rather than a composed state. The weights now descend,
+ * the prose is held to a readable measure, and the action sits with the message
+ * instead of floating away from it.
  */
+
+/**
+ * The measure the prose is held to: roughly 45–65 characters at this size,
+ * which is where a paragraph stays comfortable to read. A width, never a
+ * height — nothing here assumes a device.
+ */
+const PROSE_MAX_WIDTH = 420;
+
 export function TodayQuietState({
   dropDate,
   iconName = "calendar",
@@ -51,21 +67,32 @@ export function TodayQuietState({
 
   return (
     <View style={styles.container}>
-      <IconBadge name={iconName} tone="muted" />
-      <AppText variant="subtitle">
-        {upcoming ? copy.onItsWayTitle : copy.quietDayTitle}
-      </AppText>
-      <AppText color="muted" variant="read">
-        {upcoming ? copy.onItsWayBody : copy.quietDayBody}
-      </AppText>
-      <AppText color="muted" variant="caption">
-        {upcoming ? copy.onItsWaySecondary : copy.quietDaySecondary}
-      </AppText>
-      {nextWeekday ? (
-        <AppText color="muted" variant="caption">
-          {copy.nextEdition(nextWeekday)}
+      <View style={styles.message}>
+        <IconBadge name={iconName} tone="muted" />
+
+        <AppText style={styles.title} variant="subtitle">
+          {upcoming ? copy.onItsWayTitle : copy.quietDayTitle}
         </AppText>
-      ) : null}
+
+        {/* Body, not the reading face: this explains the rhythm, it is not the
+            thing being read today. */}
+        <AppText color="inkSoft" style={styles.prose} variant="body">
+          {upcoming ? copy.onItsWayBody : copy.quietDayBody}
+        </AppText>
+
+        <AppText color="muted" style={styles.prose} variant="caption">
+          {upcoming ? copy.onItsWaySecondary : copy.quietDaySecondary}
+        </AppText>
+
+        {nextWeekday ? (
+          // The one fact a reader on an off-day actually wants, so it carries
+          // the accent rather than another line of grey.
+          <AppText color="accentInk" style={styles.next} variant="label">
+            {copy.nextEdition(nextWeekday)}
+          </AppText>
+        ) : null}
+      </View>
+
       <View style={styles.actions}>
         <PrimaryButton
           label={upcoming ? copy.browseArchive : copy.exploreArchive}
@@ -83,11 +110,25 @@ export function TodayQuietState({
 const createStyles = () =>
   StyleSheet.create({
     container: {
-      gap: tokens.space.md,
-      paddingTop: tokens.space.lg
+      gap: tokens.space.xl
+    },
+    // Tight inside the message, generous between the message and the action:
+    // the lines belong together, the button is the answer to them.
+    message: {
+      gap: tokens.space.sm
+    },
+    title: {
+      marginTop: tokens.space.xs
+    },
+    prose: {
+      maxWidth: PROSE_MAX_WIDTH
+    },
+    next: {
+      marginTop: tokens.space.xs
     },
     actions: {
+      alignItems: "stretch",
       gap: tokens.space.sm,
-      marginTop: tokens.space.md
+      maxWidth: PROSE_MAX_WIDTH
     }
   });

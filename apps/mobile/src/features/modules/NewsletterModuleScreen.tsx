@@ -93,11 +93,12 @@ export function NewsletterModuleScreen() {
           accountLabel={copy.common.accountLabel}
           eyebrow={editionDisplayDate(drop, language) ?? copy.common.undatedEdition}
           iconName="file-text"
-          metaItems={[
-            copy.common.editionRhythm,
-            copy.newsletter.articleCount(drop.items.newsletter.length),
-            copy.common.archiveAccess
-          ]}
+          // Two facts that hold every day of the week. The article count that
+          // used to sit between them counted TODAY's articles, so on an off-day
+          // the masthead read "0 articles" — which describes a broken edition
+          // rather than a rhythm. Today's count belongs to the masthead line
+          // below, where there is an edition to count.
+          metaItems={[copy.common.editionRhythm, copy.common.archiveAccess]}
           title={copy.newsletter.title}
         />
         {disabled ? null : (
@@ -194,7 +195,7 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
 
   if (editionState === "upcoming" || editionState === "quiet") {
     return (
-      <ModuleScroll>
+      <ModuleScroll contentStyle={styles.quietContent}>
         <TodayQuietState
           dropDate={drop.drop_date}
           iconName="calendar"
@@ -574,6 +575,14 @@ const createStyles = (c: ThemeColors) =>
     },
     todayContent: {
       gap: tokens.space.lg
+    },
+    // A day with no edition has one short message and one action. Centring it
+    // in whatever height the screen has left is what stops the block sitting
+    // under the masthead with a hand's width of dead paper beneath it — and it
+    // needs no device height to do it: the scroll's content container already
+    // grows to fill.
+    quietContent: {
+      justifyContent: "center"
     },
     listContent: {
       gap: tokens.space.xl,
