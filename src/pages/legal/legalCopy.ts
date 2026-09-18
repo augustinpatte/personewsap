@@ -206,7 +206,7 @@ export const legalCopy: Record<
       contactHeading: "Contact",
       contactConfigured: (email) => `Write to ${email}. We answer within a few working days.`,
       contactMissing:
-        "A support address has not been configured for this deployment yet. Set VITE_SUPPORT_EMAIL before store submission."
+        "Our support address will be published here very soon. In the meantime, you can export or delete your data yourself, as described above."
     },
     deleteAccount: {
       eyebrow: "PersoNewsAP",
@@ -381,7 +381,7 @@ export const legalCopy: Record<
       contactConfigured: (email) =>
         `Écrivez à ${email}. Nous répondons sous quelques jours ouvrés.`,
       contactMissing:
-        "Aucune adresse d'assistance n'est encore configurée pour ce déploiement. Définissez VITE_SUPPORT_EMAIL avant la soumission aux stores."
+        "Notre adresse d'assistance sera publiée ici très prochainement. En attendant, vous pouvez exporter ou supprimer vos données vous-même, comme indiqué ci-dessus."
     },
     deleteAccount: {
       eyebrow: "PersoNewsAP",

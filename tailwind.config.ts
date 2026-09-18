@@ -16,9 +16,51 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        serif: ['Source Serif 4', 'Georgia', 'serif'],
+        // Quoted inside the string: unquoted, "Source Serif 4" is not a valid
+        // CSS family name (a token cannot start with a digit) and the whole
+        // font-serif declaration would be dropped.
+        serif: ['"Source Serif 4"', 'Georgia', 'serif'],
+      },
+      maxWidth: {
+        site: "1200px",
+      },
+      boxShadow: {
+        "pn-card": "0 1px 0 rgba(28,26,22,0.04), 0 10px 30px -16px rgba(28,26,22,0.22)",
+        "pn-float": "0 2px 4px rgba(28,26,22,0.05), 0 24px 48px -20px rgba(28,26,22,0.32)",
+        "pn-phone": "0 50px 90px -40px rgba(28,26,22,0.55), 0 20px 40px -24px rgba(28,26,22,0.35)",
       },
       colors: {
+        // The PersoNewsAP landing palette — the mobile app's own tokens
+        // (apps/mobile/src/design/tokens.ts + theme.ts), so the site and the
+        // product read as one object. `blue` is the app icon's colour, kept
+        // for the mark only.
+        pn: {
+          paper: "#F5F1E8",
+          raised: "#FBF8F1",
+          surface: "#FCFAF4",
+          sunk: "#EFEBE1",
+          ink: "#1C1A16",
+          "ink-soft": "#4A463D",
+          muted: "#6E685C",
+          line: "#E6E0D3",
+          "line-strong": "#D2CABA",
+          teal: "#0F5B5F",
+          "teal-deep": "#0A4649",
+          "teal-soft": "#E7EFEC",
+          "teal-ink": "#0B4144",
+          gold: "#9C7B3F",
+          "gold-soft": "#EFE7D6",
+          success: "#3F7A5B",
+          "success-soft": "#E6EEE7",
+          blue: "#0A6BE8",
+          night: "#16140F",
+          "night-raised": "#221F17",
+          "night-line": "#332F25",
+          "night-ink": "#F2ECDD",
+          "night-soft": "#C9C2B0",
+          "night-teal": "#5CB0A9",
+          "night-gold": "#C8A463",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

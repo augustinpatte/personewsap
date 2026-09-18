@@ -162,6 +162,9 @@ describe("support contact", () => {
 
     // No hardcoded mailbox anywhere in the copy.
     expect(JSON.stringify(legalCopy)).not.toMatch(/[\w.]+@[\w.]+\.\w+/);
-    expect(legalCopy.en.support.contactMissing).toContain("VITE_SUPPORT_EMAIL");
+    // The fallback is written for readers: it never shows configuration names.
+    for (const lang of ["en", "fr"] as const) {
+      expect(legalCopy[lang].support.contactMissing).not.toMatch(/VITE_|SUPPORT_EMAIL|\.env/);
+    }
   });
 });

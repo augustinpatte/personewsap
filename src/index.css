@@ -1,10 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Newsletter Configuration - Minimalist Professional Design System */
+/* PersoNewsAP web — shadcn tokens for the account/legal pages; the landing
+   palette lives in tailwind.config.ts under `pn`. Fonts load from index.html. */
 
 @layer base {
   :root {
@@ -125,5 +124,47 @@
   h1, h2, h3 {
     font-family: 'Source Serif 4', Georgia, serif;
     @apply font-semibold tracking-tight;
+  }
+}
+
+/* ── Landing ─────────────────────────────────────────────────────────────── */
+
+@layer base {
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+@layer components {
+  /* Small caps set as a label: the app's eyebrow style. */
+  .pn-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em];
+  }
+
+  .pn-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pn-teal focus-visible:ring-offset-2 focus-visible:ring-offset-pn-paper;
+  }
+
+  /* Scroll reveal. Hidden only once JS has marked the page as able to reveal,
+     and never for readers who asked for less motion. */
+  .pn-js .pn-reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 700ms cubic-bezier(0.2, 0.7, 0.2, 1), transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .pn-js .pn-reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pn-js .pn-reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   }
 }

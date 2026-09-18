@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 
 export type Language = 'fr' | 'en' | null;
 
@@ -166,6 +166,11 @@ const translations: Record<string, Record<string, string>> = {
   'summary.topics': { fr: 'Sujets', en: 'Topics' },
   'summary.none': { fr: 'Aucun', en: 'None' },
 
+  // Not found
+  'notfound.title': { fr: 'Page introuvable', en: 'Page not found' },
+  'notfound.body': { fr: "Cette page n'existe pas ou a été déplacée.", en: 'This page does not exist or has moved.' },
+  'notfound.home': { fr: "Retour à l'accueil", en: 'Back to home' },
+
   // Language names
   'language.fr': { fr: 'Français', en: 'French' },
   'language.en': { fr: 'Anglais', en: 'English' },
@@ -173,6 +178,12 @@ const translations: Record<string, Record<string, string>> = {
 
 const getInitialLanguage = (): Language => {
   if (typeof window === 'undefined') return null;
+  // An explicit ?lang=fr|en in a shared link wins, and becomes the preference.
+  const requested = new URLSearchParams(window.location.search).get('lang');
+  if (requested === 'fr' || requested === 'en') {
+    window.localStorage.setItem(STORAGE_KEY, requested);
+    return requested;
+  }
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === 'fr' || stored === 'en') return stored;
   const browser = window.navigator.language?.toLowerCase() ?? '';
@@ -185,6 +196,12 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => getInitialLanguage());
+
+  // Keep <html lang> in step with the interface so screen readers and search
+  // engines read the page in the language it is written in.
+  useEffect(() => {
+    document.documentElement.lang = language ?? 'en';
+  }, [language]);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
