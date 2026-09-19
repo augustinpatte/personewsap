@@ -183,7 +183,8 @@ describe("the Android adaptive icon", () => {
 });
 
 describe("what the icon change must not disturb", () => {
-  it("leaves the notification icon alone", () => {
+  it("keeps the notification icon on its own asset, never the launcher artwork", () => {
+    // What that asset must look like is pinned in notificationIcon.test.ts.
     const notifications = expo.plugins.find(
       (plugin): plugin is [string, Record<string, unknown>] =>
         Array.isArray(plugin) && plugin[0] === "expo-notifications"
