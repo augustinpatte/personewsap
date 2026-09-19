@@ -1,13 +1,14 @@
-import { MINI_CASE_TOPIC_IDS, TOPIC_OPTIONS, localizeOptions } from "../onboarding/options";
+import { MINI_CASE_TOPIC_IDS, TOPIC_OPTIONS } from "../onboarding/options";
 import type { ContentLanguage } from "../today/contentTypes";
+import type { TopicId } from "../../types/domain";
 
 /**
  * What a Team can be configured to play.
  *
  * The SAME topic catalogue the personal onboarding uses, deliberately: a Team is
  * the product's own content assigned to a group, not a second content system.
- * The labels and translations are read from `features/onboarding/options` rather
- * than retyped, so a topic renamed there is renamed here too.
+ * The topic ids come from `features/onboarding/options`; their Teams display
+ * names are TEAM_TOPIC_LABELS below.
  *
  * THE IDS ARE THE BACKEND ONES. `team_config_newsletter_topics.topic_id` is a
  * foreign key to `public.topics`, whose ids are the eight product topics
@@ -27,15 +28,49 @@ export const NEWSLETTER_TOPIC_CHOICES = TOPIC_OPTIONS.map((option) => ({
 export const ARTICLE_COUNT_CHOICES = [1, 2] as const;
 export const MAX_ARTICLES_PER_TOPIC = 2;
 
+/**
+ * What a topic is called INSIDE TEAMS.
+ *
+ * Solo onboarding names the same eight topics from the reader's angle —
+ * business is "Stock Market", law "International", engineering "Automotive
+ * Industry", medicine "Pharmaceutical Industry" — and those labels stay there.
+ * A Team is set up from presets called Business, Law, Engineering, Medicine, so
+ * its editor and its summaries use the same words for the same ids: choosing
+ * "Law" and then reviewing "International" reads as a bug. Ids, assignments and
+ * the onboarding labels are untouched; this is only the Teams display name.
+ */
+export const TEAM_TOPIC_LABELS: Record<ContentLanguage, Record<TopicId, string>> = {
+  en: {
+    business: "Business",
+    finance: "Finance",
+    tech_ai: "Tech & AI",
+    law: "Law",
+    medicine: "Medicine",
+    engineering: "Engineering",
+    sport_business: "Sports Business",
+    culture_media: "Culture & Media"
+  },
+  fr: {
+    business: "Business",
+    finance: "Finance",
+    tech_ai: "Tech & IA",
+    law: "Droit",
+    medicine: "Médecine",
+    engineering: "Ingénierie",
+    sport_business: "Business du sport",
+    culture_media: "Culture & médias"
+  }
+};
+
 export function newsletterTopicLabel(
   backendTopicId: string,
   language: ContentLanguage
 ): string {
-  const option = localizeOptions(TOPIC_OPTIONS, language).find(
-    (entry) => entry.backendTopicId === backendTopicId
+  return (
+    TEAM_TOPIC_LABELS[language]?.[backendTopicId as TopicId] ??
+    TEAM_TOPIC_LABELS.en[backendTopicId as TopicId] ??
+    backendTopicId
   );
-
-  return option?.label ?? backendTopicId;
 }
 
 export const MINI_CASE_TOPIC_CHOICES = [...MINI_CASE_TOPIC_IDS];

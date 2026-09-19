@@ -179,6 +179,69 @@ export function getTeamsCopy(language: ContentLanguage) {
         startsNextEditionCreated: "Your Team starts scoring with the next edition.",
         effectiveFrom: (date: string) => `From the edition of ${date}`,
 
+        // Create, guided setup
+        setupStep: (current: number, total: number) => `Step ${current} of ${total}`,
+        setupBack: "Back",
+        setupContinue: "Continue",
+        setupTemplateTitle: "What does your Team want to follow?",
+        setupTemplateBody: "Pick a starting point. You can change everything afterward.",
+        setupScratchTitle: "Build from scratch",
+        setupScratchBody: "Choose every topic yourself.",
+        setupIntensityTitle: "How much do you want to play?",
+        setupIntensityBody: "You can change this later too.",
+        setupRecommended: "Recommended",
+        setupPreviewTitle: "You're ready",
+        setupPreviewBody: "This is what your Team will play. You can change these choices later.",
+        setupTopicsLabel: "Topics",
+        setupMiniCasesLabel: "Mini cases",
+        setupPerEdition: "Per edition",
+        setupEditionShape: (articles: number, miniCases: number) =>
+          [
+            articles > 0 ? (articles === 1 ? "1 article" : `${articles} articles`) : null,
+            miniCases > 0 ? (miniCases === 1 ? "1 mini case" : `${miniCases} mini cases`) : null
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        setupCustomize: "Customize",
+        setupCustomizeTitle: "Customize your Team",
+        setupCustomizeIntro: "Start from the recommendation and change anything you like.",
+        setupBackToRecommendation: "Back to the recommendation",
+        setupSelectedPreset: (preset: string, intensity: string) => `${preset} · ${intensity}`,
+        intensities: {
+          chill: { name: "Chill", body: "A small, easy routine." },
+          regular: { name: "Regular", body: "Balanced for most Teams." },
+          intensive: { name: "Intensive", body: "More coverage and more questions." }
+        },
+        presets: {
+          finance: { name: "Finance", body: "Markets, companies and the forces moving money." },
+          business: { name: "Business", body: "Companies, markets and the decisions behind them." },
+          tech_ai: { name: "Tech & AI", body: "AI, software and emerging technology." },
+          law: { name: "Law", body: "Rules, institutions and the decisions that shape markets." },
+          medicine: { name: "Medicine", body: "Health, pharma and medical innovation." },
+          engineering: { name: "Engineering", body: "Industry, energy and how things get built." },
+          sport_business: {
+            name: "Sports Business",
+            body: "The business behind clubs, leagues and athletes."
+          },
+          culture_media: {
+            name: "Culture & Media",
+            body: "Entertainment, platforms, creators and media economics."
+          },
+          balanced: { name: "Balanced", body: "A mix of the major PersoNewsAP topics." }
+        },
+
+        // Manage, start from a preset
+        presetStart: "Start from a preset",
+        presetManageBody:
+          "Pick a starting point. It replaces the topics below. Nothing is saved until you tap Save.",
+        presetReplace: "Replace the topics below",
+        presetCancel: "Cancel",
+        presetReplaceConfirmTitle: "Replace the topics?",
+        presetReplaceConfirmBody:
+          "The topics below will be replaced by this preset. Nothing is saved until you tap Save, and saved changes apply from the next edition.",
+        presetReplaceConfirm: "Replace",
+        presetApplied: "Preset applied below. Tap Save the topics to keep it.",
+
         // Invite, continued
         inviteCopy: "Copy the code",
         inviteCopied: "Copied",
@@ -389,6 +452,70 @@ export function getTeamsCopy(language: ContentLanguage) {
         createdTitle: "Team créée",
         startsNextEditionCreated: "Les scores commenceront à la prochaine édition.",
         effectiveFrom: (date: string) => `À partir de l'édition du ${date}`,
+
+        // Création, parcours guidé
+        setupStep: (current: number, total: number) => `Étape ${current} sur ${total}`,
+        setupBack: "Retour",
+        setupContinue: "Continuer",
+        setupTemplateTitle: "Que veut suivre votre Team ?",
+        setupTemplateBody: "Choisissez un point de départ. Vous pourrez tout modifier ensuite.",
+        setupScratchTitle: "Partir de zéro",
+        setupScratchBody: "Choisissez chaque sujet vous-même.",
+        setupIntensityTitle: "À quel rythme voulez-vous jouer ?",
+        setupIntensityBody: "Vous pourrez aussi le changer plus tard.",
+        setupRecommended: "Recommandé",
+        setupPreviewTitle: "C'est prêt",
+        setupPreviewBody:
+          "Voici ce que votre Team va jouer. Vous pourrez modifier ces choix plus tard.",
+        setupTopicsLabel: "Sujets",
+        setupMiniCasesLabel: "Mini cas",
+        setupPerEdition: "Par édition",
+        setupEditionShape: (articles: number, miniCases: number) =>
+          [
+            articles > 0 ? (articles === 1 ? "1 article" : `${articles} articles`) : null,
+            miniCases > 0 ? `${miniCases} mini cas` : null
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        setupCustomize: "Personnaliser",
+        setupCustomizeTitle: "Personnaliser votre Team",
+        setupCustomizeIntro: "Partez de la recommandation et changez ce que vous voulez.",
+        setupBackToRecommendation: "Revenir à la recommandation",
+        setupSelectedPreset: (preset: string, intensity: string) => `${preset} · ${intensity}`,
+        intensities: {
+          chill: { name: "Tranquille", body: "Une petite routine, facile à tenir." },
+          regular: { name: "Régulier", body: "Le bon équilibre pour la plupart des Teams." },
+          intensive: { name: "Intensif", body: "Plus de sujets et plus de questions." }
+        },
+        presets: {
+          finance: { name: "Finance", body: "Les marchés, les entreprises et les capitaux qui les font bouger." },
+          business: { name: "Business", body: "Les entreprises, les marchés et leurs décisions." },
+          tech_ai: { name: "Tech & IA", body: "IA, logiciels et technologies émergentes." },
+          law: { name: "Droit", body: "Règles, institutions et décisions qui pèsent sur les marchés." },
+          medicine: { name: "Médecine", body: "Santé, pharma et innovation médicale." },
+          engineering: { name: "Ingénierie", body: "Industrie, énergie et la façon dont on construit." },
+          sport_business: {
+            name: "Business du sport",
+            body: "L'économie des clubs, des ligues et des athlètes."
+          },
+          culture_media: {
+            name: "Culture & médias",
+            body: "Divertissement, plateformes, créateurs et économie des médias."
+          },
+          balanced: { name: "Équilibré", body: "Un peu de chaque grand sujet de PersoNewsAP." }
+        },
+
+        // Gérer, partir d'un modèle
+        presetStart: "Partir d'un modèle",
+        presetManageBody:
+          "Choisissez un point de départ. Il remplace les sujets ci-dessous. Rien n'est enregistré tant que vous n'avez pas appuyé sur Enregistrer.",
+        presetReplace: "Remplacer les sujets ci-dessous",
+        presetCancel: "Annuler",
+        presetReplaceConfirmTitle: "Remplacer les sujets ?",
+        presetReplaceConfirmBody:
+          "Les sujets ci-dessous seront remplacés par ce modèle. Rien n'est enregistré tant que vous n'avez pas appuyé sur Enregistrer, et les changements enregistrés s'appliquent à partir de la prochaine édition.",
+        presetReplaceConfirm: "Remplacer",
+        presetApplied: "Modèle appliqué ci-dessous. Appuyez sur Enregistrer les sujets pour le garder.",
 
         inviteCopy: "Copier le code",
         inviteCopied: "Copié",

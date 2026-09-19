@@ -21,6 +21,7 @@ import { TeamAvatar } from "./PlayerAvatar";
 import { validateTeamName } from "./playerProfile";
 import { deleteTeamAvatarObject, uploadTeamAvatar } from "./teamAvatarUpload";
 import { TeamConfigFields } from "./TeamConfigFields";
+import { TeamPresetPanel } from "./TeamSetupParts";
 import {
   EMPTY_DRAFT,
   draftHasAGame,
@@ -72,6 +73,9 @@ export function TeamManageScreen({ teamId }: { teamId: string }) {
   const [name, setName] = useState("");
   const [draft, setDraft] = useState<TeamConfigDraft>(EMPTY_DRAFT);
   const [effectiveFrom, setEffectiveFrom] = useState<string | null>(null);
+  // "Start from a preset" is closed until asked for: an existing Team is shown
+  // its real configuration, never a template it did not choose.
+  const [presetOpen, setPresetOpen] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -417,6 +421,23 @@ export function TeamManageScreen({ teamId }: { teamId: string }) {
               </Card>
 
               <EditorialRule label={copy.editConfig} />
+
+              {presetOpen ? (
+                <TeamPresetPanel
+                  language={language}
+                  onApply={(next) => {
+                    // The editor below takes the preset's topics; nothing is
+                    // saved until Save, which states when it takes effect.
+                    setDraft(next);
+                    setPresetOpen(false);
+                    setError(null);
+                    setNotice(copy.presetApplied);
+                  }}
+                  onClose={() => setPresetOpen(false)}
+                />
+              ) : (
+                <SecondaryButton label={copy.presetStart} onPress={() => setPresetOpen(true)} />
+              )}
 
               <TeamConfigFields
                 draft={draft}

@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { useRouter, type Href } from "expo-router";
-import { Image, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, useReducer, useRef, useState } from "react";
+import { Stack, useRouter, type Href } from "expo-router";
+import { BackHandler, Image, StyleSheet, TextInput, View, type ScrollView } from "react-native";
 
 import { AppText, Card, PrimaryButton, SecondaryButton } from "../../components";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
+import { trackAnalyticsEvent } from "../../lib/analytics";
 import { useAuth } from "../auth";
 import { EditorialRule } from "../modules";
 import { formatDropDate, getReaderCopy } from "../today/contentCopy";
@@ -14,24 +15,28 @@ import { TeamAvatar } from "./PlayerAvatar";
 import { validateTeamName } from "./playerProfile";
 import { uploadTeamAvatar } from "./teamAvatarUpload";
 import { TeamConfigFields } from "./TeamConfigFields";
+import { draftEditionShape, draftHasAGame, draftToNewsletterTopics } from "./teamConfigOptions";
 import {
-  EMPTY_DRAFT,
-  draftEditionShape,
-  draftHasAGame,
-  draftToNewsletterTopics,
-  type TeamConfigDraft
-} from "./teamConfigOptions";
+  INITIAL_TEAM_SETUP,
+  teamSetupCanGoBack,
+  teamSetupDraft,
+  teamSetupProgress,
+  teamSetupReducer
+} from "./teamSetupFlow";
+import { IntensityOptions, PresetGrid, RecommendationSummary, SetupStepHeader } from "./TeamSetupParts";
 import { getTeamsCopy } from "./teamsCopy";
 import { createTeam, saveTeamConfig, setTeamAvatar } from "./teamsData";
 
 /**
  * Creating a Team.
  *
- * ONE SCREEN, NOT A WIZARD. Name, newsletter topics, mini cases, review, create.
- * A five-step flow would put three taps and two animations between somebody and
- * a league they have already decided to start, and none of those steps has a
- * decision in it that depends on the previous one — which is the only thing that
- * justifies a wizard. Everything is visible and revisable until Create.
+ * THREE SHORT STEPS, THEN THE SAME EDITOR AS BEFORE. Most founders know what
+ * their Team is about and roughly how much they want to play, and should not
+ * have to learn the topic catalogue to say so: pick a subject, pick a level,
+ * see what that means, create. The full editor — every topic, every count —
+ * is one tap away at the first step (Build from scratch) and at the last
+ * (Customize), and it is the editor Manage uses, unchanged. A preset only
+ * writes the draft; the flow's rules live in teamSetupFlow.ts.
  *
  * TWO WRITES, IN ORDER, AND THE SECOND CAN FAIL SAFELY. `create_team` makes the
  * team and its first (empty) config version; `update_team_config` fills that
@@ -56,13 +61,13 @@ import { createTeam, saveTeamConfig, setTeamAvatar } from "./teamsData";
 export function CreateTeamScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const colors = useThemeColors();
   const { profileLanguage } = useAuth();
   const language = profileLanguage ?? "en";
   const copy = getTeamsCopy(language);
+  const scrollRef = useRef<ScrollView>(null);
 
+  const [setup, dispatch] = useReducer(teamSetupReducer, INITIAL_TEAM_SETUP);
   const [name, setName] = useState("");
-  const [draft, setDraft] = useState<TeamConfigDraft>(EMPTY_DRAFT);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   // Held locally until the Team has an id to be stored under.
@@ -73,7 +78,29 @@ export function CreateTeamScreen() {
   } | null>(null);
   const [pickingPhoto, setPickingPhoto] = useState(false);
 
+  const draft = teamSetupDraft(setup);
   const shape = draftEditionShape(draft);
+  const inFlow = teamSetupCanGoBack(setup);
+
+  // Each step starts at its top, not wherever the last one was scrolled to.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setError(null);
+  }, [setup.step]);
+
+  // Android's back button steps back inside the flow before it leaves it.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!inFlow) {
+        return false;
+      }
+
+      dispatch({ type: "back" });
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [inFlow]);
 
   const nameProblemMessage = () => {
     switch (validateTeamName(name)) {
@@ -146,6 +173,14 @@ export function CreateTeamScreen() {
       miniCaseTopics: draft.miniCases
     });
 
+    if (setup.presetId) {
+      trackAnalyticsEvent("team_created_from_preset", {
+        team_preset: setup.presetId,
+        team_intensity: setup.intensityId,
+        language
+      });
+    }
+
     // Same rule for the photo, and it is the reason it is sent here rather than
     // before: the path is keyed by the Team id. A failure leaves a Team with no
     // picture, which is what most Teams have anyway, and Manage can set one.
@@ -168,135 +203,284 @@ export function CreateTeamScreen() {
     router.replace(`/(teams)/${created.data.teamId}/invite?created=1` as Href);
   };
 
+  const identity = (
+    <TeamIdentityFields
+      busy={creating || pickingPhoto}
+      language={language}
+      name={name}
+      onChangeName={(value) => {
+        setName(value);
+        setError(null);
+      }}
+      onChoosePhoto={() => void onChoosePhoto()}
+      onRemovePhoto={() => setPendingPhoto(null)}
+      pendingPhotoUri={pendingPhoto?.uri ?? null}
+      pickingPhoto={pickingPhoto}
+    />
+  );
+
+  const errorLine = error ? (
+    <AppText
+      accessibilityLiveRegion="polite"
+      accessibilityRole="alert"
+      color="danger"
+      style={styles.error}
+      variant="body"
+    >
+      {error}
+    </AppText>
+  ) : null;
+
+  const createButton = (
+    <PrimaryButton
+      disabled={creating}
+      label={copy.createConfirm}
+      loading={creating}
+      onPress={() => void onCreate()}
+      style={styles.submit}
+    />
+  );
+
   return (
     <ReaderScaffold
       closeLabel={getReaderCopy(language).close}
       eyebrow={copy.eyebrow}
       iconName="users"
       onClose={() => router.back()}
+      scrollRef={scrollRef}
     >
-      <View style={styles.header}>
-        <AppText variant="title">{copy.createTitle}</AppText>
-        <AppText color="muted" variant="body">
-          {copy.createIntro}
-        </AppText>
-      </View>
+      {/* The swipe back would leave the whole flow; inside it, Back steps back. */}
+      <Stack.Screen options={{ gestureEnabled: !inFlow }} />
 
-      <Card padding="lg" style={styles.card}>
-        <View style={styles.photo}>
-          {pendingPhoto ? (
-            <Image
-              accessibilityIgnoresInvertColors
-              accessible={false}
-              source={{ uri: pendingPhoto.uri }}
-              style={styles.pendingPhoto}
-            />
-          ) : (
-            <TeamAvatar avatarPath={null} size="hero" />
-          )}
-          <AppText color="muted" variant="caption">
-            {`${copy.teamPhotoLabel} · ${copy.avatarOptional}`}
-          </AppText>
-          <AppText align="center" color="mutedSoft" variant="caption">
-            {copy.teamPhotoHelp}
-          </AppText>
-          <SecondaryButton
-            disabled={creating || pickingPhoto}
-            label={
-              pickingPhoto
-                ? copy.avatarPreparing
-                : pendingPhoto
-                  ? copy.teamPhotoChange
-                  : copy.teamPhotoChoose
-            }
-            onPress={() => void onChoosePhoto()}
+      {setup.step === "template" ? (
+        <>
+          <SetupStepHeader
+            body={copy.setupTemplateBody}
+            language={language}
+            progress={teamSetupProgress(setup)}
+            title={copy.setupTemplateTitle}
           />
-          {pendingPhoto ? (
-            <SecondaryButton
-              disabled={creating || pickingPhoto}
-              label={copy.teamPhotoRemove}
-              onPress={() => setPendingPhoto(null)}
-            />
-          ) : null}
-        </View>
-
-        <View style={styles.field}>
-          <AppText color="muted" variant="caption">
-            {copy.nameLabel}
-          </AppText>
-          <TextInput
-            accessibilityLabel={copy.nameLabel}
-            autoCapitalize="words"
-            autoCorrect={false}
-            maxLength={40}
-            onChangeText={(value) => {
-              setName(value);
-              setError(null);
+          <PresetGrid
+            language={language}
+            onBuildFromScratch={() => dispatch({ type: "buildFromScratch" })}
+            onSelect={(presetId) => {
+              trackAnalyticsEvent("team_preset_selected", { team_preset: presetId, language });
+              dispatch({ type: "choosePreset", presetId });
             }}
-            placeholder={copy.namePlaceholder}
-            placeholderTextColor={colors.mutedSoft}
-            style={[styles.input, { color: colors.ink, borderColor: colors.border }]}
-            value={name}
+            selectedId={setup.presetId}
           />
-        </View>
-      </Card>
-
-      <EditorialRule />
-
-      <TeamConfigFields
-        draft={draft}
-        language={language}
-        onChange={(next) => {
-          setDraft(next);
-          setError(null);
-        }}
-      />
-
-      <EditorialRule label={copy.reviewTitle} />
-
-      <View style={styles.review}>
-        <ReviewRow label={copy.nameLabel} value={name.trim() || copy.nameNotSet} />
-        <ReviewRow
-          label={copy.newsletterTopics}
-          value={
-            shape.articles === 0
-              ? copy.noTopicsChosen
-              : `${copy.topicsChosen(Object.keys(draft.newsletter).length)} · ${copy.articlesTotal(
-                  shape.articles
-                )}`
-          }
-        />
-        <ReviewRow
-          label={copy.miniCaseTopics}
-          value={
-            shape.miniCases === 0 ? copy.noTopicsChosen : copy.topicsChosen(shape.miniCases)
-          }
-        />
-        <AppText color="mutedSoft" variant="caption">
-          {copy.startsNextEditionCreated}
-        </AppText>
-      </View>
-
-      {error ? (
-        <AppText
-          accessibilityLiveRegion="polite"
-          accessibilityRole="alert"
-          color="danger"
-          style={styles.error}
-          variant="body"
-        >
-          {error}
-        </AppText>
+        </>
       ) : null}
 
-      <PrimaryButton
-        disabled={creating}
-        label={copy.createConfirm}
-        loading={creating}
-        onPress={() => void onCreate()}
-        style={styles.submit}
-      />
+      {setup.step === "intensity" ? (
+        <>
+          <SetupStepHeader
+            body={copy.setupIntensityBody}
+            language={language}
+            onBack={() => dispatch({ type: "back" })}
+            progress={teamSetupProgress(setup)}
+            title={copy.setupIntensityTitle}
+          />
+          <IntensityOptions
+            language={language}
+            onSelect={(intensityId) => dispatch({ type: "chooseIntensity", intensityId })}
+            selectedId={setup.intensityId}
+          />
+          <PrimaryButton
+            label={copy.setupContinue}
+            onPress={() => {
+              trackAnalyticsEvent("team_intensity_selected", {
+                team_preset: setup.presetId ?? undefined,
+                team_intensity: setup.intensityId,
+                language
+              });
+              dispatch({ type: "continueToPreview" });
+            }}
+            style={styles.submit}
+          />
+        </>
+      ) : null}
+
+      {setup.step === "preview" && setup.presetId ? (
+        <>
+          <SetupStepHeader
+            body={copy.setupPreviewBody}
+            language={language}
+            onBack={() => dispatch({ type: "back" })}
+            progress={teamSetupProgress(setup)}
+            title={copy.setupPreviewTitle}
+          />
+          <RecommendationSummary
+            draft={draft}
+            heading={copy.setupSelectedPreset(
+              copy.presets[setup.presetId].name,
+              copy.intensities[setup.intensityId].name
+            )}
+            language={language}
+          />
+          {identity}
+          <AppText color="mutedSoft" style={styles.note} variant="caption">
+            {copy.startsNextEditionCreated}
+          </AppText>
+          {errorLine}
+          {createButton}
+          <SecondaryButton
+            disabled={creating}
+            label={copy.setupCustomize}
+            onPress={() => {
+              trackAnalyticsEvent("team_preset_customized", {
+                team_preset: setup.presetId ?? undefined,
+                team_intensity: setup.intensityId,
+                language
+              });
+              dispatch({ type: "customize" });
+            }}
+            style={styles.secondary}
+          />
+        </>
+      ) : null}
+
+      {setup.step === "manual" ? (
+        <>
+          <SetupStepHeader
+            body={setup.manualOrigin === "customize" ? copy.setupCustomizeIntro : copy.createIntro}
+            language={language}
+            onBack={() => dispatch({ type: "back" })}
+            progress={null}
+            title={setup.manualOrigin === "customize" ? copy.setupCustomizeTitle : copy.createTitle}
+          />
+
+          {identity}
+
+          <EditorialRule />
+
+          <TeamConfigFields
+            draft={setup.manualDraft}
+            language={language}
+            onChange={(next) => {
+              dispatch({ type: "editManual", draft: next });
+              setError(null);
+            }}
+          />
+
+          <EditorialRule label={copy.reviewTitle} />
+
+          <View style={styles.review}>
+            <ReviewRow label={copy.nameLabel} value={name.trim() || copy.nameNotSet} />
+            <ReviewRow
+              label={copy.newsletterTopics}
+              value={
+                shape.articles === 0
+                  ? copy.noTopicsChosen
+                  : `${copy.topicsChosen(Object.keys(draft.newsletter).length)} · ${copy.articlesTotal(
+                      shape.articles
+                    )}`
+              }
+            />
+            <ReviewRow
+              label={copy.miniCaseTopics}
+              value={
+                shape.miniCases === 0 ? copy.noTopicsChosen : copy.topicsChosen(shape.miniCases)
+              }
+            />
+            <AppText color="mutedSoft" variant="caption">
+              {copy.startsNextEditionCreated}
+            </AppText>
+          </View>
+
+          {errorLine}
+          {createButton}
+
+          {setup.manualOrigin === "customize" ? (
+            <SecondaryButton
+              disabled={creating}
+              label={copy.setupBackToRecommendation}
+              onPress={() => dispatch({ type: "back" })}
+              style={styles.secondary}
+            />
+          ) : null}
+        </>
+      ) : null}
     </ReaderScaffold>
+  );
+}
+
+/** Name and optional photo: the same block on the preview and in the editor. */
+function TeamIdentityFields({
+  busy,
+  language,
+  name,
+  onChangeName,
+  onChoosePhoto,
+  onRemovePhoto,
+  pendingPhotoUri,
+  pickingPhoto
+}: {
+  busy: boolean;
+  language: "fr" | "en";
+  name: string;
+  onChangeName: (value: string) => void;
+  onChoosePhoto: () => void;
+  onRemovePhoto: () => void;
+  pendingPhotoUri: string | null;
+  pickingPhoto: boolean;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useThemeColors();
+  const copy = getTeamsCopy(language);
+
+  return (
+    <Card padding="lg" style={styles.card}>
+      <View style={styles.photo}>
+        {pendingPhotoUri ? (
+          <Image
+            accessibilityIgnoresInvertColors
+            accessible={false}
+            source={{ uri: pendingPhotoUri }}
+            style={styles.pendingPhoto}
+          />
+        ) : (
+          <TeamAvatar avatarPath={null} size="hero" />
+        )}
+        <AppText color="muted" variant="caption">
+          {`${copy.teamPhotoLabel} · ${copy.avatarOptional}`}
+        </AppText>
+        <AppText align="center" color="mutedSoft" variant="caption">
+          {copy.teamPhotoHelp}
+        </AppText>
+        <SecondaryButton
+          disabled={busy}
+          label={
+            pickingPhoto
+              ? copy.avatarPreparing
+              : pendingPhotoUri
+                ? copy.teamPhotoChange
+                : copy.teamPhotoChoose
+          }
+          onPress={onChoosePhoto}
+        />
+        {pendingPhotoUri ? (
+          <SecondaryButton disabled={busy} label={copy.teamPhotoRemove} onPress={onRemovePhoto} />
+        ) : null}
+      </View>
+
+      <View style={styles.field}>
+        <AppText color="muted" variant="caption">
+          {copy.nameLabel}
+        </AppText>
+        <TextInput
+          accessibilityLabel={copy.nameLabel}
+          autoCapitalize="words"
+          autoCorrect={false}
+          maxLength={40}
+          onChangeText={onChangeName}
+          placeholder={copy.namePlaceholder}
+          placeholderTextColor={colors.mutedSoft}
+          style={[styles.input, { color: colors.ink, borderColor: colors.border }]}
+          value={name}
+        />
+      </View>
+    </Card>
   );
 }
 
@@ -329,10 +513,6 @@ export function effectiveEditionLabel(
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    header: {
-      gap: tokens.space.sm,
-      marginTop: tokens.space.md
-    },
     card: {
       gap: tokens.space.lg,
       marginTop: tokens.space.lg
@@ -374,10 +554,16 @@ const createStyles = (c: ThemeColors) =>
     reviewValue: {
       color: c.ink
     },
+    note: {
+      marginTop: tokens.space.md
+    },
     error: {
       marginTop: tokens.space.md
     },
     submit: {
       marginTop: tokens.space.xl
+    },
+    secondary: {
+      marginTop: tokens.space.sm
     }
   });

@@ -31,6 +31,12 @@ export const ANALYTICS_EVENTS = [
   "quiz_skipped",
   "quiz_completed",
   "team_content_opened",
+  // Team setup. Which starting point and which level, never the Team, its name
+  // or its members: enough to see whether presets are used and customized.
+  "team_preset_selected",
+  "team_intensity_selected",
+  "team_preset_customized",
+  "team_created_from_preset",
   "auth_signed_in",
   "auth_signed_out",
   "error_viewed"
@@ -57,7 +63,29 @@ export type AnalyticsEventProperties = {
   question_count?: number;
   /** Whether the reading reached the reader through a Team. Never which team. */
   is_team?: boolean;
+  /** The preset a Team was set up from. One of ANALYTICS_TEAM_PRESETS. */
+  team_preset?: string;
+  /** The level chosen with it. One of ANALYTICS_TEAM_INTENSITIES. */
+  team_intensity?: string;
 };
+
+/**
+ * The only values the two Team-setup properties may carry. Kept here as
+ * literals so this module depends on nothing in features/; a test pins them to
+ * TEAM_PRESETS and TEAM_INTENSITY_LEVELS so the lists cannot drift apart.
+ */
+export const ANALYTICS_TEAM_PRESETS = [
+  "finance",
+  "business",
+  "tech_ai",
+  "law",
+  "medicine",
+  "engineering",
+  "sport_business",
+  "culture_media",
+  "balanced"
+] as const;
+export const ANALYTICS_TEAM_INTENSITIES = ["chill", "regular", "intensive"] as const;
 
 type AnalyticsProvider = {
   track: (event: AnalyticsEventName, properties: AnalyticsEventProperties) => void | Promise<void>;
@@ -152,6 +180,14 @@ function sanitizeAnalyticsProperties(
 
   if (properties.item_id) {
     safeProperties.item_id = properties.item_id;
+  }
+
+  if ((ANALYTICS_TEAM_PRESETS as readonly string[]).includes(properties.team_preset ?? "")) {
+    safeProperties.team_preset = properties.team_preset;
+  }
+
+  if ((ANALYTICS_TEAM_INTENSITIES as readonly string[]).includes(properties.team_intensity ?? "")) {
+    safeProperties.team_intensity = properties.team_intensity;
   }
 
   return safeProperties;
