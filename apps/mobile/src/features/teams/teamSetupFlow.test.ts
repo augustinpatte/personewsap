@@ -344,7 +344,10 @@ describe("accessibility", () => {
     expect(tile).toContain('accessibilityRole="button"');
     expect(tile).toContain("accessibilityState={{ selected }}");
     expect(tile).toContain("accessibilityLabel={text.name}");
-    expect(tile).toContain("accessibilityHint={text.body}");
+    // What it covers, preceded by "Recommended for you" on the recommended tile.
+    expect(tile).toContain(
+      "accessibilityHint={recommended ? `${copy.setupRecommendedForYou}. ${text.body}` : text.body}"
+    );
   });
 
   it("groups the levels as one choice, each announcing whether it is selected", () => {

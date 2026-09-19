@@ -7,6 +7,7 @@ import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { useAuth } from "../auth";
+import { loadEditablePreferences } from "../preferences/preferencesPersistence";
 import { EditorialRule } from "../modules";
 import { formatDropDate, getReaderCopy } from "../today/contentCopy";
 import { ReaderScaffold } from "../today/readers";
@@ -24,6 +25,11 @@ import {
   teamSetupReducer
 } from "./teamSetupFlow";
 import { IntensityOptions, PresetGrid, RecommendationSummary, SetupStepHeader } from "./TeamSetupParts";
+import {
+  canonicalTopicIdsFromPersonalSelection,
+  recommendTeamPreset,
+  type TeamPresetId
+} from "./teamPresets";
 import { getTeamsCopy } from "./teamsCopy";
 import { createTeam, saveTeamConfig, setTeamAvatar } from "./teamsData";
 
@@ -61,7 +67,7 @@ import { createTeam, saveTeamConfig, setTeamAvatar } from "./teamsData";
 export function CreateTeamScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const { profileLanguage } = useAuth();
+  const { profileLanguage, user } = useAuth();
   const language = profileLanguage ?? "en";
   const copy = getTeamsCopy(language);
   const scrollRef = useRef<ScrollView>(null);
@@ -77,10 +83,40 @@ export function CreateTeamScreen() {
     bytes: number;
   } | null>(null);
   const [pickingPhoto, setPickingPhoto] = useState(false);
+  // A label on one preset, from the topics the reader follows personally.
+  // Read once, never written: the Team does not depend on it afterward.
+  const [recommendedPresetId, setRecommendedPresetId] = useState<TeamPresetId | null>(null);
 
   const draft = teamSetupDraft(setup);
   const shape = draftEditionShape(draft);
   const inFlow = teamSetupCanGoBack(setup);
+
+  // "Recommended for you": the reader's own explicit newsletter topics, read
+  // (never saved) through the same loader the module tabs use. A reader with no
+  // topics, or whose preferences cannot be read, simply sees no marker.
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    let active = true;
+
+    void loadEditablePreferences(user.id, language)
+      .then((result) => {
+        if (!active || !result.ok) {
+          return;
+        }
+
+        const topicIds = canonicalTopicIdsFromPersonalSelection(result.preferences.selectedTopics);
+
+        setRecommendedPresetId(topicIds.length > 0 ? recommendTeamPreset(topicIds) : null);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, language]);
 
   // Each step starts at its top, not wherever the last one was scrolled to.
   useEffect(() => {
@@ -263,6 +299,7 @@ export function CreateTeamScreen() {
           <PresetGrid
             language={language}
             onBuildFromScratch={() => dispatch({ type: "buildFromScratch" })}
+            recommendedId={recommendedPresetId}
             onSelect={(presetId) => {
               trackAnalyticsEvent("team_preset_selected", { team_preset: presetId, language });
               dispatch({ type: "choosePreset", presetId });
@@ -318,6 +355,9 @@ export function CreateTeamScreen() {
             )}
             language={language}
           />
+          <AppText color="mutedSoft" style={styles.note} variant="caption">
+            {copy.setupSeparateFromPersonal}
+          </AppText>
           {identity}
           <AppText color="mutedSoft" style={styles.note} variant="caption">
             {copy.startsNextEditionCreated}
@@ -383,6 +423,9 @@ export function CreateTeamScreen() {
                 shape.miniCases === 0 ? copy.noTopicsChosen : copy.topicsChosen(shape.miniCases)
               }
             />
+            <AppText color="mutedSoft" variant="caption">
+              {copy.setupSeparateFromPersonal}
+            </AppText>
             <AppText color="mutedSoft" variant="caption">
               {copy.startsNextEditionCreated}
             </AppText>

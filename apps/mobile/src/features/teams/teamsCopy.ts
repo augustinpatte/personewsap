@@ -190,6 +190,8 @@ export function getTeamsCopy(language: ContentLanguage) {
         setupIntensityTitle: "How much do you want to play?",
         setupIntensityBody: "You can change this later too.",
         setupRecommended: "Recommended",
+        setupRecommendedForYou: "Recommended for you",
+        setupSeparateFromPersonal: "Team topics are separate from your personal interests.",
         setupPreviewTitle: "You're ready",
         setupPreviewBody: "This is what your Team will play. You can change these choices later.",
         setupTopicsLabel: "Topics",
@@ -464,6 +466,8 @@ export function getTeamsCopy(language: ContentLanguage) {
         setupIntensityTitle: "À quel rythme voulez-vous jouer ?",
         setupIntensityBody: "Vous pourrez aussi le changer plus tard.",
         setupRecommended: "Recommandé",
+        setupRecommendedForYou: "Recommandé pour vous",
+        setupSeparateFromPersonal: "Les sujets de votre Team n'affectent pas vos préférences personnelles.",
         setupPreviewTitle: "C'est prêt",
         setupPreviewBody:
           "Voici ce que votre Team va jouer. Vous pourrez modifier ces choix plus tard.",

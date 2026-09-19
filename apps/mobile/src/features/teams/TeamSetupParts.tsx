@@ -88,11 +88,17 @@ export function PresetGrid({
   language,
   onBuildFromScratch,
   onSelect,
+  recommendedId = null,
   selectedId
 }: {
   language: ContentLanguage;
   onBuildFromScratch?: () => void;
   onSelect: (presetId: TeamPresetId) => void;
+  /**
+   * Marks one preset "Recommended for you". A label only: the grid shows every
+   * preset in the same order whatever it is, and nothing is preselected.
+   */
+  recommendedId?: TeamPresetId | null;
   selectedId: TeamPresetId | null;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -109,6 +115,7 @@ export function PresetGrid({
               language={language}
               onPress={() => onSelect(preset.id)}
               preset={preset}
+              recommended={recommendedId === preset.id}
               selected={selectedId === preset.id}
             />
           </View>
@@ -120,6 +127,7 @@ export function PresetGrid({
           language={language}
           onPress={() => onSelect(balanced.id)}
           preset={balanced}
+          recommended={recommendedId === balanced.id}
           selected={selectedId === balanced.id}
           wide
         />
@@ -153,21 +161,24 @@ function PresetTile({
   language,
   onPress,
   preset,
+  recommended = false,
   selected,
   wide = false
 }: {
   language: ContentLanguage;
   onPress: () => void;
   preset: TeamPreset;
+  recommended?: boolean;
   selected: boolean;
   wide?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
-  const text = getTeamsCopy(language).presets[preset.id];
+  const copy = getTeamsCopy(language);
+  const text = copy.presets[preset.id];
 
   return (
     <Pressable
-      accessibilityHint={text.body}
+      accessibilityHint={recommended ? `${copy.setupRecommendedForYou}. ${text.body}` : text.body}
       accessibilityLabel={text.name}
       accessibilityRole="button"
       accessibilityState={{ selected }}
@@ -187,6 +198,11 @@ function PresetTile({
         >
           <IconBadge name={preset.icon} size="sm" tone={selected ? "accent" : "default"} />
           <View style={styles.tileCopy}>
+            {recommended ? (
+              <AppText color="accentInk" variant="caption">
+                {copy.setupRecommendedForYou}
+              </AppText>
+            ) : null}
             <AppText variant="bodyStrong">{text.name}</AppText>
             <AppText color="muted" variant="caption">
               {text.body}

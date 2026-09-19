@@ -24,6 +24,7 @@ import {
 import type { LibraryItemSummary } from "../library/libraryTypes";
 import type { NewsletterArticle } from "../today/contentTypes";
 import { useModulePreferenceState } from "../preferences";
+import { showModuleDisabledState } from "./moduleAvailability";
 import { shouldShowStoredLanguageChangeNotice } from "../preferences/languageChangeNotice";
 import {
   estimateReadMinutes,
@@ -79,12 +80,18 @@ function openArticle(router: ReturnType<typeof useRouter>, article: NewsletterAr
 
 export function NewsletterModuleScreen() {
   const [view, setView] = useState<"left" | "right">("left");
-  const { language, drop } = useDailyDrop();
+  const { language, drop, status: dropStatus } = useDailyDrop();
   const modulePreference = useModulePreferenceState("newsletter");
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
   const editionProgress = useEditionProgress();
-  const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
+  // Off for the reader's own edition, but never over a Team's: a Team member
+  // who turned this module off still plays what their Team assigned.
+  const disabled = showModuleDisabledState({
+    preference: modulePreference,
+    dropStatus,
+    items: drop.items.newsletter
+  });
 
   return (
     <ModuleSurface>

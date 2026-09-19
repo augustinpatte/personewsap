@@ -2,6 +2,7 @@ import type { IconBadgeName } from "../../components";
 import {
   MINI_CASE_TOPIC_IDS,
   MINI_CASE_TO_BACKEND_TOPIC_ID,
+  NEWSLETTER_TO_BACKEND_TOPIC_ID,
   type MiniCaseTopicId
 } from "../onboarding/options";
 import type { TopicId } from "../../types/domain";
@@ -211,4 +212,80 @@ export function applyTeamPreset(presetId: TeamPresetId, intensityId: TeamIntensi
 
 export function articleBudget(intensity: TeamIntensity): number {
   return intensity.focusedArticles.reduce((total, count) => total + count, 0);
+}
+
+/**
+ * The personal newsletter topics a reader picked, as canonical topic ids.
+ * Onboarding stores its own ids (stock_market, international, …); anything
+ * that is not one of them is dropped rather than guessed at.
+ */
+export function canonicalTopicIdsFromPersonalSelection(selected: readonly string[]): TopicId[] {
+  const mapping = NEWSLETTER_TO_BACKEND_TOPIC_ID as Record<string, TopicId>;
+  const ids: TopicId[] = [];
+
+  for (const value of selected) {
+    const topicId = mapping[value];
+
+    if (topicId && !ids.includes(topicId)) {
+      ids.push(topicId);
+    }
+  }
+
+  return ids;
+}
+
+/** Weight of a preset's topics by rank: its lead topic counts most. */
+const PRIORITY_WEIGHTS = [4, 3, 2, 1] as const;
+
+/**
+ * A suggestion for the first step of Create, from the reader's own topics.
+ *
+ * ONLY THE TOPICS THE READER EXPLICITLY FOLLOWS — no history, no profile, no
+ * behaviour. It marks one preset as "Recommended for you" and does nothing
+ * else: every preset stays available, nothing is preselected, and the Team is
+ * never linked to these preferences afterward.
+ *
+ *   1. A focused preset qualifies only if the reader follows its lead topic.
+ *   2. It must cover more than half of the reader's topics (all of them, for a
+ *      reader who follows one or two): a strong match, not a coincidence.
+ *   3. Among those, the highest overlap wins, each shared topic weighted by
+ *      its rank in the preset (4, 3, 2, 1).
+ *   4. A tie goes to the preset listed first, so the answer never depends on
+ *      the order the reader happened to tick their topics in.
+ *   5. No qualifying preset — no topics, or topics too scattered for one
+ *      subject — recommends Balanced.
+ */
+export function recommendTeamPreset(personalTopicIds: readonly string[]): TeamPresetId {
+  const known = new Set<string>(Object.keys(TOPIC_FAMILIES));
+  const followed = new Set(personalTopicIds.filter((topicId) => known.has(topicId)));
+
+  if (followed.size === 0) {
+    return "balanced";
+  }
+
+  let best: { id: TeamPresetId; score: number } | null = null;
+
+  for (const preset of TEAM_PRESETS) {
+    if (preset.id === "balanced" || !followed.has(preset.orderedTopicIds[0])) {
+      continue;
+    }
+
+    const shared = preset.orderedTopicIds.filter((topicId) => followed.has(topicId));
+
+    if (shared.length / followed.size <= 0.5) {
+      continue;
+    }
+
+    const score = preset.orderedTopicIds.reduce(
+      (total, topicId, index) => total + (followed.has(topicId) ? PRIORITY_WEIGHTS[index] ?? 0 : 0),
+      0
+    );
+
+    // Strictly greater: an equal score keeps the preset listed earlier.
+    if (!best || score > best.score) {
+      best = { id: preset.id, score };
+    }
+  }
+
+  return best?.id ?? "balanced";
 }
