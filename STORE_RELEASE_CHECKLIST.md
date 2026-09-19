@@ -32,9 +32,8 @@ root suite 1262 tests green, mobile `tsc --noEmit` clean, `eslint` 0 errors,
       user content interactions and push tokens; all linked to the account;
       no tracking, no third-party ads.
 - [ ] Add the Support URL and Privacy Policy URL. Both are now public web
-      routes: `/privacy` and `/support` (plus `/delete-account`). Set
-      `VITE_SUPPORT_EMAIL` before submitting — until it is set, /support says
-      no address is configured rather than showing a fake one.
+      routes: `/privacy` and `/support` (plus `/delete-account`). Both give
+      the official contact address, contact@personewsap.com (`src/lib/contact.ts`).
 - [ ] Screenshots for 6.7" and 6.1" iPhones (4 tabs: Newsletter, Mini cases,
       Stories, Parcours + a reader).
 - [ ] Confirm "Account deletion" review requirement: the in-app path is

@@ -91,7 +91,6 @@ npm run supabase:doctor -- --live
 | `VITE_SUPABASE_URL` | web app | public | yes | — | yes |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | web app (alias: `VITE_SUPABASE_ANON_KEY`) | public | yes | — | yes |
 | `VITE_ACCOUNT_DELETION_ENDPOINT` | web `/delete-account` | public | optional | — | **yes, Play requirement** |
-| `VITE_SUPPORT_EMAIL` | web `/support` | public | optional | — | yes |
 | `SUPABASE_URL` | content engine, scripts, Edge Function | **secret-adjacent** | yes | **yes** | yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | content engine, scripts, Edge Function | **SECRET** | yes | **yes** | yes |
 | `SUPABASE_ANON_KEY` | Edge Function, RLS probes | public | optional | — | yes (auto-set on functions) |

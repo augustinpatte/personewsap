@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { landingCopy } from "../landing/copy";
+import { CONTACT_EMAIL, CONTACT_MAILTO } from "../lib/contact";
 import { legalCopy, LEGAL_LAST_UPDATED } from "../pages/legal/legalCopy";
 
 /**
@@ -155,16 +157,54 @@ describe("the deletion page cannot delete someone else's account", () => {
   });
 });
 
-describe("support contact", () => {
-  it("is configuration, never an invented address", () => {
-    expect(supportPage).toMatch(/SUPPORT_EMAIL/);
-    expect(supportPage).toMatch(/contactMissing/);
+describe("contact", () => {
+  const privacyPage = readFileSync(join(srcDir, "pages", "Privacy.tsx"), "utf8");
+  const footer = readFileSync(join(srcDir, "components", "landing", "SiteFooter.tsx"), "utf8");
+  const contactText = readFileSync(join(srcDir, "components", "ContactText.tsx"), "utf8");
 
-    // No hardcoded mailbox anywhere in the copy.
-    expect(JSON.stringify(legalCopy)).not.toMatch(/[\w.]+@[\w.]+\.\w+/);
-    // The fallback is written for readers: it never shows configuration names.
+  it("is the one official address", () => {
+    expect(CONTACT_EMAIL).toBe("contact@personewsap.com");
+    expect(CONTACT_MAILTO).toBe("mailto:contact@personewsap.com");
+  });
+
+  it("is given on the support page, the privacy policy and the deletion fallback, in both languages", () => {
     for (const lang of ["en", "fr"] as const) {
-      expect(legalCopy[lang].support.contactMissing).not.toMatch(/VITE_|SUPPORT_EMAIL|\.env/);
+      expect(legalCopy[lang].support.contactBody, lang).toContain(CONTACT_EMAIL);
+      expect(legalCopy[lang].privacy.sections.at(-1)?.paragraphs?.join(" "), lang).toContain(CONTACT_EMAIL);
+      expect(legalCopy[lang].deleteAccount.notConfigured, lang).toContain(CONTACT_EMAIL);
+    }
+
+    expect(legalCopy.en.support.contactBody).toBe(
+      "For support, privacy or general inquiries, contact us at contact@personewsap.com."
+    );
+    expect(legalCopy.fr.support.contactBody).toBe(
+      "Pour toute question, demande d'assistance ou demande relative à la confidentialité, contactez-nous à contact@personewsap.com."
+    );
+  });
+
+  it("is clickable wherever it is shown", () => {
+    expect(contactText).toContain("href={CONTACT_MAILTO}");
+    expect(supportPage).toContain("<ContactText text={copy.contactBody} />");
+    expect(privacyPage).toContain("<ContactText text={paragraph} />");
+    expect(deletePage).toContain("<ContactText text={copy.notConfigured} />");
+    expect(footer).toContain("href={CONTACT_MAILTO}");
+  });
+
+  it("is the only email address anywhere in the website, so no placeholder can survive", () => {
+    const sources = [
+      JSON.stringify(legalCopy),
+      JSON.stringify(landingCopy),
+      readFileSync(join(srcDir, "lib", "contact.ts"), "utf8"),
+      readFileSync(join(srcDir, "..", "index.html"), "utf8")
+    ].join("\n");
+    const found = new Set(sources.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []);
+
+    expect([...found]).toEqual([CONTACT_EMAIL]);
+  });
+
+  it("no longer depends on a build variable that could show a different address", () => {
+    for (const source of [supportPage, readFileSync(join(srcDir, "pages", "legal", "legalCopy.ts"), "utf8")]) {
+      expect(source).not.toMatch(/VITE_SUPPORT_EMAIL|contactMissing/);
     }
   });
 });

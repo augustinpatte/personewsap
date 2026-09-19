@@ -1,3 +1,4 @@
+import ContactText from '@/components/ContactText';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LegalPageShell from './legal/LegalPageShell';
 import { LEGAL_LAST_UPDATED, legalCopy } from './legal/legalCopy';
@@ -23,7 +24,9 @@ const Privacy = () => {
         <section key={section.heading} className="space-y-3">
           <h2 className="text-lg font-semibold tracking-tight">{section.heading}</h2>
           {section.paragraphs?.map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
+            <p key={paragraph}>
+              <ContactText text={paragraph} />
+            </p>
           ))}
           {section.bullets ? (
             <ul className="list-disc space-y-1.5 pl-5">

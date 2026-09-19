@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLandingCopy } from "@/landing/useLandingCopy";
+import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/contact";
 import BrandLogo from "./BrandLogo";
 import LanguageSwitch from "./LanguageSwitch";
 import { Container } from "./Section";
@@ -52,6 +53,11 @@ const SiteFooter = () => {
               <Link to="/support" className={linkClass}>
                 {f.support}
               </Link>
+            </li>
+            <li>
+              <a href={CONTACT_MAILTO} aria-label={f.contactLabel(CONTACT_EMAIL)} className={linkClass}>
+                {CONTACT_EMAIL}
+              </a>
             </li>
             <li>
               <Link to="/delete-account" className={linkClass}>

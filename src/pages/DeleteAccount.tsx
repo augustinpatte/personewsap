@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ContactText from '@/components/ContactText';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -155,7 +156,9 @@ const DeleteAccount = () => {
               </label>
 
               {!ACCOUNT_DELETION_ENDPOINT ? (
-                <p className="text-sm text-muted-foreground">{copy.notConfigured}</p>
+                <p className="text-sm text-muted-foreground">
+                  <ContactText text={copy.notConfigured} />
+                </p>
               ) : null}
 
               {status === 'error' ? (

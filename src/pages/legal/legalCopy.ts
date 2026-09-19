@@ -13,10 +13,9 @@
  * only when an endpoint is configured, no advertising, no data sale.
  */
 
-export const LEGAL_LAST_UPDATED = "2026-08-18";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
-/** Set at build time before store submission; see /support. */
-export const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL?.trim() ?? "";
+export const LEGAL_LAST_UPDATED = "2026-08-18";
 
 export const ACCOUNT_DELETION_ENDPOINT =
   import.meta.env.VITE_ACCOUNT_DELETION_ENDPOINT?.trim() ?? "";
@@ -43,8 +42,8 @@ type SupportCopy = {
   intro: string[];
   sections: Section[];
   contactHeading: string;
-  contactConfigured: (email: string) => string;
-  contactMissing: string;
+  /** One sentence containing CONTACT_EMAIL, which the page renders as a link. */
+  contactBody: string;
 };
 
 type DeleteCopy = {
@@ -157,7 +156,7 @@ export const legalCopy: Record<
         {
           heading: "Contacting us",
           paragraphs: [
-            "For any privacy question, use the contact route listed on the support page."
+            `For any privacy question or request about your data, contact us at ${CONTACT_EMAIL}.`
           ]
         }
       ]
@@ -204,9 +203,7 @@ export const legalCopy: Record<
         }
       ],
       contactHeading: "Contact",
-      contactConfigured: (email) => `Write to ${email}. We answer within a few working days.`,
-      contactMissing:
-        "Our support address will be published here very soon. In the meantime, you can export or delete your data yourself, as described above."
+      contactBody: `For support, privacy or general inquiries, contact us at ${CONTACT_EMAIL}.`
     },
     deleteAccount: {
       eyebrow: "PersoNewsAP",
@@ -247,7 +244,7 @@ export const legalCopy: Record<
       errorBody: "Something went wrong. Your account is untouched — please try again.",
       unauthorized: "Your session has expired. Sign in again, then retry.",
       notConfigured:
-        "Account deletion is not configured for this deployment yet. Use the Account screen in the app, or contact support.",
+        `Account deletion is not configured for this deployment yet. Use the Account screen in the app, or contact us at ${CONTACT_EMAIL}.`,
       cancel: "Cancel"
     }
   },
@@ -331,7 +328,7 @@ export const legalCopy: Record<
         {
           heading: "Nous contacter",
           paragraphs: [
-            "Pour toute question relative à la confidentialité, utilisez le contact indiqué sur la page d'assistance."
+            `Pour toute question relative à la confidentialité ou à vos données, contactez-nous à ${CONTACT_EMAIL}.`
           ]
         }
       ]
@@ -378,10 +375,7 @@ export const legalCopy: Record<
         }
       ],
       contactHeading: "Contact",
-      contactConfigured: (email) =>
-        `Écrivez à ${email}. Nous répondons sous quelques jours ouvrés.`,
-      contactMissing:
-        "Notre adresse d'assistance sera publiée ici très prochainement. En attendant, vous pouvez exporter ou supprimer vos données vous-même, comme indiqué ci-dessus."
+      contactBody: `Pour toute question, demande d'assistance ou demande relative à la confidentialité, contactez-nous à ${CONTACT_EMAIL}.`
     },
     deleteAccount: {
       eyebrow: "PersoNewsAP",
@@ -423,7 +417,7 @@ export const legalCopy: Record<
         "Une erreur est survenue. Votre compte est intact — veuillez réessayer.",
       unauthorized: "Votre session a expiré. Reconnectez-vous, puis réessayez.",
       notConfigured:
-        "La suppression de compte n'est pas encore configurée pour ce déploiement. Utilisez l'écran Compte dans l'application, ou contactez l'assistance.",
+        `La suppression de compte n'est pas encore configurée pour ce déploiement. Utilisez l'écran Compte dans l'application, ou contactez-nous à ${CONTACT_EMAIL}.`,
       cancel: "Annuler"
     }
   }

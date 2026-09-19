@@ -188,6 +188,8 @@ export type LandingCopy = {
     legalHeading: string;
     privacy: string;
     support: string;
+    /** What a screen reader says for the footer's mailto link. */
+    contactLabel: (email: string) => string;
     deleteAccount: string;
     subscribers: string;
     language: string;
@@ -469,6 +471,7 @@ export const landingCopy: Record<LandingLanguage, LandingCopy> = {
       legalHeading: "Legal & help",
       privacy: "Privacy",
       support: "Support",
+      contactLabel: (email) => `Contact: ${email}`,
       deleteAccount: "Delete account",
       subscribers: "Email subscribers: manage preferences",
       language: "Language",
@@ -749,6 +752,7 @@ export const landingCopy: Record<LandingLanguage, LandingCopy> = {
       legalHeading: "Légal et aide",
       privacy: "Confidentialité",
       support: "Assistance",
+      contactLabel: (email) => `Contact : ${email}`,
       deleteAccount: "Supprimer le compte",
       subscribers: "Abonnés e-mail : gérer vos préférences",
       language: "Langue",
