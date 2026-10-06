@@ -1,0 +1,13 @@
+alter function public.claim_generation_jobs(text,integer,integer) set search_path = public, pg_temp;
+alter function public.submit_generation_output(uuid,text,jsonb,jsonb,text) set search_path = public, pg_temp;
+alter function public.submit_generation_review(uuid,text,text,integer,jsonb,text) set search_path = public, pg_temp;
+alter function public.refresh_batch_status(uuid) set search_path = public, pg_temp;
+alter function public.create_edition_batch(date,text) set search_path = public, pg_temp;
+alter function public.fail_generation_job(uuid,text,text) set search_path = public, pg_temp;
+alter function public.release_expired_generation_jobs() set search_path = public, pg_temp;
+alter function public.get_batch_progress(uuid) set search_path = public, pg_temp;
+alter function public.submit_generation_output_v2(uuid,text,jsonb,jsonb,text) set search_path = public, pg_temp;
+alter function public.latest_editorial_memory_snapshot() set search_path = public, pg_temp;
+alter function public.claim_generation_job_context(text,integer,integer) set search_path = public, pg_temp;
+alter function public.get_generation_review_queue(integer) set search_path = public, pg_temp;
+alter function public.create_current_edition_batch(text) set search_path = public, pg_temp;;

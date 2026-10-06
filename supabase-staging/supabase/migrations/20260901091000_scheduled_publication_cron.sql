@@ -144,3 +144,4 @@ select cron.schedule(
 );
 
 commit;
+;

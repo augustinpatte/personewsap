@@ -29,7 +29,6 @@
 -- correct only because a different gate is also running is not a gate.
 
 begin;
-
 -- ---------------------------------------------------------------------------
 -- 1. The version, as one integer
 -- ---------------------------------------------------------------------------
@@ -42,13 +41,10 @@ set search_path to 'public', 'pg_temp'
 as $function$
   select 1;
 $function$;
-
 comment on function public.scored_question_contract_version() is
   'The scored-question contract version this staging project generates and gates against. Production implements the same integer; a payload declaring a higher one is refused there rather than published under rules it does not know.';
-
 revoke all on function public.scored_question_contract_version() from public, anon, authenticated;
 grant execute on function public.scored_question_contract_version() to service_role;
-
 -- The contract itself, unchanged except that its version is now derived rather
 -- than spelled. Restated in full because it is served verbatim to the Scheduled
 -- Tasks and its whole value is being readable in one place.
@@ -102,13 +98,10 @@ as $function$
       'attempt 3, hallucination / grounding / safety / irreparable ambiguity: failed, never forced through')
   );
 $function$;
-
 comment on function public.scored_question_contract() is
   'The scored-question contract as data, served to the Scheduled Tasks through the bridge so the generators, the reviewer and this gate read one definition rather than three prose copies. Its version derives from scored_question_contract_version().';
-
 revoke all on function public.scored_question_contract() from public, anon, authenticated;
 grant execute on function public.scored_question_contract() to service_role;
-
 -- ---------------------------------------------------------------------------
 -- 2. Decorating the canonical payload
 -- ---------------------------------------------------------------------------
@@ -150,13 +143,10 @@ begin
       'scored_question_contract_version', public.scored_question_contract_version()));
 end;
 $function$;
-
 comment on function public.decorate_payload_with_question_contract(jsonb, jsonb) is
   'Stamps the scored-question declaration onto a canonical payload''s batch object. Production stamps it onto every item it writes and holds the edition to it, so this is what makes "this edition owes questions" a fact recorded before any question exists.';
-
 revoke all on function public.decorate_payload_with_question_contract(jsonb, jsonb) from public, anon, authenticated;
 grant execute on function public.decorate_payload_with_question_contract(jsonb, jsonb) to service_role;
-
 -- ---------------------------------------------------------------------------
 -- 3. A questions-required batch with nothing to check is not publishable
 -- ---------------------------------------------------------------------------
@@ -203,7 +193,6 @@ begin
   execute v_source;
 end;
 $$;
-
 -- ---------------------------------------------------------------------------
 -- 4. The plan hands the publisher a declared payload
 -- ---------------------------------------------------------------------------
@@ -248,5 +237,4 @@ begin
   execute v_source;
 end;
 $$;
-
 commit;

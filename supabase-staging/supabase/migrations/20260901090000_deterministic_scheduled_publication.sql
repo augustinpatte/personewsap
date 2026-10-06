@@ -782,3 +782,4 @@ set value = value
 where key = 'pipeline';
 
 commit;
+;

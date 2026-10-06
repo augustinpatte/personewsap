@@ -67,7 +67,6 @@
 -- wins and this file is what gets corrected.
 
 begin;
-
 -- ---------------------------------------------------------------------------
 -- 1. A batch: one edition's worth of generation work
 -- ---------------------------------------------------------------------------
@@ -98,10 +97,8 @@ create table if not exists public.automation_batches (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create index if not exists automation_batches_edition_idx
   on public.automation_batches (edition_date, edition_kind, created_at desc);
-
 -- ---------------------------------------------------------------------------
 -- 2. A job: one piece of content to generate
 -- ---------------------------------------------------------------------------
@@ -144,10 +141,8 @@ create table if not exists public.generation_jobs (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create index if not exists generation_jobs_batch_idx
   on public.generation_jobs (batch_id, content_type, ordinal);
-
 -- ---------------------------------------------------------------------------
 -- 3. An output: what a worker produced for a job
 -- ---------------------------------------------------------------------------
@@ -172,10 +167,8 @@ create table if not exists public.generation_outputs (
   -- attempt with `order by submitted_at desc`, so the name is load-bearing.
   submitted_at timestamptz not null default now()
 );
-
 create index if not exists generation_outputs_job_idx
   on public.generation_outputs (job_id, attempt);
-
 -- ---------------------------------------------------------------------------
 -- 4. A review: the verdict that makes an output publishable
 -- ---------------------------------------------------------------------------
@@ -196,10 +189,8 @@ create table if not exists public.generation_reviews (
   feedback text,
   reviewed_at timestamptz not null default now()
 );
-
 create index if not exists generation_reviews_job_idx
   on public.generation_reviews (job_id, reviewed_at);
-
 -- ---------------------------------------------------------------------------
 -- 5. A receipt: proof an edition was published, and the reason a second
 --    attempt is a no-op rather than a duplicate
@@ -216,10 +207,8 @@ create table if not exists public.publication_receipts (
   production_result jsonb not null default '{}'::jsonb,
   published_at timestamptz not null default now()
 );
-
 create unique index if not exists publication_receipts_batch_key
   on public.publication_receipts (batch_id);
-
 -- ---------------------------------------------------------------------------
 -- 6. The event log and the pipeline config
 -- ---------------------------------------------------------------------------
@@ -233,23 +222,19 @@ create table if not exists public.automation_health (
   details jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
-
 create index if not exists automation_health_batch_idx
   on public.automation_health (batch_id, created_at desc);
-
 create table if not exists public.automation_config (
   key text primary key,
   value jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
-
 -- 20260901090000 rewrites this row's publication settings and would touch zero
 -- rows without it, silently leaving the pipeline owned by the AI workers on a
 -- freshly built database.
 insert into public.automation_config (key, value)
 values ('pipeline', jsonb_build_object('name', 'chatgpt-staging-v1'))
 on conflict (key) do nothing;
-
 -- ---------------------------------------------------------------------------
 -- 6-bis. The publication calendar
 -- ---------------------------------------------------------------------------
@@ -279,13 +264,10 @@ as $$
     else null
   end;
 $$;
-
 revoke all on function public.resolve_staging_edition_kind(date) from public, anon, authenticated;
 grant execute on function public.resolve_staging_edition_kind(date) to service_role, postgres;
-
 comment on function public.resolve_staging_edition_kind(date) is
   'The edition the calendar asks for on a given date: daily on Monday, Wednesday and Friday, weekly_digest on Sunday, NULL on a quiet day. NULL is an answer, not a failure — the cron asks this every hour.';
-
 -- ---------------------------------------------------------------------------
 -- 7. Nothing here is a client table
 -- ---------------------------------------------------------------------------
@@ -311,5 +293,4 @@ begin
     execute format('grant select, insert, update, delete on table public.%I to service_role', v_table);
   end loop;
 end $$;
-
 commit;

@@ -49,7 +49,6 @@
 -- after, and a gate that trusted the generator's own verdict would not be a gate.
 
 begin;
-
 -- ---------------------------------------------------------------------------
 -- 1. The contract, as data
 -- ---------------------------------------------------------------------------
@@ -107,10 +106,8 @@ as $function$
       'attempt 3, hallucination / grounding / safety / irreparable ambiguity: failed, never forced through')
   );
 $function$;
-
 comment on function public.scored_question_contract() is
   'The scored-question contract as data, served to the Scheduled Tasks through the bridge so the generators, the reviewer and this gate read one definition rather than three prose copies.';
-
 -- ---------------------------------------------------------------------------
 -- 2. Which batches must carry questions (§4)
 -- ---------------------------------------------------------------------------
@@ -147,10 +144,8 @@ as $function$
     date '2026-09-09'
   );
 $function$;
-
 comment on function public.scored_question_cutover_edition() is
   'First edition date required to carry scored questions. Override with the app.scored_question_cutover_edition setting; editions before it are legacy and are never retroactively invalidated.';
-
 create or replace function public.batch_requires_scored_questions(p_batch_id uuid)
 returns boolean
 language plpgsql
@@ -184,10 +179,8 @@ begin
   return v_batch.edition_date >= public.scored_question_cutover_edition();
 end;
 $function$;
-
 comment on function public.batch_requires_scored_questions(uuid) is
   'True when a batch must carry the scored-question contract: it declared so, its prompt bundle names the contract, or its edition falls on or after the cutover. Legacy batches stay publishable exactly as they were.';
-
 -- ---------------------------------------------------------------------------
 -- 3. One option's tier, or nothing
 -- ---------------------------------------------------------------------------
@@ -207,7 +200,6 @@ as $function$
     else null
   end;
 $function$;
-
 -- ---------------------------------------------------------------------------
 -- 4. The validator
 -- ---------------------------------------------------------------------------
@@ -503,10 +495,8 @@ begin
   );
 end;
 $function$;
-
 comment on function public.validate_generation_questions(uuid, jsonb) is
   'Deterministic scored-question preflight for one job: counts, roles, four options, one option per tier, feedback, rationale, and FR/EN parity. Mirrors services/content-engine/src/generation/gradedQuestions.ts.';
-
 -- ---------------------------------------------------------------------------
 -- 5. The edition-level question gate
 -- ---------------------------------------------------------------------------
@@ -614,10 +604,8 @@ begin
   );
 end;
 $function$;
-
 comment on function public.assert_edition_questions_publishable(date) is
   'Edition-level scored-question gate. Returns ok=true for a legacy batch and for a quiet day; otherwise every job whose questions fail the contract, with its errors.';
-
 -- ---------------------------------------------------------------------------
 -- 6. The publisher's single entry point now asks both questions
 -- ---------------------------------------------------------------------------
@@ -754,10 +742,8 @@ begin
     'ready_payload', v_payload);
 end;
 $function$;
-
 comment on function public.get_scheduled_edition_publish_plan(date) is
   'Single entry point for the scheduled publisher: the editorial hard gate, the scored-question gate, and only when both pass, the canonical get_ready_batch_payload output.';
-
 -- ---------------------------------------------------------------------------
 -- 7. Permissions
 -- ---------------------------------------------------------------------------
@@ -770,12 +756,10 @@ revoke all on function public.scored_question_tier(jsonb) from public, anon, aut
 revoke all on function public.batch_requires_scored_questions(uuid) from public, anon, authenticated;
 revoke all on function public.validate_generation_questions(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.assert_edition_questions_publishable(date) from public, anon, authenticated;
-
 grant execute on function public.scored_question_contract() to service_role;
 grant execute on function public.scored_question_cutover_edition() to service_role;
 grant execute on function public.scored_question_tier(jsonb) to service_role;
 grant execute on function public.batch_requires_scored_questions(uuid) to service_role;
 grant execute on function public.validate_generation_questions(uuid, jsonb) to service_role;
 grant execute on function public.assert_edition_questions_publishable(date) to service_role;
-
 commit;

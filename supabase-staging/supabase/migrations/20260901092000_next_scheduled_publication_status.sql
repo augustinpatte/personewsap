@@ -103,3 +103,4 @@ grant execute on function public.next_scheduled_publication_date(timestamptz) to
 grant execute on function public.next_scheduled_publication_status() to service_role, postgres;
 
 commit;
+;
