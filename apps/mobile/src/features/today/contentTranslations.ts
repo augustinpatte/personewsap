@@ -31,6 +31,67 @@ const LOGICAL_KEY_FIELDS = ["staging_job_id", "catalog_entry_id", "entry_key"] a
 const contentItemSelect =
   "id,content_type,topic_id,language,title,summary,body_md,difficulty,estimated_read_seconds,publication_date,version,status,generation_run_id,source_count,metadata,created_at,updated_at";
 
+/** What cross-language resolution needs to read on a row. */
+export type TranslatableContentRow = Pick<ContentItem, "id" | "content_type" | "language" | "metadata">;
+
+/**
+ * An archive/list row: what a list draws, never the body.
+ *
+ * `metadata` is reduced to the keys a list reads — the logical key (FR/EN
+ * pairing, Team overlap, scored questions) and the topic fallbacks. The full
+ * metadata carries mini-case bodies, questions and sources and is as heavy as
+ * body_md, so it is not fetched for a list either. Opening an item goes through
+ * the full reader path (fetchContentItemById), which reads the whole row.
+ */
+export type ContentItemListRow = Pick<
+  ContentItem,
+  "id" | "content_type" | "topic_id" | "language" | "title" | "source_count" | "metadata"
+>;
+
+/** How a query reads content rows: the PostgREST select, and the row it yields. */
+export type ContentProjection<T extends TranslatableContentRow> = {
+  select: string;
+  fromRow: (row: Record<string, unknown>) => T;
+};
+
+const LIST_METADATA_FIELDS = [...LOGICAL_KEY_FIELDS, "topic", "category"] as const;
+
+export const fullContentProjection: ContentProjection<ContentItem> = {
+  select: contentItemSelect,
+  fromRow: (row) => row as unknown as ContentItem
+};
+
+export const listContentProjection: ContentProjection<ContentItemListRow> = {
+  select: [
+    "id,content_type,topic_id,language,title,source_count",
+    ...LIST_METADATA_FIELDS.map((field) => `meta_${field}:metadata->>${field}`)
+  ].join(","),
+  fromRow: (row) => {
+    // A row that already carries metadata (a test double, or a caller that read
+    // the full row) is reduced the same way, so both shapes behave alike.
+    const source = isRecord(row.metadata) ? row.metadata : null;
+    const metadata: Record<string, string> = {};
+
+    for (const field of LIST_METADATA_FIELDS) {
+      const value = source ? source[field] : row[`meta_${field}`];
+
+      if (typeof value === "string" && value.length > 0) {
+        metadata[field] = value;
+      }
+    }
+
+    return {
+      id: row.id as string,
+      content_type: row.content_type as ContentItem["content_type"],
+      topic_id: (row.topic_id ?? null) as ContentItem["topic_id"],
+      language: row.language as ContentItem["language"],
+      title: row.title as string,
+      source_count: (row.source_count ?? 0) as number,
+      metadata
+    };
+  }
+};
+
 export function getContentLogicalKey(
   metadata: ContentItem["metadata"] | null | undefined
 ): string | null {
@@ -53,10 +114,10 @@ export function getContentLogicalKey(
  * Merge a translation onto an assigned item: every display field comes from the
  * rendering in the requested language, the identity stays the assigned row's.
  */
-export function mergeTranslatedContentItem(
-  assigned: ContentItem,
-  translation: ContentItem
-): ContentItem {
+export function mergeTranslatedContentItem<T extends TranslatableContentRow>(
+  assigned: T,
+  translation: T
+): T {
   return { ...translation, id: assigned.id };
 }
 
@@ -68,10 +129,11 @@ export function mergeTranslatedContentItem(
  * its original language is strictly better than a hole in the archive. Order
  * and ids are preserved, so callers can substitute the result one-for-one.
  */
-export async function resolveContentItemsForLanguage(
-  contentItems: ContentItem[],
-  language: ContentLanguage | undefined
-): Promise<ContentItem[]> {
+export async function resolveContentItemsForLanguage<T extends TranslatableContentRow = ContentItem>(
+  contentItems: T[],
+  language: ContentLanguage | undefined,
+  projection: ContentProjection<T> = fullContentProjection as unknown as ContentProjection<T>
+): Promise<T[]> {
   if (!language || !supabase) {
     return contentItems;
   }
@@ -92,7 +154,7 @@ export async function resolveContentItemsForLanguage(
     )
   ];
 
-  const translationsByKey = await fetchTranslationsByLogicalKey(logicalKeys, language);
+  const translationsByKey = await fetchTranslationsByLogicalKey(logicalKeys, language, projection);
 
   return contentItems.map((item) => {
     if (item.language === language) {
@@ -110,10 +172,11 @@ export async function resolveContentItemsForLanguage(
   });
 }
 
-async function fetchTranslationsByLogicalKey(
+async function fetchTranslationsByLogicalKey<T extends TranslatableContentRow>(
   logicalKeys: string[],
-  language: ContentLanguage
-): Promise<Map<string, ContentItem>> {
+  language: ContentLanguage,
+  projection: ContentProjection<T>
+): Promise<Map<string, T>> {
   if (!supabase || logicalKeys.length === 0) {
     return new Map();
   }
@@ -128,7 +191,7 @@ async function fetchTranslationsByLogicalKey(
 
   const { data, error } = await supabase
     .from("content_items")
-    .select(contentItemSelect)
+    .select(projection.select)
     .eq("status", "published")
     .eq("language", language)
     .or(orFilter);
@@ -139,9 +202,9 @@ async function fetchTranslationsByLogicalKey(
     return new Map();
   }
 
-  const translations = new Map<string, ContentItem>();
+  const translations = new Map<string, T>();
 
-  for (const item of (data ?? []) as ContentItem[]) {
+  for (const item of ((data ?? []) as unknown as Record<string, unknown>[]).map(projection.fromRow)) {
     const logicalKey = getContentLogicalKey(item.metadata);
 
     if (logicalKey && !translations.has(logicalKey)) {
@@ -168,10 +231,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Returns the rows grouped by logical key. Failure is empty, not an exception:
  * Team content is additive to an edition and must never take it down.
  */
-export async function fetchContentItemsByLogicalKeys(
-  logicalKeys: string[]
-): Promise<Map<string, ContentItem[]>> {
-  const grouped = new Map<string, ContentItem[]>();
+export async function fetchContentItemsByLogicalKeys<T extends TranslatableContentRow = ContentItem>(
+  logicalKeys: string[],
+  projection: ContentProjection<T> = fullContentProjection as unknown as ContentProjection<T>
+): Promise<Map<string, T[]>> {
+  const grouped = new Map<string, T[]>();
 
   if (!supabase || logicalKeys.length === 0) {
     return grouped;
@@ -185,7 +249,7 @@ export async function fetchContentItemsByLogicalKeys(
 
   const { data, error } = await supabase
     .from("content_items")
-    .select(contentItemSelect)
+    .select(projection.select)
     .eq("status", "published")
     .or(orFilter);
 
@@ -193,7 +257,7 @@ export async function fetchContentItemsByLogicalKeys(
     return grouped;
   }
 
-  for (const item of (data ?? []) as ContentItem[]) {
+  for (const item of ((data ?? []) as unknown as Record<string, unknown>[]).map(projection.fromRow)) {
     const logicalKey = getContentLogicalKey(item.metadata);
 
     if (!logicalKey) {

@@ -5,12 +5,14 @@
  * minute; when something is due (an evening notification at 20:00 reader-local,
  * a morning reminder at 08:30 reader-local, a retry at +15/+30 minutes) it POSTs
  * here with a shared token. This function claims exactly what is due through
- * SQL, sends it to Expo, and records each outcome through SQL. Every rule —
- * who, when, how many attempts, never twice — lives in the database; the loop
- * lives in `core.ts`.
+ * SQL, sends it to Expo, and records the outcomes through SQL — one call per
+ * Expo chunk (record_push_delivery_attempts). Every rule — who, when, how many
+ * attempts, never twice — lives in the database; the loop lives in `core.ts`.
  *
  * The GitHub workflow `push-notification-retry.yml` remains as a fallback on the
- * same SQL claims. Leases make the two safe to run at the same time.
+ * same SQL claims. Leases make the two — or several invocations of this worker —
+ * safe to run at the same time: each invocation has its own claim id, rows are
+ * leased with SKIP LOCKED, and only the lease holder can record a row.
  *
  * Secrets:
  *   PERSONEWS_PUSH_WORKER_TOKEN   shared with the Vault secret personews_push_worker_token
@@ -28,10 +30,15 @@ import {
   createExpoSender,
   mapClaimedRow,
   runPushWorker,
+  type AttemptResult,
   type ClaimedPush,
-  type Outcome,
   type RecordResult
 } from "./core.ts";
+
+/** PostgREST / Postgres "no such function": the batch migration is not applied yet. */
+function isMissingFunction(error: { code?: string } | null): boolean {
+  return error?.code === "PGRST202" || error?.code === "42883";
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -60,6 +67,7 @@ Deno.serve(async (request) => {
 
   const supabase = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
   const claimId = `edge-${crypto.randomUUID()}`;
+  let batchUnavailable = false;
 
   try {
     const summary = await runPushWorker({
@@ -79,31 +87,67 @@ Deno.serve(async (request) => {
           .filter((row): row is ClaimedPush => row !== null);
       },
       send: createExpoSender(fetch),
-      record: async (row: ClaimedPush, outcome: Outcome): Promise<RecordResult> => {
-        const { data, error } = await supabase.rpc("record_push_delivery_attempt", {
-          p_delivery_id: row.deliveryId,
-          p_claim_id: claimId,
-          p_outcome: outcome.kind,
-          p_expo_ticket_id: outcome.kind === "ticket_accepted" ? outcome.ticketId : null,
-          p_error: outcome.kind === "ticket_accepted" ? null : outcome.error
-        });
+      recordBatch: async (results: AttemptResult[]): Promise<Map<string, RecordResult>> => {
+        const recorded = new Map<string, RecordResult>();
+        const payload = results.map(({ row, outcome }) => ({
+          delivery_id: row.deliveryId,
+          outcome: outcome.kind,
+          expo_ticket_id: outcome.kind === "ticket_accepted" ? outcome.ticketId : null,
+          error: outcome.kind === "ticket_accepted" ? null : outcome.error
+        }));
 
-        if (error) {
-          throw new Error(`record_push_delivery_attempt failed: ${error.message}`);
+        if (!batchUnavailable) {
+          const { data, error } = await supabase.rpc("record_push_delivery_attempts", {
+            p_claim_id: claimId,
+            p_results: payload
+          });
+
+          if (!error) {
+            for (const entry of (data ?? []) as Array<Record<string, unknown>>) {
+              if (typeof entry.recorded_delivery_id !== "string") continue;
+              recorded.set(entry.recorded_delivery_id, {
+                status: String(entry.recorded_status ?? "unknown"),
+                nextAttemptAt:
+                  typeof entry.recorded_next_attempt_at === "string" ? entry.recorded_next_attempt_at : null
+              });
+            }
+            return recorded;
+          }
+
+          if (!isMissingFunction(error)) {
+            throw new Error(`record_push_delivery_attempts failed: ${error.message}`);
+          }
+
+          // Deployed ahead of 20261005170000: record row by row, as before.
+          batchUnavailable = true;
+          console.warn(JSON.stringify({ event: "push_batch_recording_unavailable", run: claimId }));
         }
 
-        const recorded = ((data ?? []) as Array<Record<string, unknown>>)[0] ?? {};
-        return {
-          status: String(recorded.recorded_status ?? "unknown"),
-          nextAttemptAt:
-            typeof recorded.recorded_next_attempt_at === "string"
-              ? recorded.recorded_next_attempt_at
-              : null
-        };
+        for (const entry of payload) {
+          const { data, error } = await supabase.rpc("record_push_delivery_attempt", {
+            p_delivery_id: entry.delivery_id,
+            p_claim_id: claimId,
+            p_outcome: entry.outcome,
+            p_expo_ticket_id: entry.expo_ticket_id,
+            p_error: entry.error
+          });
+
+          if (error) {
+            throw new Error(`record_push_delivery_attempt failed: ${error.message}`);
+          }
+
+          const row = ((data ?? []) as Array<Record<string, unknown>>)[0] ?? {};
+          recorded.set(entry.delivery_id, {
+            status: String(row.recorded_status ?? "unknown"),
+            nextAttemptAt: typeof row.recorded_next_attempt_at === "string" ? row.recorded_next_attempt_at : null
+          });
+        }
+
+        return recorded;
       },
       now: () => new Date(),
       log: (line) => console.log(JSON.stringify(line))
-    });
+    }, { runId: claimId });
 
     return json(summary);
   } catch (error) {

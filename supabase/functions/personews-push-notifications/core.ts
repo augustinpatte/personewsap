@@ -7,9 +7,17 @@
  * notification at 20:00 reader-local or when the edition became ready, the
  * morning reminder at 08:30 reader-local, each retry at +15 and +30 minutes —
  * and has already counted the attempt. This sends those rows to Expo, records
- * what Expo said through `record_push_delivery_attempt`, and logs one line per
- * attempt. A row it was not handed is never sent; an accepted ticket is never
- * sent again.
+ * what Expo said — ONE database call per Expo chunk, through
+ * `record_push_delivery_attempts` — and logs one summary line per chunk plus a
+ * detailed line for each row that did not simply succeed. A row it was not
+ * handed is never sent; an accepted ticket is never sent again.
+ *
+ * CONCURRENCY. Several invocations may run at once (pg_cron's worker, the
+ * GitHub fallback, a manual run): every row is leased by the claim with
+ * FOR UPDATE SKIP LOCKED under a claim id unique to the invocation, and a result
+ * is only ever written for a row still held under that claim id. Two workers
+ * cannot both send or both record the same delivery, so the schedule can be
+ * scaled out — this file does not need to change for it.
  */
 
 export const PUSH_WORKER_VERSION = "2026-09-12";
@@ -55,12 +63,18 @@ export type Outcome =
 
 export type RecordResult = { status: string; nextAttemptAt: string | null };
 
+export type AttemptResult = { row: ClaimedPush; outcome: Outcome };
+
 export type WorkerDeps = {
   /** Leases what is due now. Throws if the claim itself failed. */
   claim: (limit: number) => Promise<ClaimedPush[]>;
   /** Sends one chunk. Throws on an HTTP failure (with `status` when known). */
   send: (messages: ExpoMessage[]) => Promise<ExpoTicket[]>;
-  record: (row: ClaimedPush, outcome: Outcome) => Promise<RecordResult>;
+  /**
+   * Records a whole chunk in one call. Returns what was recorded, by delivery
+   * id; a row missing from the map was not recorded. Throws if the call failed.
+   */
+  recordBatch: (results: AttemptResult[]) => Promise<Map<string, RecordResult>>;
   now: () => Date;
   log: (line: Record<string, unknown>) => void;
 };
@@ -73,7 +87,14 @@ export type WorkerSummary = {
   permanent: number;
   tokenInvalid: number;
   recordFailures: number;
+  /** Results the database refused to write (another worker's or an expired lease). */
+  staleRecords: number;
+  /** Database round trips spent recording: one per chunk, not one per push. */
+  recordCalls: number;
 };
+
+/** Statuses that mean the row was written down as asked. */
+const RECORDED_STATUSES = new Set(["awaiting_receipt", "retryable_failure", "terminal_failure"]);
 
 /**
  * The words, identical to the Node sender's (pinned by a test): the evening
@@ -259,12 +280,19 @@ export function attemptLogLine(
   };
 }
 
+function countBy<T>(items: T[], key: (item: T) => string): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of items) counts[key(item)] = (counts[key(item)] ?? 0) + 1;
+  return counts;
+}
+
 export async function runPushWorker(
   deps: WorkerDeps,
-  options: { batchSize?: number; maxBatches?: number } = {}
+  options: { batchSize?: number; maxBatches?: number; runId?: string } = {}
 ): Promise<WorkerSummary> {
   const batchSize = Math.min(Math.max(1, Math.trunc(options.batchSize ?? 200)), 1000);
   const maxBatches = Math.max(1, Math.trunc(options.maxBatches ?? 10));
+  const runId = options.runId ?? null;
   const summary: WorkerSummary = {
     version: PUSH_WORKER_VERSION,
     claimed: 0,
@@ -272,28 +300,76 @@ export async function runPushWorker(
     retryable: 0,
     permanent: 0,
     tokenInvalid: 0,
-    recordFailures: 0
+    recordFailures: 0,
+    staleRecords: 0,
+    recordCalls: 0
   };
 
-  const settle = async (row: ClaimedPush, outcome: Outcome) => {
-    let recorded: RecordResult | null = null;
-
-    try {
-      recorded = await deps.record(row, outcome);
-    } catch (error) {
-      // The push may have gone out; what failed is writing it down. The lease
-      // expires on its own and the attempt was already counted, so this can
-      // never become a fourth attempt.
-      summary.recordFailures += 1;
-      deps.log({ event: "push_record_failed", device: row.pushTokenId.slice(0, 8), error: String(error).slice(0, 160) });
+  /** Write a chunk's outcomes down in one call, count them, log the summary. */
+  const settleChunk = async (results: AttemptResult[], where: { batch: number; chunk: number | "invalid_tokens" }) => {
+    if (results.length === 0) {
+      return;
     }
 
-    if (outcome.kind === "ticket_accepted") summary.accepted += 1;
-    else if (outcome.kind === "retryable") summary.retryable += 1;
-    else if (outcome.kind === "permanent") summary.permanent += 1;
-    else summary.tokenInvalid += 1;
+    let recorded: Map<string, RecordResult> | null = null;
+    summary.recordCalls += 1;
 
-    deps.log(attemptLogLine(row, outcome, recorded, deps.now()));
+    try {
+      recorded = await deps.recordBatch(results);
+    } catch (error) {
+      // The pushes may have gone out; what failed is writing them down. The
+      // leases expire on their own and the attempts were already counted, so
+      // this can never become a fourth attempt.
+      summary.recordFailures += results.length;
+      deps.log({
+        event: "push_record_failed",
+        run: runId,
+        ...where,
+        rows: results.length,
+        error: String(error).slice(0, 160)
+      });
+    }
+
+    const dispatchedAt = deps.now();
+
+    for (const { row, outcome } of results) {
+      if (outcome.kind === "ticket_accepted") summary.accepted += 1;
+      else if (outcome.kind === "retryable") summary.retryable += 1;
+      else if (outcome.kind === "permanent") summary.permanent += 1;
+      else summary.tokenInvalid += 1;
+
+      const written = recorded?.get(row.deliveryId) ?? null;
+
+      if (recorded && !written) {
+        summary.recordFailures += 1;
+      } else if (written && !RECORDED_STATUSES.has(written.status)) {
+        summary.staleRecords += 1;
+      }
+
+      // Detail only where a person may need it: anything but a clean accept.
+      const clean = outcome.kind === "ticket_accepted" && written?.status === "awaiting_receipt";
+      if (!clean && recorded) {
+        deps.log({ ...attemptLogLine(row, outcome, written, dispatchedAt), run: runId });
+      }
+    }
+
+    deps.log({
+      event: "push_chunk",
+      version: PUSH_WORKER_VERSION,
+      run: runId,
+      ...where,
+      size: results.length,
+      dispatched_at: dispatchedAt.toISOString(),
+      kinds: countBy(results, (result) => result.row.kind),
+      attempts: countBy(results, (result) => String(result.row.attemptNumber)),
+      blocked_until_ready: results.filter(({ row }) =>
+        Boolean(row.editionReadyAt && row.targetAt && Date.parse(row.editionReadyAt) > Date.parse(row.targetAt))
+      ).length,
+      outcomes: countBy(results, (result) => result.outcome.kind),
+      recorded: recorded
+        ? countBy(results, (result) => recorded?.get(result.row.deliveryId)?.status ?? "not_recorded")
+        : { record_failed: results.length }
+    });
   };
 
   for (let batch = 0; batch < maxBatches; batch += 1) {
@@ -304,15 +380,14 @@ export async function runPushWorker(
     }
 
     summary.claimed += rows.length;
-    const sendable: ClaimedPush[] = [];
+    const sendable = rows.filter((row) => isExpoPushToken(row.expoPushToken));
 
-    for (const row of rows) {
-      if (isExpoPushToken(row.expoPushToken)) {
-        sendable.push(row);
-      } else {
-        await settle(row, { kind: "token_invalid", error: "not_an_expo_push_token" });
-      }
-    }
+    await settleChunk(
+      rows
+        .filter((row) => !isExpoPushToken(row.expoPushToken))
+        .map((row) => ({ row, outcome: { kind: "token_invalid", error: "not_an_expo_push_token" } as Outcome })),
+      { batch, chunk: "invalid_tokens" }
+    );
 
     for (let start = 0; start < sendable.length; start += EXPO_CHUNK_SIZE) {
       const chunk = sendable.slice(start, start + EXPO_CHUNK_SIZE);
@@ -326,9 +401,10 @@ export async function runPushWorker(
         outcomes = chunk.map(() => failure);
       }
 
-      for (const [index, row] of chunk.entries()) {
-        await settle(row, outcomes[index]);
-      }
+      await settleChunk(
+        chunk.map((row, index) => ({ row, outcome: outcomes[index] })),
+        { batch, chunk: start / EXPO_CHUNK_SIZE }
+      );
     }
 
     if (rows.length < batchSize) {
@@ -336,6 +412,6 @@ export async function runPushWorker(
     }
   }
 
-  deps.log({ event: "push_worker_run", ...summary });
+  deps.log({ event: "push_worker_run", run: runId, ...summary });
   return summary;
 }

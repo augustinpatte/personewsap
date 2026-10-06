@@ -172,13 +172,12 @@ describe("PART 22 — a saved preference stops the app serving stale answers", (
     }
   });
 
-  it("covers today, the archive, its search, and opened readings", () => {
-    // The five namespaces built by the cache-key helpers. If a sixth appears
-    // and is not listed, a preference change would silently miss it.
+  it("covers today, the archive and its search — the lists, not opened readings", () => {
+    // The list namespaces built by the cache-key helpers. content-item and
+    // content-sources are keyed by content id: a published row does not change
+    // with preferences, so re-reading it would only cost a request.
     expect([...PREFERENCE_SENSITIVE_CACHE_PREFIXES].sort()).toEqual([
       "archive-search",
-      "content-item",
-      "content-sources",
       "library-drops",
       "today-drop"
     ]);

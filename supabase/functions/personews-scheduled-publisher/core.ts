@@ -113,6 +113,84 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
+// ---------------------------------------------------------------------------
+// Cross-project calls are bounded
+// ---------------------------------------------------------------------------
+//
+// Without a timeout a hung production call ran until the Edge runtime killed
+// this function: no finishRun, an audit row open forever, and nothing to tell a
+// later tick what happened. With one, the attempt ends with a structured
+// reason and the next tick (every 15 minutes until 21:00 Paris) retries the
+// same batch, which production completes without duplicating (same-batch
+// idempotence, 20261005130000).
+//
+// The two defaults fit inside the 150-second wall clock of a Supabase Edge
+// Function on the smallest plan, with room for the staging reads around them.
+// On a plan with a longer wall clock, raise them through the environment.
+
+export const DEFAULT_PUBLISH_TIMEOUT_MS = 90_000;
+export const DEFAULT_VERIFY_TIMEOUT_MS = 30_000;
+const MIN_TIMEOUT_MS = 5_000;
+const MAX_TIMEOUT_MS = 380_000;
+
+export class PublisherTimeoutError extends Error {
+  constructor(readonly operation: string, readonly timeoutMs: number) {
+    super(`production_${operation}_timeout: no response within ${timeoutMs} ms`);
+    this.name = "PublisherTimeoutError";
+  }
+}
+
+/** An env value in milliseconds, clamped to something sane; the default otherwise. */
+export function resolveTimeoutMs(raw: string | undefined | null, fallback: number): number {
+  const parsed = Number(raw);
+  if (!raw || !Number.isFinite(parsed)) return fallback;
+  return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, Math.round(parsed)));
+}
+
+/**
+ * POST JSON and parse the answer, or fail with PublisherTimeoutError once
+ * `timeoutMs` has passed. Never logs the body: it carries the shared token.
+ */
+export async function postJsonWithTimeout(input: {
+  url: string;
+  body: Record<string, unknown>;
+  timeoutMs: number;
+  operation: string;
+  fetchImpl?: typeof fetch;
+}): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+
+  try {
+    const response = await (input.fetchImpl ?? fetch)(input.url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input.body),
+      signal: controller.signal,
+    });
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        `production_http_${response.status}: ${JSON.stringify(result ?? {}).slice(0, 500)}`,
+      );
+    }
+
+    return result;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new PublisherTimeoutError(input.operation, input.timeoutMs);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function failureReason(error: unknown, timeoutReason: string, otherReason: string): string {
+  return error instanceof PublisherTimeoutError ? timeoutReason : otherReason;
+}
+
 /**
  * Run one publication attempt.
  *
@@ -268,7 +346,7 @@ export async function runScheduledPublication(input: {
         productionVerified: false,
         receiptRecorded: false,
         alreadyPublished: false,
-        reason: "production_publish_failed",
+        reason: failureReason(error, "production_publish_timeout", "production_publish_failed"),
         productionResult: null,
         verification: null,
         error: errorMessage(error),
@@ -281,7 +359,7 @@ export async function runScheduledPublication(input: {
         publication_succeeded: false,
         production_verified: false,
         receipt_recorded: false,
-        reason: "production_publish_failed",
+        reason: failureReason(error, "production_publish_timeout", "production_publish_failed"),
         production_result: null,
         verification: null,
         error: errorMessage(error),
@@ -335,7 +413,7 @@ export async function runScheduledPublication(input: {
         productionVerified: false,
         receiptRecorded: false,
         alreadyPublished: false,
-        reason: "production_verification_unavailable",
+        reason: failureReason(error, "production_verification_timeout", "production_verification_unavailable"),
         productionResult,
         verification: null,
         error: errorMessage(error),
@@ -348,7 +426,7 @@ export async function runScheduledPublication(input: {
         publication_succeeded: true,
         production_verified: false,
         receipt_recorded: false,
-        reason: "production_verification_unavailable",
+        reason: failureReason(error, "production_verification_timeout", "production_verification_unavailable"),
         production_result: productionResult,
         verification: null,
         error: errorMessage(error),

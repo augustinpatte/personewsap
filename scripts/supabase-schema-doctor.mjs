@@ -472,6 +472,36 @@ async function runStaticMigrationAudit() {
     /create\s+or\s+replace\s+function\s+public\.cleanup_expired_pending_registrations\s*\(\s*\)/i,
     "migration defines pending registration cleanup function"
   );
+
+  assertRegex(
+    sql,
+    /create\s+trigger\s+trg_daily_drops_guard_published_edition[\s\S]+create\s+trigger\s+trg_daily_drop_items_guard_published_edition[\s\S]+create\s+trigger\s+trg_editions_guard_registry/i,
+    "migration guards published editions against rewrites"
+  );
+
+  assertRegex(
+    sql,
+    /create\s+or\s+replace\s+function\s+public\.record_push_delivery_attempts\s*\(/i,
+    "migration records push outcomes one call per chunk"
+  );
+
+  assertRegex(
+    sql,
+    /alter\s+default\s+privileges\s+for\s+role\s+postgres\s+in\s+schema\s+public\s+revoke\s+all\s+on\s+tables\s+from\s+anon,\s*authenticated/i,
+    "migration closes default table privileges for new objects"
+  );
+
+  assertRegex(
+    sql,
+    /alter\s+default\s+privileges\s+for\s+role\s+postgres\s+revoke\s+execute\s+on\s+functions\s+from\s+public/i,
+    "migration closes default function EXECUTE for new objects"
+  );
+
+  assertRegex(
+    sql,
+    /mini_case_responses_answer_md_length_check[\s\S]+pending_registrations_payload_size_check/i,
+    "migration bounds client-writable text and JSON"
+  );
 }
 
 async function runLiveReadOnlyChecks() {

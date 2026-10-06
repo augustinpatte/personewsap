@@ -35,7 +35,7 @@ import {
   type LearningSetupStep
 } from "./learningSetupDraft";
 import { getLearningSetupDebugError } from "./learningSetupDebug";
-import { useLearningPath } from "./LearningPathContext";
+import { useLearningPathData } from "./useLearningPathData";
 import type {
   LearningCurrentLevel,
   LearningDomain,
@@ -66,7 +66,7 @@ export function LearningSetupScreen({ language }: { language: Language | null | 
     reload,
     startPath,
     status
-  } = useLearningPath();
+  } = useLearningPathData();
   const [step, setStep] = useState<SetupStep>(0);
   const [domainId, setDomainId] = useState<string | null>(null);
   const [currentLevel, setCurrentLevel] = useState<LearningCurrentLevel | null>(null);

@@ -65,6 +65,7 @@ export function getModuleCopy(language: Language | null | undefined) {
             "You can use the archive to revisit a previous edition while you wait for the next one.",
           exploreArchive: "Explore the archive",
           nextEdition: (weekday: string) => `Next edition: ${weekday}.`,
+          backToCurrentEdition: "Back to the current edition",
           onItsWayTitle: "Today's edition is on the way",
           onItsWayBody:
             "Your new edition is being prepared. It will appear here as soon as it is ready.",
@@ -215,6 +216,7 @@ export function getModuleCopy(language: Language | null | undefined) {
             "Vous pouvez revoir une édition précédente dans les archives en attendant la prochaine.",
           exploreArchive: "Explorer les archives",
           nextEdition: (weekday: string) => `Prochaine édition : ${weekday}.`,
+          backToCurrentEdition: "Revenir à l'édition en cours",
           onItsWayTitle: "L'édition du jour arrive",
           onItsWayBody:
             "Votre nouvelle édition est en préparation. Elle apparaîtra ici dès qu'elle sera prête.",

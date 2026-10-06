@@ -19,6 +19,7 @@ import {
   type OnboardingModuleId,
   type NewsletterTopicId
 } from "../onboarding/options";
+import { redactIdentifier } from "../../lib/redactIdentifier";
 
 export type EditablePreferences = {
   language: Language;
@@ -34,7 +35,47 @@ type PreferencesResult =
 
 type SavePreferencesResult =
   | { ok: true }
-  | { ok: false; error: NormalizedSupabaseError };
+  | {
+      ok: false;
+      error: NormalizedSupabaseError;
+      /** Set when a preference write failed; see persistUserPreferenceRows. */
+      failedStep?: PreferenceWriteStep;
+      completedSteps?: PreferenceWriteStep[];
+    };
+
+/**
+ * The three tables a reader's personal preferences live in, in write order.
+ * Onboarding and Settings both persist through persistUserPreferenceRows, so
+ * the two can no longer disagree about what a preference save writes.
+ */
+export const PREFERENCE_WRITE_STEPS = [
+  "user_preferences",
+  "user_topic_preferences",
+  "user_mini_case_topic_preferences"
+] as const;
+
+export type PreferenceWriteStep = (typeof PREFERENCE_WRITE_STEPS)[number];
+
+/** What a preference save is made of, independent of the screen that collected it. */
+export type PreferenceSelections = Pick<
+  EditablePreferences,
+  "enabledModules" | "selectedTopics" | "miniCaseTopics" | "articlesPerTopic"
+>;
+
+export type PersistPreferenceRowsResult =
+  | { ok: true; newsletterArticleCount: number }
+  | {
+      ok: false;
+      error: NormalizedSupabaseError;
+      failedStep: PreferenceWriteStep;
+      /**
+       * The writes are sequential upserts, not one transaction. Steps listed
+       * here were committed before `failedStep` failed and are NOT rolled back.
+       * Every step is an idempotent upsert of the full selection, so the safe
+       * recovery is simply to save again.
+       */
+      completedSteps: PreferenceWriteStep[];
+    };
 
 const DEFAULT_PREFERENCES: EditablePreferences = {
   language: "en",
@@ -257,15 +298,73 @@ export async function saveEditablePreferences(
     };
   }
 
-  try {
-    const newsletterArticleCount = toStorableNewsletterArticleCount(
-      normalized.selectedTopics.reduce(
-        (total, topicId) =>
-          total + clampNewsletterArticleCount(normalized.articlesPerTopic[topicId] ?? 1),
-        0
-      )
-    );
+  const result = await persistUserPreferenceRows(userId, normalized, normalized.language);
 
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error,
+      failedStep: result.failedStep,
+      completedSteps: result.completedSteps
+    };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * The one writer for a reader's personal preferences, shared by onboarding and
+ * Settings. It owns the normalization, the storable newsletter_article_count and
+ * the three writes, so the two entry points cannot drift apart again (they did:
+ * onboarding wrote a raw count of 0 that the database CHECK rejects, and its
+ * legacy fallback dropped every module flag).
+ *
+ * Callers keep their own validation and any extra writes (onboarding writes the
+ * profile first). This function validates nothing about completeness.
+ *
+ * NOT ATOMIC. The three upserts run in order and stop at the first failure; the
+ * result names the failed step and the steps already committed. Each step
+ * upserts the full selection, so retrying the whole save converges.
+ */
+export async function persistUserPreferenceRows(
+  userId: string,
+  selections: PreferenceSelections,
+  messageLanguage: Language | null
+): Promise<PersistPreferenceRowsResult> {
+  const completedSteps: PreferenceWriteStep[] = [];
+  const fail = (
+    failedStep: PreferenceWriteStep,
+    error: unknown
+  ): PersistPreferenceRowsResult => ({
+    ok: false,
+    error: normalizeSupabaseError(
+      error,
+      localized(PREFERENCE_WRITE_FAILURE_MESSAGES[failedStep], messageLanguage)
+    ),
+    failedStep,
+    completedSteps: [...completedSteps]
+  });
+
+  if (!supabase) {
+    return fail("user_preferences", {
+      code: "missing_supabase_config",
+      message: "Supabase is not configured."
+    });
+  }
+
+  const normalized = normalizeEditablePreferences({
+    ...selections,
+    language: messageLanguage ?? DEFAULT_PREFERENCES.language
+  });
+  const newsletterArticleCount = toStorableNewsletterArticleCount(
+    normalized.selectedTopics.reduce(
+      (total, topicId) =>
+        total + clampNewsletterArticleCount(normalized.articlesPerTopic[topicId] ?? 1),
+      0
+    )
+  );
+
+  try {
     const userPreferencesResult = await upsertUserPreferences({
       newsletterArticleCount,
       businessStoriesEnabled: normalized.enabledModules.includes("business_story"),
@@ -279,21 +378,15 @@ export async function saveEditablePreferences(
     });
 
     if (userPreferencesResult.error) {
-      return {
-        ok: false,
-        error: normalizeSupabaseError(
-          userPreferencesResult.error,
-          localized(
-            {
-              en: "Could not save your preferences.",
-              fr: "Impossible d'enregistrer tes préférences."
-            },
-            normalized.language
-          )
-        )
-      };
+      return fail("user_preferences", userPreferencesResult.error);
     }
+  } catch (error) {
+    return fail("user_preferences", error);
+  }
 
+  completedSteps.push("user_preferences");
+
+  try {
     const topicPreferenceRows = buildNewsletterTopicPreferenceRows({
       articlesPerTopic: normalized.articlesPerTopic,
       selectedTopics: normalized.selectedTopics,
@@ -305,26 +398,20 @@ export async function saveEditablePreferences(
       .upsert(topicPreferenceRows, { onConflict: "user_id,topic_id" });
 
     if (topicPreferencesResult.error) {
-      return {
-        ok: false,
-        error: normalizeSupabaseError(
-          topicPreferencesResult.error,
-          localized(
-            {
-              en: "Could not save your newsletter topics.",
-              fr: "Impossible d'enregistrer tes sujets newsletter."
-            },
-            normalized.language
-          )
-        )
-      };
+      return fail("user_topic_preferences", topicPreferencesResult.error);
     }
+  } catch (error) {
+    return fail("user_topic_preferences", error);
+  }
 
-    const miniCaseTopicPreferenceRows = buildMiniCaseTopicPreferenceRows({
-      selectedTopics: normalized.miniCaseTopics,
-      userId
-    });
+  completedSteps.push("user_topic_preferences");
 
+  const miniCaseTopicPreferenceRows = buildMiniCaseTopicPreferenceRows({
+    selectedTopics: normalized.miniCaseTopics,
+    userId
+  });
+
+  try {
     const miniCaseTopicPreferencesResult = await supabase
       .from("user_mini_case_topic_preferences")
       .upsert(miniCaseTopicPreferenceRows, { onConflict: "user_id,topic_id" });
@@ -337,38 +424,29 @@ export async function saveEditablePreferences(
         user_id: redactIdentifier(userId)
       });
 
-      return {
-        ok: false,
-        error: normalizeSupabaseError(
-          miniCaseTopicPreferencesResult.error,
-          localized(
-            {
-              en: "Could not save your mini-case topics.",
-              fr: "Impossible d'enregistrer tes sujets mini-cas."
-            },
-            normalized.language
-          )
-        )
-      };
+      return fail("user_mini_case_topic_preferences", miniCaseTopicPreferencesResult.error);
     }
-
-    return { ok: true };
   } catch (error) {
-    return {
-      ok: false,
-      error: normalizeSupabaseError(
-        error,
-        localized(
-          {
-            en: "Could not save your preferences.",
-            fr: "Impossible d'enregistrer tes préférences."
-          },
-          normalized.language
-        )
-      )
-    };
+    return fail("user_mini_case_topic_preferences", error);
   }
+
+  return { ok: true, newsletterArticleCount };
 }
+
+const PREFERENCE_WRITE_FAILURE_MESSAGES: Record<PreferenceWriteStep, { en: string; fr: string }> = {
+  user_preferences: {
+    en: "Could not save your preferences.",
+    fr: "Impossible d'enregistrer tes préférences."
+  },
+  user_topic_preferences: {
+    en: "Could not save your newsletter topics.",
+    fr: "Impossible d'enregistrer tes sujets newsletter."
+  },
+  user_mini_case_topic_preferences: {
+    en: "Could not save your mini-case topics.",
+    fr: "Impossible d'enregistrer tes sujets mini-cas."
+  }
+};
 
 /**
  * Persist only the reading language to profiles.language. Used for the immediate
@@ -505,11 +583,6 @@ function summarizeMiniCaseTopicRows(
   }));
 }
 
-function redactIdentifier(identifier: string): string {
-  return identifier.length <= 8
-    ? identifier
-    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
@@ -579,6 +652,10 @@ async function upsertUserPreferences(input: {
     return result;
   }
 
+  // Schema-compatibility retry for a project without user_preferences.mini_case_topic_id
+  // (added in 20260521120000). It keeps every module flag: dropping them, as the
+  // old onboarding copy of this fallback did, would silently re-enable modules the
+  // reader switched off, because those columns default to true.
   logPreferencesDebug("user_preferences_legacy_mini_case_column_missing", {
     error: describeSupabaseError(result.error),
     query: "user_preferences.upsert",

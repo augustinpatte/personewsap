@@ -49,6 +49,8 @@ jobs:
       LEARNING_GENERATION_MODE: deterministic
       # Production project: where the edition was published and is read from.
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      # The engine refuses to write unless the target is declared (storage/projectRef.ts).
+      EXPECTED_SUPABASE_REF: wkbviidrbmehmjbhvpeh
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       # ChatGPT staging project: read only, for health reporting.
       STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}

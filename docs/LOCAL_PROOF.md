@@ -37,7 +37,10 @@ Resources → Proxies → Manual, with every field blank, then restart Docker.
 | `supabase db reset` | Every production migration replays from an empty database. |
 | `supabase db reset --workdir supabase-staging` | Same, for staging. |
 | `npm run teams:test:sql:local` | The Teams and scored-question contract, against a schema built from the migrations. |
-| `npm run db:test:sql:local` | All five production suites: teams, language switch, push claims, scheduled publication, scored-question contract. |
+| `npm run db:test:sql:local` | The production suites: Teams, avatars, language switch, push claims, local-time and push timing, question explanation, Teams intro, profile privileges, edition immutability, scheduled publication, scored-question contract. Add `-- --with-migrations` to prove the migrations not yet applied to the local database. |
+| `npm run db:test:publisher-parity:local` | The set-based publisher (20261005160000) publishes exactly what the per-reader one did: same readers, items, slots, positions, retries and counts. Needs `--with-migrations` (built in), which keeps the old publisher beside the new one. |
+| `npm run db:test:publication-concurrency:local` | Two REAL concurrent sessions: B1 publishes and holds its transaction, B2 for the same date provably waits on the per-date advisory lock (seen in `pg_locks`), then is refused with 55000 having written nothing; a racing same-batch retry is a no-op; if B1 rolls back, B2 publishes. 10 rounds. Runs in a throwaway database restored from the local one (dropped afterwards). |
+| `npm run db:bench:publisher:local` | Old vs set-based publisher at 100 / 1,000 / 10,000 synthetic readers, in a rolled-back transaction. Local timings: the shape of the cost, not a production latency. |
 | `npm run contract:test:sql:local` | Only the scored-question contract suite: that a declared edition with zero persisted questions FAILS verification rather than reporting `questions_not_expected`, that a genuinely legacy edition still passes, and that roles, tiers, locales and grades are all held to the contract. |
 | `npm run staging:test:sql:local` | The deterministic hard gate and the scored-question preflight. |
 | `npm run teams:test:e2e:local` | A batch generated in staging becomes a published edition in production, assigned to real readers and real Teams, played and scored through real JWTs. |

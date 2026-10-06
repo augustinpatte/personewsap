@@ -112,7 +112,7 @@ export function MiniCasesModuleScreen() {
 
 function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const styles = useThemedStyles(createStyles);
-  const { language, drop, status, error, isEmptyDrop, isItemComplete, reload } =
+  const { language, drop, status, error, isEmptyDrop, isItemComplete, refresh, refreshing, reload } =
     useDailyDrop();
   const copy = getModuleCopy(language);
   // PLURAL, AND ALREADY TEAM-FIRST. One reader can be handed a Finance case by
@@ -216,7 +216,12 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const solvedCount = solvedIds.length;
 
   return (
-    <ModuleScroll contentStyle={styles.todayContent} reveal>
+    <ModuleScroll
+      contentStyle={styles.todayContent}
+      reveal
+      onRefresh={() => void refresh()}
+      refreshing={refreshing}
+    >
       {/* Only when there is more than one: a single case needs no tally, and a
           "1 of 1 solved" line over one card is furniture. */}
       {miniCases.length > 1 ? (

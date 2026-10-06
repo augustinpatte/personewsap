@@ -47,6 +47,7 @@ import type {
   SourceMetadata,
   TodayDailyDrop
 } from "./contentTypes";
+import { redactIdentifier } from "../../lib/redactIdentifier";
 
 type FetchTodayDropOptions = {
   cacheTtlMs?: number;
@@ -1563,11 +1564,6 @@ function logTodayDataProof(
   }
 }
 
-function redactIdentifier(identifier: string): string {
-  return identifier.length <= 8
-    ? identifier
-    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

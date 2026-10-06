@@ -2,7 +2,7 @@ import type { DataFetchSource } from "../../lib/dataState";
 import type { LearningPath } from "./learningTypes";
 
 export function shouldRedirectToLearningSetup(input: {
-  authStatus: "loading" | "signedOut" | "needsOnboarding" | "ready";
+  authStatus: "loading" | "signedOut" | "needsOnboarding" | "ready" | "profileError";
   learningStatus: "loading" | "ready" | "error";
   source: DataFetchSource;
   learningPathChoiceCompleted: boolean;

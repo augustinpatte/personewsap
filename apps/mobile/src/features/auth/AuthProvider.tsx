@@ -14,6 +14,7 @@ import * as Linking from "expo-linking";
 import {
   applySupabaseAuthUrl,
   clearLocalAuthSession,
+  getAuthSession,
   getValidatedAuthSession,
   getSupabaseConfigError,
   hasSupabaseConfig,
@@ -28,8 +29,28 @@ import { disablePushNotificationsForUser } from "../notifications/pushNotificati
 import { trackAnalyticsEvent } from "../../lib/analytics";
 import { rememberBootLanguage } from "../../lib/useBootLanguage";
 import type { Language } from "../../types/domain";
+import {
+  moduleFlagsFor,
+  moduleFlagsFromPreferencesRow,
+  type ModuleFlags,
+  type OwnedModuleFlags
+} from "../preferences/moduleFlags";
+import { redactIdentifier } from "../../lib/redactIdentifier";
 
-type AuthStatus = "loading" | "signedOut" | "needsOnboarding" | "ready";
+/**
+ * Where the reader stands, as far as routing is concerned.
+ *
+ *   loading         the first resolution (or an explicit refresh) is running
+ *   signedOut       no session, or the session was proven invalid
+ *   needsOnboarding a SUCCESSFUL read proved the profile is incomplete
+ *   ready           a successful read proved the profile is complete
+ *   profileError    there is a session, but its profile could not be read
+ *                   (offline, timeout, 5xx). Retryable. It is never treated as
+ *                   "incomplete": that would send an onboarded reader back into
+ *                   onboarding, and saving it again would overwrite their
+ *                   preferences.
+ */
+export type AuthStatus = "loading" | "signedOut" | "needsOnboarding" | "ready" | "profileError";
 
 type SignUpParams = {
   email: string;
@@ -53,13 +74,40 @@ type AuthContextValue = {
   error: NormalizedSupabaseError | null;
   profileCompleted: boolean;
   profileLanguage: Language | null;
+  /**
+   * The reader's module switches, read with the profile. Null until a read for
+   * THIS user has succeeded — never another account's. Module tabs read this
+   * from memory; nothing re-queries preferences on focus.
+   */
+  moduleFlags: ModuleFlags | null;
   isConfigured: boolean;
   applyProfileLanguage: (language: Language) => void;
+  /** Replace the held flags after a save that wrote them (Settings, Learning). */
+  applyModuleFlags: (patch: Partial<ModuleFlags>) => void;
+  /**
+   * Full, blocking re-resolution: validates the session with the auth server,
+   * shows the launch screen while it runs, and lands on profileError if the
+   * profile cannot be read. For explicit retries and for moments that must
+   * re-route (onboarding finished, password reset).
+   */
   refreshAuthState: () => Promise<void>;
+  /**
+   * Quiet re-read of the profile after the reader changed it (Settings). Never
+   * sets `loading`, so nothing remounts; a failed read keeps the current state
+   * and is returned to the caller instead.
+   */
+  refreshProfile: () => Promise<NormalizedSupabaseError | null>;
   signInWithEmail: (params: SignInParams) => Promise<AuthActionResult>;
   signUpWithEmail: (params: SignUpParams) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
 };
+
+type ResolutionMode = "blocking" | "background";
+
+type ProfileResolution =
+  | { kind: "resolved"; completed: boolean; language: Language | null; moduleFlags: ModuleFlags }
+  | { kind: "authError"; error: NormalizedSupabaseError }
+  | { kind: "error"; error: NormalizedSupabaseError };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -71,19 +119,57 @@ function getLocalTimezone() {
   }
 }
 
-async function createProfileIfMissing(user: User) {
+function classifyProfileError(error: NormalizedSupabaseError): ProfileResolution {
+  return isAuthSessionError(error) ? { kind: "authError", error } : { kind: "error", error };
+}
+
+/**
+ * Everything routing needs to know about a signed-in reader, in one round trip.
+ *
+ * The four reads are independent, so they run in parallel instead of one after
+ * another. A missing profile is created here (the only extra request, and only
+ * for a brand-new account); a new account cannot hold preferences yet, because
+ * every preference table references profiles, so it is incomplete by
+ * definition.
+ *
+ * Any read error is returned as an error. It is never folded into "incomplete".
+ */
+async function readProfileResolution(user: User): Promise<ProfileResolution> {
   if (!supabase) {
-    return {
-      error: getAuthConfigError()
-    };
+    return { kind: "error", error: getAuthConfigError() };
   }
 
   try {
-    const { data: existingProfile, error: readError } = await supabase
-      .from("profiles")
-      .select("id, language")
-      .eq("id", user.id)
-      .maybeSingle();
+    const [profileResult, preferencesResult, topicResult, miniCaseTopicResult] = await Promise.all([
+      supabase.from("profiles").select("id, language").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("user_preferences")
+        .select(
+          "user_id, newsletter_enabled, business_stories_enabled, mini_cases_enabled, learning_path_enabled, learning_path_choice_completed"
+        )
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("user_topic_preferences")
+        .select("topic_id")
+        .eq("user_id", user.id)
+        .eq("enabled", true)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("user_mini_case_topic_preferences")
+        .select("topic_id")
+        .eq("user_id", user.id)
+        .eq("enabled", true)
+        .limit(1)
+        .maybeSingle()
+    ]);
+
+    const readError =
+      profileResult.error ??
+      preferencesResult.error ??
+      topicResult.error ??
+      miniCaseTopicResult.error;
 
     if (readError) {
       logProfileProof("profile_read_failed", {
@@ -91,138 +177,60 @@ async function createProfileIfMissing(user: User) {
         user_id: redactIdentifier(user.id)
       });
 
-      return { error: normalizeSupabaseError(readError, "Could not read your mobile profile.") };
+      return classifyProfileError(
+        normalizeSupabaseError(readError, "Could not check onboarding status.")
+      );
     }
 
-    if (existingProfile) {
-      logProfileProof("profile_exists", {
-        language: existingProfile.language,
-        user_id: redactIdentifier(user.id)
+    const profile = profileResult.data;
+
+    if (!profile) {
+      const { error: insertError } = await supabase.from("profiles").insert({
+        id: user.id,
+        email: user.email ?? "",
+        language: "en",
+        timezone: getLocalTimezone()
       });
 
-      return { error: null, language: existingProfile.language };
-    }
+      // 23505: a concurrent resolution created it first. Same outcome.
+      if (insertError && insertError.code !== "23505") {
+        logProfileProof("profile_save_failed", {
+          reason: "supabase_error",
+          user_id: redactIdentifier(user.id)
+        });
 
-    const { error: insertError } = await supabase.from("profiles").insert({
-      id: user.id,
-      email: user.email ?? "",
-      language: "en",
-      timezone: getLocalTimezone()
-    });
-
-    if (insertError?.code === "23505") {
-      logProfileProof("profile_exists", {
-        reason: "unique_conflict",
-        user_id: redactIdentifier(user.id)
-      });
-
-      return { error: null, language: "en" as const };
-    }
-
-    if (insertError) {
-      logProfileProof("profile_save_failed", {
-        reason: "supabase_error",
-        user_id: redactIdentifier(user.id)
-      });
-
-      return { error: normalizeSupabaseError(insertError) };
-    }
-
-    logProfileProof("profile_saved", {
-      language: "en",
-      user_id: redactIdentifier(user.id)
-    });
-
-    return { error: null, language: "en" as const };
-  } catch (error) {
-    logProfileProof("profile_save_failed", {
-      reason: "exception",
-      user_id: redactIdentifier(user.id)
-    });
-
-    return {
-      error: normalizeSupabaseError(error, "Could not create your mobile profile.")
-    };
-  }
-}
-
-async function getProfileCompleted(userId: string) {
-  if (!supabase) {
-    return {
-      completed: false,
-      language: null,
-      error: {
-        code: "missing_supabase_config",
-        message: "Live account data is not configured for this build.",
-        hint:
-          "Developer/Test info: add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to apps/mobile/.env, then restart Expo."
+        return classifyProfileError(
+          normalizeSupabaseError(insertError, "Could not create your mobile profile.")
+        );
       }
-    };
-  }
 
-  try {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, language")
-      .eq("id", userId)
-      .maybeSingle();
+      logProfileProof("profile_saved", {
+        language: "en",
+        user_id: redactIdentifier(user.id)
+      });
 
-    if (profileError) {
-      return { completed: false, language: null, error: normalizeSupabaseError(profileError) };
+      return {
+        kind: "resolved",
+        completed: false,
+        language: "en",
+        moduleFlags: moduleFlagsFromPreferencesRow(null)
+      };
     }
 
-    const { data: preferences, error: preferencesError } = await supabase
-      .from("user_preferences")
-      .select("user_id, newsletter_enabled, mini_cases_enabled, learning_path_choice_completed")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (preferencesError) {
-      return { completed: false, language: profile?.language ?? null, error: normalizeSupabaseError(preferencesError) };
-    }
-
-    const { data: topicPreference, error: topicPreferenceError } = await supabase
-      .from("user_topic_preferences")
-      .select("topic_id")
-      .eq("user_id", userId)
-      .eq("enabled", true)
-      .limit(1)
-      .maybeSingle();
-
-    if (topicPreferenceError) {
-      return { completed: false, language: profile?.language ?? null, error: normalizeSupabaseError(topicPreferenceError) };
-    }
-
-    const { data: miniCaseTopicPreference, error: miniCaseTopicPreferenceError } = await supabase
-      .from("user_mini_case_topic_preferences")
-      .select("topic_id")
-      .eq("user_id", userId)
-      .eq("enabled", true)
-      .limit(1)
-      .maybeSingle();
-
-    if (miniCaseTopicPreferenceError) {
-      return { completed: false, language: profile?.language ?? null, error: normalizeSupabaseError(miniCaseTopicPreferenceError) };
-    }
-
-    const newsletterReady = preferences?.newsletter_enabled === false || Boolean(topicPreference);
-    const miniCaseReady = preferences?.mini_cases_enabled === false || Boolean(miniCaseTopicPreference);
+    const preferences = preferencesResult.data;
+    const newsletterReady = preferences?.newsletter_enabled === false || Boolean(topicResult.data);
+    const miniCaseReady =
+      preferences?.mini_cases_enabled === false || Boolean(miniCaseTopicResult.data);
     const learningChoiceReady = preferences?.learning_path_choice_completed === true;
 
     return {
-      completed: Boolean(profile && preferences && newsletterReady && miniCaseReady && learningChoiceReady),
-      language: profile?.language ?? null,
-      error: null
+      kind: "resolved",
+      completed: Boolean(preferences && newsletterReady && miniCaseReady && learningChoiceReady),
+      language: profile.language ?? null,
+      moduleFlags: moduleFlagsFromPreferencesRow(preferences)
     };
   } catch (error) {
-    const normalizedError = normalizeSupabaseError(error, "Could not check onboarding status.");
-    logAuthDebug("profile_completion_exception", normalizedError);
-
-    return {
-      completed: false,
-      language: null,
-      error: normalizedError
-    };
+    return classifyProfileError(normalizeSupabaseError(error, "Could not check onboarding status."));
   }
 }
 
@@ -231,73 +239,113 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [profileCompleted, setProfileCompleted] = useState(false);
   const [profileLanguage, setProfileLanguage] = useState<Language | null>(null);
+  const [ownedModuleFlags, setOwnedModuleFlags] = useState<OwnedModuleFlags | null>(null);
   const [error, setError] = useState<NormalizedSupabaseError | null>(null);
   const authApplySequenceRef = useRef(0);
+  // The user whose profile was last read SUCCESSFULLY. Auth events for that same
+  // user (token refresh, a re-emitted sign-in) only carry a new token.
+  const resolvedUserIdRef = useRef<string | null>(null);
+  // One resolution per user at a time: the explicit bootstrap, a sign-in and the
+  // auth event that follows it all ask about the same reader.
+  const inFlightRef = useRef<{
+    userId: string;
+    promise: Promise<NormalizedSupabaseError | null>;
+  } | null>(null);
 
-  const applySession = useCallback(async (nextSession: Session | null) => {
-    const sequence = authApplySequenceRef.current + 1;
-    authApplySequenceRef.current = sequence;
-    const isCurrent = () => authApplySequenceRef.current === sequence;
+  const resolveSession = useCallback(
+    async (nextSession: Session | null, mode: ResolutionMode) => {
+      const sequence = authApplySequenceRef.current + 1;
+      authApplySequenceRef.current = sequence;
+      const isCurrent = () => authApplySequenceRef.current === sequence;
 
-    setSession(nextSession);
+      setSession(nextSession);
 
-    if (!nextSession?.user) {
-      setProfileCompleted(false);
-      setProfileLanguage(null);
-      setStatus("signedOut");
-      return null;
-    }
+      if (!nextSession?.user) {
+        resolvedUserIdRef.current = null;
+        setProfileCompleted(false);
+        setProfileLanguage(null);
+        setOwnedModuleFlags(null);
+        setStatus("signedOut");
+        return null;
+      }
 
-    const profileResult = await createProfileIfMissing(nextSession.user);
-    if (!isCurrent()) {
-      return null;
-    }
+      const user = nextSession.user;
+      const resolution = await readProfileResolution(user);
 
-    if (profileResult.error) {
-      if (isAuthSessionError(profileResult.error)) {
+      if (!isCurrent()) {
+        return null;
+      }
+
+      if (resolution.kind === "authError") {
         await clearLocalAuthSession();
         if (!isCurrent()) {
           return null;
         }
+        resolvedUserIdRef.current = null;
         setSession(null);
         setProfileCompleted(false);
         setProfileLanguage(null);
-        setError(profileResult.error);
+        setOwnedModuleFlags(null);
+        setError(resolution.error);
         setStatus("signedOut");
-        return profileResult.error;
+        return resolution.error;
       }
 
-      setError(profileResult.error);
-      setProfileCompleted(false);
-      setProfileLanguage(null);
-      setStatus("needsOnboarding");
-      return profileResult.error;
-    }
+      if (resolution.kind === "error") {
+        logAuthDebug("profile_resolution_failed", resolution.error);
 
-    const profileStatus = await getProfileCompleted(nextSession.user.id);
-    if (!isCurrent()) {
+        // A quiet refresh for a reader we already know: keep what we know. The
+        // session, the route and every loaded screen stay exactly as they were.
+        if (mode === "background" && resolvedUserIdRef.current === user.id) {
+          return resolution.error;
+        }
+
+        // Nothing usable is known yet (or the caller asked to know for sure):
+        // stop on a retryable state. Never needsOnboarding, never signed out.
+        setError(resolution.error);
+        setStatus("profileError");
+        return resolution.error;
+      }
+
+      resolvedUserIdRef.current = user.id;
+      setError(null);
+      setProfileCompleted(resolution.completed);
+      setProfileLanguage(resolution.language);
+      setOwnedModuleFlags({ userId: user.id, flags: resolution.moduleFlags });
+      setStatus(resolution.completed ? "ready" : "needsOnboarding");
       return null;
-    }
+    },
+    []
+  );
 
-    if (profileStatus.error && isAuthSessionError(profileStatus.error)) {
-      await clearLocalAuthSession();
-      if (!isCurrent()) {
-        return null;
+  const requestResolution = useCallback(
+    (
+      nextSession: Session | null,
+      mode: ResolutionMode,
+      { reuseInFlight = true }: { reuseInFlight?: boolean } = {}
+    ) => {
+      const userId = nextSession?.user?.id ?? null;
+      const inFlight = inFlightRef.current;
+
+      if (reuseInFlight && userId && inFlight && inFlight.userId === userId) {
+        setSession(nextSession);
+        return inFlight.promise;
       }
-      setSession(null);
-      setError(profileStatus.error);
-      setProfileCompleted(false);
-      setProfileLanguage(null);
-      setStatus("signedOut");
-      return profileStatus.error;
-    }
 
-    setError(profileStatus.error);
-    setProfileCompleted(profileStatus.completed);
-    setProfileLanguage(profileStatus.language ?? profileResult.language ?? null);
-    setStatus(profileStatus.completed ? "ready" : "needsOnboarding");
-    return profileStatus.error ?? null;
-  }, []);
+      const promise: Promise<NormalizedSupabaseError | null> = resolveSession(
+        nextSession,
+        mode
+      ).finally(() => {
+        if (inFlightRef.current?.promise === promise) {
+          inFlightRef.current = null;
+        }
+      });
+
+      inFlightRef.current = userId ? { userId, promise } : null;
+      return promise;
+    },
+    [resolveSession]
+  );
 
   // Single source of truth for the app's UI language. Updating it here re-renders
   // every screen that reads `profileLanguage`, so a language change takes effect
@@ -307,23 +355,56 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setProfileLanguage(language);
   }, []);
 
+  const applyModuleFlags = useCallback((patch: Partial<ModuleFlags>) => {
+    setOwnedModuleFlags((current) =>
+      current ? { userId: current.userId, flags: { ...current.flags, ...patch } } : current
+    );
+  }, []);
+
   const refreshAuthState = useCallback(async () => {
     setStatus("loading");
 
-    const { data, error: sessionError } = await getValidatedAuthSession();
+    const validated = await getValidatedAuthSession();
+    let nextSession = validated.data;
 
-    if (sessionError) {
-      setError(sessionError);
-      setSession(null);
-      setProfileCompleted(false);
-      setProfileLanguage(null);
-      setStatus("signedOut");
-      return;
+    if (validated.error) {
+      // Only a session the auth server rejected, or a build without a backend,
+      // ends the session. Any other validation failure (a 5xx from the auth
+      // server) keeps the stored session and lets the profile read decide.
+      const sessionIsInvalid =
+        isAuthSessionError(validated.error) || validated.error.code === "missing_supabase_config";
+      const stored = sessionIsInvalid ? null : (await getAuthSession()).data;
+
+      if (!stored) {
+        resolvedUserIdRef.current = null;
+        setError(validated.error);
+        setSession(null);
+        setProfileCompleted(false);
+        setProfileLanguage(null);
+        setOwnedModuleFlags(null);
+        setStatus("signedOut");
+        return;
+      }
+
+      nextSession = stored;
     }
 
     setError(null);
-    await applySession(data);
-  }, [applySession]);
+    // Always a fresh, blocking resolution: this call set `loading`, so it must be
+    // the one that settles it. Joining a background read that keeps the previous
+    // state on failure would leave the app on the launch screen.
+    await requestResolution(nextSession, "blocking", { reuseInFlight: false });
+  }, [requestResolution]);
+
+  const refreshProfile = useCallback(async () => {
+    const stored = await getAuthSession();
+
+    if (!stored.data?.user) {
+      return stored.error;
+    }
+
+    return requestResolution(stored.data, "background");
+  }, [requestResolution]);
 
   const signInWithEmail = useCallback(
     async ({ email, password }: SignInParams) => {
@@ -350,7 +431,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         setError(null);
-        const sessionApplyError = await applySession(data.session);
+        const sessionApplyError = await requestResolution(data.session, "blocking");
         if (sessionApplyError) {
           logAuthDebug("login_profile_state_error", sessionApplyError);
           return { error: sessionApplyError };
@@ -366,7 +447,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return { error: normalizedError };
       }
     },
-    [applySession]
+    [requestResolution]
   );
 
   const signUpWithEmail = useCallback(
@@ -394,7 +475,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         setError(null);
-        const sessionApplyError = await applySession(data.session);
+        const sessionApplyError = await requestResolution(data.session, "blocking");
         if (sessionApplyError) {
           logAuthDebug("signup_profile_state_error", sessionApplyError);
           return { error: sessionApplyError };
@@ -415,7 +496,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return { error: normalizedError };
       }
     },
-    [applySession]
+    [requestResolution]
   );
 
   const signOut = useCallback(async () => {
@@ -444,13 +525,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     setError(null);
-    await applySession(null);
+    await requestResolution(null, "blocking");
     trackAnalyticsEvent("auth_signed_out", {
       language: profileLanguage ?? undefined
     });
 
     return { error: null };
-  }, [applySession, profileLanguage, session?.user.id]);
+  }, [profileLanguage, requestResolution, session?.user.id]);
 
   // The one place that learns the canonical language remembers it, so the next
   // cold start can open the launch screen in it instead of in English while the
@@ -463,9 +544,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [profileLanguage]);
 
   useEffect(() => {
-    // refreshAuthState normalises every failure internally; the catch is the
-    // last line of defence so a transient boot-time network error can never
-    // escape as an unhandled rejection.
+    // The single authoritative initial resolution. refreshAuthState normalises
+    // every failure internally; the catch is the last line of defence so a
+    // transient boot-time network error can never escape as an unhandled
+    // rejection.
     void refreshAuthState().catch((error: unknown) => {
       logAuthDebug("auth_refresh_failed", normalizeSupabaseError(error));
     });
@@ -476,8 +558,29 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void applySession(nextSession).catch((error: unknown) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // INITIAL_SESSION is the stored session the bootstrap above is already
+      // resolving; resolving it here too was a second, overlapping bootstrap.
+      if (event === "INITIAL_SESSION") {
+        return;
+      }
+
+      const userId = nextSession?.user?.id ?? null;
+
+      // TOKEN_REFRESHED, USER_UPDATED and a re-emitted SIGNED_IN for a reader we
+      // already know (or are resolving) carry a new token, not a new person. The
+      // profile and its onboarding state cannot have changed: update the session
+      // and nothing else.
+      if (
+        userId &&
+        (resolvedUserIdRef.current === userId || inFlightRef.current?.userId === userId)
+      ) {
+        setSession(nextSession);
+        return;
+      }
+
+      // A different reader, a first sign-in, or no session at all (SIGNED_OUT).
+      void requestResolution(nextSession, "background").catch((error: unknown) => {
         logAuthDebug("auth_state_change_failed", normalizeSupabaseError(error));
       });
     });
@@ -485,7 +588,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [applySession, refreshAuthState]);
+  }, [refreshAuthState, requestResolution]);
 
   useEffect(() => {
     let isMounted = true;
@@ -508,7 +611,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (result.data) {
-        await applySession(result.data);
+        await requestResolution(result.data, "blocking");
         logAuthDebug("auth_url_session_applied");
       }
     }
@@ -532,7 +635,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isMounted = false;
       subscription.remove();
     };
-  }, [applySession]);
+  }, [requestResolution]);
 
   const value = useMemo(
     () => ({
@@ -542,19 +645,28 @@ export function AuthProvider({ children }: PropsWithChildren) {
       error,
       profileCompleted,
       profileLanguage,
+      // Checked against the session's user on every read, so a switch of
+      // account can never show the previous reader's modules, even for the
+      // render between the new session and its profile read.
+      moduleFlags: moduleFlagsFor(ownedModuleFlags, session?.user?.id),
       isConfigured: hasSupabaseConfig,
       applyProfileLanguage,
+      applyModuleFlags,
       refreshAuthState,
+      refreshProfile,
       signInWithEmail,
       signUpWithEmail,
       signOut
     }),
     [
+      applyModuleFlags,
       applyProfileLanguage,
       error,
+      ownedModuleFlags,
       profileCompleted,
       profileLanguage,
       refreshAuthState,
+      refreshProfile,
       session,
       signInWithEmail,
       signOut,
@@ -589,11 +701,6 @@ function logProfileProof(event: string, details: Record<string, unknown>) {
   }
 }
 
-function redactIdentifier(identifier: string): string {
-  return identifier.length <= 8
-    ? identifier
-    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
-}
 
 function getAuthConfigError(): NormalizedSupabaseError {
   return (

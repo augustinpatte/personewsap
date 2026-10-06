@@ -166,7 +166,10 @@ describe("no reader's day is ever derived from a hardcoded geography", () => {
     expect(code).toMatch(/Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone/);
   });
 
-  it("resolves the Today view's date through the reader helper", () => {
+  // Today is the backend's open edition (current_edition_date, see
+  // todayEditionLifecycle.test.tsx). When the backend cannot name one, the
+  // fallback date must still come from the reader helper, never Paris or UTC.
+  it("falls back to the reader helper for Today's date, never Paris or UTC", () => {
     const provider = readFileSync(join(__dirname, "DailyDropContext.tsx"), "utf8");
 
     expect(provider).toMatch(/resolveReaderEditionDate\(\)/);

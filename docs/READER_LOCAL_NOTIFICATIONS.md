@@ -99,7 +99,11 @@ scheduled in (`reader_timezone`), for the record only.
   nothing is due.
 - **The Edge Function claims and records only.** It calls
   `claim_due_push_notifications`, sends exactly the rows it was handed to Expo,
-  and records each outcome with `record_push_delivery_attempt`.
+  and records the outcomes of each Expo chunk in one call with
+  `record_push_delivery_attempts` (20261005170000; until that migration is
+  applied it falls back to `record_push_delivery_attempt`, one row at a time).
+  Several invocations may overlap safely: each has its own claim id, rows are
+  leased with SKIP LOCKED, and only the lease holder can record a row.
 - **The GitHub workflow is the fallback.**
   `.github/workflows/push-notification-retry.yml` runs every five minutes, plus
   on `repository_dispatch` and the three Paris evening windows. It runs

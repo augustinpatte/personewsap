@@ -6,8 +6,18 @@ import { useAuth } from "../auth";
 import {
   canFollowNotificationRoute,
   resolveNotificationRoute,
-  toNotificationNavigationTarget
+  toNotificationNavigationTarget,
+  type NotificationRoute
 } from "./notificationRouting";
+
+export type NotificationRoutingOptions = {
+  /**
+   * Called for every followed notification, just before navigating. Today uses
+   * it to load the named edition fresh, so a tap on "your edition is here" can
+   * never land on a cached "on its way".
+   */
+  onFollow?: (route: NotificationRoute) => void;
+};
 
 /**
  * Follows a tapped "edition is ready" notification to the Newsletter tab.
@@ -21,8 +31,11 @@ import {
  * some environments (and remote notifications are limited in Expo Go), and none
  * of that may keep the app from starting.
  */
-export function useNotificationRouting(): void {
+export function useNotificationRouting(options: NotificationRoutingOptions = {}): void {
   const router = useRouter();
+  // Latest callback without re-subscribing the listeners on every render.
+  const onFollowRef = useRef(options.onFollow);
+  onFollowRef.current = options.onFollow;
   const { status } = useAuth();
   // A cold-start tap is applied exactly once, however often this re-renders.
   const handledColdStartRef = useRef(false);
@@ -41,6 +54,7 @@ export function useNotificationRouting(): void {
         return;
       }
 
+      onFollowRef.current?.(route);
       router.push(toNotificationNavigationTarget(route) as unknown as Href);
     };
 

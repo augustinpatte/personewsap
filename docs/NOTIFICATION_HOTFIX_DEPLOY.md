@@ -1,5 +1,12 @@
 # Deploying the notification hotfix
 
+> **Historical runbook (2026-09-06).** It describes how three specific
+> migrations were isolated for one urgent deploy. Do not follow it for a
+> routine deploy: check `supabase migration list --linked` first — if
+> 20260906080000–20260906082000 are already recorded remotely, this procedure
+> has nothing left to do. Kept for the reasoning (why `db push` cannot select
+> files) and for `scripts/notification-hotfix-workdir.mjs`.
+
 Three migrations repair a P0: `claim_push_notification_deliveries` has answered
 `42702 column reference "push_token_id" is ambiguous` to every call it has ever
 received, so no edition notification this product has published was ever

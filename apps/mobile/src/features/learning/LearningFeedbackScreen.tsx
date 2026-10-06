@@ -16,7 +16,7 @@ import type { Language } from "../../types/domain";
 import { sessionCompleted } from "../../lib/haptics";
 import { resolveLearningFeedbackSubmitDecision } from "./learningFeedbackUi";
 import { getLearningCopy } from "./learningCopy";
-import { useLearningPath } from "./LearningPathContext";
+import { useLearningPathData } from "./useLearningPathData";
 import type { LearningFeedbackRatings } from "./learningTypes";
 
 const numericLabels = ["1", "2", "3", "4", "5"];
@@ -25,7 +25,7 @@ export function LearningFeedbackScreen({ language }: { language: Language | null
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { getSessionById, submitFeedback } = useLearningPath();
+  const { getSessionById, submitFeedback } = useLearningPathData();
   const styles = useThemedStyles(createStyles);
   const session = sessionId ? getSessionById(sessionId) : undefined;
   const sessionLanguage = session?.language ?? language ?? "en";

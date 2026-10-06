@@ -12,9 +12,9 @@ stop there. Whether that work becomes an edition is decided afterwards, by SQL.
 ## The path an edition takes
 
 ```
-pg_cron (staging)                17:00 and 18:00 UTC, every day
+pg_cron (staging)                every 15 min, 17:00–20:45 UTC
   └─ run_scheduled_publication_tick()
-       guard: is it 19:00 in Europe/Paris, on a publication day?   ── no ──▶ stop
+       guard: 19:00–21:00 Paris, publication day, not receipted? ── no ──▶ stop
        └─ net.http_post ──▶ personews-scheduled-publisher   (staging Edge Function)
             └─ get_scheduled_edition_publish_plan(edition_date)     (staging SQL)
                  = assert_edition_publishable()
@@ -119,25 +119,97 @@ editions. 23 of 23 approved with one preflight failure is zero editions.
 same date, the same kind, the same production target, 23 jobs and 16/1/6. The
 publisher never assembles a payload by hand.
 
-## 19:00 Europe/Paris, through CET and CEST
+## 19:00 Europe/Paris, with catch-up until 21:00
 
-pg_cron speaks UTC only. 19:00 Paris is 17:00 UTC in summer and 18:00 UTC in
-winter, so the schedule is deliberately dumb and the guard is deliberately smart:
+19:00 Paris is the target. It is no longer the only chance
+(`20261005140000_publication_catch_up`, staging):
 
 ```
-cron expression:  0 17,18 * * *          -- both candidate hours, every day
+cron expression:  0,15,30,45 17-20 * * *          -- every quarter hour that can be 19:00–21:00 Paris
 guard:            scheduled_publication_due()
-                  = hour(now() at Europe/Paris) = 19
+                  = (now() at Europe/Paris)::time between 19:00 and 21:00
                     and resolve_staging_edition_kind(date at Europe/Paris) is not null
+decision:         scheduled_publication_tick_decision(date, now, force)
+                  fire | not_due | already_published | attempt_in_flight | recent_attempt
 ```
 
-Postgres knows the Europe/Paris rules, so exactly one of the two ticks passes the
-guard on exactly the four publication days, in both halves of the year, forever,
-with no table of DST dates and no clock to change twice a year. The other 13 ticks
-a week return `not_due` and write nothing.
+pg_cron speaks UTC only; 19:00–21:00 Paris is 17:00–19:00 UTC in summer and
+18:00–20:00 UTC in winter. The schedule covers both and the Paris-local guard
+picks the nine quarter-hours that really are 19:00…21:00, with no DST table.
 
-The day-of-week filter is in the guard rather than in the cron expression on
-purpose: the calendar is defined once, in `resolve_staging_edition_kind`.
+A tick fires only when the edition is due, **no batch for the date has a
+receipt**, no attempt is in flight and the last attempt is at least ten minutes
+old. So a batch approved at 19:02 publishes at 19:15; a publisher that timed out
+after production committed is retried at the next quarter hour, and production
+completes its own batch without duplicating anything; once the receipt exists,
+every later tick is a no-op.
+
+A run still open after ten minutes (the Edge Function was killed) is closed as
+`stale_open_run_abandoned` — never as a success — and the next tick retries.
+
+The cross-project calls are bounded (`PUBLISHER_PUBLISH_TIMEOUT_MS`, default 90 s;
+`PUBLISHER_VERIFY_TIMEOUT_MS`, default 30 s — together inside the 150 s Edge
+wall clock of the smallest plan). A timeout is recorded as
+`production_publish_timeout` / `production_verification_timeout` and is
+retried like any other unreceipted attempt.
+
+### Did tonight's edition publish?
+
+`public.scheduled_edition_publication_health(date)` (staging) answers for one
+Paris date: `not_publication_day`, `published`, `pending` (before 21:15) or
+`missed`; `ok` is false when missed or when a run is stale.
+
+`npm run content:notification-health` gives the one combined answer for the
+edition due today (never "the latest published one"), asking production AND
+staging about that exact Paris date (`edition` in its JSON output):
+
+| State | Means | After 21:15 Paris |
+| --- | --- | --- |
+| `pending` | not in production yet, window still open | — (missed instead) |
+| `missed` | no production edition | **fails** |
+| `published_unverified` | production row, no staging receipt | **fails** |
+| `verification_failed` | staging's last attempt failed verification | **fails** |
+| `notification_failed` | receipted, but the release never happened or due devices were never attempted | **fails** |
+| `verified_notification_pending` | receipted and released, deliveries still retrying | warning (fails only `--strict`) |
+| `healthy` | published, verified, released | passes |
+| `failed` | a staging receipt with no production edition | **fails** |
+
+A production `editions` row alone is never healthy: the receipt is what says
+questions, assignments and the release were verified. Staging is read through
+`scheduled_edition_publication_health(date)` (or its tables before
+20261005140000) with `STAGING_SUPABASE_URL` / `STAGING_SUPABASE_SERVICE_ROLE_KEY`.
+`.github/workflows/edition-publication-health.yml` runs it at 21:20 Paris on
+publication days with `--require-staging`, so an unreadable staging fails the
+check too; elsewhere it only warns.
+
+Everything about one date, in one call:
+
+```sql
+select public.edition_publication_timeline('2026-09-07');
+```
+
+or `SUPABASE_ACCESS_TOKEN=sbp_… npm run publisher:status -- --date 2026-09-07`.
+
+## The payload is what the gate verified
+
+The gate (`assert_edition_publishable`) and the canonical payload builder
+(`get_ready_batch_payload`) read the database in separate statements. Since
+staging `20261005190000`, the gate returns `verified_identities` — one
+`{job_id, output_id, review_id}` per job — and the plan runs
+`bind_payload_to_verified_identities` before handing anything to the
+publisher. It refuses with `verified_payload_identity_mismatch` unless the
+payload names exactly the same 23 jobs, once each, and every job carries the
+verified output (its id when the builder names one; its `output_json` and
+`source_records` byte-equal) and the verified review (its id when named;
+verdict, score and checks equal). A newer output that lands between the two
+reads stops the edition; the next tick judges it on its own review. On success
+the ids are stamped on each job, and production records them as
+`staging_output_id` / `staging_review_id`.
+
+Before applying that migration, run
+`supabase-staging/supabase/verification/publication_identity_binding_preflight.sql`
+against staging for a recent edition: the live builder is not versioned, and
+every `*_equal` column must be true.
 
 ## Crossing from staging to production
 
@@ -212,8 +284,8 @@ and on every retry. Three independent things then make a duplicate impossible:
 2. `publish_scheduled_staging_payload` keys every item on
    `dedup_key = staging:<batch>:<job>:<lang>` and reuses rather than re-inserts,
    and upserts `daily_drops` on `(user_id, drop_date)`;
-3. the cron tick takes an advisory lock and skips if an attempt was made in the
-   last 30 minutes.
+3. the cron tick takes an advisory lock, never fires while an attempt is in
+   flight or within ten minutes of the last one, and stops once a receipt exists.
 
 ## When nothing publishes
 
@@ -284,13 +356,63 @@ SUPABASE_ACCESS_TOKEN=sbp_… npm run publisher:test:sql:dry   # migrations inli
 Neither SQL suite creates, modifies or deletes any editorial content, and neither
 can publish anything: every scenario is a refusal or a read.
 
-## Manual publication
+## Manual publication and recovery
 
-`npm run content:staging-publish` still exists and still works. It is a
-break-glass tool for when the scheduler cannot run, it refuses a batch that
-already carries a receipt, and **nothing runs it on a schedule any more** —
-two publishers writing the same edition through two different dedup keys is
-exactly the duplicate this system must not be able to produce.
+**The recovery path is the canonical publisher, forced.** In the staging SQL
+editor:
+
+```sql
+select public.run_scheduled_publication_tick(true);
+```
+
+It runs the same gate, the same three production stages, the same verification,
+receipt and notification release as the 19:00 tick, under the same locks and
+the same deterministic run id. It is safe to repeat: a receipted batch is a
+no-op, and a batch whose production write committed without a receipt is
+completed, not duplicated (see *Published editions are immutable*).
+
+`npm run content:staging-publish` still exists as a last-resort **break-glass**
+tool for when the scheduler itself cannot run. It is weaker: it publishes no
+scored questions, no assignments and releases no notifications. It refuses a
+batch that already carries a receipt, refuses a date that is already published,
+and refuses to write unless `SUPABASE_URL` is the project the batch targets (and
+not staging). **Nothing runs it on a schedule** — two publishers writing the
+same edition through two different dedup keys is exactly the duplicate this
+system must not be able to produce.
+
+## Published editions are immutable
+
+Once a date is in `public.editions`, its readers' `daily_drops` and
+`daily_drop_items` cannot be inserted, changed or deleted, and the editions row
+cannot be changed or deleted (`20261005130000_published_edition_immutability`).
+The database enforces it with triggers; the legacy daily job and the
+break-glass publisher check it first so they fail before generating anything.
+
+What is still allowed:
+
+- **The same batch, again.** `publish_scheduled_staging_payload` announces its
+  batch in the transaction-local setting `personews.publishing_batch_id`; the
+  edition records it in `editions.staging_batch_id`. A retry of that batch (a
+  timeout after commit, a stage failure) completes readers who have no drop yet
+  and never touches a drop that exists. A **different** batch for a published
+  date is refused, and a per-date advisory lock stops two batches racing.
+- **Tail stages.** Questions and assignments are append-only and can always be
+  re-run.
+- **Account deletion.** Drops cascading from a deleted account are always
+  removed.
+- **A deliberate operator repair**, in one SQL transaction:
+
+  ```sql
+  begin;
+  set local personews.allow_edition_rewrite = 'on';
+  -- the reviewed repair, and nothing else
+  commit;
+  ```
+
+  Off by default, gone at the end of the transaction, unreachable from the app
+  (clients cannot write these tables or run `SET` through PostgREST). There is
+  no CLI flag for it on purpose: a rewrite of what readers already received is
+  a decision someone makes in SQL, on purpose, once.
 
 ## Migrations across two projects
 

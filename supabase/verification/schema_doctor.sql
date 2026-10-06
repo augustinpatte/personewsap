@@ -192,3 +192,180 @@ select
   count(*) as visible_status_daily_drops
 from public.daily_drops
 where status in ('published', 'read', 'archived');
+
+-- ---------------------------------------------------------------------------
+-- Storage and realtime policies the app depends on
+-- ---------------------------------------------------------------------------
+
+with expected(schema_name, table_name, policy_name) as (
+  values
+    ('storage', 'objects', 'Readers upload their own avatar'),
+    ('storage', 'objects', 'Readers replace their own avatar'),
+    ('storage', 'objects', 'Readers delete their own avatar'),
+    ('storage', 'objects', 'Team mates can read an avatar'),
+    ('storage', 'objects', 'Owners upload a team avatar'),
+    ('storage', 'objects', 'Owners replace a team avatar'),
+    ('storage', 'objects', 'Owners delete a team avatar'),
+    ('storage', 'objects', 'Team members can read a team avatar'),
+    ('realtime', 'messages', 'Team members can receive leaderboard broadcasts')
+)
+select
+  'storage / realtime policy exists' as check_name,
+  expected.schema_name || '.' || expected.table_name as table_name,
+  expected.policy_name,
+  case when pg_policies.policyname is null then 'FAIL' else 'PASS' end as status
+from expected
+left join pg_policies
+  on pg_policies.schemaname = expected.schema_name
+ and pg_policies.tablename = expected.table_name
+ and pg_policies.policyname = expected.policy_name
+order by 2, 3;
+
+-- ---------------------------------------------------------------------------
+-- RLS evaluates auth.uid() once per statement (20261005180000)
+-- ---------------------------------------------------------------------------
+
+select
+  'no policy calls auth.uid() per row' as check_name,
+  count(*) as policies_with_bare_auth_uid,
+  case when count(*) = 0 then 'PASS' else 'WARN' end as status
+from pg_policies
+where schemaname in ('public', 'storage', 'realtime')
+  and replace(coalesce(qual, '') || ' ' || coalesce(with_check, ''), '( SELECT auth.uid() AS uid)', '') ~ 'auth\.uid\(\)';
+
+-- ---------------------------------------------------------------------------
+-- Content identity: one published row per (logical key, language, type)
+-- ---------------------------------------------------------------------------
+-- Not enforced by an index (catalog publishing can legitimately produce a
+-- second version); watched here. Details: content_logical_key_duplicates.sql.
+
+select
+  'published logical-key duplicates' as check_name,
+  count(*) as duplicated_identities,
+  case when count(*) = 0 then 'PASS' else 'WARN' end as status
+from (
+  select 1
+  from public.content_items ci
+  where ci.status = 'published'
+    and public.content_logical_key(ci.metadata) is not null
+  group by public.content_logical_key(ci.metadata), ci.language, ci.content_type
+  having count(*) > 1
+) duplicates;
+
+-- A Team assignment names a logical key; if no published content carries it,
+-- the Team's members see nothing for it.
+select
+  'Team content assignments point at published content' as check_name,
+  count(*) as orphan_assignments,
+  case when count(*) = 0 then 'PASS' else 'WARN' end as status
+from public.team_content_assignments tca
+where not exists (
+  select 1
+  from public.content_items ci
+  where ci.status = 'published'
+    and ci.content_type = tca.content_type
+    and public.content_logical_key(ci.metadata) = tca.content_logical_key
+);
+
+-- ---------------------------------------------------------------------------
+-- Critical privileges
+-- ---------------------------------------------------------------------------
+
+with service_only(signature) as (
+  values
+    ('public.publish_scheduled_staging_payload(jsonb,text)'),
+    ('public.claim_due_push_notifications(text,integer,integer,timestamptz)'),
+    ('public.record_push_delivery_attempt(uuid,text,text,text,text)'),
+    ('public.record_push_delivery_attempts(text,jsonb)'),
+    ('public.purge_operational_history(integer,boolean)'),
+    ('public.materialize_solo_question_assignments(date)')
+)
+select
+  'service-only function closed to clients' as check_name,
+  service_only.signature,
+  case
+    when to_regprocedure(service_only.signature) is null then 'SKIP (not deployed)'
+    when has_function_privilege('anon', to_regprocedure(service_only.signature), 'execute')
+      or has_function_privilege('authenticated', to_regprocedure(service_only.signature), 'execute') then 'FAIL'
+    else 'PASS'
+  end as status
+from service_only
+order by 2;
+
+with client_read_only(table_name) as (
+  values ('content_items'), ('sources'), ('content_item_sources'), ('daily_drops'), ('daily_drop_items'), ('editions')
+)
+select
+  'clients cannot write publication tables' as check_name,
+  client_read_only.table_name,
+  case
+    when to_regclass('public.' || client_read_only.table_name) is null then 'SKIP (not deployed)'
+    when has_table_privilege('authenticated', 'public.' || client_read_only.table_name, 'insert,update,delete')
+         and not exists (
+           select 1 from pg_policies p
+           where p.schemaname = 'public' and p.tablename = client_read_only.table_name
+             and p.cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+             and ('authenticated' = any (p.roles) or 'public' = any (p.roles))
+         )
+      then 'PASS (grant, but no write policy)'
+    when has_table_privilege('authenticated', 'public.' || client_read_only.table_name, 'insert,update,delete')
+      then 'FAIL'
+    else 'PASS'
+  end as status
+from client_read_only
+order by 2;
+
+select
+  'new objects start closed (default privileges)' as check_name,
+  count(*) as default_grants_to_clients,
+  case when count(*) = 0 then 'PASS' else 'WARN' end as status
+from pg_default_acl d, aclexplode(d.defaclacl) a
+where d.defaclrole = 'postgres'::regrole
+  and d.defaclnamespace = 'public'::regnamespace
+  and a.grantee in ('anon'::regrole, 'authenticated'::regrole);
+
+-- ---------------------------------------------------------------------------
+-- Published editions are immutable (20261005130000)
+-- ---------------------------------------------------------------------------
+
+with expected(table_name, trigger_name) as (
+  values
+    ('daily_drops', 'trg_daily_drops_guard_published_edition'),
+    ('daily_drop_items', 'trg_daily_drop_items_guard_published_edition'),
+    ('editions', 'trg_editions_guard_registry')
+)
+select
+  'edition immutability trigger exists and is enabled' as check_name,
+  expected.table_name,
+  expected.trigger_name,
+  case
+    when t.oid is null then 'FAIL'
+    when t.tgenabled = 'D' then 'FAIL (disabled)'
+    else 'PASS'
+  end as status
+from expected
+left join pg_trigger t
+  on t.tgname = expected.trigger_name
+ and t.tgrelid = to_regclass('public.' || expected.table_name)
+order by 2;
+
+-- ---------------------------------------------------------------------------
+-- Input size limits (20261005182000)
+-- ---------------------------------------------------------------------------
+
+select
+  'input size limits present' as check_name,
+  count(*) as constraints_found,
+  count(*) filter (where convalidated) as validated,
+  case when count(*) = 8 then 'PASS' else 'WARN' end as status
+from pg_constraint
+where conname in (
+  'mini_case_responses_answer_md_length_check',
+  'mini_case_responses_ai_feedback_md_length_check',
+  'mini_case_responses_selections_size_check',
+  'content_interactions_message_length_check',
+  'newsletter_feedback_message_length_check',
+  'newsletter_feedback_email_length_check',
+  'pending_registrations_email_length_check',
+  'pending_registrations_payload_size_check'
+);

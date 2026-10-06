@@ -366,6 +366,15 @@ export async function runDailyJob(
       );
   const languageResults: DailyJobLanguageResult[] = [];
 
+  // A published edition belongs to the canonical publisher. Refuse before any
+  // source fetch or generation is paid for, not halfway through the writes.
+  if (repository && options.contentStatus === "published") {
+    await repository.assertEditionNotPublished(
+      options.dropDate,
+      "The legacy daily job (daily-job / content:legacy-api-run)"
+    );
+  }
+
   if (repository) {
     await repository.startJobRun({
       runId,

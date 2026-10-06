@@ -89,7 +89,7 @@ export function StoriesModuleScreen() {
 function StoriesToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const { language, drop, status, error, isEmptyDrop, isItemComplete, reload } =
+  const { language, drop, status, error, isEmptyDrop, isItemComplete, refresh, refreshing, reload } =
     useDailyDrop();
   const copy = getModuleCopy(language);
   const story = drop.items.business_story;
@@ -143,7 +143,7 @@ function StoriesToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const completed = isItemComplete(story.id);
 
   return (
-    <ModuleScroll reveal>
+    <ModuleScroll reveal onRefresh={() => void refresh()} refreshing={refreshing}>
       <PressableSurface
         accessibilityHint={copy.common.openHint}
         onPress={() => router.push(storyHref(story.id))}

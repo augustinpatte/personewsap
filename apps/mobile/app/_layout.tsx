@@ -14,16 +14,21 @@ import { AuthProvider, useAuth } from "../src/features/auth";
 import { LearningPathProvider } from "../src/features/learning";
 import {
   configureNotificationPresentation,
-  useNotificationRouting,
   useProfileTimezoneSync,
   usePushTokenRefresh
 } from "../src/features/notifications";
+import { NotificationRoutingBridge } from "../src/features/notifications/NotificationRoutingBridge";
+import { readCurrentDeviceTimeZone } from "../src/features/notifications/deviceTimeZone";
 import { DailyDropProvider } from "../src/features/today";
 import { trackAnalyticsEvent } from "../src/lib/analytics";
+import { registerDeviceTimeZoneReader } from "../src/lib/localDate";
 
 // Set once, at module scope: expo-notifications expects the handler to exist
 // before any notification can arrive, including the one that launched the app.
 configureNotificationPresentation();
+// One device-zone reader for the whole app: Today's dates and profiles.timezone
+// both follow the OS zone as it is now, not the JS engine's cached one.
+registerDeviceTimeZoneReader(readCurrentDeviceTimeZone);
 
 export default function RootLayout() {
   useEffect(() => {
@@ -43,10 +48,8 @@ function RootNavigator() {
   const { profileLanguage, user } = useAuth();
   const { colors, isDark } = useTheme();
   const accountScopeKey = user?.id ?? "signed-out";
-  // A tapped "edition is ready" notification opens the Newsletter tab, from a
-  // warm start or a cold one. Inside AuthProvider so it can wait for the
-  // session rather than racing the auth redirect.
-  useNotificationRouting();
+  // Tapped notifications are followed by NotificationRoutingBridge, inside
+  // DailyDropProvider, so the edition they name is loaded as they route.
   usePushTokenRefresh();
   // The server notifies at 20:00 and 08:30 in profiles.timezone; this keeps it
   // on the phone's zone when the reader travels.
@@ -87,6 +90,7 @@ function RootNavigator() {
         <NavigationThemeProvider value={navigationTheme}>
           <LearningPathProvider key={`learning-${accountScopeKey}`}>
             <DailyDropProvider key={`daily-drop-${accountScopeKey}`}>
+              <NotificationRoutingBridge />
               <Stack
                 screenOptions={{
                   headerShown: false,

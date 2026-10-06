@@ -16,7 +16,7 @@ import { useThemedStyles } from "../../design/theme";
 import type { Language } from "../../types/domain";
 import { getCurrentLevelLabel, getTargetLevelLabel } from "./learningLevels";
 import { getLearningCopy } from "./learningCopy";
-import { useLearningPath } from "./LearningPathContext";
+import { useLearningPathData } from "./useLearningPathData";
 import {
   getLearningPathDateInfo,
   getLearningPathStatusCopyKey
@@ -46,7 +46,7 @@ export function LearningPathOverviewScreen({
     objectives,
     sessions,
     status
-  } = useLearningPath();
+  } = useLearningPathData();
   const selectedPath = pathId ? learningPaths.find((path) => path.id === pathId) ?? null : displayPath;
   // The reader's CURRENT language, not the one the path was created in.
   // learning_paths.language is a second copy written at path creation; pinning
@@ -63,7 +63,12 @@ export function LearningPathOverviewScreen({
   const isDefaultPath = !pathId || pathId === displayPath?.id;
   const [loadedSessions, setLoadedSessions] = useState<LearningSession[] | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const selectedSessions = isDefaultPath ? sessions : loadedSessions ?? [];
+  // Memoised: `loadedSessions ?? []` would otherwise be a new array every render
+  // and recompute everything that depends on it.
+  const selectedSessions = useMemo(
+    () => (isDefaultPath ? sessions : loadedSessions ?? []),
+    [isDefaultPath, loadedSessions, sessions]
+  );
   const completedSessions = useMemo(
     () =>
       selectedSessions.filter((session) => Boolean(session.completed_at) || session.status === "completed"),

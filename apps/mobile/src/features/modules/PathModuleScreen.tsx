@@ -13,7 +13,7 @@ import {
 import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
-import { useLearningPath } from "../learning";
+import { useLearningPathData } from "../learning";
 import { localizeLearningField, localizeSessionTitle } from "../learning/learningTypes";
 import { useDailyDrop } from "../today/DailyDropContext";
 import { getModuleCopy } from "./moduleCopy";
@@ -41,7 +41,7 @@ export function PathModuleScreen() {
   // deliberately carries no edition date, because the path does not advance
   // with the calendar.
   const { language } = useDailyDrop();
-  const learningPath = useLearningPath();
+  const learningPath = useLearningPathData();
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
 
@@ -81,7 +81,7 @@ function PathCurrent() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { language } = useDailyDrop();
-  const learningPath = useLearningPath();
+  const learningPath = useLearningPathData();
   const copy = getModuleCopy(language);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
 
@@ -312,7 +312,7 @@ function PathHistory() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { language } = useDailyDrop();
-  const learningPath = useLearningPath();
+  const learningPath = useLearningPathData();
   const copy = getModuleCopy(language);
   const pressedSurface = usePressedSurfaceStyle();
 

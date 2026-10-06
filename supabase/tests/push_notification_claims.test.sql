@@ -53,6 +53,12 @@
 
 begin;
 
+-- This suite builds its own editions and drops by hand, as the table owner, to
+-- isolate its scenarios (and rolls back). Published-edition immutability
+-- (20261005130000) is proved by published_edition_immutability.test.sql; here
+-- the documented, transaction-local operator override lets the fixtures run.
+select set_config('personews.allow_edition_rewrite', 'on', true);
+
 create temp table push_results (
   seq int,
   test text,

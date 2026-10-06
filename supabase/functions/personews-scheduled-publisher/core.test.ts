@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_PUBLISH_TIMEOUT_MS,
+  DEFAULT_VERIFY_TIMEOUT_MS,
   editorialDate,
   isEditorialDate,
+  postJsonWithTimeout,
+  PublisherTimeoutError,
   PUBLISHER_VERSION,
+  resolveTimeoutMs,
   runScheduledPublication,
   type GateVerdict,
   type ProductionPublishResult,
@@ -418,5 +423,131 @@ describe("editorial date resolution", () => {
     expect(isEditorialDate("07/09/2026")).toBe(false);
     expect(isEditorialDate("2026-9-7")).toBe(false);
     expect(isEditorialDate("")).toBe(false);
+  });
+});
+
+describe("scheduled publisher — bounded production calls and catch-up recovery", () => {
+  it("a production call that never answers ends as a PublisherTimeoutError, not a hang", async () => {
+    let aborted = false;
+    const neverAnswers: typeof fetch = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          aborted = true;
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+
+    const call = postJsonWithTimeout({
+      url: "https://production.test/functions/v1/personews-task-publisher",
+      body: { token: "secret-token", action: "publish" },
+      timeoutMs: 25,
+      operation: "publish",
+      fetchImpl: neverAnswers,
+    });
+
+    await expect(call).rejects.toBeInstanceOf(PublisherTimeoutError);
+    await expect(call).rejects.toThrow("production_publish_timeout");
+    expect(aborted).toBe(true);
+  });
+
+  it("the timeout message never carries the request body (it holds the shared token)", async () => {
+    const neverAnswers: typeof fetch = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      });
+
+    const error = await postJsonWithTimeout({
+      url: "https://production.test",
+      body: { token: "secret-token" },
+      timeoutMs: 10,
+      operation: "verify",
+      fetchImpl: neverAnswers,
+    }).catch((caught: unknown) => caught as Error);
+
+    expect(String(error)).not.toContain("secret-token");
+  });
+
+  it("an HTTP error from production is not mistaken for a timeout", async () => {
+    const serverError: typeof fetch = async () =>
+      new Response(JSON.stringify({ error: "boom" }), { status: 500 });
+
+    const call = postJsonWithTimeout({
+      url: "https://production.test",
+      body: {},
+      timeoutMs: 1_000,
+      operation: "publish",
+      fetchImpl: serverError,
+    });
+
+    await expect(call).rejects.toThrow("production_http_500");
+    await expect(call).rejects.not.toBeInstanceOf(PublisherTimeoutError);
+  });
+
+  it("timeouts come from the environment, clamped, with defaults that fit a 150 s Edge wall clock", () => {
+    expect(DEFAULT_PUBLISH_TIMEOUT_MS + DEFAULT_VERIFY_TIMEOUT_MS).toBeLessThan(150_000);
+    expect(resolveTimeoutMs(undefined, 90_000)).toBe(90_000);
+    expect(resolveTimeoutMs("200000", 90_000)).toBe(200_000);
+    expect(resolveTimeoutMs("1", 90_000)).toBe(5_000);
+    expect(resolveTimeoutMs("99999999", 90_000)).toBe(380_000);
+    expect(resolveTimeoutMs("soon", 90_000)).toBe(90_000);
+  });
+
+  it("D. production commits but the call times out: the run says so, writes no receipt, and the next tick completes it", async () => {
+    // 19:00 — production committed stage 1, but the answer never came back.
+    const first = harness({
+      plan: { gate: passingGate(), ready_payload: READY_PAYLOAD },
+      publish: async () => {
+        throw new PublisherTimeoutError("publish", DEFAULT_PUBLISH_TIMEOUT_MS);
+      },
+    });
+
+    const timedOut = await run(first.deps);
+
+    expect(timedOut.reason).toBe("production_publish_timeout");
+    expect(timedOut.publication_attempted).toBe(true);
+    expect(timedOut.receipt_recorded).toBe(false);
+    expect(first.recorder.calls).not.toContain("markPublished");
+    expect(first.recorder.runs[0].reason).toBe("production_publish_timeout");
+
+    // 19:15 — no receipt, so the gate offers the SAME batch again. Production
+    // recognises its own batch and only completes what is missing.
+    const second = harness({
+      plan: { gate: passingGate(), ready_payload: READY_PAYLOAD },
+      publish: async () => ({ published: true, retry_of_published_edition: true, items_written: 0 }),
+    });
+
+    const completed = await run(second.deps);
+
+    expect(completed.reason).toBe("published");
+    expect(completed.receipt_recorded).toBe(true);
+    // The same deterministic run id both times: one edition, one identity.
+    expect(second.recorder.published[0].runId).toBe(timedOut.run_id);
+  });
+
+  it("a verification that times out is recorded as such and leaves the edition unreceipted", async () => {
+    const { deps, recorder } = harness({
+      plan: { gate: passingGate(), ready_payload: READY_PAYLOAD },
+      verify: async () => {
+        throw new PublisherTimeoutError("verify", DEFAULT_VERIFY_TIMEOUT_MS);
+      },
+    });
+
+    const outcome = await run(deps);
+
+    expect(outcome.reason).toBe("production_verification_timeout");
+    expect(outcome.receipt_recorded).toBe(false);
+    expect(recorder.calls).not.toContain("markPublished");
+  });
+
+  it("C/I. once receipted, a later tick publishes nothing", async () => {
+    const { deps, recorder } = harness({
+      plan: { gate: passingGate({ ok: false, already_published: true, reason: "already_published" }), ready_payload: null },
+    });
+
+    const outcome = await run(deps);
+
+    expect(outcome.already_published).toBe(true);
+    expect(recorder.calls).not.toContain("publish");
+    expect(recorder.calls).not.toContain("markPublished");
   });
 });

@@ -1,5 +1,14 @@
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
 import { getProductEditionDate } from "../scheduler/editionCadence.js";
+import {
+  evaluateEditionHealth,
+  evaluateEditionPublication,
+  resolveDueEditionDate,
+  type EditionHealth,
+  type EditionPublicationCheck,
+  type StagingPublicationSnapshot
+} from "../ops/editionPublicationHealth.js";
+import { readStagingPublication } from "../ops/stagingPublicationState.js";
 
 /**
  * Did the readers actually get told?
@@ -33,6 +42,16 @@ import { getProductEditionDate } from "../scheduler/editionCadence.js";
 export type NotificationHealthOptions = {
   editionDate: string | null;
   strict: boolean;
+  /**
+   * The edition health gate: staging must be readable, because a production
+   * row without a staging receipt is not a verified edition. Without it an
+   * unreadable or unconfigured staging is a warning (the retry workflows).
+   */
+  requireStaging?: boolean;
+  /** Injectable clock for tests. */
+  now?: Date;
+  /** Injectable staging reader for tests. */
+  readStaging?: (editionDate: string) => Promise<StagingPublicationSnapshot>;
 };
 
 export type HealthStatus = "ok" | "warning" | "critical" | "unknown";
@@ -79,6 +98,20 @@ export type NotificationHealthOutput = {
   detail: string;
   /** Next-morning reminders for the most recent editions (or --date). */
   reminders: AnswerReminderHealth[];
+  /**
+   * Whether the edition the calendar was owed published at all: today's on a
+   * publication day, else the most recent publication day. Never "the latest
+   * published one", which would hide a night with no edition.
+   */
+  publication?: EditionPublicationCheck;
+  /**
+   * The one combined answer for the edition date: production row AND staging
+   * verification receipt AND notification release. A production row alone is
+   * never healthy.
+   */
+  edition?: EditionHealth;
+  /** What staging said about the same date. */
+  staging?: StagingPublicationSnapshot;
 };
 
 type HealthRow = {
@@ -123,16 +156,95 @@ export function parseNotificationHealthOptions(args: string[]): NotificationHeal
 
   return {
     editionDate: dateIndex >= 0 ? (args[dateIndex + 1] ?? null) : null,
-    strict: flags.has("strict")
+    strict: flags.has("strict"),
+    requireStaging: flags.has("require-staging")
   };
 }
 
 export async function runNotificationHealth(
   options: NotificationHealthOptions
 ): Promise<NotificationHealthOutput> {
+  const output = await runProductionNotificationHealth(options);
+  const editionDate = output.publication?.editionDate ?? output.editionDate;
+
+  if (!editionDate) {
+    return output;
+  }
+
+  // Second question, for the SAME date: did staging verify it and write the
+  // receipt? The receipt is written only after production was read back and
+  // found complete — content, questions, assignments, notification release.
+  const staging = await (options.readStaging ?? readStagingPublication)(editionDate);
+  const published = output.publication?.status === "published";
+  const edition = evaluateEditionHealth({
+    editionDate,
+    now: options.now,
+    productionPublished: published,
+    staging,
+    notification: published ? { status: output.status, outboxStatus: output.outboxStatus } : null,
+    requireStaging: options.requireStaging
+  });
+  const status = worstStatus([output.status, edition.severity]);
+
+  return {
+    ...output,
+    status,
+    // A missed date already says so in the production half; anything else
+    // that is not fine leads with the combined verdict.
+    detail:
+      edition.severity === "ok" || edition.state === "missed"
+        ? output.detail
+        : `${edition.detail} ${output.detail}`.trim(),
+    edition,
+    staging
+  };
+}
+
+async function runProductionNotificationHealth(
+  options: NotificationHealthOptions
+): Promise<NotificationHealthOutput> {
   const supabase = createServiceRoleSupabaseClient({ requireCredentials: true });
+
+  // First question: did the edition the calendar was owed publish at all? Asked
+  // about that date, never about "the latest published edition", which would
+  // make a night with no edition look like the previous one.
+  const dueDate = options.editionDate ?? resolveDueEditionDate(options.now);
+  const publication = evaluateEditionPublication({
+    editionDate: dueDate,
+    published: await isEditionPublished(supabase, dueDate),
+    now: options.now
+  });
+
+  if (publication.status !== "published") {
+    return {
+      mode: "notification-health",
+      editionDate: dueDate,
+      source: "rpc",
+      status: publication.status === "missed" ? "critical" : "ok",
+      eligibleDevices: 0,
+      deliveryRows: 0,
+      sent: 0,
+      awaitingReceipt: 0,
+      retryable: 0,
+      terminal: 0,
+      neverAttempted: 0,
+      scheduledNotDue: 0,
+      dueAwaitingWorker: 0,
+      outboxStatus: "no_event",
+      detail:
+        publication.status === "missed"
+          ? `Edition ${dueDate} (${publication.editionType}) did not publish by ${publication.deadlineParis} Europe/Paris. ` +
+            "See staging: select public.edition_publication_timeline('" + dueDate + "'); " +
+            "recover with: select public.run_scheduled_publication_tick(true);"
+          : `Edition ${dueDate} has not published yet; the scheduled publisher keeps trying until 21:00 Europe/Paris ` +
+            `(health deadline ${publication.deadlineParis}).`,
+      reminders: [],
+      publication
+    };
+  }
+
   const { data, error } = await supabase.rpc("get_edition_notification_health", {
-    p_edition_date: options.editionDate
+    p_edition_date: dueDate
   });
 
   // Before 20260906081000 is applied the function does not exist, and a health
@@ -140,7 +252,7 @@ export async function runNotificationHealth(
   // The fallback answers the same question from the same tables.
   const row: HealthRow | null =
     error && MISSING_FUNCTION_CODES.has(error.code ?? "")
-      ? await readHealthFromTables(supabase, options.editionDate)
+      ? await readHealthFromTables(supabase, dueDate)
       : ((data ?? [])[0] as HealthRow | undefined) ?? null;
 
   if (error && !MISSING_FUNCTION_CODES.has(error.code ?? "")) {
@@ -153,7 +265,7 @@ export async function runNotificationHealth(
   if (!row || row.edition_date === null) {
     return {
       mode: "notification-health",
-      editionDate: options.editionDate,
+      editionDate: dueDate,
       source: error ? "tables" : "rpc",
       status: reminders.length > 0 ? reminderStatus : "unknown",
       eligibleDevices: 0,
@@ -166,8 +278,9 @@ export async function runNotificationHealth(
       scheduledNotDue: 0,
       dueAwaitingWorker: 0,
       outboxStatus: "no_event",
-      detail: "No published edition was found, so there is nothing to have announced.",
-      reminders
+      detail: `Edition ${dueDate} is published; no notification health row was found for it.`,
+      reminders,
+      publication
     };
   }
 
@@ -212,7 +325,8 @@ export async function runNotificationHealth(
           : retryable > 0
             ? `${retryable} device(s) still to retry for ${row.edition_date}.`
             : `Every due device for ${row.edition_date} has a delivery row.`) + scheduledNote,
-    reminders
+    reminders,
+    publication
   };
 }
 
@@ -468,4 +582,40 @@ async function latestPublishedEditionDate(
     .limit(1);
 
   return ((data ?? [])[0] as { drop_date: string } | undefined)?.drop_date ?? null;
+}
+
+/**
+ * Whether an edition date is published: `public.editions` when it exists
+ * (20260906090000), else any published drop for the date.
+ */
+async function isEditionPublished(
+  supabase: ReturnType<typeof createServiceRoleSupabaseClient>,
+  editionDate: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("editions")
+    .select("edition_date")
+    .eq("edition_date", editionDate)
+    .maybeSingle();
+
+  if (!error) {
+    return Boolean(data);
+  }
+
+  if (!MISSING_FUNCTION_CODES.has(error.code ?? "")) {
+    throw new Error(`Could not read the edition registry: ${error.message}`);
+  }
+
+  const { data: drops, error: dropsError } = await supabase
+    .from("daily_drops")
+    .select("id")
+    .eq("drop_date", editionDate)
+    .eq("status", "published")
+    .limit(1);
+
+  if (dropsError) {
+    throw new Error(`Could not read published drops: ${dropsError.message}`);
+  }
+
+  return (drops ?? []).length > 0;
 }

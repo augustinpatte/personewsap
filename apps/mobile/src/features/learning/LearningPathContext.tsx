@@ -120,6 +120,12 @@ type LearningPathContextValue = LearningPathBundle & {
   getSessionById: (sessionId: string) => LearningSession | undefined;
   loadSessionsForPath: (pathId: string) => Promise<LearningSession[]>;
   reload: () => Promise<void>;
+  /**
+   * Ask for the full bootstrap. A reader with the path switched off is not
+   * bootstrapped at startup (see LearningPathProvider); a screen that shows
+   * learning data calls this — through useLearningPathData — when it mounts.
+   */
+  ensureLoaded: () => void;
 };
 
 const LearningPathContext = createContext<LearningPathContextValue | null>(null);
@@ -145,7 +151,16 @@ const initialBundle = createBundle({
 });
 
 export function LearningPathProvider({ children }: PropsWithChildren) {
-  const { profileLanguage, status: authStatus, user } = useAuth();
+  const { applyModuleFlags, moduleFlags, profileLanguage, status: authStatus, user } = useAuth();
+  // LAZY BOOTSTRAP. Five reads, an outbox drain and possibly the sessions are
+  // what the path needs, and a reader who switched it off needs none of them to
+  // open the app. The flag comes with the profile (null until it is known, which
+  // keeps the old eager behaviour); a screen that does show learning data asks
+  // for the load itself.
+  const learningFlag = moduleFlags ? moduleFlags.learning_path : null;
+  const [loadDemanded, setLoadDemanded] = useState(false);
+  const needsFullLoad = learningFlag !== false || loadDemanded;
+  const ensureLoaded = useCallback(() => setLoadDemanded(true), []);
   const [advancing, setAdvancing] = useState(false);
   // Ref, not state: the guard must reject a second tap within the same tick,
   // before React has re-rendered with advancing=true.
@@ -311,15 +326,19 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         });
 
         if (isActive()) {
+          const enabled = preferencesResult.data?.learning_path_enabled === true;
           setState({
             ...bundle,
             status: "ready",
             source: "supabase",
             error: null,
-            learningPathEnabled: preferencesResult.data?.learning_path_enabled === true,
+            learningPathEnabled: enabled,
             learningPathChoiceCompleted:
               preferencesResult.data?.learning_path_choice_completed === true
           });
+          // Keep the one in-memory copy of the module flags true to what was
+          // just read (startPath and disableLearningPath both end here).
+          applyModuleFlags({ learning_path: enabled });
         }
       } catch (error) {
         const normalized = normalizeSupabaseError(error, "Could not load your learning path.");
@@ -343,11 +362,37 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
         }
       }
     },
-    [authStatus, updateSessionLocally, user?.id]
+    [applyModuleFlags, authStatus, updateSessionLocally, user?.id]
   );
 
   useEffect(() => {
     let isMounted = true;
+
+    if (authStatus === "ready" && user?.id && !needsFullLoad) {
+      // Off, and nothing has asked: hold an empty, not-yet-loaded state. It
+      // reads as "loading" so a screen that mounts before its ensureLoaded
+      // effect never flashes the empty path. A ready reader has completed the
+      // learning choice by definition (it is part of profile completion).
+      setState({
+        ...createBundle({
+          domains: [],
+          objectives: [],
+          learningPaths: [],
+          activePath: null,
+          latestCompletedPath: null,
+          sessions: []
+        }),
+        status: "loading",
+        source: "supabase",
+        error: null,
+        learningPathEnabled: false,
+        learningPathChoiceCompleted: true
+      });
+      return () => {
+        isMounted = false;
+      };
+    }
+
     // load() normalises every failure into state; the catch guarantees a boot
     // with no network cannot surface as an unhandled rejection.
     void load(() => isMounted).catch((error: unknown) => {
@@ -359,7 +404,9 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
     return () => {
       isMounted = false;
     };
-  }, [load]);
+    // needsFullLoad, not the flag itself: switching the path on in Settings
+    // loads it once; switching it off while a screen holds the data keeps it.
+  }, [authStatus, load, needsFullLoad, user?.id]);
 
   /**
    * Materialise exactly one session for `path`, from the deterministic
@@ -946,9 +993,11 @@ export function LearningPathProvider({ children }: PropsWithChildren) {
       submitFeedback,
       getSessionById: (sessionId) => state.sessions.find((session) => session.id === sessionId),
       loadSessionsForPath,
-      reload: () => load()
+      reload: () => load(),
+      ensureLoaded
     }),
     [
+      ensureLoaded,
       advanceLearningPath,
       advancing,
       disableLearningPath,

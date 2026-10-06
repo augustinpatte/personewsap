@@ -29,10 +29,16 @@ import { parseQuestionBackfillOptions, runQuestionBackfillCli } from "./cli/ques
 import { runQualityProof } from "./cli/qualityProof.js";
 import { parseRssCheckOptions, runRssCheck } from "./cli/rssCheck.js";
 import { formatPersistenceError } from "./storage/persistenceError.js";
+import { assertCommandTarget } from "./storage/projectRef.js";
 import { redactLogIdentifiers } from "./utils/redactIdentifier.js";
 
 async function main(): Promise<void> {
   const [command = "dry-run", ...args] = process.argv.slice(2);
+
+  // A command that writes must name the project it is meant to write to
+  // (EXPECTED_SUPABASE_REF), and a test command never writes to production by
+  // accident. Checked once, here, before any client exists.
+  assertCommandTarget(command);
 
   if (command === "dry-run") {
     const output = await runDryRun(parseDryRunOptions(args));

@@ -6,7 +6,7 @@ import { tokens } from "../../design/tokens";
 import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import type { Language } from "../../types/domain";
 import { getLearningCopy } from "./learningCopy";
-import { useLearningPath } from "./LearningPathContext";
+import { useLearningPathData } from "./useLearningPathData";
 import {
   localizeLearningDescription,
   localizeLearningField
@@ -38,7 +38,7 @@ export function LearningAccountSection({
     disableLearningPath,
     sessions,
     learningPathEnabled
-  } = useLearningPath();
+  } = useLearningPathData();
   const [replaceVisible, setReplaceVisible] = useState(false);
   const [disableVisible, setDisableVisible] = useState(false);
   const startedCount = sessions.filter((session) => session.started_at || session.completed_at).length;

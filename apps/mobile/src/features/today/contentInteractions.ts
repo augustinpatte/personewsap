@@ -3,6 +3,7 @@ import { clearMemoryCache } from "../../lib/memoryCache";
 import { getAuthSession, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import type { NormalizedSupabaseError } from "../../lib/supabase";
 import type { ContentInteraction, ContentRating, InteractionType } from "../../types/domain";
+import { redactIdentifier } from "../../lib/redactIdentifier";
 
 export type ContentInteractionSnapshot = {
   completedItemIds: Set<string>;
@@ -378,10 +379,4 @@ function logContentInteractionProof(
       ...details
     });
   }
-}
-
-function redactIdentifier(identifier: string): string {
-  return identifier.length <= 8
-    ? identifier
-    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
 }

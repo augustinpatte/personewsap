@@ -32,6 +32,31 @@ export const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
  */
 const FALLBACK_TIME_ZONE = "UTC";
 
+type DeviceTimeZoneReader = () => string | null | undefined;
+
+function readIntlTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The canonical device-zone reader. The app registers the native one at
+ * startup (features/notifications/deviceTimeZone: `expo-localization`, asked
+ * on every call, with Intl as its own fallback). `Intl` alone is the engine's
+ * notion of the zone and can stay on the old zone after the reader travels
+ * while the app is alive. This module stays free of native imports so plain
+ * unit tests and the root parity test can load it; there the Intl reader is
+ * what runs.
+ */
+let deviceTimeZoneReader: DeviceTimeZoneReader = readIntlTimeZone;
+
+export function registerDeviceTimeZoneReader(reader: DeviceTimeZoneReader): void {
+  deviceTimeZoneReader = reader;
+}
+
 /**
  * The IANA zone the device is currently in, e.g. `America/Chicago`.
  *
@@ -42,11 +67,19 @@ const FALLBACK_TIME_ZONE = "UTC";
  * computed or stored by hand.
  */
 export function getDeviceTimeZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || FALLBACK_TIME_ZONE;
-  } catch {
-    return FALLBACK_TIME_ZONE;
+  for (const read of [deviceTimeZoneReader, readIntlTimeZone]) {
+    try {
+      const zone = read()?.trim();
+
+      if (zone) {
+        return zone;
+      }
+    } catch {
+      // Try the next reader.
+    }
   }
+
+  return FALLBACK_TIME_ZONE;
 }
 
 /**

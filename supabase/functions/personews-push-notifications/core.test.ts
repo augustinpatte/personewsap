@@ -58,12 +58,13 @@ function row(overrides: Partial<ClaimedPush> = {}): ClaimedPush {
 function harness(
   rows: ClaimedPush[],
   send: (messages: ExpoMessage[]) => Promise<ExpoTicket[]>,
-  options: { recordFails?: boolean } = {}
+  options: { recordFails?: boolean; staleIds?: Set<string> } = {}
 ) {
   const accepted = new Set<string>();
   const leased = new Set<string>();
   const recorded: Array<{ deliveryId: string; outcome: Outcome }> = [];
   const sent: ExpoMessage[][] = [];
+  const recordCalls: number[] = [];
   const logs: Array<Record<string, unknown>> = [];
 
   const deps: WorkerDeps = {
@@ -77,24 +78,38 @@ function harness(
       sent.push(messages);
       return send(messages);
     },
-    record: async (claimed, outcome): Promise<RecordResult> => {
+    // One call per chunk, like record_push_delivery_attempts.
+    recordBatch: async (results) => {
+      recordCalls.push(results.length);
       if (options.recordFails) {
-        throw new Error("record_push_delivery_attempt failed: connection reset");
+        throw new Error("record_push_delivery_attempts failed: connection reset");
       }
-      recorded.push({ deliveryId: claimed.deliveryId, outcome });
-      if (outcome.kind === "ticket_accepted") {
-        accepted.add(claimed.deliveryId);
-        return { status: "awaiting_receipt", nextAttemptAt: null };
+      const written = new Map<string, RecordResult>();
+      for (const { row: claimed, outcome } of results) {
+        if (options.staleIds?.has(claimed.deliveryId)) {
+          written.set(claimed.deliveryId, { status: "stale_claim", nextAttemptAt: null });
+          continue;
+        }
+        recorded.push({ deliveryId: claimed.deliveryId, outcome });
+        if (outcome.kind === "ticket_accepted") {
+          accepted.add(claimed.deliveryId);
+          written.set(claimed.deliveryId, { status: "awaiting_receipt", nextAttemptAt: null });
+        } else {
+          written.set(
+            claimed.deliveryId,
+            outcome.kind === "retryable"
+              ? { status: "retryable_failure", nextAttemptAt: "2026-09-15T01:15:00+00:00" }
+              : { status: "terminal_failure", nextAttemptAt: null }
+          );
+        }
       }
-      return outcome.kind === "retryable"
-        ? { status: "retryable_failure", nextAttemptAt: "2026-09-15T01:15:00+00:00" }
-        : { status: "terminal_failure", nextAttemptAt: null };
+      return written;
     },
     now: () => new Date("2026-09-15T01:00:04Z"),
     log: (line) => logs.push(line)
   };
 
-  return { deps, recorded, sent, logs, releaseLeases: () => leased.clear() };
+  return { deps, recorded, sent, logs, recordCalls, releaseLeases: () => leased.clear() };
 }
 
 const ok = async (messages: ExpoMessage[]): Promise<ExpoTicket[]> =>
@@ -186,7 +201,7 @@ describe("one attempt", () => {
 
     expect(run.sent).toHaveLength(1);
     expect(summary.recordFailures).toBe(1);
-    expect(run.logs).toContainEqual(expect.objectContaining({ event: "push_record_failed" }));
+    expect(run.logs).toContainEqual(expect.objectContaining({ event: "push_record_failed", rows: 1 }));
   });
 
   it("sends in chunks of 100 and keeps claiming while batches come back full", async () => {
@@ -226,14 +241,14 @@ describe("observability", () => {
     expect(String(line?.target_local_time)).toContain("20:00");
   });
 
-  it("says blocked_until_ready when the edition was ready after the 20:00 target", async () => {
+  it("counts blocked_until_ready in the chunk summary when the edition was ready after the 20:00 target", async () => {
     const run = harness(
       [row({ targetAt: "2026-09-17T01:00:00Z", scheduledFor: "2026-09-17T01:27:00Z", editionReadyAt: "2026-09-17T01:27:00Z" })],
       ok
     );
     await runPushWorker(run.deps);
 
-    expect(run.logs.find((entry) => entry.event === "push_attempt")).toMatchObject({ blocked_until_ready: true });
+    expect(run.logs.find((entry) => entry.event === "push_chunk")).toMatchObject({ blocked_until_ready: 1 });
   });
 
   it("never logs a push token, whatever happens", async () => {
@@ -293,5 +308,94 @@ describe("the SQL row and the Expo call", () => {
 
     await expect(sender([buildPushMessage(row())])).rejects.toBeInstanceOf(ExpoHttpError);
     expect(calls).toEqual([EXPO_PUSH_ENDPOINT]);
+  });
+});
+
+describe("recording a chunk in one database call", () => {
+  const many = (count: number, prefix = "d") =>
+    Array.from({ length: count }, (_unused, index) =>
+      row({ deliveryId: `${prefix}-${index}`, pushTokenId: `p${index}-0000`, expoPushToken: `ExponentPushToken[${prefix}-${index}]` })
+    );
+
+  it("A. 100 results, one call", async () => {
+    const run = harness(many(100), ok);
+    const summary = await runPushWorker(run.deps, { runId: "edge-run-1" });
+
+    expect(run.recordCalls).toEqual([100]);
+    expect(summary).toMatchObject({ accepted: 100, recordCalls: 1, recordFailures: 0 });
+  });
+
+  it("A. 1,000 pushes: 10 recording calls, not 1,000", async () => {
+    const run = harness(many(1000), ok);
+    const summary = await runPushWorker(run.deps, { batchSize: 1000 });
+
+    expect(run.recordCalls).toEqual(Array(10).fill(100));
+    expect(summary.recordCalls).toBe(10);
+  });
+
+  it("B. mixed tickets in one chunk are each recorded with their own outcome", async () => {
+    const tickets: ExpoTicket[] = [
+      { status: "ok", id: "t-0" },
+      { status: "error", details: { error: "MessageRateExceeded" } },
+      { status: "error", details: { error: "InvalidCredentials" } },
+      { status: "error", details: { error: "DeviceNotRegistered" } }
+    ];
+    const run = harness(many(4), async () => tickets);
+    const summary = await runPushWorker(run.deps);
+
+    expect(run.recordCalls).toEqual([4]);
+    expect(run.recorded.map((entry) => entry.outcome.kind)).toEqual(["ticket_accepted", "retryable", "permanent", "token_invalid"]);
+    expect(summary).toMatchObject({ accepted: 1, retryable: 1, permanent: 1, tokenInvalid: 1 });
+    expect(run.logs.find((entry) => entry.event === "push_chunk")).toMatchObject({
+      size: 4,
+      outcomes: { ticket_accepted: 1, retryable: 1, permanent: 1, token_invalid: 1 },
+      recorded: { awaiting_receipt: 1, retryable_failure: 1, terminal_failure: 2 }
+    });
+  });
+
+  it("I. a failed Expo request is recorded for the whole chunk in one call", async () => {
+    const run = harness(many(100), async () => {
+      throw new ExpoHttpError(400, "Expo push request failed with status 400");
+    });
+    const summary = await runPushWorker(run.deps);
+
+    expect(run.recordCalls).toEqual([100]);
+    expect(summary.permanent).toBe(100);
+    expect(run.recorded.every((entry) => entry.outcome.kind === "permanent")).toBe(true);
+  });
+
+  it("C. a result the database refuses (stale lease) is counted and logged, never retried here", async () => {
+    const rows = many(3);
+    const run = harness(rows, ok, { staleIds: new Set([rows[1].deliveryId]) });
+    const summary = await runPushWorker(run.deps);
+
+    expect(summary).toMatchObject({ accepted: 3, staleRecords: 1 });
+    expect(run.logs.filter((entry) => entry.event === "push_attempt")).toEqual([
+      expect.objectContaining({ recorded_status: "stale_claim" })
+    ]);
+  });
+
+  it("malformed tokens are recorded together, in their own call, and never sent", async () => {
+    const rows = [...many(2), row({ deliveryId: "bad-1", expoPushToken: "nope" }), row({ deliveryId: "bad-2", expoPushToken: "x" })];
+    const run = harness(rows, ok);
+    await runPushWorker(run.deps);
+
+    expect(run.recordCalls).toEqual([2, 2]);
+    expect(run.sent.flat()).toHaveLength(2);
+  });
+
+  it("logs a summary per chunk, a line per failure only, the run id, and never a token", async () => {
+    const run = harness(many(100), async (messages) =>
+      messages.map((_message, index) => (index < 98 ? { status: "ok", id: `t-${index}` } : { status: "error", details: { error: "MessageRateExceeded" } }))
+    );
+    await runPushWorker(run.deps, { runId: "edge-run-7" });
+
+    const attemptLines = run.logs.filter((entry) => entry.event === "push_attempt");
+    expect(attemptLines).toHaveLength(2);
+    expect(run.logs.filter((entry) => entry.event === "push_chunk")).toEqual([
+      expect.objectContaining({ run: "edge-run-7", size: 100, outcomes: { ticket_accepted: 98, retryable: 2 } })
+    ]);
+    expect(run.logs.at(-1)).toMatchObject({ event: "push_worker_run", run: "edge-run-7", recordCalls: 1 });
+    expect(JSON.stringify(run.logs)).not.toContain("ExponentPushToken");
   });
 });

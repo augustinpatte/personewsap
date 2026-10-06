@@ -5,7 +5,6 @@ export { Card } from "./Card";
 export { ContentReveal } from "./ContentReveal";
 export { EmptyState } from "./EmptyState";
 export { IconBadge, type IconBadgeName } from "./IconBadge";
-export { PlaceholderScreen } from "./PlaceholderScreen";
 export { PressableSurface } from "./PressableSurface";
 export { PrimaryButton } from "./PrimaryButton";
 export {

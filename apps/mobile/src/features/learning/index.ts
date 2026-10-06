@@ -5,6 +5,7 @@ export { LearningPathCard } from "./LearningPathCard";
 export { LearningPathHistoryScreen } from "./LearningPathHistoryScreen";
 export { LearningPathOverviewScreen } from "./LearningPathOverviewScreen";
 export { LearningPathProvider, useLearningPath } from "./LearningPathContext";
+export { useLearningPathData } from "./useLearningPathData";
 export { LearningSessionScreen } from "./LearningSessionScreen";
 export { LearningSetupScreen } from "./LearningSetupScreen";
 export { getCurrentLevelOptions, getTargetLevelOptions } from "./learningLevels";

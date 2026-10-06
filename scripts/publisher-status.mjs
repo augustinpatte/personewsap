@@ -48,6 +48,52 @@ function bullet(label, value) {
   console.log(`  ${label.padEnd(22)} ${value}`);
 }
 
+// `--date YYYY-MM-DD`: what happened to one edition date, in one call
+// (staging edition_publication_timeline, 20261005140000). Exit 1 when that
+// edition is missed or has a stale open run.
+const dateIndex = process.argv.indexOf("--date");
+
+if (dateIndex >= 0) {
+  const date = process.argv[dateIndex + 1] ?? "";
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    console.error("--date needs a YYYY-MM-DD edition date.");
+    process.exit(2);
+  }
+
+  const timelineRows = await query(
+    STAGING_REF,
+    `select public.edition_publication_timeline('${date}'::date) as t;`,
+  );
+  const timeline = timelineRows?.[0]?.t;
+
+  if (!timeline) {
+    console.error("Could not read the edition timeline (is 20261005140000 applied to staging?).");
+    process.exit(1);
+  }
+
+  const health = timeline.health ?? {};
+  console.log(`\nPersoNews edition ${date}\n`);
+  bullet("status", `${health.status} (${health.ok ? "ok" : "NOT OK"})`);
+  bullet("kind", health.edition_kind ?? "not a publication day");
+  bullet("deadline (Paris)", health.deadline_paris);
+  bullet("receipt", health.receipt ? `${health.receipt.batch_id} at ${health.receipt.published_at}` : "none");
+  bullet("stale open runs", (health.stale_open_runs ?? []).length);
+  console.log("\n  attempts");
+
+  for (const attempt of timeline.attempts ?? []) {
+    console.log(
+      `    ${attempt.started_at}  ${attempt.trigger.padEnd(7)} ${String(attempt.reason ?? (attempt.open ? "OPEN" : "?")).padEnd(34)}` +
+        ` gate=${attempt.gate_passed} published=${attempt.publication_succeeded} verified=${attempt.production_verified}` +
+        ` receipt=${attempt.receipt_recorded} blockers=${attempt.blocker_count}` +
+        (attempt.error ? `\n      error: ${String(attempt.error).slice(0, 200)}` : ""),
+    );
+  }
+
+  console.log("\n  recovery: select public.run_scheduled_publication_tick(true);  (staging SQL editor)\n");
+  process.exit(health.ok ? 0 : 1);
+}
+
 const rows = await query(STAGING_REF, "select public.next_scheduled_publication_status() as s;");
 const status = rows?.[0]?.s;
 

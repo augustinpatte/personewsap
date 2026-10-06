@@ -25,9 +25,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import {
+  DEFAULT_PUBLISH_TIMEOUT_MS,
+  DEFAULT_VERIFY_TIMEOUT_MS,
   editorialDate,
   isEditorialDate,
+  postJsonWithTimeout,
   PUBLISHER_VERSION,
+  resolveTimeoutMs,
   runScheduledPublication,
   type ProductionPublishResult,
   type ProductionVerification,
@@ -124,20 +128,27 @@ Deno.serve(async (req: Request) => {
     const productionToken = Deno.env.get("PERSONEWS_PRODUCTION_PUBLISH_TOKEN") ?? "";
     if (!productionToken) return json({ error: "production_token_not_configured" }, 500);
 
-    const callProduction = async (payload: Record<string, unknown>): Promise<unknown> => {
-      const response = await fetch(PRODUCTION_PUBLISH_URL, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token: productionToken, ...payload }),
+    // Bounded, so a hung production call ends as a structured, retryable
+    // outcome instead of the runtime killing this function mid-run.
+    const publishTimeoutMs = resolveTimeoutMs(
+      Deno.env.get("PUBLISHER_PUBLISH_TIMEOUT_MS"),
+      DEFAULT_PUBLISH_TIMEOUT_MS,
+    );
+    const verifyTimeoutMs = resolveTimeoutMs(
+      Deno.env.get("PUBLISHER_VERIFY_TIMEOUT_MS"),
+      DEFAULT_VERIFY_TIMEOUT_MS,
+    );
+
+    const callProduction = (
+      operation: "publish" | "verify",
+      payload: Record<string, unknown>,
+    ): Promise<unknown> =>
+      postJsonWithTimeout({
+        url: PRODUCTION_PUBLISH_URL,
+        body: { token: productionToken, ...payload },
+        timeoutMs: operation === "publish" ? publishTimeoutMs : verifyTimeoutMs,
+        operation,
       });
-      const result = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(
-          `production_http_${response.status}: ${JSON.stringify(result ?? {}).slice(0, 500)}`,
-        );
-      }
-      return result;
-    };
 
     const outcome = await runScheduledPublication({
       editionDate,
@@ -160,14 +171,14 @@ Deno.serve(async (req: Request) => {
         },
 
         publish: async (payload, runId) =>
-          (await callProduction({
+          (await callProduction("publish", {
             action: "publish",
             payload,
             run_id: runId,
           })) as ProductionPublishResult,
 
         verify: async (date, batchId, runId) =>
-          (await callProduction({
+          (await callProduction("verify", {
             action: "verify",
             edition_date: date,
             batch_id: batchId,

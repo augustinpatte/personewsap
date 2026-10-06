@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 
 import { useThemeColors } from "../../src/design";
 import { AppLaunchScreen, useAuth } from "../../src/features/auth";
@@ -16,6 +16,10 @@ export default function TeamsLayout() {
 
   if (status === "loading") {
     return <AppLaunchScreen language={profileLanguage} />;
+  }
+
+  if (status === "profileError") {
+    return <Redirect href="/" />;
   }
 
   return (

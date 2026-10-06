@@ -30,6 +30,7 @@ import {
   type LearningGenerationLockState
 } from "../learning/generationLock.js";
 import { buildBusinessStoryEditorialMemory, buildBusinessStoryMemoryContext } from "../generation/editorialMemory.js";
+import { PublishedEditionError, type PublishedEdition } from "./publishedEditionGuard.js";
 import {
   buildMiniCaseMemoryContext,
   miniCaseMemoryFromItem,
@@ -367,6 +368,53 @@ export type PersistTestCleanupResult = {
 
 export class ContentRepository {
   constructor(private readonly supabase: SupabaseClient) {}
+
+  // A published edition stays published, so its answer can be remembered for
+  // the life of this repository: one read per date, not one per reader.
+  private readonly publishedEditions = new Map<string, PublishedEdition | null>();
+
+  /** The edition registered for this date, or null when the date is unpublished. */
+  async findPublishedEdition(dropDate: string): Promise<PublishedEdition | null> {
+    if (this.publishedEditions.has(dropDate)) {
+      return this.publishedEditions.get(dropDate) ?? null;
+    }
+
+    const { data, error } = await this.supabase
+      .from("editions")
+      .select("edition_date,published_at")
+      .eq("edition_date", dropDate)
+      .maybeSingle<{ edition_date: string; published_at: string | null }>();
+
+    if (error) {
+      throwPersistenceError({
+        table: "editions",
+        action: "check whether the edition date is already published",
+        error
+      });
+    }
+
+    const edition = data ? { editionDate: data.edition_date, publishedAt: data.published_at } : null;
+
+    // Only a positive answer is final; an unpublished date can publish later.
+    if (edition) {
+      this.publishedEditions.set(dropDate, edition);
+    }
+
+    return edition;
+  }
+
+  /**
+   * Refuse to write reader assignments for a date that is already published.
+   * The database enforces the same rule; checking first fails fast, before any
+   * generation, with an error that names the recovery path.
+   */
+  async assertEditionNotPublished(dropDate: string, path: string): Promise<void> {
+    const edition = await this.findPublishedEdition(dropDate);
+
+    if (edition) {
+      throw new PublishedEditionError(dropDate, edition.publishedAt, path);
+    }
+  }
 
   assertPersistenceAvailable(): void {
     void this.supabase.from;
@@ -2160,6 +2208,8 @@ export class ContentRepository {
     itemIds: DailyDropItemInput[];
     hideDisplayDate?: boolean;
   }): Promise<DailyDropWriteResult> {
+    await this.assertEditionNotPublished(input.dropDate, "Writing a reader's daily drop");
+
     const existingDrop = await this.listDailyDropsForUsersOnDate({
       userIds: [input.userId],
       dropDate: input.dropDate

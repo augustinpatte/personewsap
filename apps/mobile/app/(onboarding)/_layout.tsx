@@ -20,6 +20,11 @@ export default function OnboardingLayout() {
     return <Redirect href="/(tabs)/newsletter" />;
   }
 
+  // Unknown onboarding state is not "incomplete": retry from the root redirect.
+  if (status === "profileError") {
+    return <Redirect href="/" />;
+  }
+
   return (
     <OnboardingProvider>
       <Stack

@@ -46,7 +46,10 @@ const preflight = read(
 );
 const publisherCore = read("supabase", "functions", "personews-task-publisher", "core.ts");
 const publisherEntry = read("supabase", "functions", "personews-task-publisher", "index.ts");
-const bridge = read("supabase", "functions", "personews-task-bridge", "index.ts");
+// The bridge is split: core.ts holds the contract and decisions, index.ts the database wiring.
+const bridge =
+  read("supabase", "functions", "personews-task-bridge", "core.ts") +
+  read("supabase", "functions", "personews-task-bridge", "index.ts");
 
 const code = stripComments(migration);
 const verificationCode = stripComments(verification);
@@ -327,12 +330,12 @@ describe("the generators can actually read the contract", () => {
   it("travels in the manifest the Scheduled Tasks fetch", () => {
     // A prompt file in the repository is not reachable from a ChatGPT Scheduled
     // Task. This manifest is the only thing they read.
-    expect(bridge).toContain("scored_question_contract: questionContract");
+    expect(bridge).toContain("scored_question_contract: await deps.questionContract(date)");
     expect(bridge).toContain('supabase.rpc("scored_question_contract")');
   });
 
   it("is fetchable on its own for the reviewer", () => {
-    expect(bridge).toContain('action === "question_contract"');
+    expect(bridge).toContain('case "question_contract":');
   });
 
   it("degrades instead of blocking an edition", () => {

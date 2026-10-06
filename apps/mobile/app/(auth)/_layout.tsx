@@ -21,6 +21,11 @@ export default function AuthLayout() {
     return <Redirect href="/(tabs)/newsletter" />;
   }
 
+  // Signed in, profile unreadable: the root redirect offers a retry.
+  if (status === "profileError" && !isResetPasswordRoute) {
+    return <Redirect href="/" />;
+  }
+
   return (
     <Stack
       screenOptions={{

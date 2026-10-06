@@ -64,7 +64,13 @@ jobs:
       LANGUAGES: ${{ github.event.inputs.languages || 'fr,en' }}
       DRY_RUN: "false"
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      # The engine refuses to write unless the target is declared (storage/projectRef.ts).
+      EXPECTED_SUPABASE_REF: wkbviidrbmehmjbhvpeh
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Read-only: the notification health step also asks staging whether the
+      # edition was verified. Without them it only warns (no --require-staging).
+      STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
       - name: What triggered this run

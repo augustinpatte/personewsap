@@ -35,6 +35,8 @@ jobs:
       DRY_RUN: "false"
       PUSH_RECEIPT_LIMIT: ${{ github.event.inputs.limit || '1000' }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      # The engine refuses to write unless the target is declared (storage/projectRef.ts).
+      EXPECTED_SUPABASE_REF: wkbviidrbmehmjbhvpeh
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:

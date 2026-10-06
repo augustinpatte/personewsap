@@ -188,6 +188,10 @@ begin
         'mini_case_topic', j.mini_case_topic,
         'ordinal', j.ordinal,
         'prompt_key', j.prompt_key,
+        -- The production publisher stores job.output_id as staging_output_id,
+        -- so the canonical payload names its output. Its review is not named:
+        -- bind_payload_to_verified_identities binds a review by content.
+        'output_id', o.id,
         'output_json', o.output_json,
         'source_records', o.source_records,
         'review', jsonb_build_object(

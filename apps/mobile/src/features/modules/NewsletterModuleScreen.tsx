@@ -1,4 +1,4 @@
-import { useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
@@ -80,6 +80,21 @@ function openArticle(router: ReturnType<typeof useRouter>, article: NewsletterAr
 
 export function NewsletterModuleScreen() {
   const [view, setView] = useState<"left" | "right">("left");
+  const router = useRouter();
+  // A notification lands here with the edition it named. The edition itself is
+  // loaded by NotificationRoutingBridge as the tap is followed; this screen's
+  // part is to show it, i.e. be on Today rather than the archive view, and to
+  // consume the parameter so a later visit does not re-apply it.
+  const { drop_date: requestedDropDate } = useLocalSearchParams<{ drop_date?: string }>();
+
+  useEffect(() => {
+    if (!requestedDropDate) {
+      return;
+    }
+
+    setView("left");
+    router.setParams({ drop_date: undefined });
+  }, [requestedDropDate, router]);
   const { language, drop, status: dropStatus } = useDailyDrop();
   const modulePreference = useModulePreferenceState("newsletter");
   const styles = useThemedStyles(createStyles);
@@ -140,8 +155,19 @@ export function NewsletterModuleScreen() {
 function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const { language, drop, status, error, isEmptyDrop, isItemComplete, reload } =
-    useDailyDrop();
+  const {
+    language,
+    drop,
+    status,
+    error,
+    isEmptyDrop,
+    isItemComplete,
+    pinnedEditionDate,
+    refresh,
+    refreshing,
+    reload,
+    showCurrentEdition
+  } = useDailyDrop();
   const copy = getModuleCopy(language);
   const [showLanguageChangeNotice, setShowLanguageChangeNotice] = useState(false);
   // Already Team-first, already deduplicated on logical identity, already in
@@ -236,7 +262,12 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
   const readCount = articles.filter((article) => isItemComplete(article.id)).length;
 
   return (
-    <ModuleScroll contentStyle={styles.todayContent} reveal>
+    <ModuleScroll
+      contentStyle={styles.todayContent}
+      reveal
+      onRefresh={() => void refresh()}
+      refreshing={refreshing}
+    >
       {/* Masthead line: the edition, then how far through it you are. Reads as
           the top of a front page rather than as a progress widget. */}
       <View style={styles.masthead}>
@@ -246,6 +277,19 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
             copy.newsletter.progress(readCount, articles.length)
           ]}
         />
+        {pinnedEditionDate ? (
+          // Opened from a notification for an edition that is no longer the
+          // open one. The masthead date already says which; this is the way back.
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => void showCurrentEdition()}
+          >
+            <AppText color="accentInk" variant="label">
+              {copy.common.backToCurrentEdition}
+            </AppText>
+          </Pressable>
+        ) : null}
         <EditorialRule />
       </View>
 

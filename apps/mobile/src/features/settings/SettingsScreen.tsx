@@ -21,7 +21,12 @@ import { useDailyDrop } from "../today";
 import { NOTIFICATION_SETTINGS_SECTION, NotificationPreferencesCard } from "../notifications";
 import { LearningAccountSection } from "../learning";
 import { PreferencesEditor, updateProfileLanguage } from "../preferences";
-import { clearPreferenceSensitiveContentCache } from "../preferences/contentRefresh";
+import {
+  clearPreferenceSensitiveContentCache,
+  planPreferenceSaveRefresh
+} from "../preferences/contentRefresh";
+import { moduleFlagsFromEnabledModules } from "../preferences/moduleFlags";
+import type { EditablePreferences } from "../preferences/preferencesPersistence";
 import { recordLanguageChangeNotice } from "../preferences/languageChangeNotice";
 import { performLanguageChange } from "../preferences/languageSwitch";
 import { LANGUAGE_OPTIONS, localizeOptions, SelectableCard } from "../onboarding";
@@ -34,11 +39,13 @@ import { getUserFacingError } from "../../lib/userFacingErrors";
 export function SettingsScreen() {
   const router = useRouter();
   const {
+    applyModuleFlags,
     applyProfileLanguage,
     error,
+    moduleFlags,
     profileCompleted,
     profileLanguage,
-    refreshAuthState,
+    refreshProfile,
     signOut,
     status,
     user
@@ -134,47 +141,60 @@ export function SettingsScreen() {
         },
         onPersisted: async (persistedLanguage) => {
           await recordLanguageChangeNotice(AsyncStorage, persistedLanguage);
-          await refreshAuthState();
+          await refreshProfile();
         }
       });
     },
-    [applyProfileLanguage, profileLanguage, refreshAuthState, user?.id]
+    [applyProfileLanguage, profileLanguage, refreshProfile, user?.id]
   );
 
   /**
-   * A saved preference change, propagated.
+   * A saved preference change, propagated — to what it affects and no more
+   * (planPreferenceSaveRefresh has the table).
    *
-   * Every content response is memoised for a minute, so without this the
-   * reader could enable a module and walk straight back into the answer
-   * computed before they did. Clearing the content caches and reloading both
-   * content surfaces makes the next read ask the server with the preferences
-   * that are now stored.
+   * The module flags are applied in memory at once, so a tab switched on or off
+   * shows it without a request. Today and the Archive are re-read only when a
+   * content module was switched; Learning reloads itself when its flag flips;
+   * the profile is confirmed quietly in the background.
    *
    * What this cannot do is rewrite today's edition. `daily_drop_items` is
    * assigned by the publisher when the edition goes out, and re-reading it
    * returns the same assignment — which is the point: a new topic takes effect
    * on the next edition, and nothing is invented in the meantime.
    */
-  const handlePreferencesSaved = useCallback(async () => {
-    clearPreferenceSensitiveContentCache();
-    await refreshAuthState();
-    // Completion and read state are re-read from content_interactions with the
-    // content, so reloading here cannot cost the reader progress.
-    dailyDrop.reload();
-    archive.reload();
-  }, [archive, dailyDrop, refreshAuthState]);
+  const handlePreferencesSaved = useCallback(
+    async (saved: EditablePreferences) => {
+      const plan = planPreferenceSaveRefresh(
+        moduleFlags,
+        moduleFlagsFromEnabledModules(saved.enabledModules)
+      );
+
+      applyModuleFlags(plan.moduleFlags);
+
+      if (plan.reloadEditionContent) {
+        clearPreferenceSensitiveContentCache();
+        // Completion and read state are re-read from content_interactions with
+        // the content, so reloading here cannot cost the reader progress.
+        dailyDrop.reload();
+        archive.reload();
+      }
+
+      await refreshProfile();
+    },
+    [applyModuleFlags, archive, dailyDrop, moduleFlags, refreshProfile]
+  );
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     setSignOutError(null);
 
     try {
-      await refreshAuthState();
+      await refreshProfile();
       setPreferencesRefreshKey((currentKey) => currentKey + 1);
     } finally {
       setIsRefreshing(false);
     }
-  }, [refreshAuthState]);
+  }, [refreshProfile]);
 
   const handleSignOut = useCallback(async () => {
     setIsSigningOut(true);

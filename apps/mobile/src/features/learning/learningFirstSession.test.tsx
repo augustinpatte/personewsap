@@ -51,13 +51,18 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   }
 }));
 
-vi.mock("../auth", () => ({
-  useAuth: () => ({
+vi.mock("../auth", () => {
+  // Stable across renders, as the real provider's callbacks are.
+  const auth = {
+    applyModuleFlags: () => {},
+    moduleFlags: null,
     profileLanguage: "fr",
     status: "ready",
     user: { id: "44444444-4444-4444-8444-444444444444" }
-  })
-}));
+  };
+
+  return { useAuth: () => auth };
+});
 
 vi.mock("../../lib/supabase", () => ({
   supabase: {

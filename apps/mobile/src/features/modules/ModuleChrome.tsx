@@ -1,6 +1,7 @@
 import { useRouter, type Href } from "expo-router";
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
@@ -20,7 +21,7 @@ import {
 } from "../../components";
 import { usePressedSurfaceStyle } from "../../design/usePressedSurfaceStyle";
 import { tokens } from "../../design/tokens";
-import { useThemedStyles, type ThemeColors } from "../../design/theme";
+import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { useTabBarInset } from "../../design/useTabBarInset";
 import type { EditionProgressState } from "./editionProgress";
 import { getModuleCopy } from "./moduleCopy";
@@ -175,7 +176,9 @@ export function ModuleSurface({
 export function ModuleScroll({
   children,
   contentStyle,
-  reveal = false
+  reveal = false,
+  onRefresh,
+  refreshing = false
 }: PropsWithChildren<{
   contentStyle?: StyleProp<ViewStyle>;
   /**
@@ -184,13 +187,27 @@ export function ModuleScroll({
    * every time the reader switches back to it.
    */
   reveal?: boolean;
+  /** Pull-to-refresh. Offered only where the content can be stale (Today). */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }>) {
   const styles = useThemedStyles(createStyles);
+  const colors = useThemeColors();
   // The tab bar floats over this scroll, so the content has to end above it.
   const tabBarInset = useTabBarInset();
 
   return (
     <ScrollView
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            colors={[colors.accent]}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            tintColor={colors.accent}
+          />
+        ) : undefined
+      }
       automaticallyAdjustKeyboardInsets
       contentContainerStyle={[
         styles.scrollContent,

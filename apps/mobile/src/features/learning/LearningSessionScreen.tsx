@@ -18,7 +18,7 @@ import { trackAnalyticsEvent } from "../../lib/analytics";
 import type { Language } from "../../types/domain";
 import { getLearningCopy } from "./learningCopy";
 import { copyLearningPrompt, copyPromptAndOpenProvider } from "./learningPromptCopy";
-import { useLearningPath } from "./LearningPathContext";
+import { useLearningPathData } from "./useLearningPathData";
 import { LEARNING_PROVIDER_LINKS } from "./providerLinks";
 import type { LearningProviderId } from "./learningTypes";
 import {
@@ -39,7 +39,7 @@ export function LearningSessionScreen({ language }: { language: Language | null 
     recordSessionStartedAfterPromptCopy,
     sessions,
     status
-  } = useLearningPath();
+  } = useLearningPathData();
   const styles = useThemedStyles(createStyles);
   const pressedSurface = usePressedSurfaceStyle();
   const session = sessionId ? getSessionById(sessionId) : undefined;

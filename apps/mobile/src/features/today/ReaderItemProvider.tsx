@@ -175,7 +175,14 @@ function FetchedReaderProvider({
           });
         }
       },
-      reload: () => {}
+      reload: () => {},
+      refresh: async () => {},
+      refreshing: false,
+      // A single reading has no edition of its own to switch between.
+      currentEditionDate: null,
+      pinnedEditionDate: null,
+      openEdition: async () => {},
+      showCurrentEdition: async () => {}
     };
   }, [
     completed,

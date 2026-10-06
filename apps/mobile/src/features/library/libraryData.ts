@@ -18,11 +18,13 @@ import {
   type ArchiveSearchPage
 } from "../archive/archiveSearchPaging";
 import type { TopicId } from "../../constants/product";
-import type { ContentInteraction, ContentItem, DailyDrop, DailyDropItem } from "../../types/domain";
+import type { ContentInteraction, DailyDrop, DailyDropItem } from "../../types/domain";
 import {
   fetchContentItemsByLogicalKeys,
   getContentLogicalKey,
-  resolveContentItemsForLanguage
+  listContentProjection,
+  resolveContentItemsForLanguage,
+  type ContentItemListRow
 } from "../today/contentTranslations";
 import {
   fetchTeamContentForRange,
@@ -32,6 +34,7 @@ import {
 import type { ContentLanguage, ContentTeamRef } from "../today";
 import { resolveEditionType } from "../today/editionCadence";
 import type { LibraryDropSummary, LibraryItemSummary } from "./libraryTypes";
+import { redactIdentifier } from "../../lib/redactIdentifier";
 
 type FetchLibraryDropsOptions = {
   cacheTtlMs?: number;
@@ -79,13 +82,13 @@ const maxArchiveSearchPageSize = 50;
 // daily_drop_items is what makes drop_date and content_item_id top-level
 // columns, and therefore a real keyset possible.
 const archiveSearchView = "user_archive_search_items";
+// Only the two metadata keys a search row reads (topic fallbacks), never the
+// whole metadata object, which carries the item's body-sized fields.
 const archiveSearchSelect =
-  "content_item_id,drop_id,drop_date,content_type,language,title,topic_id,source_count,metadata,hide_display_date";
+  "content_item_id,drop_id,drop_date,content_type,language,title,topic_id,source_count,hide_display_date,meta_topic:metadata->>topic,meta_category:metadata->>category";
 const publishedContentStatus = "published";
 const contentInteractionSelect =
   "id,user_id,content_item_id,interaction_type,rating,message,created_at";
-const contentItemSelect =
-  "id,content_type,topic_id,language,title,summary,body_md,difficulty,estimated_read_seconds,publication_date,version,status,generation_run_id,source_count,metadata,created_at,updated_at";
 const logicalQuestionIdSelect = "id,content_logical_key,content_type,question_sequence";
 const dailyDropItemSelect = "daily_drop_id,content_item_id,slot,position,created_at";
 const dailyDropSelect =
@@ -355,7 +358,7 @@ export async function searchLibraryItems(
       );
     }
 
-    const rows = (data ?? []) as unknown as ArchiveSearchRow[];
+    const rows = ((data ?? []) as unknown as ArchiveSearchQueryRow[]).map(toArchiveSearchRow);
     const contentItemIds = [...new Set(rows.map((row) => row.content_item_id))];
     const interactions = await fetchLibraryInteractions(userId, contentItemIds);
     const completedItemIds = getInteractedContentItemIds(interactions, "complete");
@@ -412,16 +415,39 @@ export async function searchLibraryItems(
  * One row of public.user_archive_search_items: already flat and already
  * de-duplicated per content item, so no embedded-shape handling is needed.
  */
+type ArchiveSearchQueryRow = Omit<ArchiveSearchRow, "metadata"> & {
+  meta_topic?: string | null;
+  meta_category?: string | null;
+  /** Present only on a row that was read whole (a test double). */
+  metadata?: ContentItemListRow["metadata"];
+};
+
+function toArchiveSearchRow(row: ArchiveSearchQueryRow): ArchiveSearchRow {
+  const { meta_topic, meta_category, metadata, ...rest } = row;
+
+  if (metadata !== undefined) {
+    return { ...rest, metadata };
+  }
+
+  return {
+    ...rest,
+    metadata: {
+      ...(meta_topic ? { topic: meta_topic } : {}),
+      ...(meta_category ? { category: meta_category } : {})
+    }
+  };
+}
+
 type ArchiveSearchRow = {
   content_item_id: string;
   drop_id: string;
   drop_date: string;
-  content_type: ContentItem["content_type"];
-  language: ContentItem["language"];
+  content_type: ContentItemListRow["content_type"];
+  language: ContentItemListRow["language"];
   title: string;
-  topic_id: ContentItem["topic_id"];
+  topic_id: ContentItemListRow["topic_id"];
   source_count: number;
-  metadata: ContentItem["metadata"];
+  metadata: ContentItemListRow["metadata"];
   /** The edition's display rule, carried by the view. */
   hide_display_date: boolean | null;
 };
@@ -593,7 +619,7 @@ async function buildLibraryDropSummaries(
 
 type ArchivedTeamContent = {
   assignment: TeamContentAssignment;
-  contentItem: ContentItem;
+  contentItem: ContentItemListRow;
   translationIds: string[];
 };
 
@@ -637,16 +663,17 @@ async function fetchTeamArchiveContent(input: {
   }
 
   const itemsByLogicalKey = await fetchContentItemsByLogicalKeys(
-    wanted.map((assignment) => assignment.contentLogicalKey)
+    wanted.map((assignment) => assignment.contentLogicalKey),
+    listContentProjection
   );
 
   for (const assignment of wanted) {
     const renderings = (itemsByLogicalKey.get(assignment.contentLogicalKey) ?? []).filter(
-      (contentItem: ContentItem) => contentItem.content_type === assignment.contentType
+      (contentItem: ContentItemListRow) => contentItem.content_type === assignment.contentType
     );
     const displayItem =
       renderings.find(
-        (contentItem: ContentItem) => contentItem.id === assignment.displayContentItemId
+        (contentItem: ContentItemListRow) => contentItem.id === assignment.displayContentItemId
       ) ?? renderings[0];
 
     if (!displayItem) {
@@ -659,8 +686,8 @@ async function fetchTeamArchiveContent(input: {
         assignment,
         contentItem: displayItem,
         translationIds: renderings
-          .filter((contentItem: ContentItem) => contentItem.id !== displayItem.id)
-          .map((contentItem: ContentItem) => contentItem.id)
+          .filter((contentItem: ContentItemListRow) => contentItem.id !== displayItem.id)
+          .map((contentItem: ContentItemListRow) => contentItem.id)
       }
     ]);
   }
@@ -690,7 +717,7 @@ function withTranslatedInteractions(
 }
 
 /** The logical identities of a set of content rows, for overlap detection. */
-function identitiesOfContentItems(contentItems: ContentItem[]): Set<string> {
+function identitiesOfContentItems(contentItems: ContentItemListRow[]): Set<string> {
   const identities = new Set<string>();
 
   for (const contentItem of contentItems) {
@@ -718,7 +745,7 @@ function identitiesOfContentItems(contentItems: ContentItem[]): Set<string> {
  * failing the archive.
  */
 async function fetchLogicalQuestionIdsByContentItemId(
-  contentItems: ContentItem[]
+  contentItems: ContentItemListRow[]
 ): Promise<Map<string, string[]>> {
   const byContentItemId = new Map<string, string[]>();
 
@@ -775,7 +802,7 @@ async function fetchLogicalQuestionIdsByContentItemId(
 
 function mapLibraryItems(
   drop: DailyDrop,
-  contentItems: ContentItem[],
+  contentItems: ContentItemListRow[],
   completedItemIds: Set<string>,
   savedItemIds: Set<string>,
   teamsByContentItemId: Map<string, ContentTeamRef[]> = new Map(),
@@ -808,17 +835,22 @@ function mapLibraryItems(
     .filter(isLibraryItemSummary);
 }
 
+/**
+ * The archive's rows for a page: list fields only (listContentProjection) —
+ * never body_md, never the full metadata. Opening a row reads the full item
+ * through the reader's own path.
+ */
 async function fetchContentItemsById(
   contentItemIds: string[],
   language?: ContentLanguage
-): Promise<Map<string, ContentItem>> {
+): Promise<Map<string, ContentItemListRow>> {
   if (!supabase || contentItemIds.length === 0) {
     return new Map();
   }
 
   const { data: contentItems, error } = await supabase
     .from("content_items")
-    .select(contentItemSelect)
+    .select(listContentProjection.select)
     .in("id", contentItemIds)
     .eq("status", publishedContentStatus);
 
@@ -829,8 +861,9 @@ async function fetchContentItemsById(
   // Display fields in the requested language, ids unchanged (the assigned ids
   // are what interactions and reader routes key on).
   const renderedContentItems = await resolveContentItemsForLanguage(
-    contentItems ?? [],
-    language
+    ((contentItems ?? []) as unknown as Record<string, unknown>[]).map(listContentProjection.fromRow),
+    language,
+    listContentProjection
   );
 
   return new Map(renderedContentItems.map((contentItem) => [contentItem.id, contentItem]));
@@ -895,13 +928,13 @@ function getInteractedContentItemIds(
 }
 
 function countMatchingContentItems(
-  contentItems: ContentItem[],
+  contentItems: ContentItemListRow[],
   contentItemIds: Set<string>
 ): number {
   return contentItems.filter((contentItem) => contentItemIds.has(contentItem.id)).length;
 }
 
-function getTopicsForContentItems(contentItems: ContentItem[]): TopicId[] {
+function getTopicsForContentItems(contentItems: ContentItemListRow[]): TopicId[] {
   const topics = contentItems
     .map((contentItem) => readTopicFromContentItem(contentItem))
     .filter(isTopicId);
@@ -910,7 +943,7 @@ function getTopicsForContentItems(contentItems: ContentItem[]): TopicId[] {
 }
 
 /** Only the fields these helpers read, so a flat search row also fits. */
-type TopicBearingRow = Pick<ContentItem, "topic_id" | "metadata">;
+type TopicBearingRow = Pick<ContentItemListRow, "topic_id" | "metadata">;
 
 function readTopicFromContentItem(contentItem: TopicBearingRow): TopicId | null {
   if (isTopicId(contentItem.topic_id)) {
@@ -936,7 +969,7 @@ function readLibraryTopic(contentItem: TopicBearingRow): LibraryItemSummary["top
 }
 
 function mapLibraryContentType(
-  contentItem: Pick<ContentItem, "content_type">
+  contentItem: Pick<ContentItemListRow, "content_type">
 ): LibraryItemSummary["content_type"] | null {
   if (contentItem.content_type === "concept") {
     return "key_concept";
@@ -1015,11 +1048,6 @@ function logLibraryDataProof(
   }
 }
 
-function redactIdentifier(identifier: string): string {
-  return identifier.length <= 8
-    ? identifier
-    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
-}
 
 function isTopicId(value: unknown): value is TopicId {
   return typeof value === "string" && topicIds.includes(value as TopicId);
@@ -1029,7 +1057,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isContentItem(contentItem: ContentItem | undefined): contentItem is ContentItem {
+function isContentItem(
+  contentItem: ContentItemListRow | undefined
+): contentItem is ContentItemListRow {
   return Boolean(contentItem);
 }
 

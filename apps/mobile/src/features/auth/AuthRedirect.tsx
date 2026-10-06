@@ -42,6 +42,26 @@ export function AuthRedirect() {
     return <Redirect href="/(auth)/login" />;
   }
 
+  // Signed in, but the profile could not be read (offline, timeout, server
+  // error). Whether this reader finished onboarding is unknown, so neither
+  // onboarding nor the tabs are safe: say so and let them retry.
+  if (status === "profileError") {
+    const userFacingError = getUserFacingError(error, bootLanguage, "auth");
+
+    return (
+      <AppScreen centered>
+        <Card elevated padding="lg">
+          <AppText variant="eyebrow">{copy.accountEyebrow}</AppText>
+          <AppText variant="title">{userFacingError.title}</AppText>
+          <AppText color="muted" variant="body">
+            {userFacingError.message}
+          </AppText>
+          <PrimaryButton label={copy.retry} onPress={refreshAuthState} />
+        </Card>
+      </AppScreen>
+    );
+  }
+
   if (status === "needsOnboarding") {
     return <Redirect href="/(onboarding)/language" />;
   }

@@ -7,6 +7,7 @@ import type { Language, MiniCaseTopicId, RawArticle, UserDailyDropPreference } f
 import type { StoredContentSelection } from "../scheduler/dailyDropBuilder.js";
 import { buildBusinessStoryMemoryContext } from "../generation/editorialMemory.js";
 import { emptyMiniCaseMemoryContext } from "../miniCase/editorialMemory.js";
+import { PublishedEditionError } from "../storage/publishedEditionGuard.js";
 
 const OLD_ENV = { ...process.env };
 
@@ -201,6 +202,53 @@ describe("production runDailyJob catalog reuse", () => {
   });
 });
 
+describe("a published edition is not the legacy daily job's to write", () => {
+  it("C. refuses a published date before fetching, generating or writing anything", async () => {
+    const repository = new FakeRepository({
+      preferences: [preference("user-a", { miniCaseTopics: ["finance_economy"] })],
+      inventory: [inventoryItem("story-1", "business_story")],
+      publishedDates: new Set(["2026-08-17"])
+    });
+    const fetch = vi.fn(async () => articles("en"));
+
+    const run = runDailyJob(options(), {
+      repository: repository as never,
+      generator: new StructuredContentGenerator(),
+      sourceFetcher: { fetch },
+      sourceConnectors: [],
+      relevanceClassifier: null
+    });
+
+    await expect(run).rejects.toBeInstanceOf(PublishedEditionError);
+    await expect(run).rejects.toThrow(/2026-08-17 is already published/);
+    // The message names the canonical recovery instead of leaving the operator to guess.
+    await expect(run).rejects.toThrow(/run_scheduled_publication_tick\(true\)/);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(repository.startedRuns).toEqual([]);
+    expect(repository.storeCalls).toEqual([]);
+    expect(repository.assignments).toEqual([]);
+  });
+
+  it("still runs an unpublished date", async () => {
+    const repository = new FakeRepository({
+      preferences: [preference("user-a", { miniCaseTopics: ["finance_economy"] })],
+      inventory: [inventoryItem("story-1", "business_story"), inventoryItem("case-finance-1", "mini_case", "finance_economy")],
+      publishedDates: new Set(["2026-08-14"])
+    });
+
+    const output = await runDailyJob(options(), {
+      repository: repository as never,
+      generator: new StructuredContentGenerator(),
+      sourceFetcher: { fetch: async () => articles("en") },
+      sourceConnectors: [],
+      relevanceClassifier: null
+    });
+
+    expect(output.status).toBe("completed");
+    expect(repository.assignments).toHaveLength(1);
+  });
+});
+
 function options(): DailyJobRunOptions {
   return {
     mode: "daily-job",
@@ -301,10 +349,20 @@ class FakeRepository {
       inventory: StoredContentSelection[];
       assignedByUser?: Map<string, Set<string>>;
       existingDrops?: Map<string, { id: string; status: string; language: Language }>;
+      publishedDates?: Set<string>;
     }
   ) {}
 
-  async startJobRun(): Promise<void> {}
+  readonly startedRuns: string[] = [];
+
+  async assertEditionNotPublished(dropDate: string, path: string): Promise<void> {
+    if (this.fixtures.publishedDates?.has(dropDate)) {
+      throw new PublishedEditionError(dropDate, "2026-09-07T17:00:00Z", path);
+    }
+  }
+  async startJobRun(input: { runId: string }): Promise<void> {
+    this.startedRuns.push(input.runId);
+  }
   async completeJobRun(): Promise<void> {}
   async assertPersistTestSchemaReady(): Promise<void> {}
   async listBusinessStoryMemoryContext(): Promise<ReturnType<typeof buildBusinessStoryMemoryContext>> {

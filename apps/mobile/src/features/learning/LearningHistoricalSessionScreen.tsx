@@ -8,7 +8,7 @@ import { useThemedStyles, type ThemeColors } from "../../design/theme";
 import type { Language } from "../../types/domain";
 import { getLearningCopy } from "./learningCopy";
 import { loadHistoricalLearningSession } from "./learningHistoricalSession";
-import { useLearningPath } from "./LearningPathContext";
+import { useLearningPathData } from "./useLearningPathData";
 import {
   localizeLearningField,
   localizeSessionObjectives,
@@ -33,7 +33,7 @@ export function LearningHistoricalSessionScreen({
   const pathId = Array.isArray(params.pathId) ? params.pathId[0] : params.pathId;
   const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
   const styles = useThemedStyles(createStyles);
-  const { domains, learningPaths, loadSessionsForPath, objectives } = useLearningPath();
+  const { domains, learningPaths, loadSessionsForPath, objectives } = useLearningPathData();
   const path = pathId ? learningPaths.find((candidate) => candidate.id === pathId) ?? null : null;
   // Current language, not the path's stored one. See LearningPathOverviewScreen.
   const pathLanguage = language ?? "en";

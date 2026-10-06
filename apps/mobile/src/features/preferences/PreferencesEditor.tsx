@@ -41,7 +41,8 @@ type PreferencesEditorProps = {
   userId: string | null;
   refreshKey: number;
   uiLanguage?: Language | null;
-  onSaved?: () => Promise<void> | void;
+  /** Called with what was just written, so the caller can refresh only what it affects. */
+  onSaved?: (saved: EditablePreferences) => Promise<void> | void;
   onLanguageChange?: (language: Language) => boolean | void | Promise<boolean | void>;
   showLanguage?: boolean;
 };
@@ -351,7 +352,7 @@ export function PreferencesEditor({
     setDraft(normalized);
     setSaved(normalized);
     setStatusMessage(getPreferencesCopy(normalized.language).saved);
-    await onSaved?.();
+    await onSaved?.(normalized);
   }, [draft, onSaved, saved, userId]);
 
   if (!userId) {

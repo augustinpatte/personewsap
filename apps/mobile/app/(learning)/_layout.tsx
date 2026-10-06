@@ -15,6 +15,10 @@ export default function LearningLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
+  if (status === "profileError") {
+    return <Redirect href="/" />;
+  }
+
   return (
     <Stack
       screenOptions={{

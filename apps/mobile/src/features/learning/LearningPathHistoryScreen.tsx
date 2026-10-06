@@ -7,7 +7,8 @@ import { useThemedStyles } from "../../design/theme";
 import type { Language } from "../../types/domain";
 import { getCurrentLevelLabel, getTargetLevelLabel } from "./learningLevels";
 import { getLearningCopy } from "./learningCopy";
-import { getHistoricalLearningPaths, useLearningPath } from "./LearningPathContext";
+import { getHistoricalLearningPaths } from "./LearningPathContext";
+import { useLearningPathData } from "./useLearningPathData";
 import {
   getLearningPathDateInfo,
   getLearningPathStatusCopyKey
@@ -27,7 +28,7 @@ export function LearningPathHistoryScreen({
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const copy = getLearningCopy(language);
-  const { displayPath, domains, learningPaths, objectives } = useLearningPath();
+  const { displayPath, domains, learningPaths, objectives } = useLearningPathData();
   const history = getHistoricalLearningPaths(learningPaths, displayPath);
 
   return (

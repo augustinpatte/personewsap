@@ -87,6 +87,53 @@ const SUITES = {
     stack: "production",
     migrationsFrom: UNAPPLIED_TAIL_VERSION,
   },
+  "edition-immutability": {
+    label: "Published edition immutability",
+    file: "supabase/tests/published_edition_immutability.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  "profiles-privileges": {
+    label: "Profiles column privileges",
+    file: "supabase/tests/profiles_column_privileges.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  "push-batch": {
+    label: "Push batch recording (one call per Expo chunk)",
+    file: "supabase/tests/push_batch_recording.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  "rls-initplan": {
+    label: "RLS auth.uid() initplan rewrite parity",
+    file: "supabase/tests/rls_initplan_parity.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+    migrationsUntil: "20261005180000",
+    inline: [
+      "supabase/tests/fixtures/rls_initplan_before.sql",
+      "supabase/migrations/20261005180000_rls_auth_uid_initplan.sql",
+    ],
+  },
+  "default-privileges": {
+    label: "Default privileges (new objects start closed)",
+    file: "supabase/tests/default_privileges.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  "input-limits": {
+    label: "Input size limits on client-writable text",
+    file: "supabase/tests/input_length_limits.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  retention: {
+    label: "Operational retention (function only, dry run by default)",
+    file: "supabase/tests/operational_retention.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
   "push-timing": {
     label: "Push timing (20:00 / 08:30 local), retries and attempt cap",
     file: "supabase/tests/push_timing_and_retries.test.sql",
@@ -104,16 +151,35 @@ const SUITES = {
     label: "Scored-question contract verification",
     file: "supabase/tests/edition_question_contract.test.sql",
     stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
+  "publisher-parity": {
+    label: "Set-based publisher parity (old vs new, same batch)",
+    file: "supabase/tests/set_based_publisher_parity.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+    // Everything up to the per-reader publisher, which the fixture keeps as
+    // publish_scheduled_staging_payload_v1 before the set-based one replaces it.
+    migrationsUntil: "20261005160000",
+    inline: [
+      "supabase/tests/fixtures/keep_publisher_v1.sql",
+      "supabase/migrations/20261005160000_set_based_publisher.sql",
+    ],
   },
   publisher: {
     label: "Scheduled edition publication",
     file: "supabase/tests/scheduled_edition_publication.test.sql",
     stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
   },
   "staging-gate": {
     label: "Staging publication gate",
     file: "supabase-staging/supabase/tests/scheduled_publication_gate.test.sql",
     stack: "staging",
+    inline: [
+      "supabase-staging/supabase/migrations/20261005140000_publication_catch_up.sql",
+      "supabase-staging/supabase/migrations/20261005190000_publication_identity_binding.sql",
+    ],
     // Four functions the staging migrations call live only inside the remote
     // staging project and were never committed. Without stand-ins the suite
     // stops at the first call. Read the harness header before trusting a pass:
@@ -129,6 +195,33 @@ const SUITES = {
       "validate_generation_output is a local stand-in — the editorial rules " +
       "inside the remote definition are NOT covered by this run.",
   },
+};
+
+SUITES["staging-catch-up"] = {
+  label: "Staging publication catch-up, stale runs and health",
+  file: "supabase-staging/supabase/tests/publication_catch_up.test.sql",
+  stack: "staging",
+  inline: ["supabase-staging/supabase/migrations/20261005140000_publication_catch_up.sql"],
+};
+
+SUITES["staging-identity-binding"] = {
+  label: "Staging publication identity binding (gate -> payload)",
+  file: "supabase-staging/supabase/tests/publication_identity_binding.test.sql",
+  stack: "staging",
+  inline: ["supabase-staging/supabase/migrations/20261005190000_publication_identity_binding.sql"],
+  prelude: "supabase-staging/supabase/tests/local_harness.sql",
+  with: ["supabase-staging/supabase/tests/lib/edition_fixture.sql"],
+  caveat:
+    "get_ready_batch_payload is the local stand-in (it names output_id). The live builder is " +
+    "unversioned: run supabase-staging/supabase/verification/publication_identity_binding_preflight.sql " +
+    "against staging before deploying.",
+};
+
+SUITES["staging-bridge-leases"] = {
+  label: "Staging bridge job leases and output idempotency",
+  file: "supabase-staging/supabase/tests/bridge_job_leases.test.sql",
+  stack: "staging",
+  inline: ["supabase-staging/supabase/migrations/20261005150000_bridge_job_leases_and_output_idempotency.sql"],
 };
 
 const STACKS = {
@@ -176,11 +269,32 @@ for (const name of names) {
 
   let sql = parts.join("\n");
 
+  // Specific migration files proved by this suite but not applied to the local
+  // stack: inlined inside the suite's own transaction (which rolls back), so the
+  // local database is never changed by a test run.
+  if (suite.inline) {
+    const bodies = [];
+
+    for (const path of suite.inline) {
+      bodies.push(
+        (await readFile(path, "utf8"))
+          .replace(/^\s*BEGIN;\s*$/gim, "")
+          .replace(/^\s*COMMIT;\s*$/gim, "")
+          .replace(/^\s*NOTIFY pgrst.*$/gim, ""),
+      );
+    }
+
+    sql = sql.replace(/^begin;/im, () => `begin;\n\n${bodies.join("\n\n")}\n`);
+  }
+
   if (withMigrations && suite.migrationsFrom) {
     const bodies = [];
 
     for (const path of await teamsMigrationFiles()) {
       if (versionOf(path.split("/").pop()) < suite.migrationsFrom) continue;
+      // A suite that compares a function before and after a migration stops
+      // short of it here and inlines it itself, after its own setup.
+      if (suite.migrationsUntil && versionOf(path.split("/").pop()) >= suite.migrationsUntil) continue;
 
       const body = await readFile(path, "utf8");
 

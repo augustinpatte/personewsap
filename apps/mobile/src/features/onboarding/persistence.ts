@@ -1,22 +1,30 @@
 import { getAuthSession, normalizeSupabaseError, supabase } from "../../lib/supabase";
 import { localized } from "../../lib/i18n";
 import type { MobileSupabaseClient, NormalizedSupabaseError } from "../../lib/supabase";
-import type { Language, TopicId } from "../../types/domain";
+import type { Language } from "../../types/domain";
+import {
+  persistUserPreferenceRows,
+  type PreferenceWriteStep
+} from "../preferences/preferencesPersistence";
 import type { OnboardingState } from "./OnboardingState";
 import {
-  buildMiniCaseTopicPreferenceRows,
-  buildNewsletterTopicPreferenceRows,
-  clampNewsletterArticleCount,
   mapMiniCaseTopicToBackendTopic,
   MAX_MINI_CASE_TOPICS,
   MIN_MINI_CASE_TOPICS,
   normalizeMiniCaseTopics,
   normalizeNewsletterTopics
 } from "./options";
+import { redactIdentifier } from "../../lib/redactIdentifier";
 
 type SaveOnboardingPreferencesResult =
   | { ok: true }
-  | { ok: false; error: NormalizedSupabaseError };
+  | {
+      ok: false;
+      error: NormalizedSupabaseError;
+      /** Set when one of the shared preference writes failed (non-atomic; see persistUserPreferenceRows). */
+      failedStep?: PreferenceWriteStep;
+      completedSteps?: PreferenceWriteStep[];
+    };
 
 const DEFAULT_TIMEZONE = "UTC";
 
@@ -29,7 +37,6 @@ export async function saveOnboardingPreferences(
   const selectedMiniCaseTopics = normalizeMiniCaseTopics(state.selectedMiniCaseTopics);
   const newsletterEnabled = state.enabledModules.includes("newsletter");
   const miniCasesEnabled = state.enabledModules.includes("mini_case");
-  const learningPathEnabled = state.enabledModules.includes("learning_path");
 
   if (!client) {
     logOnboardingProof("onboarding_save_failed", {
@@ -86,8 +93,7 @@ export async function saveOnboardingPreferences(
       state,
       language,
       selectedTopics,
-      selectedMiniCaseTopics,
-      learningPathEnabled
+      selectedMiniCaseTopics
     );
   } catch (error) {
     logOnboardingProof("onboarding_save_failed", {
@@ -115,8 +121,7 @@ async function saveValidatedOnboardingPreferences(
   state: OnboardingState,
   language: Language,
   selectedTopics: ReturnType<typeof normalizeNewsletterTopics>,
-  selectedMiniCaseTopics: ReturnType<typeof normalizeMiniCaseTopics>,
-  learningPathEnabled: boolean
+  selectedMiniCaseTopics: ReturnType<typeof normalizeMiniCaseTopics>
 ): Promise<SaveOnboardingPreferencesResult> {
   const sessionResult = await getAuthSession();
 
@@ -165,11 +170,11 @@ async function saveValidatedOnboardingPreferences(
     };
   }
 
-  const totalArticleCount = selectedTopics.reduce(
-    (total, topicId) =>
-      total + clampNewsletterArticleCount(state.articlesPerTopic[topicId] ?? 1),
-    0
-  );
+  // The profile is written first and on its own: it is onboarding-specific, and
+  // the shared preference writer below never touches profiles. If a later step
+  // fails the profile row stays (it is an idempotent upsert), the reader stays
+  // in onboarding because completion is read from the preference tables, and
+  // saving again converges.
   const profileResult = await client.from("profiles").upsert({
     id: user.id,
     email: user.email,
@@ -203,121 +208,47 @@ async function saveValidatedOnboardingPreferences(
     user_id: redactIdentifier(user.id)
   });
 
-  const preferencesResult = await upsertUserPreferences(client, {
-    businessStoriesEnabled: state.enabledModules.includes("business_story"),
-    learningPathEnabled,
-    miniCasesEnabled: state.enabledModules.includes("mini_case"),
-    newsletterEnabled: state.enabledModules.includes("newsletter"),
-    newsletterArticleCount: totalArticleCount,
-    primaryMiniCaseTopicId: selectedMiniCaseTopics[0]
-      ? mapMiniCaseTopicToBackendTopic(selectedMiniCaseTopics[0])
-      : null,
-    userId: user.id
-  });
-
-  if (preferencesResult.error) {
-    logOnboardingProof("user_preferences_save_failed", {
-      reason: "supabase_error",
-      user_id: redactIdentifier(user.id)
-    });
-
-    return {
-      ok: false,
-      error: normalizeSupabaseError(
-        preferencesResult.error,
-        localized(
-          {
-            en: "Could not save your preferences.",
-            fr: "Impossible d'enregistrer tes préférences."
-          },
-          language
-        )
-      )
-    };
-  }
-
-  logOnboardingProof("user_preferences_saved", {
-    mini_case_primary_topic_id: mapMiniCaseTopicToBackendTopic(selectedMiniCaseTopics[0]),
-    newsletter_article_count: totalArticleCount,
-    user_id: redactIdentifier(user.id)
-  });
-
-  const topicPreferenceRows = buildNewsletterTopicPreferenceRows({
-    articlesPerTopic: state.articlesPerTopic,
-    selectedTopics,
-    userId: user.id
-  });
-
-  const topicsResult = await client.from("user_topic_preferences").upsert(
-    topicPreferenceRows,
+  // The same writer Settings uses: same normalization, same storable
+  // newsletter_article_count (never 0 when the newsletter is off), same
+  // schema-compatibility fallback.
+  const preferencesResult = await persistUserPreferenceRows(
+    user.id,
     {
-      onConflict: "user_id,topic_id"
-    }
+      enabledModules: state.enabledModules,
+      selectedTopics,
+      miniCaseTopics: selectedMiniCaseTopics,
+      articlesPerTopic: state.articlesPerTopic
+    },
+    language
   );
 
-  if (topicsResult.error) {
-    logOnboardingProof("user_topic_preferences_save_failed", {
+  if (!preferencesResult.ok) {
+    logOnboardingProof(`${preferencesResult.failedStep}_save_failed`, {
+      completed_steps: preferencesResult.completedSteps,
       reason: "supabase_error",
       selected_topic_count: selectedTopics.length,
+      selected_mini_case_topic_count: selectedMiniCaseTopics.length,
       user_id: redactIdentifier(user.id)
     });
 
     return {
       ok: false,
-      error: normalizeSupabaseError(
-        topicsResult.error,
-        localized(
-          {
-            en: "Could not save your newsletter topics.",
-            fr: "Impossible d'enregistrer tes sujets newsletter."
-          },
-          language
-        )
-      )
+      error: preferencesResult.error,
+      failedStep: preferencesResult.failedStep,
+      completedSteps: preferencesResult.completedSteps
     };
   }
 
-  const miniCaseTopicPreferenceRows = buildMiniCaseTopicPreferenceRows({
-    selectedTopics: selectedMiniCaseTopics,
-    userId: user.id
-  });
-
-  const miniCaseTopicsResult = await client
-    .from("user_mini_case_topic_preferences")
-    .upsert(miniCaseTopicPreferenceRows, {
-      onConflict: "user_id,topic_id"
-    });
-
-  if (miniCaseTopicsResult.error) {
-    logOnboardingProof("user_mini_case_topic_preferences_save_failed", {
-      error: describeSupabaseError(miniCaseTopicsResult.error),
-      attempted_rows: summarizeMiniCaseTopicRows(miniCaseTopicPreferenceRows),
-      query: "user_mini_case_topic_preferences.upsert",
-      reason: "supabase_error",
-      selected_topic_count: selectedMiniCaseTopics.length,
-      user_id: redactIdentifier(user.id)
-    });
-
-    return {
-      ok: false,
-      error: normalizeSupabaseError(
-        miniCaseTopicsResult.error,
-        localized(
-          {
-            en: "Could not save your mini-case topics.",
-            fr: "Impossible d'enregistrer tes sujets mini-cas."
-          },
-          language
-        )
-      )
-    };
-  }
+  const totalArticleCount = preferencesResult.newsletterArticleCount;
 
   logOnboardingProof("onboarding_saved", {
     enabled_topic_count: selectedTopics.length,
+    mini_case_primary_topic_id: selectedMiniCaseTopics[0]
+      ? mapMiniCaseTopicToBackendTopic(selectedMiniCaseTopics[0])
+      : null,
     mini_case_topic_count: selectedMiniCaseTopics.length,
     language,
-    total_topic_rows: topicPreferenceRows.length,
+    newsletter_article_count: totalArticleCount,
     user_id: redactIdentifier(user.id)
   });
 
@@ -340,48 +271,6 @@ function getDeviceTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIMEZONE;
 }
 
-async function upsertUserPreferences(
-  client: MobileSupabaseClient,
-  input: {
-    businessStoriesEnabled: boolean;
-    learningPathEnabled: boolean;
-    miniCasesEnabled: boolean;
-    newsletterEnabled: boolean;
-    newsletterArticleCount: number;
-    primaryMiniCaseTopicId: TopicId | null;
-    userId: string;
-  }
-) {
-  const payload = {
-    user_id: input.userId,
-    business_stories_enabled: input.businessStoriesEnabled,
-    learning_path_enabled: input.learningPathEnabled,
-    learning_path_choice_completed: true,
-    mini_cases_enabled: input.miniCasesEnabled,
-    mini_case_topic_id: input.primaryMiniCaseTopicId,
-    newsletter_enabled: input.newsletterEnabled,
-    newsletter_article_count: input.newsletterArticleCount
-  };
-  const result = await client.from("user_preferences").upsert(payload);
-
-  if (!isMissingColumnError(result.error, "mini_case_topic_id")) {
-    return result;
-  }
-
-  logOnboardingProof("user_preferences_legacy_mini_case_column_missing", {
-    error: describeSupabaseError(result.error),
-    query: "user_preferences.upsert",
-    user_id: redactIdentifier(input.userId)
-  });
-
-  return client.from("user_preferences").upsert({
-    user_id: input.userId,
-    learning_path_enabled: input.learningPathEnabled,
-    learning_path_choice_completed: true,
-    newsletter_article_count: input.newsletterArticleCount
-  });
-}
-
 function logOnboardingProof(event: string, details: Record<string, unknown>) {
   if (__DEV__) {
     console.info("[Onboarding proof]", {
@@ -389,49 +278,4 @@ function logOnboardingProof(event: string, details: Record<string, unknown>) {
       ...details
     });
   }
-}
-
-function redactIdentifier(identifier: string): string {
-  return identifier.length <= 8
-    ? identifier
-    : `${identifier.slice(0, 4)}...${identifier.slice(-4)}`;
-}
-
-function describeSupabaseError(error: unknown): Record<string, unknown> {
-  if (!isRecord(error)) {
-    return { message: String(error) };
-  }
-
-  return {
-    code: typeof error.code === "string" ? error.code : undefined,
-    details: typeof error.details === "string" ? error.details : undefined,
-    hint: typeof error.hint === "string" ? error.hint : undefined,
-    message: typeof error.message === "string" ? error.message : undefined
-  };
-}
-
-function summarizeMiniCaseTopicRows(
-  rows: ReturnType<typeof buildMiniCaseTopicPreferenceRows>
-): Array<{ topic_id: string; enabled: boolean; position: number }> {
-  return rows.map((row) => ({
-    topic_id: row.topic_id,
-    enabled: row.enabled,
-    position: row.position
-  }));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object";
-}
-
-function isMissingColumnError(error: unknown, columnName: string): boolean {
-  if (!isRecord(error)) {
-    return false;
-  }
-
-  return (
-    error.code === "PGRST204" &&
-    typeof error.message === "string" &&
-    error.message.includes(columnName)
-  );
 }

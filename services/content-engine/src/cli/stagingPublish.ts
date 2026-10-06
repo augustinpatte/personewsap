@@ -14,6 +14,7 @@ import { assignStoredDropToUsers } from "./dailyJobTest.js";
 import { StagingBatchRejectedError, type StagingEditionKind } from "../staging/stagingBatch.js";
 import { createStagingSupabaseClient } from "../staging/stagingClient.js";
 import { ContentRepository } from "../storage/contentRepository.js";
+import { assertBreakGlassTarget } from "../storage/projectRef.js";
 import { createServiceRoleSupabaseClient } from "../storage/supabaseClient.js";
 
 /**
@@ -106,9 +107,36 @@ export async function runStagingPublishCli(
     };
   }
 
+  if (writesProduction) {
+    // Break-glass only. The canonical recovery is the scheduled publisher
+    // (staging: select public.run_scheduled_publication_tick(true);), which
+    // also publishes scored questions, assignments and notifications. This
+    // path does none of that.
+    process.stderr.write(
+      "[staging-publish] BREAK-GLASS publisher. Prefer the canonical recovery: " +
+        "select public.run_scheduled_publication_tick(true); in the staging SQL editor.\n"
+    );
+    assertBreakGlassTarget({
+      productionUrl: process.env.SUPABASE_URL,
+      stagingUrl: process.env.STAGING_SUPABASE_URL,
+      batchTargetRef: batch.targetProjectRef
+    });
+  }
+
   const repository = writesProduction
     ? new ContentRepository(createServiceRoleSupabaseClient({ requireCredentials: true }))
     : null;
+
+  // A published date is never rewritten from here. There is deliberately no
+  // override flag: the database refuses the rewrite regardless (it would need
+  // an operator SQL transaction), so a CLI flag could only promise something
+  // the database will not do.
+  if (repository) {
+    await repository.assertEditionNotPublished(
+      batch.editionDate,
+      "content:staging-publish (break-glass)"
+    );
+  }
   const languages: StagingPublishLanguageResult[] = [];
 
   // Validate BOTH languages before writing either. An edition is one thing; it

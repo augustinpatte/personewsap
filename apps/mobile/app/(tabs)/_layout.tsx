@@ -94,6 +94,11 @@ export default function TabsLayout() {
     return <Redirect href="/(onboarding)/language" />;
   }
 
+  // The profile could not be read: the root redirect offers a retry.
+  if (status === "profileError") {
+    return <Redirect href="/" />;
+  }
+
   if (
     shouldRedirectToLearningSetup({
       authStatus: status,

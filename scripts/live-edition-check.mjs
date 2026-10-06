@@ -25,6 +25,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { createClient } from "@supabase/supabase-js";
+import { assertScriptTarget } from "./lib/supabase-target.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
@@ -43,6 +44,8 @@ if (!supabaseUrl || !anonKey || !serviceRoleKey) {
   process.exit(1);
 }
 
+// Creates and deletes disposable users: only in the project the operator named.
+assertScriptTarget("live-edition-check", supabaseUrl);
 const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 const dropDate = process.env.DROP_DATE || productEditionDate();
 const stamp = Date.now();
