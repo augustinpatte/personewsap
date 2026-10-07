@@ -1,5 +1,6 @@
 import { localized } from "../../lib/i18n";
 import type { ContentLanguage } from "../today/contentTypes";
+import { getPointsRuleCopy } from "../quiz/pointsCopy";
 import { getTeamsCopy } from "./teamsCopy";
 
 /**
@@ -8,7 +9,9 @@ import { getTeamsCopy } from "./teamsCopy";
  * Short lines, not a rules page — Account → How scoring works is the rules
  * page. The middle part is the one that matters: PersoNews does not score right
  * or wrong, it scores the quality of the reasoning, and a reader who has not
- * been told that reads 0.3 as a bug.
+ * been told that reads 30 points as a bug. Values are on the 100-point scale
+ * (quiz/points.ts), and the late-answer rule is the shared sentence from
+ * quiz/pointsCopy.ts.
  *
  * Same register as the rest of Teams: no exclamation marks, no emoji. The
  * leaderboard names are Teams' own, so the two can never disagree. "Live" is
@@ -18,12 +21,13 @@ import { getTeamsCopy } from "./teamsCopy";
 
 export type TeamsIntroItem = { heading: string; body: string };
 
-/** `share` is the part of the point, drawn as a filled bar. */
+/** `share` is the part of the full 100 points, drawn as a filled bar. */
 export type TeamsIntroTier = { value: string; name: string; body: string; share: number };
 
 export function getTeamsIntroCopy(language: ContentLanguage) {
   const teams = getTeamsCopy(language);
   const ranges = `${teams.rangeEdition} · ${teams.rangeWeek} · ${teams.rangeAllTime}`;
+  const rule = getPointsRuleCopy(language);
 
   return localized(
     {
@@ -57,12 +61,12 @@ export function getTeamsIntroCopy(language: ContentLanguage) {
         points: {
           eyebrow: "Points",
           title: "Not right or wrong: how well you reasoned",
-          lede: "Every answer can be defended. Each one earns part of the point, by the quality of its reasoning.",
+          lede: "Every answer can be defended. Each one earns part of the 100 points, by the quality of its reasoning.",
           tiers: [
-            { value: "1", name: "Excellent", body: "The complete answer, with the strongest reasoning.", share: 1 },
-            { value: "0.6", name: "Good", body: "Sound logic, but an important element is missing.", share: 0.6 },
+            { value: "100", name: "Excellent", body: "The complete answer, with the strongest reasoning.", share: 1 },
+            { value: "60", name: "Good", body: "Sound logic, but an important element is missing.", share: 0.6 },
             {
-              value: "0.3",
+              value: "30",
               name: "Partial",
               body: "Part of the reasoning is right, but the answer falls short.",
               share: 0.3
@@ -75,7 +79,8 @@ export function getTeamsIntroCopy(language: ContentLanguage) {
             body: "No answer within 20 seconds scores zero. No retry.",
             share: 0
           } as TeamsIntroTier,
-          after: "After each answer you see why it earned its score, and the answer worth the full point."
+          after: "After each answer you see why it earned its score, and the answer worth full points.",
+          late: rule.lateRule
         },
         teams: {
           eyebrow: "Teams",
@@ -109,7 +114,7 @@ export function getTeamsIntroCopy(language: ContentLanguage) {
             { heading: "Lisez votre édition", body: "Lisez PersoNewsAP comme d'habitude." },
             {
               heading: "Des questions à la fin",
-              body: "Les articles de la Newsletter, les Business Stories et les Mini cas se terminent par quelques questions."
+              body: "Les articles de la Newsletter, les Business Stories et les Mini-cas se terminent par quelques questions."
             },
             { heading: "Vingt secondes", body: "Chaque question vous laisse 20 secondes une fois commencée." },
             {
@@ -121,12 +126,12 @@ export function getTeamsIntroCopy(language: ContentLanguage) {
         points: {
           eyebrow: "Les points",
           title: "Pas juste ou faux : la qualité du raisonnement",
-          lede: "Chaque réponse se défend. Chacune vaut une part du point, selon la qualité de son raisonnement.",
+          lede: "Chaque réponse se défend. Chacune vaut une part des 100 points, selon la qualité de son raisonnement.",
           tiers: [
-            { value: "1", name: "Excellent", body: "La réponse complète, avec le meilleur raisonnement.", share: 1 },
-            { value: "0,6", name: "Bon", body: "Bonne logique, mais il manque un élément important.", share: 0.6 },
+            { value: "100", name: "Excellent", body: "La réponse complète, avec le meilleur raisonnement.", share: 1 },
+            { value: "60", name: "Bon", body: "Bonne logique, mais il manque un élément important.", share: 0.6 },
             {
-              value: "0,3",
+              value: "30",
               name: "Partiel",
               body: "Une partie du raisonnement est juste, mais la réponse reste insuffisante.",
               share: 0.3
@@ -139,7 +144,8 @@ export function getTeamsIntroCopy(language: ContentLanguage) {
             body: "Sans réponse en 20 secondes, la question vaut zéro. Pas de second essai.",
             share: 0
           } as TeamsIntroTier,
-          after: "Après chaque réponse, vous voyez pourquoi elle vaut son score, et la réponse qui vaut le point entier."
+          after: "Après chaque réponse, vous voyez pourquoi elle vaut son score, et la réponse qui vaut tous les points.",
+          late: rule.lateRule
         },
         teams: {
           eyebrow: "Teams",

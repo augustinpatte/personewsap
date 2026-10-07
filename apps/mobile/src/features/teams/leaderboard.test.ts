@@ -200,10 +200,12 @@ describe("blocking", () => {
 
 describe("presentation", () => {
   it("formats points the way the reader sees them", () => {
-    expect(formatTeamPoints(0)).toBe("0");
-    expect(formatTeamPoints(300)).toBe("0.3");
-    expect(formatTeamPoints(1800)).toBe("1.8");
-    expect(formatTeamPoints(12000)).toBe("12");
+    // Whole points on the 100-point scale (milli / 10), never a decimal.
+    expect(formatTeamPoints(0)).toBe("0 pts");
+    expect(formatTeamPoints(500)).toBe("50 pts");
+    expect(formatTeamPoints(7600)).toBe("760 pts");
+    expect(formatTeamPoints(14_300)).toBe("1,430 pts");
+    expect(formatTeamPoints(14_300, "fr")).toBe("1\u202F430 pts");
   });
 
   it("counts team progress in members, not questions", () => {

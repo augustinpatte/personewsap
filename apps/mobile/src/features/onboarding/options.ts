@@ -1,4 +1,5 @@
 import type { Language, TopicId } from "../../types/domain";
+import { MODULE_NAMES } from "../../constants/moduleNames";
 import { resolveLanguage } from "../../lib/i18n";
 
 type OptionCopy = {
@@ -145,7 +146,7 @@ export const MODULE_OPTIONS: Array<OnboardingOption<OnboardingModuleId>> = [
         description: "One short business lesson from a real situation."
       },
       fr: {
-        label: "Histoires business",
+        label: MODULE_NAMES.fr.business_story.name,
         description: "Une leçon business courte tirée d'une situation réelle."
       }
     }

@@ -18,7 +18,7 @@ describe("edition progress arithmetic", () => {
   it("reports nothing read yet", () => {
     expect(
       resolveEditionProgress({ ...ready, completedItemCount: 0, totalItemCount: 3 })
-    ).toEqual({ kind: "inProgress", completed: 0, total: 3, ratio: 0 });
+    ).toEqual({ kind: "inProgress", completed: 0, total: 3, ratio: 0, today: true });
   });
 
   it("reports a part-finished edition", () => {
@@ -39,7 +39,7 @@ describe("edition progress arithmetic", () => {
   it("reports completion once every reading is done", () => {
     expect(
       resolveEditionProgress({ ...ready, completedItemCount: 3, totalItemCount: 3 })
-    ).toEqual({ kind: "complete", total: 3 });
+    ).toEqual({ kind: "complete", total: 3, today: true });
   });
 
   it("follows the reader as they finish one more", () => {
@@ -85,7 +85,7 @@ describe("edition progress arithmetic", () => {
   it("cannot report more read than the edition contains", () => {
     expect(
       resolveEditionProgress({ ...ready, completedItemCount: 9, totalItemCount: 3 })
-    ).toEqual({ kind: "complete", total: 3 });
+    ).toEqual({ kind: "complete", total: 3, today: true });
   });
 
   it("survives a nonsense count without rendering a nonsense line", () => {
@@ -95,7 +95,7 @@ describe("edition progress arithmetic", () => {
         completedItemCount: Number.NaN,
         totalItemCount: 3
       })
-    ).toEqual({ kind: "inProgress", completed: 0, total: 3, ratio: 0 });
+    ).toEqual({ kind: "inProgress", completed: 0, total: 3, ratio: 0, today: true });
   });
 });
 

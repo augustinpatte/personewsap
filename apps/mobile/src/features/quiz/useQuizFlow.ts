@@ -137,7 +137,8 @@ function settledState(seed: SettledSeed): QuestionState {
     scoreMilli: seed.scoreMilli,
     gradeBand: bandForTier(seed.scoreMilli),
     expired: seed.expired,
-    skipped: seed.skipped
+    skipped: seed.skipped,
+    late: seed.late === true
   };
 }
 
@@ -425,7 +426,8 @@ export function useQuizFlow(input: {
           deadlineAt: result.data.deadlineAt || null,
           expired: result.data.settled?.expired ?? false,
           selectedOptionId: result.data.settled?.selectedOptionId ?? null,
-          scoreMilli: result.data.settled?.scoreMilli ?? 0
+          scoreMilli: result.data.settled?.scoreMilli ?? 0,
+          late: result.data.settled?.late === true
         });
         // Settled on an earlier visit: never replayed, and not shown again
         // either — the reader moves straight on to the first question owed.
@@ -486,6 +488,7 @@ export function useQuizFlow(input: {
         expired: boolean;
         selectedOptionId: string | null;
         scoreMilli: QuestionScoreTier;
+        late?: boolean;
         teamsScored?: number;
       }
     ) => {
@@ -498,7 +501,8 @@ export function useQuizFlow(input: {
           deadlineAt: settled.deadlineAt,
           expired: settled.expired,
           selectedOptionId: settled.selectedOptionId,
-          scoreMilli: settled.scoreMilli
+          scoreMilli: settled.scoreMilli,
+          late: settled.late === true
         });
       }
 
@@ -623,6 +627,7 @@ export function useQuizFlow(input: {
         expired: result.data.expired,
         selectedOptionId: result.data.selectedOptionId,
         scoreMilli: result.data.scoreMilli,
+        late: result.data.late === true,
         teamsScored: result.data.teamsScored
       });
 

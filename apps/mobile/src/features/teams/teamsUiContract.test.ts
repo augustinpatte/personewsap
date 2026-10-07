@@ -260,7 +260,7 @@ describe("the Team detail", () => {
     // The block list is applied where the standing is ranked.
     expect(standing).toContain("blockedUserIds");
     // The score cell reads the raw row, never the masked identity.
-    expect(detail).toContain("formatTeamPoints(row.scoreMilli)");
+    expect(detail).toContain("formatTeamPoints(row.scoreMilli, language)");
   });
 });
 
@@ -325,8 +325,12 @@ describe("the help pages", () => {
       const body = JSON.stringify(getHelpCopy(language).scoringPoints);
 
       expect(body, language).toMatch(language === "fr" ? /Vingt secondes/ : /Twenty seconds/);
-      expect(body, language).toMatch(/0[.,]3/);
-      expect(body, language).toMatch(/0[.,]6/);
+      // The 100-point scale, whole numbers only, and the late-answer rule.
+      expect(body, language).toMatch(/\b30 points\b/);
+      expect(body, language).toMatch(/\b60 points\b/);
+      expect(body, language).toMatch(/\b100 points\b/);
+      expect(body, language).not.toMatch(/0[.,][36]/);
+      expect(body, language).toMatch(/50 ?%/);
       expect(body, language).toMatch(language === "fr" ? /bonus de vitesse/ : /No speed bonus/i);
       expect(body, language).toMatch(language === "fr" ? /une fois/ : /answered once/);
     }

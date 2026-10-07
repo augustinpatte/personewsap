@@ -153,7 +153,7 @@ export function TeamDetailScreen({ teamId }: { teamId: string }) {
           />
           <SummaryStat
             label={copy.myPoints}
-            value={formatTeamPoints(self?.scoreMilli ?? 0)}
+            value={formatTeamPoints(self?.scoreMilli ?? 0, language)}
           />
         </View>
         <View style={styles.summaryRow}>
@@ -270,7 +270,7 @@ function LeaderboardRowView({
       accessibilityLabel={[
         copy.rank(row.rank),
         row.isSelf ? copy.you : identity.name,
-        formatTeamPoints(row.scoreMilli),
+        formatTeamPoints(row.scoreMilli, language),
         statusLabel(row.status, copy)
       ].join(", ")}
       accessible
@@ -302,7 +302,7 @@ function LeaderboardRowView({
         </AppText>
       </View>
 
-      <AppText variant="bodyStrong">{formatTeamPoints(row.scoreMilli)}</AppText>
+      <AppText variant="bodyStrong">{formatTeamPoints(row.scoreMilli, language)}</AppText>
     </View>
   );
 }

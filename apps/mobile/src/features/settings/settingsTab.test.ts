@@ -2,6 +2,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { MODULE_NAMES } from "../../constants/moduleNames";
+import { TAB_LABEL_FONT_SIZE } from "../../design/tabBarLabels";
+
 const repoRoot = join(__dirname, "..", "..", "..", "..", "..");
 const tabs = readFileSync(join(repoRoot, "apps", "mobile", "app", "(tabs)", "_layout.tsx"), "utf8");
 // The bar itself moved into one component when the selection became
@@ -74,13 +77,16 @@ describe("bottom navigation", () => {
   it("uses the required FR and EN Teams labels", () => {
     // The product's own word in both languages: a French reader says "ma team",
     // and "Équipes" would name something this is not.
-    expect(tabs).toMatch(/teams: "Teams"/);
-    expect((tabs.match(/teams: "Teams"/g) ?? []).length).toBe(2);
+    // Read from the canonical names, never hardcoded in the layout.
+    expect(tabs).toMatch(/teams: names\.teams\.tab/);
+    expect(MODULE_NAMES.en.teams.tab).toBe("Teams");
+    expect(MODULE_NAMES.fr.teams.tab).toBe("Teams");
   });
 
   it("keeps five-tab touch targets readable", () => {
     expect(glassTabBar).toMatch(/minHeight: 44/);
-    expect(glassTabBar).toMatch(/fontSize: 10\.5/);
+    expect(glassTabBar).toMatch(/fontSize: TAB_LABEL_FONT_SIZE/);
+    expect(TAB_LABEL_FONT_SIZE).toBe(10.5);
     expect(glassTabBar).toMatch(/letterSpacing: 0/);
   });
 

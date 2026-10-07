@@ -16,6 +16,8 @@ import {
   getTopicLabel
 } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
+import { useEditionRecency } from "../today/useEditionRecency";
+import { getUserLocalDateKey } from "../../lib/localDate";
 import { resolveTodayEditionState } from "../today/todayEditionState";
 import {
   readAllMiniCaseResponses,
@@ -33,7 +35,7 @@ import type { ContentQuestionProgress } from "../quiz/questionProgress";
 import { contentQuestionsLabel } from "../quiz/quizCopy";
 import { useContentsQuestionProgress } from "../quiz/useContentsQuestionProgress";
 import { ItemArchiveList } from "./ItemArchiveList";
-import { getModuleCopy } from "./moduleCopy";
+import { editionViewLabel, getModuleCopy } from "./moduleCopy";
 import {
   ModuleError,
   EditionProgress,
@@ -59,6 +61,7 @@ export function MiniCasesModuleScreen() {
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
   const editionProgress = useEditionProgress();
+  const recency = useEditionRecency();
   // Off for the reader's own edition, but never over a Team's: a Team member
   // who turned this module off still plays what their Team assigned.
   const disabled = showModuleDisabledState({
@@ -89,7 +92,7 @@ export function MiniCasesModuleScreen() {
               <EditionProgress language={language} state={editionProgress} />
             ) : null}
             <ViewSwitch
-              leftLabel={copy.common.todayView}
+              leftLabel={editionViewLabel(copy, recency)}
               onChange={setView}
               rightLabel={copy.common.archiveView}
               value={view}
@@ -173,7 +176,8 @@ function MiniCaseToday({ onOpenArchive }: { onOpenArchive: () => void }) {
     dropDate: drop.drop_date,
     error,
     isEmptyDrop,
-    status
+    status,
+    readerToday: getUserLocalDateKey()
   });
 
   if (editionState === "loading") {

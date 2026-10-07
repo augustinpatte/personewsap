@@ -18,6 +18,7 @@ import {
 import { useArchive } from "../archive";
 import { useAuth } from "../auth";
 import { useDailyDrop } from "../today";
+import { getPointsRuleCopy } from "../quiz/pointsCopy";
 import { NOTIFICATION_SETTINGS_SECTION, NotificationPreferencesCard } from "../notifications";
 import { LearningAccountSection } from "../learning";
 import { PreferencesEditor, updateProfileLanguage } from "../preferences";
@@ -417,7 +418,12 @@ export function SettingsScreen() {
                 />
                 {/* A scored, competitive product owes its readers the rules,
                     in the app and in their own language. Kept here rather than
-                    in Teams so there is one place to maintain them. */}
+                    in Teams so there is one place to maintain them. The
+                    one timing rule that changes what an answer is worth is
+                    stated right here, in the shared sentence. */}
+                <AppText color="muted" variant="caption">
+                  {getPointsRuleCopy(profileLanguage === "fr" ? "fr" : "en").lateRule}
+                </AppText>
                 <SecondaryButton
                   label={copy.helpScoring}
                   onPress={() => router.push("/help-scoring" as Href)}

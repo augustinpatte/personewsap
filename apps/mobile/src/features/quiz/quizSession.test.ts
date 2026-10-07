@@ -347,8 +347,10 @@ describe("Continue challenge", () => {
 describe("points as the reader sees them", () => {
   it("renders the four tiers", () => {
     expect(formatPoints(0)).toBe("0");
-    expect(formatPoints(300)).toBe("0.3");
-    expect(formatPoints(600)).toBe("0.6");
-    expect(formatPoints(1000)).toBe("1");
+    expect(formatPoints(300)).toBe("30");
+    expect(formatPoints(600)).toBe("60");
+    expect(formatPoints(1000)).toBe("100");
+    expect(formatPoints(143_000)).toBe("14,300");
+    expect(formatPoints(143_000, "fr")).toBe("14\u202F300");
   });
 });

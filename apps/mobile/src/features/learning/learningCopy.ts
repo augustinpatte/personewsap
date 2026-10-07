@@ -1,3 +1,4 @@
+import { MODULE_NAMES } from "../../constants/moduleNames";
 import { localized } from "../../lib/i18n";
 import type { Language } from "../../types/domain";
 
@@ -6,7 +7,7 @@ export function getLearningCopy(language: Language | null | undefined) {
     {
       en: {
         account: {
-          title: "Learning path",
+          title: MODULE_NAMES.en.learning_path.name,
           description: "Your active five-minute learning path.",
           completedDescription: "Your last path is complete. Its history stays available.",
           disabledTitle: "Personal learning path off",
@@ -39,7 +40,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           historyEmpty: "No completed or archived path yet."
         },
         card: {
-          kicker: "Learning path",
+          kicker: MODULE_NAMES.en.learning_path.name,
           createTitle: "Create your learning path",
           createBody:
             "Choose one domain, one direction and a level. Your first five-minute session starts right after.",
@@ -55,7 +56,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           view: "View path"
         },
         setup: {
-          eyebrow: "Learning path",
+          eyebrow: MODULE_NAMES.en.learning_path.name,
           title: "Create your learning path",
           replacingTitle: "Choose your new path",
           subtitle:
@@ -95,7 +96,7 @@ export function getLearningCopy(language: Language | null | undefined) {
             "Creating this path will archive the current one. Its history will stay available."
         },
         session: {
-          eyebrow: "Learning path",
+          eyebrow: MODULE_NAMES.en.learning_path.name,
           duration: "Five minutes maximum",
           objectives: "Session goals",
           openWith: "Open with",
@@ -128,7 +129,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           backToday: "Back to your path"
         },
         feedback: {
-          eyebrow: "Learning path",
+          eyebrow: MODULE_NAMES.en.learning_path.name,
           title: "Session feedback",
           subtitle: "Four quick ratings.",
           comprehension: "Comprehension",
@@ -155,7 +156,7 @@ export function getLearningCopy(language: Language | null | undefined) {
           backToday: "Back to your path"
         },
         overview: {
-          eyebrow: "Learning path",
+          eyebrow: MODULE_NAMES.en.learning_path.name,
           title: "Your path",
           domain: "Domain",
           orientation: "Orientation",

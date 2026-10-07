@@ -504,7 +504,9 @@ export type Database = {
        * The reader's own attempts (RLS: user_id = auth.uid()), read for
        * question progress. Written only by start_question_attempt and
        * submit_question_answer, so Insert and Update are `never`. score_milli
-       * is NULL until the attempt is submitted.
+       * is NULL until the attempt is submitted. score_milli is the GRADE;
+       * earned_milli (generated) is what it earned — half when late_answer
+       * (20261006120000).
        */
       question_attempts: TableDefinition<
         {
@@ -518,6 +520,8 @@ export type Database = {
           selected_option_id: string | null;
           score_milli: number | null;
           status: "in_progress" | "submitted";
+          late_answer: boolean;
+          earned_milli: number | null;
         },
         never,
         never
@@ -1237,6 +1241,16 @@ export type Database = {
           question_sequence: number;
           /** [{ option_id, label }] in the attempt's fixed order. Never a score. */
           options: unknown;
+          /** Settled attempts only (NULL/false while open). */
+          selected_option_id: string | null;
+          score_milli: number | null;
+          grade_band: string | null;
+          expired: boolean;
+          skipped: boolean;
+          late_answer: boolean;
+          earned_milli: number | null;
+          /** Open attempts only: an answer settled now would be late. */
+          late_if_submitted_now: boolean | null;
         } | null;
       };
       submit_question_answer: {
@@ -1252,6 +1266,10 @@ export type Database = {
           grade_band: string;
           selected_option_id: string | null;
           teams_scored: number;
+          /** Settled after the edition's day in the reader's zone: earns half. */
+          late_answer: boolean;
+          /** What the answer earned (milli); points shown = earned_milli / 10. */
+          earned_milli: number;
         } | null;
       };
       get_question_feedback: {

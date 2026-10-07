@@ -11,13 +11,15 @@ import type { LibraryItemSummary } from "../library/libraryTypes";
 import { useModulePreferenceState } from "../preferences";
 import { editionDisplayDate, estimateReadMinutes } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
+import { useEditionRecency } from "../today/useEditionRecency";
+import { getUserLocalDateKey } from "../../lib/localDate";
 import { resolveTodayEditionState } from "../today/todayEditionState";
 import { stripMarkdownInline } from "../today/readers/markdown";
 import { questionIdsOf } from "../quiz/itemQuestions";
 import { contentQuestionsLabel } from "../quiz/quizCopy";
 import { useContentsQuestionProgress } from "../quiz/useContentsQuestionProgress";
 import { ItemArchiveList } from "./ItemArchiveList";
-import { getModuleCopy } from "./moduleCopy";
+import { editionViewLabel, getModuleCopy } from "./moduleCopy";
 import {
   ModuleError,
   ModuleDisabledState,
@@ -43,6 +45,7 @@ export function StoriesModuleScreen() {
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
   const editionProgress = useEditionProgress();
+  const recency = useEditionRecency();
   const disabled = modulePreference.status === "ready" && !modulePreference.enabled;
 
   return (
@@ -65,7 +68,7 @@ export function StoriesModuleScreen() {
               <EditionProgress language={language} state={editionProgress} />
             ) : null}
             <ViewSwitch
-              leftLabel={copy.common.todayView}
+              leftLabel={editionViewLabel(copy, recency)}
               onChange={setView}
               rightLabel={copy.common.archiveView}
               value={view}
@@ -100,7 +103,8 @@ function StoriesToday({ onOpenArchive }: { onOpenArchive: () => void }) {
     dropDate: drop.drop_date,
     error,
     isEmptyDrop,
-    status
+    status,
+    readerToday: getUserLocalDateKey()
   });
 
   if (editionState === "loading") {

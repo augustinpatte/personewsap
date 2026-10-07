@@ -32,6 +32,8 @@ import {
   getTopicLabel
 } from "../today/contentCopy";
 import { useDailyDrop } from "../today/DailyDropContext";
+import { useEditionRecency } from "../today/useEditionRecency";
+import { getUserLocalDateKey } from "../../lib/localDate";
 import { resolveTodayEditionState } from "../today/todayEditionState";
 import { isEditionDay } from "../today/editionCadence";
 import { stripMarkdownInline } from "../today/readers/markdown";
@@ -40,7 +42,7 @@ import { questionIdsOf } from "../quiz/itemQuestions";
 import type { ContentQuestionProgress } from "../quiz/questionProgress";
 import { contentQuestionsLabel } from "../quiz/quizCopy";
 import { useContentsQuestionProgress } from "../quiz/useContentsQuestionProgress";
-import { getModuleCopy } from "./moduleCopy";
+import { editionViewLabel, getModuleCopy } from "./moduleCopy";
 import {
   EditorialRule,
   MetaLine,
@@ -100,6 +102,7 @@ export function NewsletterModuleScreen() {
   const styles = useThemedStyles(createStyles);
   const copy = getModuleCopy(language);
   const editionProgress = useEditionProgress();
+  const recency = useEditionRecency();
   // Off for the reader's own edition, but never over a Team's: a Team member
   // who turned this module off still plays what their Team assigned.
   const disabled = showModuleDisabledState({
@@ -131,7 +134,7 @@ export function NewsletterModuleScreen() {
               <EditionProgress language={language} state={editionProgress} />
             ) : null}
             <ViewSwitch
-              leftLabel={copy.common.todayView}
+              leftLabel={editionViewLabel(copy, recency)}
               onChange={setView}
               rightLabel={copy.common.editionsView}
               value={view}
@@ -186,7 +189,8 @@ function NewsletterToday({ onOpenArchive }: { onOpenArchive: () => void }) {
     dropDate: drop.drop_date,
     error,
     isEmptyDrop,
-    status
+    status,
+    readerToday: getUserLocalDateKey()
   });
 
   useEffect(() => {

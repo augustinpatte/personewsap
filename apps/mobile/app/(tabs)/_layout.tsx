@@ -8,7 +8,7 @@ import { AppLaunchScreen, useAuth } from "../../src/features/auth";
 import { useLearningPath } from "../../src/features/learning";
 import { NotificationDisabledBanner } from "../../src/features/notifications";
 import { shouldRedirectToLearningSetup } from "../../src/features/learning/learningPathRouting";
-import { localized } from "../../src/lib/i18n";
+import { moduleNames } from "../../src/constants/moduleNames";
 
 /**
  * Product-oriented bottom navigation: the four content modules plus Teams.
@@ -60,27 +60,18 @@ export default function TabsLayout() {
   const { profileLanguage, status } = useAuth();
   const learningPath = useLearningPath();
   const { colors } = useTheme();
-  const copy = localized(
-    {
-      en: {
-        newsletter: "Newsletter",
-        cases: "Mini cases",
-        stories: "Stories",
-        path: "Path",
-        teams: "Teams"
-      },
-      fr: {
-        newsletter: "Newsletter",
-        cases: "Mini cas",
-        stories: "Stories",
-        path: "Parcours",
-        // "Teams" is the product's own word in both languages: a French reader
-        // says "ma team", and "Équipes" would name something this is not.
-        teams: "Teams"
-      }
-    },
-    profileLanguage
-  );
+  // The canonical tab labels (constants/moduleNames.ts): the same words the
+  // module screens use, and the only place a name is ever shortened. "Teams"
+  // is the product's own word in both languages: a French reader says "ma
+  // team", and "Équipes" would name something this is not.
+  const names = moduleNames(profileLanguage);
+  const copy = {
+    newsletter: names.newsletter.tab,
+    cases: names.mini_case.tab,
+    stories: names.business_story.tab,
+    path: names.learning_path.tab,
+    teams: names.teams.tab
+  };
 
   if (status === "loading") {
     return <AppLaunchScreen language={profileLanguage} />;

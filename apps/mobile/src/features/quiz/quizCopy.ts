@@ -62,6 +62,7 @@ export function getQuizCopy(language: ContentLanguage) {
           remaining === 1 ? "1 question left" : `${remaining} questions left`,
         completeTitle: "Questions complete",
         completeScore: (earned: string, total: string) => `${earned} of ${total} points`,
+        lateAnswerPreview: "Late answer · up to 50 points",
         reviewOnly: "Already answered — review only",
         teamBadge: "Team",
         // Compact on screen; spoken in full, because "plus two" is not a
@@ -114,6 +115,7 @@ export function getQuizCopy(language: ContentLanguage) {
           remaining === 1 ? "1 question restante" : `${remaining} questions restantes`,
         completeTitle: "Questions terminées",
         completeScore: (earned: string, total: string) => `${earned} points sur ${total}`,
+        lateAnswerPreview: "Réponse tardive · 50 points maximum",
         reviewOnly: "Déjà répondu — relecture uniquement",
         teamBadge: "Team",
         teamMore: (count: number) => `+${count}`,

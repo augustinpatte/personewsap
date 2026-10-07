@@ -1,14 +1,16 @@
 import { localized } from "../../lib/i18n";
 import type { ContentLanguage } from "../today/contentTypes";
-import { formatPoints, type QuestionScoreTier, type QuizOption } from "./quizSession";
+import { earnedMilli, formatPointsLong, pointsFromMilli } from "./points";
+import type { QuestionScoreTier, QuizOption } from "./quizSession";
 
 /**
  * What a reader is taught once a question is settled.
  *
- * PersoNews scores 0, 0.3, 0.6 or 1. Partial credit is the unusual part of the
- * product, so the screen after an answer has to explain it: what the chosen
- * answer was worth and why, then — unless it already was — the answer worth
- * the full point and why.
+ * PersoNews scores 0, 30, 60 or 100 points. Partial credit is the unusual part
+ * of the product, so the screen after an answer has to explain it: what the
+ * chosen answer earned and why, then — unless it already was — the answer
+ * worth full points and why. An answer settled after its edition's day earns
+ * half (points.ts), and the screen says so in one line.
  *
  * NOTHING HERE IS WRITTEN ON THE PHONE. The explanations are the editorial
  * feedback stored with each option when the edition was generated, released by
@@ -54,6 +56,8 @@ export type AnswerExplanationView = {
   loading: boolean;
   /** Shown when the explanation could not be loaded. */
   notice: string | null;
+  /** Present when the answer was settled late and earned half. */
+  lateNote: string | null;
 };
 
 export function getExplanationCopy(language: ContentLanguage) {
@@ -64,14 +68,15 @@ export function getExplanationCopy(language: ContentLanguage) {
         bestAnswer: "Best answer",
         yourAnswerIsBest: "Your answer · Best answer",
         whyYours: (points: string) => `Why this answer earns ${points}`,
-        whyBest: "Why it earns the full point",
+        whyBest: "Why it earns full points",
         verdicts: {
           1000: "Excellent — the complete answer, with the strongest reasoning.",
-          600: "Good — the logic holds, but an important element is missing to reach 1 point.",
+          600: "Good — the logic holds, but an important element is missing to reach full points.",
           300: "Partial — part of the reasoning is right, but the central point is missing or misapplied, so it earns partial credit only.",
           0: "Miss — the main reasoning does not hold."
         } as Record<QuestionScoreTier, string>,
-        excellentReasoning: "Excellent reasoning. This is the answer worth the full point.",
+        excellentReasoning: "Excellent reasoning. This is the answer worth full points.",
+        late: "Answered after the edition day: late answers earn 50% of the normal points.",
         expired: "Time expired before an answer was submitted.",
         skipped: "You skipped this question.",
         loading: "Loading the explanation…",
@@ -82,14 +87,15 @@ export function getExplanationCopy(language: ContentLanguage) {
         bestAnswer: "Meilleure réponse",
         yourAnswerIsBest: "Votre réponse · Meilleure réponse",
         whyYours: (points: string) => `Pourquoi cette réponse vaut ${points}`,
-        whyBest: "Pourquoi elle vaut 1 point",
+        whyBest: "Pourquoi elle vaut tous les points",
         verdicts: {
           1000: "Excellent — la réponse complète, avec le meilleur raisonnement.",
-          600: "Bon — la logique tient, mais il manque un élément important pour atteindre 1 point.",
+          600: "Bon — la logique tient, mais il manque un élément important pour obtenir tous les points.",
           300: "Partiel — une partie du raisonnement est juste, mais le point central manque ou est mal appliqué : le crédit n'est que partiel.",
           0: "Manqué — le raisonnement principal ne tient pas."
         } as Record<QuestionScoreTier, string>,
-        excellentReasoning: "Excellent raisonnement. C'est la réponse qui vaut le point entier.",
+        excellentReasoning: "Excellent raisonnement. C'est la réponse qui vaut tous les points.",
+        late: "Réponse donnée après le jour de l'édition : les réponses tardives rapportent 50 % des points habituels.",
         expired: "Le temps s'est écoulé avant qu'une réponse soit envoyée.",
         skipped: "Vous avez passé cette question.",
         loading: "Chargement de l'explication…",
@@ -100,24 +106,17 @@ export function getExplanationCopy(language: ContentLanguage) {
   );
 }
 
-/**
- * "0.3 points" in English, "0,3 point" in French — a decimal comma, and the
- * singular French uses below two.
- */
+/** "30 points", "100 points"; "0 point" in French. Whole numbers only. */
 export function formatPointsFor(scoreMilli: number, language: ContentLanguage): string {
-  const value = formatPoints(scoreMilli);
-
-  if (language === "fr") {
-    return `${value.replace(".", ",")} point`;
-  }
-
-  return `${value} point${value === "1" ? "" : "s"}`;
+  return formatPointsLong(pointsFromMilli(scoreMilli), language);
 }
 
 export function buildAnswerExplanation(input: {
   language: ContentLanguage;
   outcome: "answered" | "expired" | "skipped";
   scoreMilli: QuestionScoreTier;
+  /** Settled after the edition's day (server-decided): earns half. */
+  late?: boolean;
   selectedOptionId: string | null;
   /** The options exactly as they were shown, for their labels. */
   options: QuizOption[];
@@ -133,6 +132,9 @@ export function buildAnswerExplanation(input: {
 
   const blocks: ExplanationBlock[] = [];
   const answered = input.outcome === "answered";
+  const late = input.late === true;
+  // What THIS reader earned. The best answer below keeps its normal value:
+  // it describes the answer, and the late note explains the difference.
   // A full point IS the best answer; the server agrees, and the screen does not
   // have to wait for it to say so.
   const choseBest =
@@ -146,7 +148,7 @@ export function buildAnswerExplanation(input: {
     blocks.push({
       kind: "yours_best",
       eyebrow: copy.yourAnswerIsBest,
-      points: formatPointsFor(1000, input.language),
+      points: formatPointsFor(earnedMilli(1000, late), input.language),
       label: labelOf(input.selectedOptionId, explanation?.selected?.label ?? null),
       verdict: copy.excellentReasoning,
       whyHeading: body ? copy.whyBest : null,
@@ -154,7 +156,7 @@ export function buildAnswerExplanation(input: {
       best: true
     });
   } else {
-    const points = formatPointsFor(answered ? input.scoreMilli : 0, input.language);
+    const points = formatPointsFor(answered ? earnedMilli(input.scoreMilli, late) : 0, input.language);
     const body = answered ? explanation?.selected?.feedback ?? null : null;
 
     blocks.push({
@@ -191,6 +193,7 @@ export function buildAnswerExplanation(input: {
   return {
     blocks,
     loading: input.explanation === undefined,
-    notice: input.explanation === null ? copy.unavailable : null
+    notice: input.explanation === null ? copy.unavailable : null,
+    lateNote: answered && late ? copy.late : null
   };
 }

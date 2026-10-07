@@ -307,7 +307,7 @@ function TeamCard({
         </AppText>
       ) : (
         <AppText color="muted" variant="caption">
-          {`${formatTeamPoints(team.scoreMilli)} · ${copy.editionProgress(
+          {`${formatTeamPoints(team.scoreMilli, language)} · ${copy.editionProgress(
             team.answeredCount,
             team.assignedCount
           )}`}

@@ -157,6 +157,14 @@ export function QuestionCard({
         {state.prompt}
       </AppText>
 
+      {/* Before answering an edition whose day has passed: said once, quietly,
+          from the server's own preview. The server decides again on submit. */}
+      {state.status === "answering" && state.late ? (
+        <AppText color="muted" variant="caption">
+          {copy.lateAnswerPreview}
+        </AppText>
+      ) : null}
+
       <View accessibilityRole="radiogroup" style={styles.options}>
         {state.options.map((option, optionIndex) => (
           <OptionRow
@@ -339,6 +347,7 @@ function Outcome({
     language: copyLanguage,
     outcome: expired ? "expired" : skipped ? "skipped" : "answered",
     scoreMilli,
+    late: state.status === "answered" && state.late === true,
     selectedOptionId: state.status === "answered" ? state.selectedOptionId : null,
     options: state.options,
     explanation
@@ -359,6 +368,12 @@ function Outcome({
           <SkeletonLine height={16} />
           <SkeletonLine height={16} width="82%" />
         </View>
+      ) : null}
+
+      {view.lateNote ? (
+        <AppText color="muted" variant="caption">
+          {view.lateNote}
+        </AppText>
       ) : null}
 
       {view.notice ? (

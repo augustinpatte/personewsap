@@ -8,6 +8,7 @@ import type { ContentLanguage } from "../today/contentTypes";
 import { ReaderScaffold } from "../today/readers";
 import { QuestionCard } from "./QuestionCard";
 import { getQuizCopy } from "./quizCopy";
+import { FULL_GRADE_MILLI } from "./points";
 import { formatPoints } from "./quizSession";
 import { TeamBadge } from "./TeamBadge";
 import type { SettledSeed } from "./questionProgress";
@@ -88,8 +89,8 @@ export function ReadingQuizScreen({
           </AppText>
           <AppText variant="title">
             {copy.completeScore(
-              formatPoints(quiz.scoreMilli),
-              formatPoints(quiz.total * 1000)
+              formatPoints(quiz.scoreMilli, language),
+              formatPoints(quiz.total * FULL_GRADE_MILLI, language)
             )}
           </AppText>
           <AppText color="muted" numberOfLines={2} variant="caption">

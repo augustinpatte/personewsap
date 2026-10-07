@@ -101,7 +101,7 @@ describe("M10. a timeout is settled, worth zero, and not replayable", () => {
     expect(resolveQuestionState(late, NOW)).toBe("timed_out");
     expect(summarizeContentProgress(["q1"], records([["q1", late]]), NOW).status).toBe("completed");
     expect(settledSeeds(["q1"], records([["q1", late]]))).toEqual({
-      q1: { scoreMilli: 0, expired: true, skipped: false, selectedOptionId: null }
+      q1: { scoreMilli: 0, expired: true, skipped: false, selectedOptionId: null, late: false }
     });
   });
 

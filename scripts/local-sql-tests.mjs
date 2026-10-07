@@ -166,6 +166,12 @@ const SUITES = {
       "supabase/migrations/20261005160000_set_based_publisher.sql",
     ],
   },
+  "late-answer": {
+    label: "Late answers earn half (points scale, Teams ledger, idempotent replay)",
+    file: "supabase/tests/late_answer_credit.test.sql",
+    stack: "production",
+    migrationsFrom: UNAPPLIED_TAIL_VERSION,
+  },
   publisher: {
     label: "Scheduled edition publication",
     file: "supabase/tests/scheduled_edition_publication.test.sql",
@@ -268,6 +274,18 @@ for (const name of names) {
   }
 
   let sql = parts.join("\n");
+
+  // `-- replay-migration: <path>` re-applies a migration at that exact point of
+  // a suite, after the suite has written data — how a suite proves a
+  // migration is idempotent on a populated schema. Stripped of its own
+  // transaction control like every other inlined file.
+  for (const match of [...sql.matchAll(/^-- replay-migration: (\S+)\s*$/gm)]) {
+    const body = (await readFile(match[1], "utf8"))
+      .replace(/^\s*BEGIN;\s*$/gim, "")
+      .replace(/^\s*COMMIT;\s*$/gim, "")
+      .replace(/^\s*NOTIFY pgrst.*$/gim, "");
+    sql = sql.replace(match[0], () => body);
+  }
 
   // Specific migration files proved by this suite but not applied to the local
   // stack: inlined inside the suite's own transaction (which rolls back), so the

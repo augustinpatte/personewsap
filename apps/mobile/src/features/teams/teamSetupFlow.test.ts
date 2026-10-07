@@ -331,7 +331,7 @@ describe("copy", () => {
   it("states the edition's volume in plain words", () => {
     expect(en.setupEditionShape(3, 1)).toBe("3 articles · 1 mini case");
     expect(en.setupEditionShape(6, 2)).toBe("6 articles · 2 mini cases");
-    expect(fr.setupEditionShape(3, 1)).toBe("3 articles · 1 mini cas");
+    expect(fr.setupEditionShape(3, 1)).toBe("3 articles · 1 mini-cas");
     expect(en.setupStep(2, 3)).toBe("Step 2 of 3");
     expect(fr.setupStep(2, 3)).toBe("Étape 2 sur 3");
   });

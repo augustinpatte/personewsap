@@ -16,6 +16,9 @@
  * speed bonus into a product that deliberately has none.
  */
 
+import { formatPointsShort, pointsFromMilli } from "../quiz/points";
+import type { ContentLanguage } from "../today/contentTypes";
+
 export type LeaderboardRange = "edition" | "week" | "all_time";
 
 export const LEADERBOARD_RANGES: LeaderboardRange[] = ["edition", "week", "all_time"];
@@ -164,10 +167,14 @@ export function displayIdentity(
   };
 }
 
-/** Points as the reader sees them: 0 / 0.3 / 1.8 / 12. */
-export function formatTeamPoints(scoreMilli: number): string {
-  const points = scoreMilli / 1000;
-  return Number.isInteger(points) ? String(points) : points.toFixed(1);
+/**
+ * A standing as the reader sees it: "0 pts", "50 pts", "1,430 pts" — whole
+ * numbers on the 100-point scale (quiz/points.ts), grouped per language.
+ * Ranking is unchanged: it still compares the stored milli totals, and dividing
+ * every total by the same 10 cannot reorder anything.
+ */
+export function formatTeamPoints(scoreMilli: number, language: ContentLanguage = "en"): string {
+  return formatPointsShort(pointsFromMilli(scoreMilli), language);
 }
 
 /**

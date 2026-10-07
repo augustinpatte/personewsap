@@ -90,7 +90,9 @@ describe("after the answer", () => {
       gradeBand: "good",
       expired: false,
       skipped: false,
-      selectedOptionId: "o2"
+      selectedOptionId: "o2",
+      // An older server sends no late_answer: the answer reads as on time.
+      late: false
     });
   });
 });

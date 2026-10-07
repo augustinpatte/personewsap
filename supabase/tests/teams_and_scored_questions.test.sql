@@ -531,7 +531,11 @@ begin
   perform pg_temp.record(38, 'B29 team two recorded it once', '1',
     (select count(*)::text from public.team_question_scores s
      where s.team_id = pg_temp.team_two() and s.user_id = pg_temp.uid_owner()));
-  perform pg_temp.record(39, 'B30 the aggregate reflects the fanout', '1000',
+  -- E2 is dated two days ago and the owner's zone is UTC, so this answer is
+  -- settled after its edition day and earns half (20261006120000; the rule
+  -- itself is proved by late_answer_credit.test.sql). The aggregate is the
+  -- EARNED value: B25 above is the grade, 1000; what counts is 500.
+  perform pg_temp.record(39, 'B30 the aggregate reflects the fanout (late: half of 1000)', '500',
     (select s.score_milli::text from public.team_member_edition_scores s
      where s.team_id = pg_temp.team_one()
        and s.user_id = pg_temp.uid_owner()

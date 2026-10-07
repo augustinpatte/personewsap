@@ -1,3 +1,4 @@
+import { MODULE_NAMES } from "../../constants/moduleNames";
 import { localized } from "../../lib/i18n";
 import type { ContentLanguage } from "../today/contentTypes";
 import type { EditionStatus, LeaderboardRange } from "./leaderboard";
@@ -195,7 +196,7 @@ export function getTeamsCopy(language: ContentLanguage) {
         setupPreviewTitle: "You're ready",
         setupPreviewBody: "This is what your Team will play. You can change these choices later.",
         setupTopicsLabel: "Topics",
-        setupMiniCasesLabel: "Mini cases",
+        setupMiniCasesLabel: MODULE_NAMES.en.mini_case.name,
         setupPerEdition: "Per edition",
         setupEditionShape: (articles: number, miniCases: number) =>
           [
@@ -345,10 +346,10 @@ export function getTeamsCopy(language: ContentLanguage) {
         nameLabel: "Nom de la Team",
         namePlaceholder: "Loyola Finance",
         newsletterTopics: "Sujets newsletter",
-        miniCaseTopics: "Sujets mini cas",
+        miniCaseTopics: "Sujets mini-cas",
         configNote: "Tout le monde dans la Team joue les mêmes sujets.",
         contentEstimate: (articles: number, cases: number, questions: number) =>
-          `${articles} articles, ${cases} mini cas — ${questions} questions par édition`,
+          `${articles} articles, ${cases} mini-cas — ${questions} questions par édition`,
         reviewTitle: "Récapitulatif",
         createConfirm: "Créer la Team",
         nameTooShort: "2 caractères minimum.",
@@ -443,10 +444,10 @@ export function getTeamsCopy(language: ContentLanguage) {
 
         createIntro: "Vous choisissez les sujets. Toute la Team joue les mêmes.",
         newsletterTopicsHelp: "Choisissez les sujets, puis le nombre d'articles de chacun.",
-        miniCaseTopicsHelp: "Les mini cas que toute la Team joue.",
+        miniCaseTopicsHelp: "Les mini-cas que toute la Team joue.",
         articlesCount: (count: number) => (count === 1 ? "1 article" : "2 articles"),
         articlesTotal: (count: number) => (count === 1 ? "1 article" : `${count} articles`),
-        gamesRequired: "Choisissez au moins un sujet newsletter ou un sujet mini cas.",
+        gamesRequired: "Choisissez au moins un sujet newsletter ou un sujet mini-cas.",
         topicsChosen: (count: number) => (count === 1 ? "1 sujet" : `${count} sujets`),
         noTopicsChosen: "Aucun pour l'instant",
         nameNotSet: "Pas encore choisi",
@@ -472,12 +473,12 @@ export function getTeamsCopy(language: ContentLanguage) {
         setupPreviewBody:
           "Voici ce que votre Team va jouer. Vous pourrez modifier ces choix plus tard.",
         setupTopicsLabel: "Sujets",
-        setupMiniCasesLabel: "Mini cas",
+        setupMiniCasesLabel: MODULE_NAMES.fr.mini_case.name,
         setupPerEdition: "Par édition",
         setupEditionShape: (articles: number, miniCases: number) =>
           [
             articles > 0 ? (articles === 1 ? "1 article" : `${articles} articles`) : null,
-            miniCases > 0 ? `${miniCases} mini cas` : null
+            miniCases > 0 ? `${miniCases} mini-cas` : null
           ]
             .filter(Boolean)
             .join(" · "),

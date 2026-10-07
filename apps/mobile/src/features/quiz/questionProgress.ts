@@ -31,6 +31,8 @@ export type AttemptRecord = {
   selectedOptionId: string | null;
   /** Null until submitted: an open attempt has no score by construction. */
   scoreMilli: QuestionScoreTier | null;
+  /** Settled after the edition's day: earns half of `scoreMilli`. */
+  late?: boolean;
 };
 
 export type QuestionProgressState =
@@ -124,6 +126,7 @@ export function resolveQuestionsCta(progress: ContentQuestionProgress): Question
 /** A question the server has already settled, as the quiz flow restores it. */
 export type SettledSeed = {
   scoreMilli: QuestionScoreTier;
+  late?: boolean;
   expired: boolean;
   skipped: boolean;
   selectedOptionId: string | null;
@@ -149,6 +152,7 @@ export function settledSeeds(
 
     seeds[id] = {
       scoreMilli: record.scoreMilli ?? 0,
+      late: record.late === true,
       expired: record.expired,
       skipped: !record.expired && record.selectedOptionId === null,
       selectedOptionId: record.selectedOptionId

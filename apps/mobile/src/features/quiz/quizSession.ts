@@ -22,8 +22,15 @@
  *
  * There is deliberately no speed bonus. The score depends on which option was
  * chosen, never on how fast — so the feedback step is untimed, and a reader can
- * take as long as they like reading why they lost 400 points.
+ * take as long as they like reading why they lost 40 points.
+ *
+ * `scoreMilli` everywhere below is the GRADE of the chosen answer (0, 300, 600
+ * or 1000). What it EARNED also depends on `late` — settled after the
+ * edition's day — and is only ever computed by points.ts.
  */
+
+import { earnedMilli, formatPointsNumber, pointsFromMilli } from "./points";
+import type { ContentLanguage } from "../today/contentTypes";
 
 export const QUESTION_SCORE_TIERS = [0, 300, 600, 1000] as const;
 export type QuestionScoreTier = (typeof QUESTION_SCORE_TIERS)[number];
@@ -46,6 +53,12 @@ export type StartedAttempt = {
   prompt: string;
   options: QuizOption[];
   /**
+   * The server's preview: an answer settled now would be late and earn half.
+   * Undefined from a server that predates the rule. Only a preview — the
+   * server decides again at the instant the answer is settled.
+   */
+  lateIfSubmittedNow?: boolean;
+  /**
    * The result the server already holds, present only when `alreadySubmitted`.
    *
    * Without it a reopened reading could only ever render a fabricated zero: the
@@ -65,6 +78,8 @@ export type SubmittedAnswer = {
   expired: boolean;
   skipped: boolean;
   selectedOptionId: string | null;
+  /** Settled after the edition's day: it earns half its grade. */
+  late?: boolean;
   /**
    * How many Teams this answer was counted for (`teams_scored`). A count, not
    * a score: it only tells the Team screens there is something to refetch.
@@ -84,6 +99,8 @@ export type QuestionState =
       deadlineAt: string;
       prompt: string;
       options: QuizOption[];
+      /** The server's preview that this answer will be late. */
+      late?: boolean;
     }
   /** Locked the instant an option is tapped, before the network round-trip. */
   | {
@@ -104,6 +121,8 @@ export type QuestionState =
       gradeBand: QuestionGradeBand;
       expired: boolean;
       skipped: boolean;
+      /** Settled after the edition's day: earns half of `scoreMilli`. */
+      late?: boolean;
     }
   /** The deadline passed with nothing submitted. Worth zero, and final. */
   | { status: "expired"; attemptId: string; prompt: string; options: QuizOption[] };
@@ -208,7 +227,8 @@ export function questionReducer(state: QuestionState, action: QuestionAction): Q
         attemptId: attempt.attemptId,
         deadlineAt: attempt.deadlineAt,
         prompt: attempt.prompt,
-        options: attempt.options
+        options: attempt.options,
+        late: attempt.lateIfSubmittedNow === true
       };
     }
 
@@ -242,7 +262,8 @@ export function questionReducer(state: QuestionState, action: QuestionAction): Q
             scoreMilli: action.result.scoreMilli,
             gradeBand: action.result.gradeBand,
             expired: action.result.expired,
-            skipped: action.result.skipped
+            skipped: action.result.skipped,
+            late: action.result.late === true
           }
         : state;
 
@@ -287,7 +308,8 @@ function toAnswered(attempt: StartedAttempt, answered: SubmittedAnswer): Questio
     scoreMilli: answered.scoreMilli,
     gradeBand: answered.gradeBand,
     expired: answered.expired,
-    skipped: answered.skipped
+    skipped: answered.skipped,
+    late: answered.late === true
   };
 }
 
@@ -303,14 +325,15 @@ export type QuizProgress = {
   settled: number;
   /** Every question settled — the reading is finished. */
   isComplete: boolean;
-  /** Total earned, in milli-points. */
+  /** Total EARNED, in milli-points: grades, halved where late. */
   scoreMilli: number;
 };
 
 export function summarizeQuiz(states: QuestionState[]): QuizProgress {
   const settled = states.filter(isSettled).length;
   const scoreMilli = states.reduce(
-    (total, state) => total + (state.status === "answered" ? state.scoreMilli : 0),
+    (total, state) =>
+      total + (state.status === "answered" ? earnedMilli(state.scoreMilli, state.late === true) : 0),
     0
   );
 
@@ -365,8 +388,10 @@ export function hasPendingQuestions(input: {
   return settled < input.questionCount;
 }
 
-/** Points as the reader sees them: 0 / 0.3 / 0.6 / 1. */
-export function formatPoints(scoreMilli: number): string {
-  const points = scoreMilli / 1000;
-  return Number.isInteger(points) ? String(points) : points.toFixed(1);
+/**
+ * Milli-points as the number a reader sees: 0 / 30 / 60 / 100, "1,430". Always
+ * a whole number (points.ts).
+ */
+export function formatPoints(scoreMilli: number, language: ContentLanguage = "en"): string {
+  return formatPointsNumber(pointsFromMilli(scoreMilli), language);
 }

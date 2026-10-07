@@ -41,13 +41,20 @@ export type TodayEditionStateInput = {
   /** True when the resolved drop carries no items at all. */
   isEmptyDrop: boolean;
   status: "loading" | "ready";
+  /**
+   * The reader's own calendar day (lib/localDate). When given, "on the way"
+   * is claimed only if the reader's TODAY is a publication day: an empty
+   * answer for an older edition date says nothing about today's edition.
+   */
+  readerToday?: string;
 };
 
 export function resolveTodayEditionState({
   dropDate,
   error,
   isEmptyDrop,
-  status
+  status,
+  readerToday
 }: TodayEditionStateInput): TodayEditionState {
   if (status === "loading") {
     return "loading";
@@ -64,7 +71,7 @@ export function resolveTodayEditionState({
     return "error";
   }
 
-  return isEditionDay(dropDate) ? "upcoming" : "quiet";
+  return isEditionDay(readerToday ?? dropDate) ? "upcoming" : "quiet";
 }
 
 /** True for the two states that stand in for a missing edition. */

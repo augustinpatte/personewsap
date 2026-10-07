@@ -16,6 +16,7 @@ import {
   type SettledSeed
 } from "./questionProgress";
 import { getQuizCopy, questionsCtaLabel } from "./quizCopy";
+import { FULL_GRADE_MILLI } from "./points";
 import { formatPoints } from "./quizSession";
 import { TeamBadge } from "./TeamBadge";
 import type { TeamRef } from "./teamMerge";
@@ -174,8 +175,8 @@ function MiniCaseServerQuizBody({
             </AppText>
             <AppText variant="subtitle">
               {copy.completeScore(
-                formatPoints(quiz.scoreMilli),
-                formatPoints(quiz.total * 1000)
+                formatPoints(quiz.scoreMilli, language),
+                formatPoints(quiz.total * FULL_GRADE_MILLI, language)
               )}
             </AppText>
           </View>

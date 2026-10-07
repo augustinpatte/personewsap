@@ -277,13 +277,13 @@ describe("what it says", () => {
 
       expect(play).toMatch(/20/);
       expect(play).toMatch(language === "fr" ? /qu'une fois/ : /only once/);
-      expect(play).toMatch(language === "fr" ? /Mini cas/ : /Mini Cases/);
+      expect(play).toMatch(language === "fr" ? /Mini-cas/ : /Mini Cases/);
     });
 
-    it(`${language}: points are 1, 0.6, 0.3, 0 — quality of reasoning — and a timeout has no retry`, () => {
-      expect(copy.points.tiers.map((tier) => tier.value)).toEqual(
-        language === "fr" ? ["1", "0,6", "0,3", "0"] : ["1", "0.6", "0.3", "0"]
-      );
+    it(`${language}: points are 100, 60, 30, 0 — quality of reasoning — and a timeout has no retry`, () => {
+      // The 100-point scale in both languages: whole numbers, no decimal comma.
+      expect(copy.points.tiers.map((tier) => tier.value)).toEqual(["100", "60", "30", "0"]);
+      expect(copy.points.late).toMatch(language === "fr" ? /50 % des points habituels/ : /50% of the normal points/);
       expect(copy.points.tiers.map((tier) => tier.name)).toEqual(
         language === "fr" ? ["Excellent", "Bon", "Partiel", "Manqué"] : ["Excellent", "Good", "Partial", "Miss"]
       );

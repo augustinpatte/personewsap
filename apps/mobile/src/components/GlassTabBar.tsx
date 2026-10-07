@@ -22,6 +22,12 @@ import {
   nearestTabIndex,
   tabOffset
 } from "../design/tabBarGesture";
+import {
+  TAB_LABEL_FONT_SIZE,
+  TAB_LABEL_GUTTER,
+  TAB_LABEL_MAX_FONT_MULTIPLIER,
+  TAB_LABEL_MIN_FONT_SCALE
+} from "../design/tabBarLabels";
 import { resolveTabBarGlass, TAB_BAR_GLASS, tabBarBottomInset } from "../design/tabBarMaterial";
 import { useReducedMotion } from "../design/useReducedMotion";
 import { selectionChanged } from "../lib/haptics";
@@ -274,7 +280,16 @@ export function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProp
               testID={tab.options.tabBarButtonTestID}
             >
               {tab.options.tabBarIcon?.({ focused, color, size: 20 })}
-              <Text numberOfLines={1} style={[styles.label, { color }]}>
+              {/* One line, always. On the narrowest supported iPhone, or under a
+                  larger text size, the label shrinks a little rather than
+                  wrapping or escaping its capsule (tabBarLabels.ts). */}
+              <Text
+                adjustsFontSizeToFit
+                maxFontSizeMultiplier={TAB_LABEL_MAX_FONT_MULTIPLIER}
+                minimumFontScale={TAB_LABEL_MIN_FONT_SCALE}
+                numberOfLines={1}
+                style={[styles.label, { color }]}
+              >
                 {tab.options.title ?? tab.route.name}
               </Text>
             </Pressable>
@@ -299,7 +314,11 @@ const styles = StyleSheet.create({
     right: 0
   },
   row: {
-    flexDirection: "row"
+    flexDirection: "row",
+    // The row lives INSIDE the glass. It used to span the whole screen while
+    // the pill stopped `horizontalInset` short of each edge, so the first and
+    // last tabs — "Newsletter" above all — started outside the glass.
+    marginHorizontal: TAB_BAR_GLASS.horizontalInset
   },
   capsule: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -315,10 +334,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     // Comfortably above the 44pt minimum target on every device.
     minHeight: 44,
+    // The label's room is its capsule's, not the slot's: the capsule inset
+    // plus a gutter, so a long label shrinks before it touches the edge.
+    paddingHorizontal: TAB_BAR_GLASS.capsuleInset + TAB_LABEL_GUTTER,
     paddingVertical: 3
   },
   label: {
-    fontSize: 10.5,
+    fontSize: TAB_LABEL_FONT_SIZE,
     fontWeight: "700",
     letterSpacing: 0
   }

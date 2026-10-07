@@ -354,7 +354,9 @@ export function EditionProgress({
   const ratio = complete ? 1 : state.ratio;
   const label = complete
     ? copy.editionComplete
-    : copy.editionProgress(state.completed, state.total);
+    : state.today
+      ? copy.editionProgress(state.completed, state.total)
+      : copy.editionProgressPast(state.completed, state.total);
 
   return (
     <View style={styles.progress}>

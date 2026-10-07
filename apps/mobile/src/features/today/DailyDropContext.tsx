@@ -36,6 +36,13 @@ import {
 } from "./currentEdition";
 import { fetchTodayDrop, getFallbackTodayDrop } from "./dailyDropData";
 import { isEditionDay, resolveReaderEditionDate } from "./editionCadence";
+import {
+  hasVisibleEdition,
+  shouldKeepVisibleEdition,
+  showsPullSpinner,
+  statusAtLoadStart,
+  type LoadOrigin
+} from "./editionLoadPolicy";
 
 /** Matches the content cache's own TTL (dailyDropData todayDropCacheTtlMs). */
 export const TODAY_FOREGROUND_TTL_MS = 60_000;
@@ -56,6 +63,11 @@ type LoadRequest = {
    * edition itself is changing and wrong for a routine re-check.
    */
   quiet?: boolean;
+  /**
+   * Who asked. Only a pull drives the pull-to-refresh spinner; a background
+   * re-check never shows one (editionLoadPolicy.ts).
+   */
+  origin?: LoadOrigin;
 };
 
 export type DailyDropContextValue = {
@@ -79,7 +91,11 @@ export type DailyDropContextValue = {
   reload: () => void;
   /** Pull to refresh: re-read from the server while keeping the content on screen. */
   refresh: () => Promise<void>;
-  /** True while a quiet re-read (pull, foreground check) is running. */
+  /**
+   * True while a reader-initiated pull to refresh is running. A background
+   * re-check (returning to the app) never sets it: that spinner over loaded
+   * content was the phantom loader.
+   */
   refreshing: boolean;
   /** The edition the backend says is open now, when it said so. */
   currentEditionDate: string | null;
@@ -103,10 +119,21 @@ type DailyDropState = {
   error: NormalizedSupabaseError | null;
   currentEditionDate: string | null;
   pinnedEditionDate: string | null;
+  /** The account `drop` was loaded for. Null for the fallback drop. */
+  ownerId: string | null;
 };
 
+function visibleFacts(state: DailyDropState) {
+  return {
+    status: state.status,
+    itemCount: flattenDailyDropItems(state.drop).length,
+    ownerId: state.ownerId
+  };
+}
+
 export function DailyDropProvider({ children }: PropsWithChildren) {
-  const { profileLanguage, status: authStatus } = useAuth();
+  const { profileLanguage, status: authStatus, user } = useAuth();
+  const authUserId = user?.id ?? null;
   const language: ContentLanguage = profileLanguage ?? "en";
   // Mock only in dev/preview builds; production starts from an honest empty drop.
   const fallbackDrop = useMemo(
@@ -120,8 +147,14 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
     status: "loading",
     error: null,
     currentEditionDate: null,
-    pinnedEditionDate: null
+    pinnedEditionDate: null,
+    ownerId: null
   });
+  // The committed state, for decisions an async load makes after awaiting.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const authUserIdRef = useRef(authUserId);
+  authUserIdRef.current = authUserId;
   const [interactions, setInteractions] = useState<ContentInteractionSnapshot>(
     createEmptyContentInteractionSnapshot
   );
@@ -153,11 +186,29 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
 
       loadingRef.current = true;
 
-      if (request.quiet) {
+      if (showsPullSpinner(request.origin)) {
         setRefreshing(true);
-      } else {
-        setState((current) => ({ ...current, status: "loading" }));
       }
+
+      // Only an empty screen gets the loader. An edition already on screen
+      // stays readable while this load confirms or replaces it.
+      setState((current) => {
+        const visible = hasVisibleEdition(visibleFacts(current), authUserIdRef.current);
+        const status = statusAtLoadStart({
+          quiet: request.quiet === true,
+          visible,
+          current: current.status
+        });
+
+        if (status === current.status) {
+          return current;
+        }
+
+        // Never another account's edition under this reader's loader.
+        return visible || current.ownerId === authUserIdRef.current
+          ? { ...current, status }
+          : { ...current, status, drop: fallbackDrop, ownerId: null };
+      });
 
       try {
         const sessionResult = await getAuthSession();
@@ -171,7 +222,8 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
               status: "ready",
               error: null,
               currentEditionDate: null,
-              pinnedEditionDate: null
+              pinnedEditionDate: null,
+              ownerId: null
             });
             setInteractions(createEmptyContentInteractionSnapshot());
           }
@@ -204,6 +256,25 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        // A re-check that could not do better than what is on screen — the
+        // current-edition lookup failed (so the date asked for was a guess)
+        // or the fetch failed, and it came back empty — keeps the edition the
+        // reader is already using instead of blanking it.
+        const shown = stateRef.current;
+        if (
+          shouldKeepVisibleEdition({
+            visible: hasVisibleEdition(visibleFacts(shown), userId),
+            resultItemCount: flattenDailyDropItems(result.data).length,
+            currentEditionLookupFailed: current.error !== null,
+            fetchFailed: result.error !== null,
+            explicitEditionRequest: typeof request.pinDate === "string"
+          })
+        ) {
+          lastLoadedAtRef.current = Date.now();
+          setState((previous) => ({ ...previous, status: "ready" }));
+          return;
+        }
+
         pinnedDateRef.current = pinnedDate;
         lastLoadedAtRef.current = Date.now();
         editionKeyRef.current = resolveEditionKey();
@@ -218,7 +289,8 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
           status: "ready",
           error: result.error,
           currentEditionDate: current.editionDate,
-          pinnedEditionDate: pinnedDate
+          pinnedEditionDate: pinnedDate,
+          ownerId: userId
         });
         trackAnalyticsEvent("daily_drop_loaded", {
           drop_date: result.data.drop_date,
@@ -250,6 +322,8 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
         }
       }
     },
+    // authUserId is read through its ref; the loader must not be re-created
+    // (and re-run) just because the auth object was re-rendered.
     [fallbackDrop, language]
   );
 
@@ -321,7 +395,10 @@ export function DailyDropProvider({ children }: PropsWithChildren) {
     [load]
   );
 
-  const refresh = useCallback(() => load(undefined, { force: true, quiet: true }), [load]);
+  const refresh = useCallback(
+    () => load(undefined, { force: true, quiet: true, origin: "pull" }),
+    [load]
+  );
 
   const items = useMemo(() => flattenDailyDropItems(state.drop), [state.drop]);
   const visibleItems = useMemo(

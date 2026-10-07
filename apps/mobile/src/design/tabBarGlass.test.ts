@@ -8,6 +8,7 @@ import {
   tabBarBottomInset,
   tabBarGlassBottom
 } from "./tabBarMaterial";
+import { TAB_LABEL_FONT_SIZE } from "./tabBarLabels";
 
 /**
  * The bottom bar's glass, pinned.
@@ -240,6 +241,7 @@ describe("the bar itself is unchanged where it counts", () => {
 
   it("keeps every touch target at 44pt and the labels at their size", () => {
     expect(bar).toContain("minHeight: 44");
-    expect(bar).toContain("fontSize: 10.5");
+    expect(bar).toContain("fontSize: TAB_LABEL_FONT_SIZE");
+    expect(TAB_LABEL_FONT_SIZE).toBe(10.5);
   });
 });

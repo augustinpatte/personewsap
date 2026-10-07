@@ -1,5 +1,7 @@
+import { MODULE_NAMES } from "../../constants/moduleNames";
 import { localized } from "../../lib/i18n";
 import type { Language } from "../../types/domain";
+import type { EditionRecency } from "../today/editionRecency";
 
 /**
  * All user-visible strings for the four module tabs (Newsletter, Mini cases,
@@ -22,6 +24,11 @@ export function getModuleCopy(language: Language | null | undefined) {
           undatedEdition: "Edition",
           archiveAccess: "Finite archive",
           todayView: "Today",
+          // The same switch on an edition that is not today's (editionRecency):
+          // the newest one available from an earlier day, or an older one the
+          // reader opened. Never "Today" for either.
+          latestView: "Latest",
+          pastView: "Edition",
           archiveView: "Archive",
           editionsView: "Editions",
           historyView: "History",
@@ -39,6 +46,9 @@ export function getModuleCopy(language: Language | null | undefined) {
           // than one module.
           editionProgress: (completed: number, total: number) =>
             `${completed} of ${total} completed today`,
+          // An earlier edition: the same count, without claiming it is today's.
+          editionProgressPast: (completed: number, total: number) =>
+            `${completed} of ${total} completed`,
           editionComplete: "Edition complete",
           noResultsTitle: "No match",
           noResultsBody: "Nothing matches that title or date yet.",
@@ -89,7 +99,7 @@ export function getModuleCopy(language: Language | null | undefined) {
           archiveEmptyTitle: "Your editions will settle here",
           archiveEmptyBody:
             "Each edition you receive is kept by date, so you can return to any day's brief.",
-          noModuleToday: "Today's edition has no newsletter — see the other tabs."
+          noModuleToday: "This edition has no newsletter — see the other tabs."
         },
         disabled: {
           newsletter: {
@@ -99,38 +109,38 @@ export function getModuleCopy(language: Language | null | undefined) {
             action: "Enable in Settings"
           },
           business_story: {
-            title: "Stories are disabled",
+            title: `${MODULE_NAMES.en.business_story.name} are disabled`,
             body:
               "Your Stories tab stays here, but future editions will not include business stories while this module is off.",
             action: "Enable in Settings"
           },
           mini_case: {
-            title: "Mini cases are disabled",
+            title: `${MODULE_NAMES.en.mini_case.name} are disabled`,
             body:
-              "Your Mini cases tab stays here, but future editions will not include mini cases while this module is off.",
+              "Your Mini Cases tab stays here, but future editions will not include mini cases while this module is off.",
             action: "Enable in Settings"
           }
         },
         stories: {
-          title: "Business stories",
-          tab: "Stories",
+          title: MODULE_NAMES.en.business_story.name,
+          tab: MODULE_NAMES.en.business_story.tab,
           headerMeta: "Company decision",
-          kicker: "Business story",
+          kicker: MODULE_NAMES.en.business_story.singular,
           readStory: "Read the story",
           searchPlaceholder: "Search by title or date",
           searchAccessibility: "Search business stories by title or date",
           archiveEmptyTitle: "Your stories will settle here",
           archiveEmptyBody:
             "Each business story you receive is kept here, searchable by title and date.",
-          noModuleToday: "Today's edition has no business story — see the other tabs."
+          noModuleToday: "This edition has no business story — see the other tabs."
         },
         cases: {
-          title: "Mini cases",
-          tab: "Mini cases",
+          title: MODULE_NAMES.en.mini_case.name,
+          tab: MODULE_NAMES.en.mini_case.tab,
           headerMeta: "3-question decision",
           questionCount: (count: number) =>
             count === 1 ? "1 question" : `${count} questions`,
-          kicker: "Mini case",
+          kicker: MODULE_NAMES.en.mini_case.singular,
           decision: "Your call",
           decide: "Make the call",
           score: (score: number, total: number) => `Score ${score}/${total}`,
@@ -139,13 +149,13 @@ export function getModuleCopy(language: Language | null | undefined) {
           archiveEmptyTitle: "Your cases will settle here",
           archiveEmptyBody:
             "Each mini case you work through is kept here with its result, searchable by title and date.",
-          noModuleToday: "Today's edition has no mini case — see the other tabs.",
+          noModuleToday: "This edition has no mini case — see the other tabs.",
           caseCount: (count: number) => (count === 1 ? "1 case" : `${count} cases`),
           progress: (solved: number, total: number) => `${solved} of ${total} solved`
         },
         path: {
-          title: "Learning path",
-          tab: "Path",
+          title: MODULE_NAMES.en.learning_path.name,
+          tab: MODULE_NAMES.en.learning_path.tab,
           // Stable header line: the path is self-paced, so it must not be
           // labelled with an edition date.
           eyebrow: "Personal path",
@@ -180,6 +190,8 @@ export function getModuleCopy(language: Language | null | undefined) {
           undatedEdition: "Édition",
           archiveAccess: "Archive finie",
           todayView: "Aujourd'hui",
+          latestView: "Dernière",
+          pastView: "Édition",
           archiveView: "Archives",
           editionsView: "Éditions",
           historyView: "Historique",
@@ -195,6 +207,8 @@ export function getModuleCopy(language: Language | null | undefined) {
           // « terminé » s'accorde avec le nombre de lectures achevées.
           editionProgress: (completed: number, total: number) =>
             `${completed} sur ${total} ${completed > 1 ? "terminés" : "terminé"} aujourd'hui`,
+          editionProgressPast: (completed: number, total: number) =>
+            `${completed} sur ${total} ${completed > 1 ? "terminés" : "terminé"}`,
           editionComplete: "Édition terminée",
           noResultsTitle: "Aucun résultat",
           noResultsBody: "Rien ne correspond à ce titre ou cette date pour l'instant.",
@@ -241,7 +255,7 @@ export function getModuleCopy(language: Language | null | undefined) {
           archiveEmptyBody:
             "Chaque édition reçue est conservée par date, pour revenir au brief d'un jour précis.",
           noModuleToday:
-            "L'édition du jour ne contient pas de newsletter — voyez les autres onglets."
+            "Cette édition ne contient pas de newsletter — voyez les autres onglets."
         },
         disabled: {
           newsletter: {
@@ -251,23 +265,23 @@ export function getModuleCopy(language: Language | null | undefined) {
             action: "Activer dans Réglages"
           },
           business_story: {
-            title: "Stories désactivées",
+            title: `${MODULE_NAMES.fr.business_story.name} désactivées`,
             body:
               "L'onglet Stories reste ici, mais les prochaines éditions ne contiendront pas de business stories tant que ce module est désactivé.",
             action: "Activer dans Réglages"
           },
           mini_case: {
-            title: "Mini cas désactivés",
+            title: `${MODULE_NAMES.fr.mini_case.name} désactivés`,
             body:
-              "L'onglet Mini cas reste ici, mais les prochaines éditions ne contiendront pas de mini cas tant que ce module est désactivé.",
+              "L'onglet Mini-cas reste ici, mais les prochaines éditions ne contiendront pas de mini-cas tant que ce module est désactivé.",
             action: "Activer dans Réglages"
           }
         },
         stories: {
-          title: "Business stories",
-          tab: "Stories",
+          title: MODULE_NAMES.fr.business_story.name,
+          tab: MODULE_NAMES.fr.business_story.tab,
           headerMeta: "Décision d'entreprise",
-          kicker: "Business story",
+          kicker: MODULE_NAMES.fr.business_story.singular,
           readStory: "Lire l'histoire",
           searchPlaceholder: "Rechercher par titre ou date",
           searchAccessibility: "Rechercher une business story par titre ou date",
@@ -275,31 +289,31 @@ export function getModuleCopy(language: Language | null | undefined) {
           archiveEmptyBody:
             "Chaque business story reçue est conservée ici, retrouvable par titre et par date.",
           noModuleToday:
-            "L'édition du jour ne contient pas de business story — voyez les autres onglets."
+            "Cette édition ne contient pas de business story — voyez les autres onglets."
         },
         cases: {
-          title: "Mini cas",
-          tab: "Mini cas",
+          title: MODULE_NAMES.fr.mini_case.name,
+          tab: MODULE_NAMES.fr.mini_case.tab,
           headerMeta: "Décision en 3 questions",
           questionCount: (count: number) =>
             count === 1 ? "1 question" : `${count} questions`,
-          kicker: "Mini cas",
+          kicker: MODULE_NAMES.fr.mini_case.singular,
           decision: "À vous de décider",
           decide: "Décider",
           score: (score: number, total: number) => `Score ${score}/${total}`,
           searchPlaceholder: "Rechercher par titre ou date",
-          searchAccessibility: "Rechercher un mini cas par titre ou date",
+          searchAccessibility: "Rechercher un mini-cas par titre ou date",
           archiveEmptyTitle: "Vos cas se rangeront ici",
           archiveEmptyBody:
-            "Chaque mini cas travaillé est conservé ici avec son résultat, retrouvable par titre et par date.",
+            "Chaque mini-cas travaillé est conservé ici avec son résultat, retrouvable par titre et par date.",
           noModuleToday:
-            "L'édition du jour ne contient pas de mini cas — voyez les autres onglets.",
+            "Cette édition ne contient pas de mini-cas — voyez les autres onglets.",
           caseCount: (count: number) => (count === 1 ? "1 cas" : `${count} cas`),
           progress: (solved: number, total: number) => `${solved} sur ${total} résolus`
         },
         path: {
-          title: "Parcours",
-          tab: "Parcours",
+          title: MODULE_NAMES.fr.learning_path.name,
+          tab: MODULE_NAMES.fr.learning_path.tab,
           eyebrow: "Parcours personnel",
           headerMeta: "Sessions de cinq minutes",
           sessionsCompletedCount: (count: number) =>
@@ -330,3 +344,16 @@ export function getModuleCopy(language: Language | null | undefined) {
 }
 
 export type ModuleCopy = ReturnType<typeof getModuleCopy>;
+
+/**
+ * The label of the left half of a module's view switch. "Today" only for the
+ * edition dated the reader's own day (today/editionRecency.ts); an earlier
+ * edition is "Latest" or "Edition", never "Today".
+ */
+export function editionViewLabel(copy: ModuleCopy, recency: EditionRecency): string {
+  return recency === "today"
+    ? copy.common.todayView
+    : recency === "latest"
+      ? copy.common.latestView
+      : copy.common.pastView;
+}

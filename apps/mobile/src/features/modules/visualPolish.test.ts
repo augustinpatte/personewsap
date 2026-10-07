@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { MODULE_NAMES } from "../../constants/moduleNames";
+import { TAB_LABEL_FONT_SIZE } from "../../design/tabBarLabels";
 import { getModuleCopy } from "./moduleCopy";
 
 /**
@@ -79,7 +81,8 @@ describe("tab bar", () => {
     }
 
     expect(tabs).not.toMatch(/name="account"/);
-    expect(tabs).toMatch(/teams: "Teams"/);
+    expect(tabs).toMatch(/teams: names\.teams\.tab/);
+    expect(MODULE_NAMES.en.teams.tab).toBe("Teams");
     expect(tabs).toMatch(/href: null/);
   });
 
@@ -94,7 +97,8 @@ describe("tab bar", () => {
     // icon above the label and sets the type.
     expect(glassTabBar).toMatch(/tabBarIcon\?\.\(\{ focused, color, size: 20 \}\)/);
     expect(glassTabBar).toMatch(/styles\.label/);
-    expect(glassTabBar).toMatch(/fontSize: 10\.5/);
+    expect(glassTabBar).toMatch(/fontSize: TAB_LABEL_FONT_SIZE/);
+    expect(TAB_LABEL_FONT_SIZE).toBe(10.5);
     expect(tabs).toMatch(/title: copy\.newsletter/);
   });
 

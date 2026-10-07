@@ -115,6 +115,10 @@ export async function startQuestionAttempt(
         alreadySubmitted,
         prompt: typeof row.prompt === "string" ? row.prompt : "",
         options: readOptions(row.options),
+        // The server's late-answer preview (20261006120000). Absent from an
+        // older server, which simply means no preview is shown.
+        lateIfSubmittedNow:
+          typeof row.late_if_submitted_now === "boolean" ? row.late_if_submitted_now : undefined,
         // Only read when the server says the attempt is settled. On an open
         // question these columns are NULL by construction, and treating them as
         // a result would be inventing one.
@@ -126,7 +130,8 @@ export async function startQuestionAttempt(
               expired: row.expired === true,
               skipped: row.skipped === true,
               selectedOptionId:
-                typeof row.selected_option_id === "string" ? row.selected_option_id : null
+                typeof row.selected_option_id === "string" ? row.selected_option_id : null,
+              late: row.late_answer === true
             }
           : undefined
       }
@@ -169,6 +174,9 @@ export async function submitQuestionAnswer(input: {
         skipped: row.skipped === true,
         selectedOptionId:
           typeof row.selected_option_id === "string" ? row.selected_option_id : null,
+        // Decided by the server at settlement: score_milli stays the grade,
+        // and points.ts halves it for display when this is true.
+        late: row.late_answer === true,
         teamsScored: typeof row.teams_scored === "number" ? row.teams_scored : 0
       }
     };

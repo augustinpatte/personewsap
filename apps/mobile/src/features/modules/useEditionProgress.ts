@@ -1,4 +1,5 @@
 import { useDailyDrop } from "../today";
+import { useEditionRecency } from "../today/useEditionRecency";
 import { resolveEditionProgress, type EditionProgressState } from "./editionProgress";
 
 /**
@@ -15,11 +16,13 @@ import { resolveEditionProgress, type EditionProgressState } from "./editionProg
  */
 export function useEditionProgress(): EditionProgressState {
   const { completedItemCount, source, status, totalItemCount } = useDailyDrop();
+  const recency = useEditionRecency();
 
   return resolveEditionProgress({
     completedItemCount,
     totalItemCount,
     isLiveEdition: source === "supabase" || source === "cache",
-    status
+    status,
+    isTodayEdition: recency === "today"
   });
 }

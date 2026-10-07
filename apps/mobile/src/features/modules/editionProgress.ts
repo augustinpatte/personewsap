@@ -21,8 +21,8 @@
 export type EditionProgressState =
   /** No edition to be part-way through: a quiet day, an error, a first load. */
   | { kind: "hidden" }
-  | { kind: "inProgress"; completed: number; total: number; ratio: number }
-  | { kind: "complete"; total: number };
+  | { kind: "inProgress"; completed: number; total: number; ratio: number; today: boolean }
+  | { kind: "complete"; total: number; today: boolean };
 
 export function resolveEditionProgress(input: {
   completedItemCount: number;
@@ -30,7 +30,14 @@ export function resolveEditionProgress(input: {
   /** Live data only. A sample/offline fallback carries no real interactions. */
   isLiveEdition: boolean;
   status: "loading" | "ready";
+  /**
+   * The edition is dated the reader's own day (today/editionRecency). Only
+   * then may the line say "today". Defaults to true for older callers.
+   */
+  isTodayEdition?: boolean;
 }): EditionProgressState {
+  const today = input.isTodayEdition ?? true;
+
   if (input.status !== "ready" || !input.isLiveEdition) {
     return { kind: "hidden" };
   }
@@ -44,14 +51,15 @@ export function resolveEditionProgress(input: {
   const completed = clamp(input.completedItemCount, 0, input.totalItemCount);
 
   if (completed >= input.totalItemCount) {
-    return { kind: "complete", total: input.totalItemCount };
+    return { kind: "complete", total: input.totalItemCount, today };
   }
 
   return {
     kind: "inProgress",
     completed,
     total: input.totalItemCount,
-    ratio: completed / input.totalItemCount
+    ratio: completed / input.totalItemCount,
+    today
   };
 }
 

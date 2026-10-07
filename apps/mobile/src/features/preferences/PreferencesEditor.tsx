@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 import { AppText, PrimaryButton, SecondaryButton } from "../../components";
+import { MODULE_NAMES } from "../../constants/moduleNames";
 import { tokens } from "../../design/tokens";
 import { useThemeColors, useThemedStyles, type ThemeColors } from "../../design/theme";
 import { trackAnalyticsEvent } from "../../lib/analytics";
@@ -639,7 +640,7 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         modules: "Modules",
         modulesHelp: "Choose which formats stay active in your editions.",
         newsletterTab: "Newsletter",
-        miniCaseTab: "Mini cases",
+        miniCaseTab: MODULE_NAMES.en.mini_case.name,
         topics: "Newsletter topics",
         topicsHelp: "Pick one to eight topics.",
         articleCounts: "Articles per topic",
@@ -669,7 +670,7 @@ function getPreferencesCopy(language: EditablePreferences["language"]) {
         modules: "Modules",
         modulesHelp: "Choisissez les formats qui restent actifs dans vos éditions.",
         newsletterTab: "Newsletter",
-        miniCaseTab: "Mini-cas",
+        miniCaseTab: MODULE_NAMES.fr.mini_case.name,
         topics: "Sujets newsletter",
         topicsHelp: "Choisis un à huit sujets.",
         articleCounts: "Articles par sujet",

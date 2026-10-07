@@ -160,6 +160,10 @@ function StepPage({ copy, step }: { copy: TeamsIntroCopy; step: TeamsIntroStep }
           <AppText color="inkSoft" variant="body">
             {copy.points.after}
           </AppText>
+          {/* The one timing rule that changes what an answer is worth. */}
+          <AppText color="inkSoft" variant="body">
+            {copy.points.late}
+          </AppText>
         </View>
       ) : (
         <View style={styles.items}>

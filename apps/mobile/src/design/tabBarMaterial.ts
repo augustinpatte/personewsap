@@ -89,9 +89,11 @@ export const TAB_BAR_GLASS = {
   /**
    * How far the moving capsule sits inside its tab's share of the row, so the
    * glass reads as a highlight travelling under the labels rather than as five
-   * touching blocks.
+   * touching blocks. Small on purpose: the capsule is the label's own surface,
+   * and the widest label ("Newsletter") has to fit inside it on a 320pt iPhone
+   * (see tabBarLabels.ts).
    */
-  capsuleInset: 8,
+  capsuleInset: 3,
   /** Detached from the screen edges on all three sides. */
   horizontalInset: 16,
   /** The least space left between the pill and the bottom of the screen. */

@@ -75,9 +75,9 @@ describe("0.3: what held, what was missing, and the answer worth 1", () => {
     expect(view.blocks.map((block) => block.kind)).toEqual(["yours", "best"]);
     expect(yours).toMatchObject({
       eyebrow: "Your answer",
-      points: "0.3 points",
+      points: "30 points",
       label: "Wait for the next quarter",
-      whyHeading: "Why this answer earns 0.3 points",
+      whyHeading: "Why this answer earns 30 points",
       body: "Why C is only partial.",
       best: false
     });
@@ -86,24 +86,24 @@ describe("0.3: what held, what was missing, and the answer worth 1", () => {
     expect(yours.verdict).toMatch(/partial credit only/);
     expect(best).toMatchObject({
       eyebrow: "Best answer",
-      points: "1 point",
+      points: "100 points",
       label: "Protect the margin before the volume",
-      whyHeading: "Why it earns the full point",
+      whyHeading: "Why it earns full points",
       body: "Why A works.",
       best: true
     });
   });
 
-  it("says the same in French, with a decimal comma", () => {
+  it("says the same in French, in whole points", () => {
     const [yours, best] = answered("fr", "c").blocks;
 
     expect(yours).toMatchObject({
       eyebrow: "Votre réponse",
-      points: "0,3 point",
-      whyHeading: "Pourquoi cette réponse vaut 0,3 point"
+      points: "30 points",
+      whyHeading: "Pourquoi cette réponse vaut 30 points"
     });
     expect(yours.verdict).toMatch(/^Partiel — une partie du raisonnement est juste/);
-    expect(best).toMatchObject({ eyebrow: "Meilleure réponse", points: "1 point", whyHeading: "Pourquoi elle vaut 1 point" });
+    expect(best).toMatchObject({ eyebrow: "Meilleure réponse", points: "100 points", whyHeading: "Pourquoi elle vaut tous les points" });
   });
 });
 
@@ -111,9 +111,9 @@ describe("0.6: what it understands, and what it lacks to reach 1", () => {
   it("names the missing element and shows the best answer", () => {
     const view = answered("en", "b");
 
-    expect(view.blocks[0].points).toBe("0.6 points");
+    expect(view.blocks[0].points).toBe("60 points");
     expect(view.blocks[0].verdict).toBe(
-      "Good — the logic holds, but an important element is missing to reach 1 point."
+      "Good — the logic holds, but an important element is missing to reach full points."
     );
     expect(view.blocks[0].body).toBe("Why B falls short.");
     expect(view.blocks[1]).toMatchObject({ kind: "best", body: "Why A works." });
@@ -122,7 +122,7 @@ describe("0.6: what it understands, and what it lacks to reach 1", () => {
   it("in French", () => {
     const view = answered("fr", "b");
 
-    expect(view.blocks[0].points).toBe("0,6 point");
+    expect(view.blocks[0].points).toBe("60 points");
     expect(view.blocks[0].verdict).toMatch(/^Bon — la logique tient, mais il manque un élément important/);
   });
 });
@@ -150,8 +150,8 @@ describe("1: the best answer, shown once", () => {
     expect(view.blocks[0]).toMatchObject({
       kind: "yours_best",
       eyebrow: "Your answer · Best answer",
-      points: "1 point",
-      whyHeading: "Why it earns the full point",
+      points: "100 points",
+      whyHeading: "Why it earns full points",
       body: "Why A works.",
       best: true
     });
@@ -228,7 +228,7 @@ describe("before the explanation arrives, and if it never does", () => {
     expect(view.loading).toBe(false);
     expect(view.notice).toBe(getExplanationCopy("fr").unavailable);
     expect(view.blocks.map((block) => block.kind)).toEqual(["yours"]);
-    expect(view.blocks[0].points).toBe("0,6 point");
+    expect(view.blocks[0].points).toBe("60 points");
   });
 });
 
@@ -266,15 +266,15 @@ describe("points, in both languages", () => {
   it("formats every tier", () => {
     expect([0, 300, 600, 1000].map((score) => formatPointsFor(score, "en"))).toEqual([
       "0 points",
-      "0.3 points",
-      "0.6 points",
-      "1 point"
+      "30 points",
+      "60 points",
+      "100 points"
     ]);
     expect([0, 300, 600, 1000].map((score) => formatPointsFor(score, "fr"))).toEqual([
       "0 point",
-      "0,3 point",
-      "0,6 point",
-      "1 point"
+      "30 points",
+      "60 points",
+      "100 points"
     ]);
   });
 });

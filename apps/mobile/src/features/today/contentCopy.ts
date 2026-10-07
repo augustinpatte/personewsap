@@ -1,3 +1,4 @@
+import { MODULE_NAMES } from "../../constants/moduleNames";
 import type { TopicId } from "../../constants/product";
 import { localized } from "../../lib/i18n";
 import type {
@@ -149,8 +150,8 @@ export function getReaderCopy(language: ContentLanguage) {
         loading: "Loading this reading…",
         minutes: (count: number) => `${count} min read`,
         newsletterEyebrow: "Newsletter",
-        storyEyebrow: "Business story",
-        caseEyebrow: "Mini case",
+        storyEyebrow: MODULE_NAMES.en.business_story.singular,
+        caseEyebrow: MODULE_NAMES.en.mini_case.singular,
         conceptEyebrow: "Concept",
         whyItMatters: "Why it matters",
         definition: "Definition",
@@ -213,8 +214,8 @@ export function getReaderCopy(language: ContentLanguage) {
         loading: "Chargement de cette lecture…",
         minutes: (count: number) => `${count} min de lecture`,
         newsletterEyebrow: "Newsletter",
-        storyEyebrow: "Business story",
-        caseEyebrow: "Mini cas",
+        storyEyebrow: MODULE_NAMES.fr.business_story.singular,
+        caseEyebrow: MODULE_NAMES.fr.mini_case.singular,
         conceptEyebrow: "Concept",
         whyItMatters: "Ce que ça change",
         definition: "Définition",

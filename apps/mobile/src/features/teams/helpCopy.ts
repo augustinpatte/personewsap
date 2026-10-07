@@ -1,10 +1,11 @@
 import { localized } from "../../lib/i18n";
+import { getPointsRuleCopy } from "../quiz/pointsCopy";
 import type { ContentLanguage } from "../today/contentTypes";
 
 /**
  * The two explanations a scored, competitive product owes its readers.
  *
- * Somebody who loses 700 points because they hesitated for twenty-one seconds
+ * Somebody who loses 100 points because they hesitated for twenty-one seconds
  * deserves to have been told the rules beforehand — in the app, in their own
  * language, not in a store listing. Both pages are short and factual; neither
  * sells anything.
@@ -14,6 +15,10 @@ import type { ContentLanguage } from "../today/contentTypes";
  * where "how does this work" already lives, next to privacy and support.
  */
 export function getHelpCopy(language: ContentLanguage) {
+  // The point values and the late-answer rule are the shared sentences, so
+  // this page, Settings and the Teams introduction say the same thing.
+  const rule = getPointsRuleCopy(language);
+
   return localized(
     {
       en: {
@@ -27,7 +32,11 @@ export function getHelpCopy(language: ContentLanguage) {
           },
           {
             heading: "Four answers, four values",
-            body: "Every question has four defensible answers, worth 0, 0.3, 0.6 or 1 point. Only one is worth a full point, and the others are wrong in progressively more interesting ways."
+            body: rule.scale
+          },
+          {
+            heading: rule.lateTitle,
+            body: rule.lateRule
           },
           {
             heading: "No speed bonus",
@@ -56,7 +65,7 @@ export function getHelpCopy(language: ContentLanguage) {
           },
           {
             heading: "One shared set of topics",
-            body: "The owner picks the newsletter and mini-case topics, and everybody in the Team plays the same ones. Business Stories and your Path stay personal."
+            body: "The owner picks the newsletter and mini-case topics, and everybody in the Team plays the same ones. Business Stories and your Learning Path stay personal."
           },
           {
             heading: "Team content comes first",
@@ -69,6 +78,10 @@ export function getHelpCopy(language: ContentLanguage) {
           {
             heading: "The edition leaderboard",
             body: "Each edition has its own standing, and it closes when the next edition publishes. You can also look at the week and at all time."
+          },
+          {
+            heading: "Late answers count for half",
+            body: rule.lateRule
           },
           {
             heading: "Edition streak",
@@ -95,7 +108,11 @@ export function getHelpCopy(language: ContentLanguage) {
           },
           {
             heading: "Quatre réponses, quatre valeurs",
-            body: "Chaque question a quatre réponses défendables, valant 0, 0,3, 0,6 ou 1 point. Une seule vaut un point entier ; les autres se trompent de façon de plus en plus intéressante."
+            body: rule.scale
+          },
+          {
+            heading: rule.lateTitle,
+            body: rule.lateRule
           },
           {
             heading: "Aucun bonus de vitesse",
@@ -124,11 +141,11 @@ export function getHelpCopy(language: ContentLanguage) {
           },
           {
             heading: "Des sujets communs",
-            body: "Le propriétaire choisit les sujets newsletter et mini cas, et toute la Team joue les mêmes. Les Business Stories et votre Parcours restent personnels."
+            body: "Le propriétaire choisit les sujets newsletter et mini-cas, et toute la Team joue les mêmes. Les Business Stories et votre Parcours restent personnels."
           },
           {
             heading: "Le contenu Team passe en premier",
-            body: "Dans Newsletter et Mini cas, le contenu de votre Team apparaît au-dessus du vôtre. Si un même article vous arrive des deux côtés, vous le voyez une seule fois."
+            body: "Dans Newsletter et Mini-cas, le contenu de votre Team apparaît au-dessus du vôtre. Si un même article vous arrive des deux côtés, vous le voyez une seule fois."
           },
           {
             heading: "Une réponse, plusieurs Teams",
@@ -137,6 +154,10 @@ export function getHelpCopy(language: ContentLanguage) {
           {
             heading: "Le classement de l'édition",
             body: "Chaque édition a son propre classement, qui se ferme à la publication de la suivante. Vous pouvez aussi voir la semaine et le total."
+          },
+          {
+            heading: "Les réponses tardives comptent pour moitié",
+            body: rule.lateRule
           },
           {
             heading: "Série d'éditions",

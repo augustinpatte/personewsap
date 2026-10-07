@@ -23,6 +23,14 @@ import type { QuestionScoreTier } from "./quizSession";
  */
 
 const attemptSelect =
+  "logical_question_id,status,deadline_at,submitted_at,selected_option_id,score_milli,late_answer";
+/**
+ * The same read without `late_answer`, for a database the late-answer
+ * migration (20261006120000) has not reached yet. A missing column is 42703;
+ * rather than lose all progress over it, the read is retried without it and
+ * every answer reads as on time — which is what it was on that database.
+ */
+const legacyAttemptSelect =
   "logical_question_id,status,deadline_at,submitted_at,selected_option_id,score_milli";
 const ID_BATCH_SIZE = 100;
 
@@ -54,7 +62,8 @@ export function mapAttemptRow(row: Record<string, unknown>): AttemptRecord | nul
       Date.parse(submittedAt) > Date.parse(deadlineAt),
     selectedOptionId:
       typeof row.selected_option_id === "string" ? row.selected_option_id : null,
-    scoreMilli: submitted ? readTier(row.score_milli) : null
+    scoreMilli: submitted ? readTier(row.score_milli) : null,
+    late: submitted && row.late_answer === true
   };
 }
 
@@ -68,19 +77,29 @@ export async function fetchQuestionAttempts(ids: string[]): Promise<boolean> {
 
   try {
     const rows: AttemptRecord[] = [];
+    let select = attemptSelect;
 
     for (let start = 0; start < unique.length; start += ID_BATCH_SIZE) {
       const batch = unique.slice(start, start + ID_BATCH_SIZE);
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("question_attempts")
-        .select(attemptSelect)
+        .select(select)
         .in("logical_question_id", batch);
+
+      if (error?.code === "42703" && select !== legacyAttemptSelect) {
+        select = legacyAttemptSelect;
+        ({ data, error } = await supabase
+          .from("question_attempts")
+          .select(select)
+          .in("logical_question_id", batch));
+      }
 
       if (error || !data) {
         return false;
       }
 
-      for (const row of data as Array<Record<string, unknown>>) {
+      // The select is chosen at run time, so the client cannot type the rows.
+      for (const row of data as unknown as Array<Record<string, unknown>>) {
         const record = mapAttemptRow(row);
 
         if (record) {
